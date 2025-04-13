@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include "../include/lexer.h"
 
 char* load_file(const char* file_path); 
 
@@ -10,9 +12,22 @@ int main(int argc, const char* argv[]) {
     system("clear");
   #endif
 
-  load_file(argv[1]);
+  char* file;
+   
+  if (argc == 1) {
+    file = load_file("../test-file.txt");
+  }
+  else if (argc == 2) {
+    file = load_file(argv[1]);
+  }
+  else {
+    fprintf(stderr, "Too many arguments\n");
+  }
 
-  printf("sucessfully loaded file");
+  Tokens* tokens = init_tokens();
+  load_tokens(tokens, file);
+
+  return 0;
 }
 
 char* load_file(const char* file_path) {

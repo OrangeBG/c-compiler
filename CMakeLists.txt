@@ -3,4 +3,4 @@ set(CMAKE_BUILD_TYPE Debug)
 
 project(c-compiler)
 
-add_executable(c-compiler src/main.c)
+add_executable(c-compiler src/main.c src/lexer.c include/lexer.h)
