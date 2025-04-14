@@ -6,6 +6,7 @@
 #define TOKEN_ARRAY_START_SIZE 8
 
 void add_token(TokenType type, Lexer* lexer);
+bool is_alpha_character();
  
 Lexer init_lexer() {
   Lexer lexer = {
@@ -27,6 +28,8 @@ void load_tokens(Lexer* lexer, char* file) {
     }
 
     switch (cur_char) {
+      case ' ': break;
+      case '\n': lexer->line++; break;
       case '(': add_token(TOKEN_OPEN_PAREN, lexer); break;
       case ')': add_token(TOKEN_CLOSE_PAREN, lexer); break;
       case '{': add_token(TOKEN_OPEN_BRACE, lexer); break;
@@ -45,14 +48,14 @@ void print_tokens(Lexer* lexer, char* file) {
   printf("\n******************** LEXER PRINT ********************\n");
   for (int i = 0; i < lexer->token_count; i++) {
     switch (lexer->tokens[i].type) {       
-      case TOKEN_KEYWORD: printf("Keyword"); break;
-      case TOKEN_IDENTIFIER: printf("Identifier");  break;
-      case TOKEN_CONSTANT_INT: printf("Constant"); break;
-      case TOKEN_OPEN_PAREN: printf("Open Paren"); break;
-      case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
-      case TOKEN_OPEN_BRACE: printf("Open Brace"); break;
-      case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
-      case TOKEN_SEMICOLON: printf("Semicolon"); break;
+      case TOKEN_KEYWORD: printf("Keyword\t"); break;
+      case TOKEN_IDENTIFIER: printf("Identifier\t");  break;
+      case TOKEN_CONSTANT_INT: printf("Constant\t"); break;
+      case TOKEN_OPEN_PAREN: printf("Open Paren\t"); break;
+      case TOKEN_CLOSE_PAREN: printf("Close Paren\t"); break;
+      case TOKEN_OPEN_BRACE: printf("Open Brace\t"); break;
+      case TOKEN_CLOSE_BRACE: printf("Close Brace\t"); break;
+      case TOKEN_SEMICOLON: printf("Semicolon\t"); break;
       default: fprintf(stderr, "ERROR - Lexer: No print for type %d", lexer->tokens[i].type);
     }
 
@@ -62,7 +65,7 @@ void print_tokens(Lexer* lexer, char* file) {
       printf("%c", file[j]);
     } 
 
-    printf("\n");
+    printf("\t line: %d\n", lexer->tokens[i].line);
   }
 }
 
@@ -80,7 +83,8 @@ void add_token(TokenType type, Lexer* lexer) {
   Token new_token = {
     .type = type,
     .start_index = lexer->start_index,
-    .end_index = lexer->current_index
+    .end_index = lexer->current_index,
+    .line = lexer->line
   };
 
   lexer->tokens[lexer->token_count] = new_token;

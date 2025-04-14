@@ -16,11 +16,13 @@ typedef struct {
   TokenType type;
   int start_index;
   int end_index;
+  int line;
 } Token;
 
 typedef struct {
   int start_index;
   int current_index;
+  int line;
   int token_capacity;
   int token_count;
   Token* tokens;
