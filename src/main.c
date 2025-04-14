@@ -24,8 +24,9 @@ int main(int argc, const char* argv[]) {
     fprintf(stderr, "Too many arguments\n");
   }
 
-  Tokens* tokens = init_tokens();
-  load_tokens(tokens, file);
+  Lexer lexer = init_lexer();
+  load_tokens(&lexer, file);
+  print_tokens(&lexer, file);
 
   return 0;
 }

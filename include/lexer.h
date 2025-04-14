@@ -14,16 +14,19 @@ typedef enum {
 
 typedef struct {
   TokenType type;
-  char* value;
+  int start_index;
+  int end_index;
 } Token;
 
 typedef struct {
-  int capacity;
-  int count;
+  int start_index;
+  int current_index;
+  int token_capacity;
+  int token_count;
   Token* tokens;
-} Tokens;
+} Lexer;
 
-Tokens* init_tokens();
-void load_tokens(Tokens* tokens, char* file);
-
+Lexer init_lexer();
+void load_tokens(Lexer* lexer, char* file);
+void print_tokens(Lexer* lexer, char* file);
 #endif
