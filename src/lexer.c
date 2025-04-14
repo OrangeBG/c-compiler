@@ -6,7 +6,9 @@
 #define TOKEN_ARRAY_START_SIZE 8
 
 void add_token(TokenType type, Lexer* lexer);
-bool is_alpha_character();
+bool is_alpha_char(char character);
+bool is_numeric_char(char character);
+void add_number_token(Lexer* lexer, char* file); 
  
 Lexer init_lexer() {
   Lexer lexer = {
@@ -27,8 +29,20 @@ void load_tokens(Lexer* lexer, char* file) {
       break;
     }
 
+    if (is_alpha_char(cur_char)) {
+    } 
+
+    if (is_numeric_char(cur_char)) {
+      add_number_token(lexer, file);
+      lexer->start_index++;
+      lexer->current_index = lexer->start_index;
+      continue;
+    }
+
     switch (cur_char) {
       case ' ': break;
+      case '\t': break;
+      case '\r': break;
       case '\n': lexer->line++; break;
       case '(': add_token(TOKEN_OPEN_PAREN, lexer); break;
       case ')': add_token(TOKEN_CLOSE_PAREN, lexer); break;
@@ -56,7 +70,7 @@ void print_tokens(Lexer* lexer, char* file) {
       case TOKEN_OPEN_BRACE: printf("Open Brace\t"); break;
       case TOKEN_CLOSE_BRACE: printf("Close Brace\t"); break;
       case TOKEN_SEMICOLON: printf("Semicolon\t"); break;
-      default: fprintf(stderr, "ERROR - Lexer: No print for type %d", lexer->tokens[i].type);
+      default: fprintf(stderr, "ERROR - Lexer: No print for type %d\n", lexer->tokens[i].type);
     }
 
     printf(" -> ");
@@ -91,3 +105,27 @@ void add_token(TokenType type, Lexer* lexer) {
   lexer->token_count++;
 }
 
+bool is_alpha_char(char character) {
+  if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')) {
+    return true;
+  }
+
+  return false;
+}
+
+bool is_numeric_char(char character) {
+  if (character >= '0' && character <= '9') {
+    return true;
+  } 
+
+  return false;
+}
+
+void add_number_token(Lexer* lexer, char* file) {
+  //TODO: Floats and decimals not supported yet
+  while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
+    lexer->current_index++;
+  }
+
+  add_token(TOKEN_CONSTANT_INT, lexer); 
+}
