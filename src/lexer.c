@@ -69,17 +69,18 @@ void load_tokens(Lexer* lexer, char* file) {
 void print_tokens(Lexer* lexer, char* file) {
   printf("\n******************** LEXER PRINT ********************\n");
   for (int i = 0; i < lexer->token_count; i++) {
+    printf("line %d     ", lexer->tokens[i].line);
     switch (lexer->tokens[i].type) {       
-      case TOKEN_CLOSE_BRACE: printf("Close Brace\t\t"); break;
-      case TOKEN_CLOSE_PAREN: printf("Close Paren\t\t"); break;
-      case TOKEN_CONSTANT_INT: printf("Constant\t\t"); break;
-      case TOKEN_IDENTIFIER: printf("Identifier\t\t");  break;
-      case TOKEN_INT: printf("Int\t\t");  break;
-      case TOKEN_OPEN_PAREN: printf("Open Paren\t\t"); break;
-      case TOKEN_OPEN_BRACE: printf("Open Brace\t\t"); break;
-      case TOKEN_RETURN: printf("Return\t\t"); break;
-      case TOKEN_SEMICOLON: printf("Semicolon\t\t"); break;
-      case TOKEN_VOID: printf("Void\t\t"); break;
+      case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
+      case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
+      case TOKEN_CONSTANT_INT: printf("Constant   "); break;
+      case TOKEN_IDENTIFIER: printf("Identifier ");  break;
+      case TOKEN_INT: printf("Int        ");  break;
+      case TOKEN_OPEN_PAREN: printf("Open Paren "); break;
+      case TOKEN_OPEN_BRACE: printf("Open Brace "); break;
+      case TOKEN_RETURN: printf("Return     "); break;
+      case TOKEN_SEMICOLON: printf("Semicolon  "); break;
+      case TOKEN_VOID: printf("Void       "); break;
       default: fprintf(stderr, "ERROR - Lexer: No print for type %d\n", lexer->tokens[i].type);
     }
 
@@ -88,8 +89,7 @@ void print_tokens(Lexer* lexer, char* file) {
     for (int j = lexer->tokens[i].start_index; j <= lexer->tokens[i].end_index; j++) {
       printf("%c", file[j]);
     } 
-
-    printf("\t\tline: %d\n", lexer->tokens[i].line);
+    printf("\n");
   }
 }
 
