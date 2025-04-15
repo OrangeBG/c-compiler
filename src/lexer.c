@@ -1,14 +1,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../include/lexer.h"
 
 #define TOKEN_ARRAY_START_SIZE 8
 
-void add_token(TokenType type, Lexer* lexer);
 bool is_alpha_char(char character);
 bool is_numeric_char(char character);
+void add_token(TokenType type, Lexer* lexer);
 void add_number_token(Lexer* lexer, char* file); 
+void add_identifier_token(Lexer* lexer, char* file); 
+TokenType check_keyword(int start, int length, char* rest, TokenType type, Lexer* lexer, char* file); 
+TokenType get_identifier_type(Lexer* lexer, char* file); 
  
 Lexer init_lexer() {
   Lexer lexer = {
@@ -30,11 +34,15 @@ void load_tokens(Lexer* lexer, char* file) {
     }
 
     if (is_alpha_char(cur_char)) {
+      add_identifier_token(lexer, file);
+      lexer->start_index = lexer->current_index + 1;
+      lexer->current_index = lexer->start_index;
+      continue;
     } 
 
     if (is_numeric_char(cur_char)) {
       add_number_token(lexer, file);
-      lexer->start_index++;
+      lexer->start_index = lexer->current_index + 1;
       lexer->current_index = lexer->start_index;
       continue;
     }
@@ -62,14 +70,16 @@ void print_tokens(Lexer* lexer, char* file) {
   printf("\n******************** LEXER PRINT ********************\n");
   for (int i = 0; i < lexer->token_count; i++) {
     switch (lexer->tokens[i].type) {       
-      case TOKEN_KEYWORD: printf("Keyword\t"); break;
-      case TOKEN_IDENTIFIER: printf("Identifier\t");  break;
-      case TOKEN_CONSTANT_INT: printf("Constant\t"); break;
-      case TOKEN_OPEN_PAREN: printf("Open Paren\t"); break;
-      case TOKEN_CLOSE_PAREN: printf("Close Paren\t"); break;
-      case TOKEN_OPEN_BRACE: printf("Open Brace\t"); break;
-      case TOKEN_CLOSE_BRACE: printf("Close Brace\t"); break;
-      case TOKEN_SEMICOLON: printf("Semicolon\t"); break;
+      case TOKEN_CLOSE_BRACE: printf("Close Brace\t\t"); break;
+      case TOKEN_CLOSE_PAREN: printf("Close Paren\t\t"); break;
+      case TOKEN_CONSTANT_INT: printf("Constant\t\t"); break;
+      case TOKEN_IDENTIFIER: printf("Identifier\t\t");  break;
+      case TOKEN_INT: printf("Int\t\t");  break;
+      case TOKEN_OPEN_PAREN: printf("Open Paren\t\t"); break;
+      case TOKEN_OPEN_BRACE: printf("Open Brace\t\t"); break;
+      case TOKEN_RETURN: printf("Return\t\t"); break;
+      case TOKEN_SEMICOLON: printf("Semicolon\t\t"); break;
+      case TOKEN_VOID: printf("Void\t\t"); break;
       default: fprintf(stderr, "ERROR - Lexer: No print for type %d\n", lexer->tokens[i].type);
     }
 
@@ -79,7 +89,7 @@ void print_tokens(Lexer* lexer, char* file) {
       printf("%c", file[j]);
     } 
 
-    printf("\t line: %d\n", lexer->tokens[i].line);
+    printf("\t\tline: %d\n", lexer->tokens[i].line);
   }
 }
 
@@ -128,4 +138,35 @@ void add_number_token(Lexer* lexer, char* file) {
   }
 
   add_token(TOKEN_CONSTANT_INT, lexer); 
+}
+
+void add_identifier_token(Lexer* lexer, char* file) {
+  while (file[lexer->current_index + 1] != '\0' && (is_alpha_char(file[lexer->current_index + 1]) || is_numeric_char(file[lexer->current_index + 1]))) {
+    lexer->current_index++;
+  }
+  
+  TokenType type = get_identifier_type(lexer, file);
+
+  add_token(type, lexer);
+}
+
+TokenType check_keyword(int start, int length, char* rest, TokenType type, Lexer* lexer, char* file) { 
+  //TODO: Investigate warning
+
+  if (lexer->current_index - lexer->start_index == start + length && memcmp(&file[lexer->start_index + 1], rest, length) == 0) {
+    return type;
+  }
+
+  return TOKEN_IDENTIFIER;
+}
+
+TokenType get_identifier_type(Lexer* lexer, char* file) {
+  //TODO: Need to support the rest of the keywords
+  switch (file[lexer->start_index]) {
+    case 'i': return check_keyword(0, 2, "nt", TOKEN_INT, lexer, file); 
+    case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
+    case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
+  }
+
+  return TOKEN_IDENTIFIER;
 }
