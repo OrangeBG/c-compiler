@@ -18,6 +18,7 @@ Lexer init_lexer() {
   Lexer lexer = {
     .start_index = 0,
     .current_index = 0,
+    .line = 1,
     .token_capacity = 0,
     .token_count = 0,
     .tokens = NULL
@@ -58,7 +59,8 @@ void load_tokens(Lexer* lexer, char* file) {
       case '}': add_token(TOKEN_CLOSE_BRACE, lexer); break;
       case ';': add_token(TOKEN_SEMICOLON, lexer); break;
       default:
-        break;
+        fprintf(stderr, "ERROR - Lexer: Invalid token '%c' (line %d)", cur_char, lexer->line);
+        exit(1);
     }
 
     lexer->start_index++;
@@ -136,6 +138,11 @@ void add_number_token(Lexer* lexer, char* file) {
   while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
     lexer->current_index++;
   }
+
+  if (is_alpha_char(file[lexer->current_index + 1])) {
+    fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)", file[lexer->current_index + 1], lexer->line);
+    exit(1);
+  } 
 
   add_token(TOKEN_CONSTANT_INT, lexer); 
 }
