@@ -4,15 +4,16 @@
 #include <string.h>
 #include "../include/lexer.h"
 
+//TODO: May be better to have a larger start size
 #define TOKEN_ARRAY_START_SIZE 8
 
 bool is_alpha_char(char character);
 bool is_numeric_char(char character);
-void add_token(TokenType type, Lexer* lexer);
-void add_number_token(Lexer* lexer, char* file); 
-void add_identifier_token(Lexer* lexer, char* file); 
-TokenType check_keyword(int start, int length, char* rest, TokenType type, Lexer* lexer, char* file); 
-TokenType get_identifier_type(Lexer* lexer, char* file); 
+void add_token(TokenType type, Lexer *lexer);
+void add_number_token(Lexer *lexer, char *file); 
+void add_identifier_token(Lexer *lexer, char *file); 
+TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file); 
+TokenType get_identifier_type(Lexer *lexer, char *file); 
  
 Lexer init_lexer() {
   Lexer lexer = {
@@ -27,7 +28,7 @@ Lexer init_lexer() {
   return lexer;
 }
 
-void load_tokens(Lexer* lexer, char* file) {
+void load_tokens(Lexer *lexer, char *file) {
   while (true) {
     char cur_char = file[lexer->start_index];
     if (cur_char == '\0') {
@@ -68,8 +69,9 @@ void load_tokens(Lexer* lexer, char* file) {
   }  
 }
 
-void print_tokens(Lexer* lexer, char* file) {
+void print_tokens(Lexer *lexer, char *file) {
   printf("\n******************** LEXER PRINT ********************\n");
+
   for (int i = 0; i < lexer->token_count; i++) {
     printf("line %d     ", lexer->tokens[i].line);
     switch (lexer->tokens[i].type) {       
@@ -95,7 +97,7 @@ void print_tokens(Lexer* lexer, char* file) {
   }
 }
 
-void add_token(TokenType type, Lexer* lexer) {  
+void add_token(TokenType type, Lexer *lexer) {  
   if (lexer->token_count == lexer->token_capacity) {
     int size = lexer->token_capacity == 0 ? TOKEN_ARRAY_START_SIZE : lexer->token_capacity * 2;
 
@@ -133,7 +135,7 @@ bool is_numeric_char(char character) {
   return false;
 }
 
-void add_number_token(Lexer* lexer, char* file) {
+void add_number_token(Lexer *lexer, char *file) {
   //TODO: Floats and decimals not supported yet
   while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
     lexer->current_index++;
@@ -147,7 +149,7 @@ void add_number_token(Lexer* lexer, char* file) {
   add_token(TOKEN_CONSTANT_INT, lexer); 
 }
 
-void add_identifier_token(Lexer* lexer, char* file) {
+void add_identifier_token(Lexer *lexer, char *file) {
   while (file[lexer->current_index + 1] != '\0' && (is_alpha_char(file[lexer->current_index + 1]) || is_numeric_char(file[lexer->current_index + 1]))) {
     lexer->current_index++;
   }
@@ -157,9 +159,7 @@ void add_identifier_token(Lexer* lexer, char* file) {
   add_token(type, lexer);
 }
 
-TokenType check_keyword(int start, int length, char* rest, TokenType type, Lexer* lexer, char* file) { 
-  //TODO: Investigate warning
-
+TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file) { 
   if (lexer->current_index - lexer->start_index == start + length && memcmp(&file[lexer->start_index + 1], rest, length) == 0) {
     return type;
   }
@@ -167,8 +167,9 @@ TokenType check_keyword(int start, int length, char* rest, TokenType type, Lexer
   return TOKEN_IDENTIFIER;
 }
 
-TokenType get_identifier_type(Lexer* lexer, char* file) {
+TokenType get_identifier_type(Lexer *lexer, char  *file) {
   //TODO: Need to support the rest of the keywords
+  //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
     case 'i': return check_keyword(0, 2, "nt", TOKEN_INT, lexer, file); 
     case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);

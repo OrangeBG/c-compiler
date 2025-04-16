@@ -3,9 +3,9 @@
 #include <stdbool.h>
 #include "../include/lexer.h"
 
-char* load_file(const char* file_path); 
+char* load_file(const char *file_path); 
 
-int main(int argc, const char* argv[]) {
+int main(int argc, const char *argv[]) {
   #ifdef _WIN32
     system("cls");
   #else
@@ -31,7 +31,7 @@ int main(int argc, const char* argv[]) {
   return 0;
 }
 
-char* load_file(const char* file_path) {
+char* load_file(const char *file_path) {
   FILE* file = fopen(file_path, "rb");
 
   if (file == NULL) {
