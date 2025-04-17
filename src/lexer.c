@@ -5,7 +5,20 @@
 #include "../include/lexer.h"
 
 //TODO: May be better to have a larger start size
-#define TOKEN_ARRAY_START_SIZE 8
+#define TOKEN_ARRAY_START_SIZE 1000
+
+const char* TokenTypeStr[] = {
+  "TOKEN_CLOSE_BRACE",
+  "TOKEN_CLOSE_PAREN",
+  "TOKEN_CONSTANT_INT",
+  "TOKEN_IDENTIFIER",
+  "TOKEN_INT",
+  "TOKEN_OPEN_PAREN",
+  "TOKEN_OPEN_BRACE",
+  "TOKEN_RETURN",
+  "TOKEN_SEMICOLON",
+  "TOKEN_VOID"
+};
 
 bool is_alpha_char(char character);
 bool is_numeric_char(char character);
@@ -105,6 +118,7 @@ void add_token(TokenType type, Lexer *lexer) {
 
     lexer->token_capacity = size;
     //TODO: Add error when realloc fails
+    //TODO: Realloc is incorrectly reallocating when debugging in windows. However, in osx, it works just fine..... Assigning a large start size until then
     lexer->tokens = realloc(lexer->tokens, size);
   }
 

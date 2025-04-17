@@ -14,6 +14,8 @@ typedef enum {
   TOKEN_VOID
 } TokenType;
 
+extern const char* TokenTypeStr[];
+
 typedef struct {
   TokenType type;
   int start_index;
@@ -33,4 +35,5 @@ typedef struct {
 Lexer init_lexer();
 void load_tokens(Lexer *lexer, char *file);
 void print_tokens(Lexer *lexer, char *file);
+
 #endif

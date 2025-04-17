@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "../include/lexer.h"
+#include "../include/parser.h"
 
 char* load_file(const char *file_path); 
 
@@ -27,6 +28,9 @@ int main(int argc, const char *argv[]) {
   Lexer lexer = init_lexer();
   load_tokens(&lexer, file);
   print_tokens(&lexer, file);
+
+  parse(lexer.tokens, file);
+
 
   return 0;
 }
