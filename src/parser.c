@@ -3,6 +3,7 @@
 #include "../include/parser.h"
 
 typedef struct Parser {
+  int token_count;
   int current_token_index;
   Token *tokens;
   char* file;
@@ -17,6 +18,7 @@ void expect(Parser *parser, TokenType expected_type);
 
 AstNode* parse(Token *tokens, int token_count, char *file) {  
   Parser parser = {
+    .token_count = token_count,
     .current_token_index = 0,
     .tokens = tokens,
     .file = file
@@ -68,6 +70,11 @@ void print_ast(AstNode *node, int level) {
 }
 
 void expect(Parser *parser, TokenType expected_type) {
+  if (parser->current_token_index == parser->token_count) {
+    printf("ERROR - Parser: Expected %s (line %d)", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
+    exit(1);
+  }
+
   if (parser->tokens[parser->current_token_index].type == expected_type) {
     parser->current_token_index++;
     return;
