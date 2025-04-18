@@ -26,9 +26,6 @@ AstNode* parse(Token *tokens, int token_count, char *file) {
   
   AstNode *ret_program = program(&parser);
 
-  printf("token count: %d\n", token_count);
-  printf("cur token index: %d\n", parser.current_token_index);
-
   if (token_count > parser.current_token_index) {
     fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)", parser.tokens[parser.current_token_index].line);
     exit(1);
@@ -71,7 +68,7 @@ void print_ast(AstNode *node, int level) {
 
 void expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
-    printf("ERROR - Parser: Expected %s (line %d)", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
+    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
     exit(1);
   }
 
@@ -80,7 +77,7 @@ void expect(Parser *parser, TokenType expected_type) {
     return;
   } 
 
-  printf("ERROR - Parser: Expected %s, but got %s (line %d)", TokenTypeStr[expected_type],TokenTypeStr[parser->tokens[parser->current_token_index].type], parser->tokens[parser->current_token_index].line);
+  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)", TokenTypeStr[expected_type],TokenTypeStr[parser->tokens[parser->current_token_index].type], parser->tokens[parser->current_token_index].line);
   exit(1);
 }
 
