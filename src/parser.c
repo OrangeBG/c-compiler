@@ -8,22 +8,55 @@ typedef struct Parser {
   char* file;
 } Parser;
  
-AstNode program(Parser *parser);
-AstNode function(Parser *parser);
+AstNode* program(Parser *parser);
+AstNode* function(Parser *parser);
+AstNode* statement(Parser *parser);
+AstNode* expression(Parser *parser);
 char* identifier(Parser *parser);
-AstNode statement(Parser *parser);
-AstNode expression(Parser *parser);
 void expect(Parser *parser, TokenType expected_type);
 
-void parse(Token *tokens, char *file) {  
+AstNode* parse(Token *tokens, char *file) {  
   Parser parser = {
     .current_token_index = 0,
     .tokens = tokens,
     .file = file
   };
   
-  AstNode ret_prgram = program(&parser);
-  printf("successfully parsed!\n");
+  AstNode *ret_program = program(&parser);
+
+  printf("\n\nsuccessfully parsed!\n\n");
+
+  return ret_program;
+}
+
+void print_ast(AstNode *node, int level) {
+  for (int i = 0; i < level; i++) {
+    printf("  ");
+  }
+
+  switch(node->type){
+    case AST_PROGRAM:  
+      printf("Program (\n");
+      print_ast(node->ast_program->function, ++level);
+      break;
+    case AST_CONSTANT:
+      printf("Constant(%d)\n", node->ast_constant->value->integer);
+      return;
+    case AST_FUNCTION:
+      printf("Function (name=\"%s\", body =\n", node->ast_function->name);
+      print_ast(node->ast_function->statement, ++level);
+      break;
+    case AST_RETURN:
+      printf("Return(\n");
+      print_ast(node->ast_return->return_node, ++level);
+      break;
+  }    
+
+  for (int i = 0; i < level; i++) {
+    printf("  ");
+  }
+
+  printf(")\n");
 }
 
 void expect(Parser *parser, TokenType expected_type) {
@@ -32,26 +65,26 @@ void expect(Parser *parser, TokenType expected_type) {
     return;
   } 
 
-  printf("ERROR - Parser: Expected %s, but got %s", TokenTypeStr[parser->tokens->type], TokenTypeStr[expected_type]);
+  printf("ERROR - Parser: Expected %s, but got %s (line %d)", TokenTypeStr[parser->tokens->type], TokenTypeStr[expected_type], parser->tokens[parser->current_token_index].line);
   exit(1);
 }
 
-AstNode program(Parser *parser) {
-  AstNode func = function(parser);
+AstNode* program(Parser *parser) {
+  AstNode *func = malloc(sizeof(AstNode));
+  func = function(parser);
 
-  AstProgram program = {
-    .function = &func
-  };
+  AstProgram *program = malloc(sizeof(AstProgram));
+  program->function = func;
 
-  AstNode return_node = {
-    .type = AST_PROGRAM,
-    .ast_program = program
-  };
+  AstNode *program_node = malloc(sizeof(AstNode));
 
-  return return_node;
+  program_node->type = AST_PROGRAM;
+  program_node->ast_program = program;
+
+  return program_node;
 }
 
-AstNode function(Parser *parser) {
+AstNode* function(Parser *parser) {
   expect(parser, TOKEN_INT);
 
   char *id_name = identifier(parser);  
@@ -61,26 +94,29 @@ AstNode function(Parser *parser) {
   expect(parser, TOKEN_CLOSE_PAREN);
   expect(parser, TOKEN_OPEN_BRACE);
 
-  AstNode stmt = statement(parser);  
-
-  AstFunction function ={
-    .name = id_name,
-    .statement = &stmt
-  };
+  AstNode *stmt = statement(parser);
+  AstFunction *function = malloc(sizeof(AstFunction));
+  
+  function->name = id_name;
+  function->statement = stmt;
 
   expect(parser, TOKEN_CLOSE_BRACE);
 
-  AstNode return_node = {
-    .type = AST_FUNCTION,
-    .ast_function = function
-  };
+  AstNode *function_node = malloc(sizeof(AstNode)); 
+  function_node->type = AST_FUNCTION;
+  function_node->ast_function = function;
 
-  return return_node;
+  return function_node;
 }
 
 char* identifier(Parser *parser) {
   int start = parser->tokens[parser->current_token_index].start_index;
   int end = parser->tokens[parser->current_token_index].end_index;
+
+  if (parser->file[start] >= 48 && parser->file[start] <= 57) {
+    printf("ERROR - Parser: Identifier cannot start with a number (line %d)\n", parser->tokens[parser->current_token_index].line);
+    exit(1);
+  }
 
   //+2 -> One for the Null operator, one for the index
   char* ret_val = malloc((end - start) + 2);
@@ -95,25 +131,26 @@ char* identifier(Parser *parser) {
   
   parser->current_token_index++;
 
-  printf("%s\n", ret_val);
   return ret_val;
 }
 
-AstNode statement(Parser *parser) {
+AstNode* statement(Parser *parser) {
   expect(parser, TOKEN_RETURN);
-  AstNode constant_node = expression(parser);
+  AstNode *constant_node = expression(parser);
 
-  AstNode return_node = {
-    .type = AST_RETURN,
-    .ast_return = &constant_node
-  };
+  AstReturn *return_node = malloc(sizeof(AstReturn));
+  return_node->return_node = constant_node;
+
+  AstNode *statement_node = malloc(sizeof(AstNode)); 
+  statement_node->type = AST_RETURN;
+  statement_node->ast_return = return_node;  
   
   expect(parser, TOKEN_SEMICOLON);
 
-  return return_node;
+  return statement_node;
 }
 
-AstNode expression(Parser *parser) {
+AstNode* expression(Parser *parser) {
   expect(parser, TOKEN_CONSTANT_INT); 
 
   Value *value = malloc(sizeof(Value));
@@ -121,18 +158,13 @@ AstNode expression(Parser *parser) {
   value->type = INTEGER;
   //TODO: '48' converts the ascii value to the int. Look into doing that conversion in the lexer
   value->integer = (int)(parser->file[parser->tokens[parser->current_token_index - 1].start_index] - 48);   
-
-  printf("Expression: %d\n", value->integer);
   
-  //TODO: Need to check if we need to malloc the ast's
-  AstConstant constantNode = {
-    .value = value
-  };
+  AstConstant *constant_node = malloc(sizeof(AstConstant));
+  constant_node->value = value;
 
-  AstNode node = {
-    .type = AST_CONSTANT,
-    .ast_constant = constantNode
-  };
+  AstNode *node = malloc(sizeof(AstNode));
+  node->type = AST_CONSTANT;
+  node->ast_constant = constant_node;
 
   return node;
 }

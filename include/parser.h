@@ -44,13 +44,14 @@ typedef struct AstReturn {
 typedef struct AstNode {
   AstNodeType type;
   union {
-    AstConstant ast_constant;
-    AstReturn ast_return;
-    AstFunction ast_function;
-    AstProgram ast_program;
+    AstConstant *ast_constant;
+    AstReturn *ast_return;
+    AstFunction *ast_function;
+    AstProgram *ast_program;
   };
 } AstNode;
 
-void parse(Token *token, char *file);
+AstNode* parse(Token *token, char *file);
+void print_ast(AstNode *node, int level); 
 
 #endif

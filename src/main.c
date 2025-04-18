@@ -16,7 +16,7 @@ int main(int argc, const char *argv[]) {
   char* file;
    
   if (argc == 1) {
-    file = load_file("../test-file.txt");
+    file = load_file("../extra_junk.c");
   }
   else if (argc == 2) {
     file = load_file(argv[1]);
@@ -29,8 +29,9 @@ int main(int argc, const char *argv[]) {
   load_tokens(&lexer, file);
   print_tokens(&lexer, file);
 
-  parse(lexer.tokens, file);
+  AstNode *ast = parse(lexer.tokens, file);
 
+  print_ast(ast, 0);
 
   return 0;
 }
