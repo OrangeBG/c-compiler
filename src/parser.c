@@ -73,7 +73,7 @@ void expect(Parser *parser, TokenType expected_type) {
     return;
   } 
 
-  printf("ERROR - Parser: Expected %s, but got %s (line %d)", TokenTypeStr[parser->tokens->type], TokenTypeStr[expected_type], parser->tokens[parser->current_token_index].line);
+  printf("ERROR - Parser: Expected %s, but got %s (line %d)", TokenTypeStr[expected_type],TokenTypeStr[parser->tokens[parser->current_token_index].type], parser->tokens[parser->current_token_index].line);
   exit(1);
 }
 
