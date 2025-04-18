@@ -51,7 +51,7 @@ typedef struct AstNode {
   };
 } AstNode;
 
-AstNode* parse(Token *token, char *file);
+AstNode* parse(Token *tokens, int token_count, char *file);
 void print_ast(AstNode *node, int level); 
 
 #endif

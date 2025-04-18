@@ -15,7 +15,7 @@ AstNode* expression(Parser *parser);
 char* identifier(Parser *parser);
 void expect(Parser *parser, TokenType expected_type);
 
-AstNode* parse(Token *tokens, char *file) {  
+AstNode* parse(Token *tokens, int token_count, char *file) {  
   Parser parser = {
     .current_token_index = 0,
     .tokens = tokens,
@@ -23,6 +23,14 @@ AstNode* parse(Token *tokens, char *file) {
   };
   
   AstNode *ret_program = program(&parser);
+
+  printf("token count: %d\n", token_count);
+  printf("cur token index: %d\n", parser.current_token_index);
+
+  if (token_count > parser.current_token_index) {
+    fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)", parser.tokens[parser.current_token_index].line);
+    exit(1);
+  }
 
   printf("\n\nsuccessfully parsed!\n\n");
 
