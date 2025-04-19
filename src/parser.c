@@ -31,8 +31,6 @@ AstNode* parse(Token *tokens, int token_count, char *file) {
     exit(1);
   }
 
-  printf("\n\nsuccessfully parsed!\n\n");
-
   return ret_program;
 }
 
@@ -82,6 +80,7 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 }
 
 AstNode* ast_program(Parser *parser) {
+  //TODO: Check if this needs to be malloc'd
   AstNode *func = malloc(sizeof(AstNode));
   func = ast_function(parser);
 

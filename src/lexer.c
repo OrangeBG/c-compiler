@@ -83,8 +83,6 @@ void load_tokens(Lexer *lexer, char *file) {
 }
 
 void print_tokens(Lexer *lexer, char *file) {
-  printf("\n******************** LEXER PRINT ********************\n");
-
   for (int i = 0; i < lexer->token_count; i++) {
     printf("line %d     ", lexer->tokens[i].line);
     switch (lexer->tokens[i].type) {       

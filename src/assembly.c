@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include "../include/assembly.h"
@@ -5,16 +6,59 @@
 AsmNode* asm_program(AstProgram *ast_node);
 AsmNode* asm_function(AstNode *ast_function); 
 
-void generate_assembly(AstNode *ast_nodes) {
+AsmNode* generate_assembly(AstNode *ast_nodes) {  
   AsmNode *asm_nodes = asm_program(ast_nodes->ast_program);
+
+  return asm_nodes;
+}
+
+void print_assembly(AsmNode *node) {
+  switch(node->type) {    
+    case ASM_PROGRAM:
+      printf("Program \n");
+      print_assembly(node->asm_program->function);
+      break;
+    case ASM_FUNCTION:
+      printf("Function: %s\n", node->asm_function->name);
+      printf("Inst Count: %d\n", node->asm_function->instruction_count);
+
+      for (int i = 0; i < node->asm_function->instruction_count; i++) {
+        print_assembly(node->asm_function->instructions[i]);
+      }      
+      break;
+    case ASM_INSTRUCTION:
+      switch (node->asm_instruction->type) {
+        case ASM_INSTRUCTION_MOV:
+          printf("Source: %d\n", node->asm_instruction->instruction_mov->source->immediate_value->constant);
+          printf("Destination: TBD\n");
+          break;
+        case ASM_INSTRUCTION_RETURN:
+          printf("Return");
+          break;
+        default:        
+          fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm instruction type\n", node->type);
+          break;
+      }
+      break;
+    case ASM_OPERAND:
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
+      break;
+  }
 }
 
 AsmNode* asm_program(AstProgram *ast_node) {
-  AsmNode *function = malloc(sizeof(AsmFunction)); 
+  AsmNode *function = asm_function(ast_node->function);
 
-  function = asm_function(ast_node->function);
+  AsmProgram *program = malloc(sizeof(AsmProgram));
+  program->function = function;
 
-  return function;
+  AsmNode *program_node = malloc(sizeof(AsmNode));
+  program_node->type = ASM_PROGRAM;
+  program_node->asm_program = program;
+
+  return program_node;
 }
 
 AsmNode* asm_function(AstNode *ast_function_node) {

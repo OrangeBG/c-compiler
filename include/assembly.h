@@ -65,6 +65,7 @@ typedef struct AsmNode {
   };
 } AsmNode;
 
-void generate_assembly(AstNode *ast_nodes);
+AsmNode *generate_assembly(AstNode *ast_nodes);
+void print_assembly(AsmNode *asm_node);
 
 #endif
