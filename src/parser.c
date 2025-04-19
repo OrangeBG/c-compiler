@@ -9,12 +9,12 @@ typedef struct Parser {
   char* file;
 } Parser;
  
-AstNode* program(Parser *parser);
-AstNode* function(Parser *parser);
-AstNode* statement(Parser *parser);
-AstNode* expression(Parser *parser);
-char* identifier(Parser *parser);
-void expect(Parser *parser, TokenType expected_type);
+AstNode* ast_program(Parser *parser);
+AstNode* ast_function(Parser *parser);
+AstNode* ast_statement(Parser *parser);
+AstNode* ast_expression(Parser *parser);
+char* ast_identifier(Parser *parser);
+void ast_expect(Parser *parser, TokenType expected_type);
 
 AstNode* parse(Token *tokens, int token_count, char *file) {  
   Parser parser = {
@@ -24,7 +24,7 @@ AstNode* parse(Token *tokens, int token_count, char *file) {
     .file = file
   };
   
-  AstNode *ret_program = program(&parser);
+  AstNode *ret_program = ast_program(&parser);
 
   if (token_count > parser.current_token_index) {
     fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)", parser.tokens[parser.current_token_index].line);
@@ -66,7 +66,7 @@ void print_ast(AstNode *node, int level) {
   printf(")\n");
 }
 
-void expect(Parser *parser, TokenType expected_type) {
+void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
     fprintf(stderr, "ERROR - Parser: Expected %s (line %d)", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
     exit(1);
@@ -81,9 +81,9 @@ void expect(Parser *parser, TokenType expected_type) {
   exit(1);
 }
 
-AstNode* program(Parser *parser) {
+AstNode* ast_program(Parser *parser) {
   AstNode *func = malloc(sizeof(AstNode));
-  func = function(parser);
+  func = ast_function(parser);
 
   AstProgram *program = malloc(sizeof(AstProgram));
   program->function = func;
@@ -96,23 +96,23 @@ AstNode* program(Parser *parser) {
   return program_node;
 }
 
-AstNode* function(Parser *parser) {
-  expect(parser, TOKEN_INT);
+AstNode* ast_function(Parser *parser) {
+  ast_expect(parser, TOKEN_INT);
 
-  char *id_name = identifier(parser);  
+  char *id_name = ast_identifier(parser);  
 
-  expect(parser, TOKEN_OPEN_PAREN);
-  expect(parser, TOKEN_VOID);
-  expect(parser, TOKEN_CLOSE_PAREN);
-  expect(parser, TOKEN_OPEN_BRACE);
+  ast_expect(parser, TOKEN_OPEN_PAREN);
+  ast_expect(parser, TOKEN_VOID);
+  ast_expect(parser, TOKEN_CLOSE_PAREN);
+  ast_expect(parser, TOKEN_OPEN_BRACE);
 
-  AstNode *stmt = statement(parser);
+  AstNode *stmt = ast_statement(parser);
   AstFunction *function = malloc(sizeof(AstFunction));
   
   function->name = id_name;
   function->statement = stmt;
 
-  expect(parser, TOKEN_CLOSE_BRACE);
+  ast_expect(parser, TOKEN_CLOSE_BRACE);
 
   AstNode *function_node = malloc(sizeof(AstNode)); 
   function_node->type = AST_FUNCTION;
@@ -121,7 +121,7 @@ AstNode* function(Parser *parser) {
   return function_node;
 }
 
-char* identifier(Parser *parser) {
+char* ast_identifier(Parser *parser) {
   int start = parser->tokens[parser->current_token_index].start_index;
   int end = parser->tokens[parser->current_token_index].end_index;
 
@@ -146,9 +146,9 @@ char* identifier(Parser *parser) {
   return ret_val;
 }
 
-AstNode* statement(Parser *parser) {
-  expect(parser, TOKEN_RETURN);
-  AstNode *constant_node = expression(parser);
+AstNode* ast_statement(Parser *parser) {
+  ast_expect(parser, TOKEN_RETURN);
+  AstNode *constant_node = ast_expression(parser);
 
   AstReturn *return_node = malloc(sizeof(AstReturn));
   return_node->return_node = constant_node;
@@ -157,13 +157,13 @@ AstNode* statement(Parser *parser) {
   statement_node->type = AST_RETURN;
   statement_node->ast_return = return_node;  
   
-  expect(parser, TOKEN_SEMICOLON);
+  ast_expect(parser, TOKEN_SEMICOLON);
 
   return statement_node;
 }
 
-AstNode* expression(Parser *parser) {
-  expect(parser, TOKEN_CONSTANT_INT); 
+AstNode* ast_expression(Parser *parser) {
+  ast_expect(parser, TOKEN_CONSTANT_INT); 
 
   Value *value = malloc(sizeof(Value));
 

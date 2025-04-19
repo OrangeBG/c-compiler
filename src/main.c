@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "../include/lexer.h"
 #include "../include/parser.h"
+#include "../include/assembly.h"
 
 char* load_file(const char *file_path); 
 
@@ -32,6 +33,10 @@ int main(int argc, const char *argv[]) {
   AstNode *ast = parse(lexer.tokens, lexer.token_count, file);
 
   print_ast(ast, 0);
+
+  //TODO: Can we free the lexer tokens after this?
+
+  generate_assembly(ast);
 
   return 0;
 }

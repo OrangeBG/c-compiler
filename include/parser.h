@@ -4,7 +4,7 @@
 #include "../include/lexer.h"
 
 //TODO: AstNode is a circular reference to other Ast types. See if there are better ways to structure this.
-typedef struct AstNode Node;
+typedef struct AstNode AstNode;
 
 typedef enum {
   INTEGER
