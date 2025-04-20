@@ -7,13 +7,13 @@ void print_code_emit(AsmNode *asm_node) {
       print_code_emit(asm_node->asm_program->function);
       break;
     case ASM_FUNCTION:
-      printf("\t.globl <%s>\n", asm_node->asm_function->name);
-      printf("<%s>\n", asm_node->asm_function->name);
+      printf("\t.globl %s\n", asm_node->asm_function->name);
+      printf("%s:\n", asm_node->asm_function->name);
 
       for (int i = 0; i < asm_node->asm_function->instruction_count; i++) {
         switch (asm_node->asm_function->instructions[i]->asm_instruction->type) {
           case ASM_INSTRUCTION_MOV:
-            printf("\tmovl\t%d, %%TBD\n", asm_node->asm_function->instructions[i]->asm_instruction->instruction_mov->source->immediate_value->constant);
+            printf("\tmovl\t%d, %%eax\n", asm_node->asm_function->instructions[i]->asm_instruction->instruction_mov->source->immediate_value->constant);
             break;
           case ASM_INSTRUCTION_RETURN:
             printf("\tret\n");
