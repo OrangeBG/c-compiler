@@ -29,7 +29,7 @@ void print_assembly(AsmNode *node) {
             printf("Destination: TBD\n");
             break;
           case ASM_INSTRUCTION_RETURN:
-            printf("Return");
+            printf("Return\n");
             break;
           default:        
             fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm instruction type\n", node->asm_function->instructions[i]->asm_instruction->type);
