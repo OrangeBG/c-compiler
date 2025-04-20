@@ -23,25 +23,22 @@ void print_assembly(AsmNode *node) {
       printf("Inst Count: %d\n", node->asm_function->instruction_count);
 
       for (int i = 0; i < node->asm_function->instruction_count; i++) {
-        print_assembly(node->asm_function->instructions[i]);
+        switch(node->asm_function->instructions[i]->asm_instruction->type) {
+          case ASM_INSTRUCTION_MOV:
+            printf("Source: %d\n",node->asm_function->instructions[i]->asm_instruction->instruction_mov->source->immediate_value->constant);
+            printf("Destination: TBD\n");
+            break;
+          case ASM_INSTRUCTION_RETURN:
+            printf("Return");
+            break;
+          default:        
+            fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm instruction type\n", node->asm_function->instructions[i]->asm_instruction->type);
+            break;
+        } 
       }      
       break;
-    case ASM_INSTRUCTION:
-      switch (node->asm_instruction->type) {
-        case ASM_INSTRUCTION_MOV:
-          printf("Source: %d\n", node->asm_instruction->instruction_mov->source->immediate_value->constant);
-          printf("Destination: TBD\n");
-          break;
-        case ASM_INSTRUCTION_RETURN:
-          printf("Return");
-          break;
-        default:        
-          fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm instruction type\n", node->type);
-          break;
-      }
-      break;
-    case ASM_OPERAND:
-      break;
+    case ASM_INSTRUCTION: break; //Do nothing. Handled in ASM_FUNCTION
+    case ASM_OPERAND: break;
     default:
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
       break;
@@ -96,11 +93,12 @@ AsmNode* asm_function(AstNode *ast_function_node) {
         asm_ret_instruction_base->type = ASM_INSTRUCTION_RETURN;        
         asm_node_ret->asm_instruction = asm_ret_instruction_base;
 
-        AsmNode *instructions[] = {asm_node_mov, asm_node_ret};
-
         function->instruction_count = 2;        
-        function->instructions[0] = instructions[0];
-        function->instructions[1] = instructions[1];
+        function->instructions[0] = malloc(sizeof(AsmNode));
+        function->instructions[1] = malloc(sizeof(AsmNode));
+        
+        function->instructions[0] = asm_node_mov;
+        function->instructions[1] = asm_node_ret;
 
         break;
       }

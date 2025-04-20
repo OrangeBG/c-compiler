@@ -19,7 +19,8 @@ typedef struct AsmProgram {
 typedef struct AsmFunction {
   char* name;
   int instruction_count;
-  AsmNode *instructions[];
+  //TODO: On OSX, I need to specify the array count or it fails. This does not happen on windows.
+  AsmNode *instructions[2];
 } AsmFunction;
 
 typedef enum AsmInstructionType {

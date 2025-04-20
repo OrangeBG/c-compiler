@@ -80,9 +80,7 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 }
 
 AstNode* ast_program(Parser *parser) {
-  //TODO: Check if this needs to be malloc'd
-  AstNode *func = malloc(sizeof(AstNode));
-  func = ast_function(parser);
+  AstNode *func = ast_function(parser);
 
   AstProgram *program = malloc(sizeof(AstProgram));
   program->function = func;
