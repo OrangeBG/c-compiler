@@ -8,11 +8,14 @@
 #define TOKEN_ARRAY_START_SIZE 1000
 
 const char* TokenTypeStr[] = {
+  "TOKEN_BITWISE_NOT", 
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_CONSTANT_INT",
+  "TOKEN_DECREMENT",
   "TOKEN_IDENTIFIER",
   "TOKEN_INT",
+  "TOKEN_NEGATION",
   "TOKEN_OPEN_PAREN",
   "TOKEN_OPEN_BRACE",
   "TOKEN_RETURN",
@@ -22,6 +25,7 @@ const char* TokenTypeStr[] = {
 
 bool is_alpha_char(char character);
 bool is_numeric_char(char character);
+bool peek_next(Lexer *lexer, char *file, char find_character); 
 void add_token(TokenType type, Lexer *lexer);
 void add_number_token(Lexer *lexer, char *file); 
 void add_identifier_token(Lexer *lexer, char *file); 
@@ -72,6 +76,16 @@ void load_tokens(Lexer *lexer, char *file) {
       case '{': add_token(TOKEN_OPEN_BRACE, lexer); break;
       case '}': add_token(TOKEN_CLOSE_BRACE, lexer); break;
       case ';': add_token(TOKEN_SEMICOLON, lexer); break;
+      case '~': add_token(TOKEN_BITWISE_NOT, lexer); break;
+      case '-': {
+        if (peek_next(lexer, file, '-')) {
+          add_token(TOKEN_DECREMENT, lexer);
+          lexer->current_index += 1; 
+        } else {
+          add_token(TOKEN_NEGATION, lexer);
+        } 
+        break;
+      }
       default:
         fprintf(stderr, "ERROR - Lexer: Invalid token '%c' (line %d)", cur_char, lexer->line);
         exit(1);
@@ -86,11 +100,14 @@ void print_tokens(Lexer *lexer, char *file) {
   for (int i = 0; i < lexer->token_count; i++) {
     printf("line %d     ", lexer->tokens[i].line);
     switch (lexer->tokens[i].type) {       
+      case TOKEN_BITWISE_NOT: printf("Tilde      "); break;
       case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
       case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
       case TOKEN_CONSTANT_INT: printf("Constant   "); break;
+      case TOKEN_DECREMENT: printf("Decrement  "); break;
       case TOKEN_IDENTIFIER: printf("Identifier ");  break;
       case TOKEN_INT: printf("Int        ");  break;
+      case TOKEN_NEGATION: printf("Negation   "); break;
       case TOKEN_OPEN_PAREN: printf("Open Paren "); break;
       case TOKEN_OPEN_BRACE: printf("Open Brace "); break;
       case TOKEN_RETURN: printf("Return     "); break;
@@ -179,7 +196,7 @@ TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer
   return TOKEN_IDENTIFIER;
 }
 
-TokenType get_identifier_type(Lexer *lexer, char  *file) {
+TokenType get_identifier_type(Lexer *lexer, char *file) {
   //TODO: Need to support the rest of the keywords
   //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
@@ -189,4 +206,16 @@ TokenType get_identifier_type(Lexer *lexer, char  *file) {
   }
 
   return TOKEN_IDENTIFIER;
+}
+
+bool peek_next(Lexer *lexer, char *file, char find_character) {
+  if (file[lexer->current_index + 1] == '\0') {
+    return false;
+  }
+
+  if (file[lexer->current_index + 1] == find_character) {
+    return true;
+  }
+
+  return false;
 }
