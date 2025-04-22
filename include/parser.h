@@ -3,8 +3,8 @@
 
 #include "../include/lexer.h"
 
-//TODO: AstNode is a circular reference to other Ast types. See if there are better ways to structure this.
 typedef struct AstNode AstNode;
+typedef struct AstExpression AstExpression; 
 
 typedef enum {
   INTEGER
@@ -18,7 +18,7 @@ typedef struct Value {
 } Value;
 
 typedef enum {
-  AST_CONSTANT,
+  AST_EXPRESSION,
   AST_RETURN,
   AST_FUNCTION,
   AST_PROGRAM
@@ -33,18 +33,41 @@ typedef struct AstFunction {
   struct AstNode *statement;  
 } AstFunction;
 
-typedef struct AstConstant {
-  Value *value;
-} AstConstant;
-
 typedef struct AstReturn {
   struct AstNode *return_node;
 } AstReturn;
 
+typedef enum ExpressionType {
+  EXPRESSION_CONSTANT,
+  EXPRESSION_UNARY
+} ExpressionType;
+
+typedef struct AstConstant {
+  Value *value;
+} AstConstant;
+
+typedef enum UnaryOperatorType {
+  UNARY_OP_COMPLEMENT,
+  UNARY_OP_NEGATE
+} UnaryOperatorType;
+
+typedef struct AstUnary {
+  UnaryOperatorType type;  
+  AstExpression *expression;
+} AstUnary;
+
+typedef struct AstExpression {
+  ExpressionType type;
+  union {
+    AstConstant *constant;
+    AstUnary *unary;
+  };
+} AstExpression;
+
 typedef struct AstNode {
   AstNodeType type;
   union {
-    AstConstant *ast_constant;
+    AstExpression *ast_expression;
     AstReturn *ast_return;
     AstFunction *ast_function;
     AstProgram *ast_program;

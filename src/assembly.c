@@ -79,7 +79,7 @@ AsmNode* asm_function(AstNode *ast_function_node) {
         AsmInstructionOperand *dest_operand = malloc(sizeof(AsmInstructionOperand));
 
         AsmOperandImmediateValue *src_immediate_value = malloc(sizeof(AsmOperandImmediateValue));
-        src_immediate_value->constant = ast_function_node->ast_function->statement->ast_return->return_node->ast_constant->value->integer;
+        src_immediate_value->constant = ast_function_node->ast_function->statement->ast_return->return_node->ast_expression->constant->value->integer;
         
         src_operand->type = ASM_OPERAND_IMMEDIATE_VALUE;
         src_operand->immediate_value = src_immediate_value; 

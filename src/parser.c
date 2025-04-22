@@ -15,6 +15,8 @@ AstNode* ast_statement(Parser *parser);
 AstNode* ast_expression(Parser *parser);
 char* ast_identifier(Parser *parser);
 void ast_expect(Parser *parser, TokenType expected_type);
+Token* current_token(Parser *parser);
+Token* previous_token(Parser *parser);
 
 AstNode* parse(Token *tokens, int token_count, char *file) {  
   Parser parser = {
@@ -44,9 +46,16 @@ void print_ast(AstNode *node, int level) {
       printf("Program (\n");
       print_ast(node->ast_program->function, ++level);
       break;
-    case AST_CONSTANT:
-      printf("Constant(%d)\n", node->ast_constant->value->integer);
-      return;
+    case AST_EXPRESSION:
+      switch (node->ast_expression->type) {
+        case EXPRESSION_CONSTANT:
+          printf("Constant(%d)\n", node->ast_expression->constant->value->integer);
+          return;
+          break;
+        case EXPRESSION_UNARY:
+          //TODO: Add here
+          break;
+      }
     case AST_FUNCTION:
       printf("Function (name=\"%s\", body =\n", node->ast_function->name);
       print_ast(node->ast_function->statement, ++level);
@@ -64,18 +73,26 @@ void print_ast(AstNode *node, int level) {
   printf(")\n");
 }
 
+Token* current_token(Parser *parser) {
+  return &parser->tokens[parser->current_token_index];
+}
+
+Token* previous_token(Parser *parser) {
+  return &parser->tokens[parser->current_token_index - 1];
+}
+
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
-    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
+    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], previous_token(parser)->line);
     exit(1);
   }
 
-  if (parser->tokens[parser->current_token_index].type == expected_type) {
+  if (current_token(parser)->type == expected_type) {
     parser->current_token_index++;
     return;
   } 
 
-  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)\n", TokenTypeStr[expected_type],TokenTypeStr[parser->tokens[parser->current_token_index].type], parser->tokens[parser->current_token_index].line);
+  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)\n", TokenTypeStr[expected_type],TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
   exit(1);
 }
 
@@ -119,11 +136,11 @@ AstNode* ast_function(Parser *parser) {
 }
 
 char* ast_identifier(Parser *parser) {
-  int start = parser->tokens[parser->current_token_index].start_index;
-  int end = parser->tokens[parser->current_token_index].end_index;
+  int start = current_token(parser)->start_index;
+  int end = current_token(parser)->end_index;
 
   if (parser->file[start] >= 48 && parser->file[start] <= 57) {
-    printf("ERROR - Parser: Identifier cannot start with a number (line %d)\n", parser->tokens[parser->current_token_index].line);
+    printf("ERROR - Parser: Identifier cannot start with a number (line %d)\n", current_token(parser)->line);
     exit(1);
   }
 
@@ -160,20 +177,25 @@ AstNode* ast_statement(Parser *parser) {
 }
 
 AstNode* ast_expression(Parser *parser) {
-  ast_expect(parser, TOKEN_CONSTANT_INT); 
+  if (current_token(parser)->type == TOKEN_CONSTANT_INT) {
+    ast_expect(parser, TOKEN_CONSTANT_INT); 
 
-  Value *value = malloc(sizeof(Value));
+    Value *value = malloc(sizeof(Value));
 
-  value->type = INTEGER;
-  //TODO: '48' converts the ascii value to the int. Look into doing that conversion in the lexer
-  value->integer = (int)(parser->file[parser->tokens[parser->current_token_index - 1].start_index] - 48);   
+    value->type = INTEGER;
+    value->integer = (int)(parser->file[previous_token(parser)->start_index] - 48);   
   
-  AstConstant *constant_node = malloc(sizeof(AstConstant));
-  constant_node->value = value;
+    AstConstant *constant_node = malloc(sizeof(AstConstant));
+    constant_node->value = value;
 
-  AstNode *node = malloc(sizeof(AstNode));
-  node->type = AST_CONSTANT;
-  node->ast_constant = constant_node;
+    AstExpression *expression_node = malloc(sizeof(AstExpression));
+    expression_node->type = EXPRESSION_CONSTANT;
+    expression_node->constant = constant_node;
 
-  return node;
+    AstNode *node = malloc(sizeof(AstNode));
+    node->type = AST_EXPRESSION;
+    node->ast_expression = expression_node;
+
+    return node;
+  }
 }
