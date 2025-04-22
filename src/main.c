@@ -9,13 +9,10 @@
 char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {
-  #ifdef _WIN32
-    system("cls");
-  #else
-    system("clear");
-  #endif
+
 
   char* file;
+  bool print_debug = true;
    
   if (argc == 1) {
     file = load_file("../test-file.txt");
@@ -23,28 +20,55 @@ int main(int argc, const char *argv[]) {
   else if (argc == 2) {
     file = load_file(argv[1]);
   }
+  else if (argc == 3) {
+    //To disable printing when running the tester
+    if (*argv[1] == 't') {
+      print_debug = false;
+      file = load_file(argv[2]);
+    } else {
+      fprintf(stderr, "Invalid command '%s'\n", argv[1]);
+      exit(1);
+    }
+  }
   else {
     fprintf(stderr, "Too many arguments\n");
+    exit(1);
+  }
+
+  if (print_debug) {
+    #ifdef _WIN32
+      system("cls");
+    #else
+      system("clear");
+    #endif
   }
 
   Lexer lexer = init_lexer();
   load_tokens(&lexer, file);
-  printf("\n>> LEXER PRINT <<\n\n");
-  print_tokens(&lexer, file);
+
+  if (print_debug) {
+    printf("\n>> LEXER PRINT <<\n\n");
+    print_tokens(&lexer, file);
+  }
 
   AstNode *ast = parse(lexer.tokens, lexer.token_count, file);
-  printf("\n>> AST PRINT <<\n\n");
-  print_ast(ast, 0);
+
+  if (print_debug) {
+    printf("\n>> AST PRINT <<\n\n");
+    print_ast(ast, 0);
+  }
 
   //TODO: Can we free the lexer tokens after this?
 
   AsmNode *asm_nodes = generate_assembly(ast);
-  printf("\n>> ASSEMBLY PRINT <<\n\n");
-  print_assembly(asm_nodes);
 
-  printf("\n>> CODE EMIT PRINT <<\n\n");
-  print_code_emit(asm_nodes);
+  if (print_debug) {
+    printf("\n>> ASSEMBLY PRINT <<\n\n");
+    print_assembly(asm_nodes);
 
+    printf("\n>> CODE EMIT PRINT <<\n\n");
+    print_code_emit(asm_nodes);
+  }
   return 0;
 }
 

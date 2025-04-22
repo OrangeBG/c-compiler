@@ -66,7 +66,7 @@ void print_ast(AstNode *node, int level) {
 
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
-    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
+    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], parser->tokens[parser->current_token_index - 1].line);
     exit(1);
   }
 
@@ -75,7 +75,7 @@ void ast_expect(Parser *parser, TokenType expected_type) {
     return;
   } 
 
-  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)", TokenTypeStr[expected_type],TokenTypeStr[parser->tokens[parser->current_token_index].type], parser->tokens[parser->current_token_index].line);
+  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)\n", TokenTypeStr[expected_type],TokenTypeStr[parser->tokens[parser->current_token_index].type], parser->tokens[parser->current_token_index].line);
   exit(1);
 }
 

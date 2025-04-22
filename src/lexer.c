@@ -87,7 +87,7 @@ void load_tokens(Lexer *lexer, char *file) {
         break;
       }
       default:
-        fprintf(stderr, "ERROR - Lexer: Invalid token '%c' (line %d)", cur_char, lexer->line);
+        fprintf(stderr, "ERROR - Lexer: Invalid token '%c' (line %d)\n", cur_char, lexer->line);
         exit(1);
     }
 
@@ -128,9 +128,6 @@ void print_tokens(Lexer *lexer, char *file) {
 void add_token(TokenType type, Lexer *lexer) {  
   if (lexer->token_count == lexer->token_capacity) {
     int size = lexer->token_capacity == 0 ? TOKEN_ARRAY_START_SIZE : lexer->token_capacity * 2;
-
-    printf("Lexer: Growing token array. Size: %d -> %d\n", lexer->token_capacity, size);
-
     lexer->token_capacity = size;
     //TODO: Add error when realloc fails
     //TODO: Realloc is incorrectly reallocating when debugging in windows. However, in osx, it works just fine..... Assigning a large start size until then
@@ -171,7 +168,7 @@ void add_number_token(Lexer *lexer, char *file) {
   }
 
   if (is_alpha_char(file[lexer->current_index + 1])) {
-    fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)", file[lexer->current_index + 1], lexer->line);
+    fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
     exit(1);
   } 
 
