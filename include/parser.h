@@ -5,6 +5,7 @@
 
 typedef struct AstNode AstNode;
 typedef struct AstExpression AstExpression; 
+typedef struct AstStatement AstStatement; 
 
 typedef enum {
   INTEGER
@@ -19,7 +20,7 @@ typedef struct Value {
 
 typedef enum {
   AST_EXPRESSION,
-  AST_RETURN,
+  AST_STATEMENT,
   AST_FUNCTION,
   AST_PROGRAM
 } AstNodeType;
@@ -33,11 +34,23 @@ typedef struct AstFunction {
   struct AstNode *statement;  
 } AstFunction;
 
+typedef enum {
+  STATEMENT_RETURN
+} StatementType;
+
+
 typedef struct AstReturn {
-  struct AstNode *return_node;
+  struct AstExpression *expression;
 } AstReturn;
 
-typedef enum ExpressionType {
+typedef struct AstStatement {
+  StatementType type;
+  union {
+    AstReturn *returnStmt;
+  };
+} AstStatement;
+
+typedef enum {
   EXPRESSION_CONSTANT,
   EXPRESSION_UNARY
 } ExpressionType;
@@ -46,7 +59,7 @@ typedef struct AstConstant {
   Value *value;
 } AstConstant;
 
-typedef enum UnaryOperatorType {
+typedef enum {
   UNARY_OP_COMPLEMENT,
   UNARY_OP_NEGATE
 } UnaryOperatorType;
@@ -68,7 +81,7 @@ typedef struct AstNode {
   AstNodeType type;
   union {
     AstExpression *ast_expression;
-    AstReturn *ast_return;
+    AstStatement *ast_statement;
     AstFunction *ast_function;
     AstProgram *ast_program;
   };

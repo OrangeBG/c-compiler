@@ -12,9 +12,11 @@ typedef struct Parser {
 AstNode* ast_program(Parser *parser);
 AstNode* ast_function(Parser *parser);
 AstNode* ast_statement(Parser *parser);
-AstNode* ast_expression(Parser *parser);
+AstExpression* ast_expression(Parser *parser);
 char* ast_identifier(Parser *parser);
 void ast_expect(Parser *parser, TokenType expected_type);
+void print_ast_expression(AstExpression *expression, int level);
+void print_ast_statement(AstStatement *statement, int level); 
 Token* current_token(Parser *parser);
 Token* previous_token(Parser *parser);
 
@@ -29,7 +31,7 @@ AstNode* parse(Token *tokens, int token_count, char *file) {
   AstNode *ret_program = ast_program(&parser);
 
   if (token_count > parser.current_token_index) {
-    fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)", parser.tokens[parser.current_token_index].line);
+    fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)\n", parser.tokens[parser.current_token_index].line);
     exit(1);
   }
 
@@ -46,23 +48,13 @@ void print_ast(AstNode *node, int level) {
       printf("Program (\n");
       print_ast(node->ast_program->function, ++level);
       break;
-    case AST_EXPRESSION:
-      switch (node->ast_expression->type) {
-        case EXPRESSION_CONSTANT:
-          printf("Constant(%d)\n", node->ast_expression->constant->value->integer);
-          return;
-          break;
-        case EXPRESSION_UNARY:
-          //TODO: Add here
-          break;
-      }
+    case AST_EXPRESSION: break; 
     case AST_FUNCTION:
       printf("Function (name=\"%s\", body =\n", node->ast_function->name);
       print_ast(node->ast_function->statement, ++level);
       break;
-    case AST_RETURN:
-      printf("Return(\n");
-      print_ast(node->ast_return->return_node, ++level);
+    case AST_STATEMENT:
+      print_ast_statement(node->ast_statement, ++level);
       break;
   }    
 
@@ -72,6 +64,35 @@ void print_ast(AstNode *node, int level) {
 
   printf(")\n");
 }
+
+void print_ast_statement(AstStatement *statement, int level) {
+  for (int i = 0; i < level; i++) {
+    printf("  ");
+  }
+
+  printf("Return(\n");
+  print_ast_expression(statement->returnStmt->expression, ++level);
+}
+
+void print_ast_expression(AstExpression *expression, int level) {
+  for (int i = 0; i < level; i++) {
+    printf("  ");
+  }
+
+  switch (expression->type) {
+    case EXPRESSION_UNARY:
+      if (expression->unary->type == UNARY_OP_NEGATE) {
+        printf("-");
+      } else {
+        printf("~");
+      }
+      break;
+    case EXPRESSION_CONSTANT:
+      printf("%d\n", expression->constant->value->integer);
+      break;
+  }
+}
+
 
 Token* current_token(Parser *parser) {
   return &parser->tokens[parser->current_token_index];
@@ -160,29 +181,34 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-AstNode* ast_statement(Parser *parser) {
+AstNode* ast_statement(Parser *parser) { 
   ast_expect(parser, TOKEN_RETURN);
-  AstNode *constant_node = ast_expression(parser);
-
+  AstExpression* expression = ast_expression(parser);
   AstReturn *return_node = malloc(sizeof(AstReturn));
-  return_node->return_node = constant_node;
+    
+  return_node->expression = expression;
+  
+  AstStatement *statement = malloc(sizeof(AstStatement));
+  statement->type = STATEMENT_RETURN;
+  statement->returnStmt = return_node;
 
-  AstNode *statement_node = malloc(sizeof(AstNode)); 
-  statement_node->type = AST_RETURN;
-  statement_node->ast_return = return_node;  
+  AstNode *node = malloc(sizeof(AstNode)); 
+  node->type = AST_STATEMENT;
+  node->ast_statement = statement;  
   
   ast_expect(parser, TOKEN_SEMICOLON);
 
-  return statement_node;
+  return node;
 }
 
-AstNode* ast_expression(Parser *parser) {
+//TODO: Function is hard to read
+AstExpression* ast_expression(Parser *parser) {
   if (current_token(parser)->type == TOKEN_CONSTANT_INT) {
     ast_expect(parser, TOKEN_CONSTANT_INT); 
 
     Value *value = malloc(sizeof(Value));
-
     value->type = INTEGER;
+    //TODO: Only supports up to '9'
     value->integer = (int)(parser->file[previous_token(parser)->start_index] - 48);   
   
     AstConstant *constant_node = malloc(sizeof(AstConstant));
@@ -192,10 +218,33 @@ AstNode* ast_expression(Parser *parser) {
     expression_node->type = EXPRESSION_CONSTANT;
     expression_node->constant = constant_node;
 
-    AstNode *node = malloc(sizeof(AstNode));
-    node->type = AST_EXPRESSION;
-    node->ast_expression = expression_node;
+    return expression_node;
+  } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT) {
+    UnaryOperatorType op_type = current_token(parser)->type == TOKEN_NEGATION ? UNARY_OP_NEGATE : UNARY_OP_COMPLEMENT;
 
-    return node;
-  }
+    parser->current_token_index++;
+
+    AstExpression *unary_value_expression = ast_expression(parser);
+
+    AstUnary *unary = malloc(sizeof(AstUnary));    
+    unary->type = op_type;
+    unary->expression = unary_value_expression;
+
+    AstExpression *unary_expression = malloc(sizeof(AstExpression));
+    unary_expression->type = EXPRESSION_UNARY;
+    unary_expression->unary = unary;
+
+    return unary_expression;
+  } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+    parser->current_token_index++;
+
+    AstExpression *expression = ast_expression(parser);
+        
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+    return expression;
+  }    
+
+  fprintf(stderr, "ERROR - Parser: Failed to parse expression for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
+  exit(1);
 }

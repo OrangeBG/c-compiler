@@ -9,8 +9,6 @@
 char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {
-
-
   char* file;
   bool print_debug = true;
    

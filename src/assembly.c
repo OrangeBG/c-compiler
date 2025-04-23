@@ -63,8 +63,8 @@ AsmNode* asm_function(AstNode *ast_function_node) {
   AsmFunction *function = malloc(sizeof(AsmFunction));
   function->name = ast_function_node->ast_function->name; 
 
-  switch (ast_function_node->ast_function->statement->type) {
-    case AST_RETURN: {
+  switch (ast_function_node->ast_function->statement->ast_statement->type) {
+    case STATEMENT_RETURN: {
         AsmInstruction *asm_mov_instruction_base = malloc(sizeof(AsmInstruction));
         AsmInstructionMov *asm_mov = malloc(sizeof(AsmInstructionMov));
         AsmNode *asm_node_mov = malloc(sizeof(AsmNode));
@@ -79,8 +79,7 @@ AsmNode* asm_function(AstNode *ast_function_node) {
         AsmInstructionOperand *dest_operand = malloc(sizeof(AsmInstructionOperand));
 
         AsmOperandImmediateValue *src_immediate_value = malloc(sizeof(AsmOperandImmediateValue));
-        src_immediate_value->constant = ast_function_node->ast_function->statement->ast_return->return_node->ast_expression->constant->value->integer;
-        
+        src_immediate_value->constant = ast_function_node->ast_function->statement->ast_statement->returnStmt->expression->constant->value->integer;        
         src_operand->type = ASM_OPERAND_IMMEDIATE_VALUE;
         src_operand->immediate_value = src_immediate_value; 
 
