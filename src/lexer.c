@@ -20,7 +20,8 @@ const char* TokenTypeStr[] = {
   "TOKEN_OPEN_BRACE",
   "TOKEN_RETURN",
   "TOKEN_SEMICOLON",
-  "TOKEN_VOID"
+  "TOKEN_VOID", 
+  "TOKEN_EOF"
 };
 
 bool is_alpha_char(char character);
@@ -94,6 +95,8 @@ void load_tokens(Lexer *lexer, char *file) {
     lexer->start_index++;
     lexer->current_index = lexer->start_index;
   }  
+
+  add_token(TOKEN_EOF, lexer);
 }
 
 void print_tokens(Lexer *lexer, char *file) {
@@ -113,6 +116,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_RETURN: printf("Return     "); break;
       case TOKEN_SEMICOLON: printf("Semicolon  "); break;
       case TOKEN_VOID: printf("Void       "); break;
+      case TOKEN_EOF: return;
       default: fprintf(stderr, "ERROR - Lexer: No print for type %d\n", lexer->tokens[i].type);
     }
 

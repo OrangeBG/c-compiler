@@ -14,7 +14,8 @@ typedef enum {
   TOKEN_OPEN_BRACE,
   TOKEN_RETURN,
   TOKEN_SEMICOLON,
-  TOKEN_VOID
+  TOKEN_VOID,
+  TOKEN_EOF
 } TokenType;
 
 extern const char* TokenTypeStr[];

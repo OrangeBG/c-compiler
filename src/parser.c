@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "../include/parser.h"
 
 typedef struct Parser {
@@ -17,8 +18,10 @@ char* ast_identifier(Parser *parser);
 void ast_expect(Parser *parser, TokenType expected_type);
 void print_ast_expression(AstExpression *expression, int level);
 void print_ast_statement(AstStatement *statement, int level); 
+bool end_of_file(Parser *parser);
 Token* current_token(Parser *parser);
 Token* previous_token(Parser *parser);
+TokenType peek_next_token(Parser *parser); 
 
 AstNode* parse(Token *tokens, int token_count, char *file) {  
   Parser parser = {
@@ -93,13 +96,16 @@ void print_ast_expression(AstExpression *expression, int level) {
   }
 }
 
-
 Token* current_token(Parser *parser) {
   return &parser->tokens[parser->current_token_index];
 }
 
 Token* previous_token(Parser *parser) {
   return &parser->tokens[parser->current_token_index - 1];
+}
+
+bool end_of_file(Parser *parser) {
+  return parser->tokens[parser->current_token_index].type == TOKEN_EOF;
 }
 
 void ast_expect(Parser *parser, TokenType expected_type) {
@@ -182,7 +188,13 @@ char* ast_identifier(Parser *parser) {
 }
 
 AstNode* ast_statement(Parser *parser) { 
+  if (end_of_file(parser)) {
+    fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
+    exit(1);
+  }
+
   ast_expect(parser, TOKEN_RETURN);
+  
   AstExpression* expression = ast_expression(parser);
   AstReturn *return_node = malloc(sizeof(AstReturn));
     
@@ -203,6 +215,11 @@ AstNode* ast_statement(Parser *parser) {
 
 //TODO: Function is hard to read
 AstExpression* ast_expression(Parser *parser) {
+  if (end_of_file(parser)) {
+    fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
+    exit(1);
+  }
+  
   if (current_token(parser)->type == TOKEN_CONSTANT_INT) {
     ast_expect(parser, TOKEN_CONSTANT_INT); 
 
