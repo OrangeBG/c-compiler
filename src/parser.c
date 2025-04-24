@@ -33,6 +33,8 @@ AstNode* parse(Token *tokens, int token_count, char *file) {
   
   AstNode *ret_program = ast_program(&parser);
 
+  ast_expect(&parser, TOKEN_EOF);
+
   if (token_count > parser.current_token_index) {
     fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)\n", parser.tokens[parser.current_token_index].line);
     exit(1);
