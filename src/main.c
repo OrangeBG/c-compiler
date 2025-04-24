@@ -49,7 +49,7 @@ int main(int argc, const char *argv[]) {
     print_tokens(&lexer, file);
   }
 
-  AstNode *ast = parse(lexer.tokens, lexer.token_count, file);
+  AstNode *ast = parse_ast(lexer.tokens, lexer.token_count, file);
 
   if (print_debug) {
     printf("\n>> AST PRINT <<\n\n");
