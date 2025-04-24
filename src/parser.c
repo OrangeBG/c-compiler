@@ -49,15 +49,15 @@ void print_ast(AstNode *node, int level) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      print_ast(node->ast_program->function, ++level);
+      print_ast(node->program->function, ++level);
       break;
     case AST_EXPRESSION: break; 
     case AST_FUNCTION:
-      printf("Function (name=\"%s\", body =\n", node->ast_function->name);
-      print_ast(node->ast_function->statement, ++level);
+      printf("Function (name=\"%s\", body =\n", node->function->name);
+      print_ast(node->function->statement, ++level);
       break;
     case AST_STATEMENT:
-      print_ast_statement(node->ast_statement, ++level);
+      print_ast_statement(node->statement, ++level);
       break;
   }    
 
@@ -74,7 +74,7 @@ void print_ast_statement(AstStatement *statement, int level) {
   }
 
   printf("Return(\n");
-  print_ast_expression(statement->returnStmt->expression, ++level);
+  print_ast_expression(statement->return_stmt->expression, ++level);
 }
 
 void print_ast_expression(AstExpression *expression, int level) {
@@ -132,7 +132,7 @@ AstNode* ast_program(Parser *parser) {
   AstNode *program_node = malloc(sizeof(AstNode));
 
   program_node->type = AST_PROGRAM;
-  program_node->ast_program = program;
+  program_node->program = program;
 
   return program_node;
 }
@@ -157,7 +157,7 @@ AstNode* ast_function(Parser *parser) {
 
   AstNode *function_node = malloc(sizeof(AstNode)); 
   function_node->type = AST_FUNCTION;
-  function_node->ast_function = function;
+  function_node->function = function;
 
   return function_node;
 }
@@ -202,11 +202,11 @@ AstNode* ast_statement(Parser *parser) {
   
   AstStatement *statement = malloc(sizeof(AstStatement));
   statement->type = STATEMENT_RETURN;
-  statement->returnStmt = return_node;
+  statement->return_stmt = return_node;
 
   AstNode *node = malloc(sizeof(AstNode)); 
   node->type = AST_STATEMENT;
-  node->ast_statement = statement;  
+  node->statement = statement;  
   
   ast_expect(parser, TOKEN_SEMICOLON);
 

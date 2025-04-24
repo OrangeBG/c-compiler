@@ -7,7 +7,7 @@ AsmNode* asm_program(AstProgram *ast_node);
 AsmNode* asm_function(AstNode *ast_function); 
 
 AsmNode* generate_assembly(AstNode *ast_nodes) {  
-  AsmNode *asm_nodes = asm_program(ast_nodes->ast_program);
+  AsmNode *asm_nodes = asm_program(ast_nodes->program);
 
   return asm_nodes;
 }
@@ -61,9 +61,9 @@ AsmNode* asm_program(AstProgram *ast_node) {
 AsmNode* asm_function(AstNode *ast_function_node) {
   //TODO: Only supporting a single instruction for now. Will need to support multiple funtion instructions
   AsmFunction *function = malloc(sizeof(AsmFunction));
-  function->name = ast_function_node->ast_function->name; 
+  function->name = ast_function_node->function->name; 
 
-  switch (ast_function_node->ast_function->statement->ast_statement->type) {
+  switch (ast_function_node->function->statement->statement->type) {
     case STATEMENT_RETURN: {
         AsmInstruction *asm_mov_instruction_base = malloc(sizeof(AsmInstruction));
         AsmInstructionMov *asm_mov = malloc(sizeof(AsmInstructionMov));
@@ -79,7 +79,7 @@ AsmNode* asm_function(AstNode *ast_function_node) {
         AsmInstructionOperand *dest_operand = malloc(sizeof(AsmInstructionOperand));
 
         AsmOperandImmediateValue *src_immediate_value = malloc(sizeof(AsmOperandImmediateValue));
-        src_immediate_value->constant = ast_function_node->ast_function->statement->ast_statement->returnStmt->expression->constant->value->integer;        
+        src_immediate_value->constant = ast_function_node->function->statement->statement->return_stmt->expression->constant->value->integer;        
         src_operand->type = ASM_OPERAND_IMMEDIATE_VALUE;
         src_operand->immediate_value = src_immediate_value; 
 

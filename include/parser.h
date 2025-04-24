@@ -46,7 +46,7 @@ typedef struct AstReturn {
 typedef struct AstStatement {
   StatementType type;
   union {
-    AstReturn *returnStmt;
+    AstReturn *return_stmt;
   };
 } AstStatement;
 
@@ -80,10 +80,10 @@ typedef struct AstExpression {
 typedef struct AstNode {
   AstNodeType type;
   union {
-    AstExpression *ast_expression;
-    AstStatement *ast_statement;
-    AstFunction *ast_function;
-    AstProgram *ast_program;
+    AstExpression *expression;
+    AstStatement *statement;
+    AstFunction *function;
+    AstProgram *program;
   };
 } AstNode;
 
