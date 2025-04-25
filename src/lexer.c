@@ -135,6 +135,7 @@ void add_token(TokenType type, Lexer *lexer) {
     lexer->token_capacity = size;
     //TODO: Add error when realloc fails
     //TODO: Realloc is incorrectly reallocating when debugging in windows. However, in osx, it works just fine..... Assigning a large start size until then
+    //      I think it's because I'm not initializing a new pointer here. Refactor to use a new initialized pointer and test 
     lexer->tokens = realloc(lexer->tokens, size);
   }
 

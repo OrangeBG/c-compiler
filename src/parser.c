@@ -13,17 +13,17 @@ typedef struct Parser {
 AstNode* ast_program(Parser *parser);
 AstNode* ast_function(Parser *parser);
 AstNode* ast_statement(Parser *parser);
-AstExpression* ast_expression(Parser *parser);
-char* ast_identifier(Parser *parser);
-void ast_expect(Parser *parser, TokenType expected_type);
-void print_ast_expression(AstExpression *expression, int level);
-void print_ast_statement(AstStatement *statement, int level); 
-bool end_of_file(Parser *parser);
-Token* current_token(Parser *parser);
-Token* previous_token(Parser *parser);
+AstNode* ast_expression(Parser *parser);
+
+
+char*     ast_identifier(Parser *parser);
+void      ast_expect(Parser *parser, TokenType expected_type);
+bool      end_of_file(Parser *parser);
+Token*    current_token(Parser *parser);
+Token*    previous_token(Parser *parser);
 TokenType peek_next_token(Parser *parser); 
 
-AstNode* parse(Token *tokens, int token_count, char *file) {  
+AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
   Parser parser = {
     .token_count = token_count,
     .current_token_index = 0,
@@ -49,17 +49,24 @@ void print_ast(AstNode *node, int level) {
   }
 
   switch(node->type){
-    case AST_PROGRAM:  
+    case PROGRAM:  
       printf("Program (\n");
-      print_ast(node->program->function, ++level);
+      print_ast(node->data.program.function, ++level);
       break;
-    case AST_EXPRESSION: break; 
-    case AST_FUNCTION:
-      printf("Function (name=\"%s\", body =\n", node->function->name);
-      print_ast(node->function->statement, ++level);
+    case FUNCTION:
+      printf("Function (name=\"%s\", body =\n", node->data.function.name);
+      print_ast(node->data.function.statement, ++level);
       break;
-    case AST_STATEMENT:
-      print_ast_statement(node->statement, ++level);
+    case STMT_RETURN:
+      printf("Return(\n");
+      print_ast(node->data.return_stmt.expression, ++level);
+      break;
+    case EXPR_CONSTANT:
+      printf("%d\n", node->data.constant.value);
+      break;
+    case EXPR_UNARY:
+      printf("~");
+      print_ast(node->data.unary.expression, ++level);
       break;
   }    
 
@@ -68,34 +75,6 @@ void print_ast(AstNode *node, int level) {
   }
 
   printf(")\n");
-}
-
-void print_ast_statement(AstStatement *statement, int level) {
-  for (int i = 0; i < level; i++) {
-    printf("  ");
-  }
-
-  printf("Return(\n");
-  print_ast_expression(statement->return_stmt->expression, ++level);
-}
-
-void print_ast_expression(AstExpression *expression, int level) {
-  for (int i = 0; i < level; i++) {
-    printf("  ");
-  }
-
-  switch (expression->type) {
-    case EXPRESSION_UNARY:
-      if (expression->unary->type == UNARY_OP_NEGATE) {
-        printf("-");
-      } else {
-        printf("~");
-      }
-      break;
-    case EXPRESSION_CONSTANT:
-      printf("%d\n", expression->constant->value->integer);
-      break;
-  }
 }
 
 Token* current_token(Parser *parser) {
@@ -126,17 +105,13 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 }
 
 AstNode* ast_program(Parser *parser) {
-  AstNode *func = ast_function(parser);
+  AstNode *program = malloc(sizeof(AstNode));
+  AstNode *function = ast_function(parser);
 
-  AstProgram *program = malloc(sizeof(AstProgram));
-  program->function = func;
-
-  AstNode *program_node = malloc(sizeof(AstNode));
-
-  program_node->type = AST_PROGRAM;
-  program_node->program = program;
-
-  return program_node;
+  program->type = PROGRAM;
+  program->data.program.function = function;
+  
+  return program;
 }
 
 AstNode* ast_function(Parser *parser) {
@@ -150,18 +125,15 @@ AstNode* ast_function(Parser *parser) {
   ast_expect(parser, TOKEN_OPEN_BRACE);
 
   AstNode *stmt = ast_statement(parser);
-  AstFunction *function = malloc(sizeof(AstFunction));
+  AstNode *function = malloc(sizeof(AstNode));
   
-  function->name = id_name;
-  function->statement = stmt;
+  function->type = FUNCTION;
+  function->data.function.name = id_name;
+  function->data.function.statement = stmt;
 
   ast_expect(parser, TOKEN_CLOSE_BRACE);
 
-  AstNode *function_node = malloc(sizeof(AstNode)); 
-  function_node->type = AST_FUNCTION;
-  function_node->function = function;
-
-  return function_node;
+  return function;
 }
 
 char* ast_identifier(Parser *parser) {
@@ -197,26 +169,19 @@ AstNode* ast_statement(Parser *parser) {
 
   ast_expect(parser, TOKEN_RETURN);
   
-  AstExpression* expression = ast_expression(parser);
-  AstReturn *return_node = malloc(sizeof(AstReturn));
+  AstNode *expression = ast_expression(parser);
+  AstNode *return_node = malloc(sizeof(AstNode));
     
-  return_node->expression = expression;
-  
-  AstStatement *statement = malloc(sizeof(AstStatement));
-  statement->type = STATEMENT_RETURN;
-  statement->return_stmt = return_node;
+  return_node->type = STMT_RETURN;
+  return_node->data.return_stmt.expression = expression;
 
-  AstNode *node = malloc(sizeof(AstNode)); 
-  node->type = AST_STATEMENT;
-  node->statement = statement;  
-  
   ast_expect(parser, TOKEN_SEMICOLON);
 
-  return node;
+  return return_node;
 }
 
 //TODO: Function is hard to read
-AstExpression* ast_expression(Parser *parser) {
+AstNode* ast_expression(Parser *parser) {
   if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
     exit(1);
@@ -225,39 +190,28 @@ AstExpression* ast_expression(Parser *parser) {
   if (current_token(parser)->type == TOKEN_CONSTANT_INT) {
     ast_expect(parser, TOKEN_CONSTANT_INT); 
 
-    Value *value = malloc(sizeof(Value));
-    value->type = INTEGER;
+    AstNode *constant = malloc(sizeof(AstNode));
+    constant->type = EXPR_CONSTANT;
     //TODO: Only supports up to '9'
-    value->integer = (int)(parser->file[previous_token(parser)->start_index] - 48);   
-  
-    AstConstant *constant_node = malloc(sizeof(AstConstant));
-    constant_node->value = value;
+    constant->data.constant.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
 
-    AstExpression *expression_node = malloc(sizeof(AstExpression));
-    expression_node->type = EXPRESSION_CONSTANT;
-    expression_node->constant = constant_node;
-
-    return expression_node;
+    return constant;
   } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT) {
-    UnaryOperatorType op_type = current_token(parser)->type == TOKEN_NEGATION ? UNARY_OP_NEGATE : UNARY_OP_COMPLEMENT;
-
+    UnaryOpType op_type = current_token(parser)->type == TOKEN_NEGATION ? NEGATE : COMPLEMENT;    
     parser->current_token_index++;
 
-    AstExpression *unary_value_expression = ast_expression(parser);
+    AstNode *unary_value_expression = ast_expression(parser);
 
-    AstUnary *unary = malloc(sizeof(AstUnary));    
-    unary->type = op_type;
-    unary->expression = unary_value_expression;
+    AstNode *unary = malloc(sizeof(AstNode));    
+    unary->type = EXPR_UNARY;
+    unary->data.unary.op_type = op_type;
+    unary->data.unary.expression = unary_value_expression;
 
-    AstExpression *unary_expression = malloc(sizeof(AstExpression));
-    unary_expression->type = EXPRESSION_UNARY;
-    unary_expression->unary = unary;
-
-    return unary_expression;
+    return unary;
   } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
     parser->current_token_index++;
 
-    AstExpression *expression = ast_expression(parser);
+    AstNode *expression = ast_expression(parser);
         
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
