@@ -10,7 +10,8 @@ typedef enum {
   IR_FUNCTION,
   IR_INSTRUCTION_RET,
   IR_INSTRUCTION_UNARY,
-  IR_VALUE,
+  IR_VALUE_CONSTANT,
+  IR_VALUE_VAR,
   IR_UNARY_OP
 } IRNodeType;
 
@@ -22,7 +23,7 @@ typedef enum {
 typedef struct IRNode {
  IRNodeType type;
  union {
-  struct IRProgram { struct IRNode *function;  } program;
+  struct IRProgram { struct IRNode *function; } program;
   struct IRFunction { char *identifier; int instruction_count; int instruction_capacity; IRNode *instructions; } function;
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;
