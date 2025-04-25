@@ -78,8 +78,6 @@ void check_function_instruction_size(AsmNode *asm_function) {
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * INSTRUCTION_CAPACITY;
 
-    printf("Growing instruction array.. current = %d, new = %d \n", current_capacity, new_size);
-
     AsmNode *instructions = realloc(asm_function->data.function.instructions, new_size);
 
     asm_function->data.function.instruction_capacity = new_size;

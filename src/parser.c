@@ -43,6 +43,7 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
   return ret_program;
 }
 
+//TODO: Printing not printing correctly 
 void print_ast(AstNode *node, int level) {
   for (int i = 0; i < level; i++) {
     printf("  ");
@@ -62,16 +63,23 @@ void print_ast(AstNode *node, int level) {
       print_ast(node->data.return_stmt.expression, ++level);
       break;
     case EXPR_CONSTANT:
-      printf("%d\n", node->data.constant.value);
+      printf("Constant(%d", node->data.constant.value);
       break;
     case EXPR_UNARY:
-      printf("~");
-      print_ast(node->data.unary.expression, ++level);
+      printf("Unary(");
+      if (node->data.unary.op_type == COMPLEMENT) {
+        printf("Complement(");
+      } else {
+        printf("Negate(");
+      }
+      print_ast(node->data.unary.expression, 0);
       break;
   }    
 
-  for (int i = 0; i < level; i++) {
-    printf("  ");
+  if (node->type != EXPR_CONSTANT) {
+    for (int i = 0; i < level; i++) {
+      printf("  ");
+    }
   }
 
   printf(")\n");

@@ -116,7 +116,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_RETURN: printf("Return     "); break;
       case TOKEN_SEMICOLON: printf("Semicolon  "); break;
       case TOKEN_VOID: printf("Void       "); break;
-      case TOKEN_EOF: return;
+      case TOKEN_EOF: printf("\n"); return;
       default: fprintf(stderr, "ERROR - Lexer: No print for type %d\n", lexer->tokens[i].type);
     }
 
