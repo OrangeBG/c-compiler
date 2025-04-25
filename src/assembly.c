@@ -3,115 +3,117 @@
 #include <stdbool.h>
 #include "../include/assembly.h"
 
-AsmNode* asm_program(AstProgram *ast_node);
+#define INSTRUCTION_CAPACITY 8
+
+AsmNode* asm_program(AstNode *ast_node);
 AsmNode* asm_function(AstNode *ast_function); 
+void asm_add_statement_instructions(AstNode *ast_statement, AsmNode *asm_function); 
+void check_function_instruction_size(AsmNode *asm_function); 
 
 AsmNode* generate_assembly(AstNode *ast_nodes) {  
-  AsmNode *asm_nodes = asm_program(ast_nodes->program);
+  AsmNode *program = malloc(sizeof(AsmNode));
 
-  return asm_nodes;
+  program->type = ASM_PROGRAM;
+  program->data.program.function = asm_function(ast_nodes->data.program.function); 
+
+  return program;
 }
+
+AsmNode* asm_function(AstNode *ast_function) {
+  AsmNode *function = malloc(sizeof(AsmNode));
+  function->type = ASM_FUNCTION;
+  function->data.function.name = ast_function->data.function.name;
+
+  AsmNode *instructions = malloc(sizeof(AsmNode));
+  
+  function->data.function.instruction_count = 0;
+  function->data.function.instruction_capacity = 0;
+  function->data.function.instructions = instructions;
+
+  asm_add_statement_instructions(ast_function->data.function.statement, function);
+
+  return function;
+}
+
+void asm_add_statement_instructions(AstNode *ast_statement, AsmNode *asm_function) {
+  switch (ast_statement->type) {
+    case STMT_RETURN: {
+        AsmNode *ret_node = malloc(sizeof(AsmNode));
+        ret_node->type = ASM_INSTRUCTION_RET;
+
+        check_function_instruction_size(asm_function);
+        
+        AsmNode *mov_node = malloc(sizeof(AsmNode));
+        mov_node->type = ASM_INSTRUCTION_MOV;
+
+        check_function_instruction_size(asm_function);        
+
+        AsmNode *source_node = malloc(sizeof(AsmNode));
+        source_node->type = ASM_OPERAND_IMM;
+        source_node->data.operand_imm.value = ast_statement->data.return_stmt.expression->data.constant.value;
+
+        AsmNode *destination_node = malloc(sizeof(AsmNode));
+        destination_node->type = ASM_OPERAND_REGISTER;
+        destination_node->data.operand_register.register_name = "eax";
+
+        mov_node->data.instruction_mov.source = source_node;
+        mov_node->data.instruction_mov.destination = destination_node;
+
+        asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_node;
+        asm_function->data.function.instruction_count++;
+        asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *ret_node;
+        asm_function->data.function.instruction_count ++;
+      }      
+      break;
+    default:
+      break;
+  }
+
+}
+
+void check_function_instruction_size(AsmNode *asm_function) {
+  int current_count = asm_function->data.function.instruction_count;
+  int current_capacity = asm_function->data.function.instruction_capacity;
+
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * INSTRUCTION_CAPACITY;
+
+    printf("Growing instruction array.. current = %d, new = %d \n", current_capacity, new_size);
+
+    AsmNode *instructions = realloc(asm_function->data.function.instructions, new_size);
+
+    asm_function->data.function.instruction_capacity = new_size;
+    asm_function->data.function.instructions = instructions;
+  } 
+} 
 
 void print_assembly(AsmNode *node) {
   switch(node->type) {    
     case ASM_PROGRAM:
       printf("Program \n");
-      print_assembly(node->asm_program->function);
+      print_assembly(node->data.program.function);
       break;
     case ASM_FUNCTION:
-      printf("Function: %s\n", node->asm_function->name);
-      printf("Inst Count: %d\n", node->asm_function->instruction_count);
+      printf("Function: %s\n", node->data.function.name);
+      printf("Inst Count: %d\n", node->data.function.instruction_count);
 
-      for (int i = 0; i < node->asm_function->instruction_count; i++) {
-        switch(node->asm_function->instructions[i]->asm_instruction->type) {
+      for (int i = 0; i < node->data.function.instruction_count; i++) {
+        switch(node->data.function.instructions[i].type) {
           case ASM_INSTRUCTION_MOV:
-            printf("Source: %d\n",node->asm_function->instructions[i]->asm_instruction->instruction_mov->source->immediate_value->constant);
-            printf("Destination: TBD\n");
+            printf("Source: %d\n",node->data.function.instructions[i].data.instruction_mov.source->data.operand_imm.value);
+            printf("Destination: %s\n", node->data.function.instructions[i].data.instruction_mov.destination->data.operand_register.register_name);
             break;
-          case ASM_INSTRUCTION_RETURN:
+          case ASM_INSTRUCTION_RET:
             printf("Return\n");
             break;
           default:        
-            fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm instruction type\n", node->asm_function->instructions[i]->asm_instruction->type);
+            fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm instruction type\n", node->data.function.instructions[i].type);
             break;
         } 
       }      
       break;
-    case ASM_INSTRUCTION: break; //Do nothing. Handled in ASM_FUNCTION
-    case ASM_OPERAND: break;
     default:
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
       break;
   }
 }
-
-AsmNode* asm_program(AstProgram *ast_node) {
-  AsmNode *function = asm_function(ast_node->function);
-
-  AsmProgram *program = malloc(sizeof(AsmProgram));
-  program->function = function;
-
-  AsmNode *program_node = malloc(sizeof(AsmNode));
-  program_node->type = ASM_PROGRAM;
-  program_node->asm_program = program;
-
-  return program_node;
-}
-
-AsmNode* asm_function(AstNode *ast_function_node) {
-  //TODO: Only supporting a single instruction for now. Will need to support multiple funtion instructions
-  AsmFunction *function = malloc(sizeof(AsmFunction));
-  function->name = ast_function_node->function->name; 
-
-  switch (ast_function_node->function->statement->statement->type) {
-    case STATEMENT_RETURN: {
-        AsmInstruction *asm_mov_instruction_base = malloc(sizeof(AsmInstruction));
-        AsmInstructionMov *asm_mov = malloc(sizeof(AsmInstructionMov));
-        AsmNode *asm_node_mov = malloc(sizeof(AsmNode));
-
-        asm_mov_instruction_base->type = ASM_INSTRUCTION_MOV;
-        asm_mov_instruction_base->instruction_mov = asm_mov;
-
-        asm_node_mov->type = ASM_INSTRUCTION;
-        asm_node_mov->asm_instruction = asm_mov_instruction_base;
-
-        AsmInstructionOperand *src_operand = malloc(sizeof(AsmInstructionOperand));
-        AsmInstructionOperand *dest_operand = malloc(sizeof(AsmInstructionOperand));
-
-        AsmOperandImmediateValue *src_immediate_value = malloc(sizeof(AsmOperandImmediateValue));
-        src_immediate_value->constant = ast_function_node->function->statement->statement->return_stmt->expression->constant->value->integer;        
-        src_operand->type = ASM_OPERAND_IMMEDIATE_VALUE;
-        src_operand->immediate_value = src_immediate_value; 
-
-        asm_mov->source = src_operand;
-        asm_mov->destination = dest_operand;
-
-        AsmInstruction *asm_ret_instruction_base = malloc(sizeof(AsmInstruction));     
-        AsmNode *asm_node_ret = malloc(sizeof(AsmNode));
-
-        asm_ret_instruction_base->type = ASM_INSTRUCTION_RETURN;        
-        asm_node_ret->asm_instruction = asm_ret_instruction_base;
-
-        function->instruction_count = 2;        
-        function->instructions[0] = malloc(sizeof(AsmNode));
-        function->instructions[1] = malloc(sizeof(AsmNode));
-        
-        function->instructions[0] = asm_node_mov;
-        function->instructions[1] = asm_node_ret;
-
-        break;
-      }
-    default:
-      break;
-  }  
-
-  AsmNode *node = malloc(sizeof(AsmNode));
-  node->type = ASM_FUNCTION;
-  node->asm_function = function;
-
-  return node;
-}
-  
-
-
-

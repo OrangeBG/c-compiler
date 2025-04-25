@@ -23,7 +23,7 @@ Token*    current_token(Parser *parser);
 Token*    previous_token(Parser *parser);
 TokenType peek_next_token(Parser *parser); 
 
-AstNode* parse(Token *tokens, int token_count, char *file) {  
+AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
   Parser parser = {
     .token_count = token_count,
     .current_token_index = 0,

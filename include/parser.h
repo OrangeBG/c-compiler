@@ -18,6 +18,7 @@ typedef enum {
   NEGATE
 } UnaryOpType;
 
+//TODO: Need to add AST prefix to union structs
 typedef struct AstNode {
   NodeType type;
   union {
