@@ -6,19 +6,18 @@
 typedef struct AstNode AstNode;
 
 typedef enum {
-  PROGRAM,
-  FUNCTION,
-  STMT_RETURN,
-  EXPR_CONSTANT,
-  EXPR_UNARY
+  AST_PROGRAM,
+  AST_FUNCTION,
+  AST_STATEMENT_RETURN,
+  AST_EXPRESSION_CONSTANT,
+  AST_EXPRESSION_UNARY
 } NodeType;
 
 typedef enum {
-  COMPLEMENT,
-  NEGATE
+  AST_UNARY_COMPLEMENT,
+  AST_UNARY_NEGATE
 } UnaryOpType;
 
-//TODO: Need to add AST prefix to union structs
 typedef struct AstNode {
   NodeType type;
   union {

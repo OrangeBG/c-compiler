@@ -62,7 +62,7 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
 
-  if (ast_function->data.function.statement->type == STMT_RETURN) {
+  if (ast_function->data.function.statement->type == AST_STATEMENT_RETURN) {
     IRNode *value = ir_value(ast_function->data.function.statement->data.return_stmt.expression, function, 0);
 
     IRNode *return_node = malloc(sizeof(IRNode));
@@ -77,7 +77,7 @@ IRNode* ir_function(AstNode *ast_function) {
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id) {
   switch (ast_expression->type) {
-    case EXPR_CONSTANT: {
+    case AST_EXPRESSION_CONSTANT: {
         IRNode *constant = malloc(sizeof(IRNode));
         constant->type = IR_VALUE_CONSTANT;
         constant->data.value_constant.value = ast_expression->data.constant.value;
@@ -85,7 +85,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         return constant;
       }
       break;
-    case EXPR_UNARY: {
+    case AST_EXPRESSION_UNARY: {
         IRNode *source = ir_value(ast_expression->data.unary.expression, ir_function, temp_identifier_id);
 
         //TODO: Warning, setting hard buffer limit
@@ -98,7 +98,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         IRUnaryOpType unary_op_type;
 
-        if (ast_expression->data.unary.op_type == COMPLEMENT) {
+        if (ast_expression->data.unary.op_type == AST_UNARY_COMPLEMENT) {
           unary_op_type = IR_UNARY_COMPLEMENT;
         } else {
           unary_op_type = IR_UNARY_NEGATE;

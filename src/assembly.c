@@ -37,7 +37,7 @@ AsmNode* asm_function(AstNode *ast_function) {
 
 void asm_add_statement_instructions(AstNode *ast_statement, AsmNode *asm_function) {
   switch (ast_statement->type) {
-    case STMT_RETURN: {
+    case AST_STATEMENT_RETURN: {
         AsmNode *ret_node = malloc(sizeof(AsmNode));
         ret_node->type = ASM_INSTRUCTION_RET;
 
@@ -68,7 +68,6 @@ void asm_add_statement_instructions(AstNode *ast_statement, AsmNode *asm_functio
     default:
       break;
   }
-
 }
 
 void check_function_instruction_size(AsmNode *asm_function) {
