@@ -11,8 +11,7 @@ typedef enum {
   IR_INSTRUCTION_RET,
   IR_INSTRUCTION_UNARY,
   IR_VALUE_CONSTANT,
-  IR_VALUE_VAR,
-  IR_UNARY_OP
+  IR_VALUE_VAR
 } IRNodeType;
 
 typedef enum {
@@ -33,5 +32,6 @@ typedef struct IRNode {
 } IRNode;
 
 IRNode* generate_intermediate_rep(AstNode *ast_node);
+void print_immediate_ret(IRNode *ir_node);
 
 #endif

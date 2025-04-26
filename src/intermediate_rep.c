@@ -17,13 +17,57 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   return program;
 }
 
+void print_immediate_ret(IRNode *ir_node) {
+  switch (ir_node->type) {
+    case IR_PROGRAM:
+      printf("Program \n");
+      print_immediate_ret(ir_node->data.program.function);
+      break;
+    case IR_FUNCTION: {
+        struct IRFunction *function = &ir_node->data.function; 
+        printf("Function -> %s\n", function->identifier);
+
+        for (int i = 0; i < function->instruction_count; i++) {
+          print_immediate_ret(&function->instructions[i]);
+        }
+      }
+      break;
+    case IR_INSTRUCTION_RET:
+      printf("Ret\n");
+      break;
+    case IR_INSTRUCTION_UNARY: {
+        struct IRInstructionUnary *unary = &ir_node->data.unary; 
+        printf("Unary -> Op: %d Source -> ", unary->op_type);
+        print_immediate_ret(unary->source);
+        printf(" Destination -> ");
+        print_immediate_ret(unary->destination);
+        printf("\n");
+      }
+      break;
+    case IR_VALUE_CONSTANT:
+      printf("Constant -> %d", ir_node->data.value_constant.value);
+      break;
+    case IR_VALUE_VAR:
+      printf("Var -> %s", ir_node->data.value_var.identifier);
+      break;
+    default: fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type); }
+}
+
 IRNode* ir_function(AstNode *ast_function) {
   IRNode *function = malloc(sizeof(IRNode));
+  IRNode *instructions = malloc(sizeof(IRNode));
   function->type = IR_FUNCTION;
   function->data.function.identifier = ast_function->data.function.name;
+  function->data.function.instruction_count = 0;
+  function->data.function.instruction_capacity = 0;
+  function->data.function.instructions = instructions;
 
   if (ast_function->data.function.statement->type == STMT_RETURN) {
     IRNode *value = ir_value(ast_function->data.function.statement->data.return_stmt.expression, function, 0);
+
+    IRNode *return_node = malloc(sizeof(IRNode));
+    return_node->type = IR_INSTRUCTION_RET;
+    return_node->data.instruction_ret.value = value;
   } else {
     fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
   } 
@@ -45,11 +89,12 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         IRNode *source = ir_value(ast_expression->data.unary.expression, ir_function, temp_identifier_id);
 
         //TODO: Warning, setting hard buffer limit
-        char destination_name[10];
+        char *destination_name = malloc(10);
         snprintf(destination_name, 10, "tmp.%d", temp_identifier_id); 
         
         IRNode *destination = malloc(sizeof(IRNode));
         destination->type = IR_VALUE_VAR;
+        destination->data.value_var.identifier = destination_name;
 
         IRUnaryOpType unary_op_type;
 

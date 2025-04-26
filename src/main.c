@@ -5,6 +5,7 @@
 #include "../include/parser.h"
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
+#include "../include/intermediate_rep.h"
 
 char* load_file(const char *file_path); 
 
@@ -56,17 +57,24 @@ int main(int argc, const char *argv[]) {
     print_ast(ast, 0);
   }
 
-  //TODO: Can we free the lexer tokens after this?
-
-  AsmNode *asm_nodes = generate_assembly(ast);
+  IRNode *ir = generate_intermediate_rep(ast);
 
   if (print_debug) {
-    printf("\n>> ASSEMBLY PRINT <<\n\n");
-    print_assembly(asm_nodes);
-
-    printf("\n>> CODE EMIT PRINT <<\n\n");
-    print_code_emit(asm_nodes);
+    printf("\n>> IR PRINT <<\n\n");
+    print_immediate_ret(ir);
   }
+
+  //TODO: Can we free the lexer tokens after this?
+
+  // AsmNode *asm_nodes = generate_assembly(ast);
+
+  // if (print_debug) {
+    // printf("\n>> ASSEMBLY PRINT <<\n\n");
+    // print_assembly(asm_nodes);
+
+    // printf("\n>> CODE EMIT PRINT <<\n\n");
+    // print_code_emit(asm_nodes);
+  // }
 
   return 0;
 }
