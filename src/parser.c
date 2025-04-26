@@ -43,46 +43,42 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
   return ret_program;
 }
 
-//TODO: Printing not printing correctly 
 void print_ast(AstNode *node, int level) {
+  char padding[level];
   for (int i = 0; i < level; i++) {
-    printf("  ");
+    padding[i] = ' ';
   }
 
   switch(node->type){
     case PROGRAM:  
       printf("Program (\n");
       print_ast(node->data.program.function, ++level);
+      printf(")\n");
       break;
     case FUNCTION:
-      printf("Function (name=\"%s\", body =\n", node->data.function.name);
+      printf("%sFunction (name=\"%s\", body =\n", padding, node->data.function.name);
       print_ast(node->data.function.statement, ++level);
+      printf("\n%s)\n", padding);
       break;
     case STMT_RETURN:
-      printf("Return(\n");
+      printf("%sReturn(\n", padding);
       print_ast(node->data.return_stmt.expression, ++level);
+      printf("\n%s)", padding);
       break;
     case EXPR_CONSTANT:
-      printf("Constant(%d", node->data.constant.value);
+      printf("Constant(%d)", node->data.constant.value);
       break;
     case EXPR_UNARY:
-      printf("Unary(");
+      printf("%sUnary(", padding);
       if (node->data.unary.op_type == COMPLEMENT) {
         printf("Complement(");
       } else {
         printf("Negate(");
       }
       print_ast(node->data.unary.expression, 0);
+      printf("))");
       break;
   }    
-
-  if (node->type != EXPR_CONSTANT) {
-    for (int i = 0; i < level; i++) {
-      printf("  ");
-    }
-  }
-
-  printf(")\n");
 }
 
 Token* current_token(Parser *parser) {
