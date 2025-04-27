@@ -10,16 +10,16 @@ typedef struct Parser {
   char* file;
 } Parser;
  
-AstNode* ast_program(Parser *parser);
-AstNode* ast_function(Parser *parser);
-AstNode* ast_statement(Parser *parser);
-AstNode* ast_expression(Parser *parser);
-Token*    current_token(Parser *parser);
-Token*    previous_token(Parser *parser);
-TokenType peek_next_token(Parser *parser); 
-char*     ast_identifier(Parser *parser);
-void      ast_expect(Parser *parser, TokenType expected_type);
-bool      end_of_file(Parser *parser);
+AstNode*   ast_program(Parser *parser);
+AstNode*   ast_function(Parser *parser);
+AstNode*   ast_statement(Parser *parser);
+AstNode*   ast_expression(Parser *parser);
+Token*     current_token(Parser *parser);
+Token*     previous_token(Parser *parser);
+TokenType  peek_next_token(Parser *parser); 
+char*      ast_identifier(Parser *parser);
+void       ast_expect(Parser *parser, TokenType expected_type);
+bool       end_of_file(Parser *parser);
 
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
   Parser parser = {
@@ -42,7 +42,7 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
 }
 
 void print_ast(AstNode *node, int level) {
-  char padding[level];
+ char padding[level];
   for (int i = 0; i < level; i++) {
     padding[i] = ' ';
   }

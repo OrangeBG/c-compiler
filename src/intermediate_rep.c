@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "../include/intermediate_rep.h"
 
 #define INSTRUCTION_CAPACITY 8
@@ -7,6 +8,9 @@
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifier_id); 
 void check_ir_function_instruction_size(IRNode *asm_function);
+
+//TODO: Temporary..Replace later
+int temp_number = 0;
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -28,27 +32,28 @@ void print_immediate_ret(IRNode *ir_node) {
         printf("Function -> %s\n", function->identifier);
 
         for (int i = 0; i < function->instruction_count; i++) {
-          print_immediate_ret(&function->instructions[i]);
+          if (function->instructions[i].type == IR_INSTRUCTION_RET) {
+            printf("Return(");
+            print_immediate_ret(function->instructions[i].data.instruction_ret.value);
+            printf(")");
+          } else {      
+            struct IRInstructionUnary* unary = &function->instructions[i].data.unary;
+
+            printf("Unary(%s", unary->op_type == IR_UNARY_COMPLEMENT ? "Complement, " : "Negate, ");
+            print_immediate_ret(unary->source);            
+            printf(",");
+            print_immediate_ret(unary->destination);
+            printf(")");
+            printf("\n");
+          }
         }
       }
       break;
-    case IR_INSTRUCTION_RET:
-      printf("Ret\n");
-      break;
-    case IR_INSTRUCTION_UNARY: {
-        struct IRInstructionUnary *unary = &ir_node->data.unary; 
-        printf("Unary -> Op: %d Source -> ", unary->op_type);
-        print_immediate_ret(unary->source);
-        printf(" Destination -> ");
-        print_immediate_ret(unary->destination);
-        printf("\n");
-      }
-      break;
     case IR_VALUE_CONSTANT:
-      printf("Constant -> %d", ir_node->data.value_constant.value);
+      printf("Constant(%d)", ir_node->data.value_constant.value);
       break;
     case IR_VALUE_VAR:
-      printf("Var -> %s", ir_node->data.value_var.identifier);
+      printf("Var(\"%s\")", ir_node->data.value_var.identifier);
       break;
     default: fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type); }
 }
@@ -64,10 +69,15 @@ IRNode* ir_function(AstNode *ast_function) {
 
   if (ast_function->data.function.statement->type == AST_STATEMENT_RETURN) {
     IRNode *value = ir_value(ast_function->data.function.statement->data.return_stmt.expression, function, 0);
+    IRNode *return_instruction = malloc(sizeof(IRNode));
+    return_instruction->type = IR_INSTRUCTION_RET;
+    return_instruction->data.instruction_ret.value = value;
 
-    IRNode *return_node = malloc(sizeof(IRNode));
-    return_node->type = IR_INSTRUCTION_RET;
-    return_node->data.instruction_ret.value = value;
+    check_ir_function_instruction_size(function);
+
+    function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
+    function->data.function.instruction_count++;
+
   } else {
     fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
   } 
@@ -90,7 +100,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
-        snprintf(destination_name, 10, "tmp.%d", temp_identifier_id); 
+        snprintf(destination_name, 10, "tmp.%d", temp_number++); 
         
         IRNode *destination = malloc(sizeof(IRNode));
         destination->type = IR_VALUE_VAR;
@@ -133,7 +143,7 @@ void check_ir_function_instruction_size(IRNode *asm_function) {
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * INSTRUCTION_CAPACITY;
 
-    IRNode *instructions = realloc(asm_function->data.function.instructions, new_size);
+    IRNode *instructions = realloc(asm_function->data.function.instructions, new_size * sizeof(IRNode));
 
     asm_function->data.function.instruction_capacity = new_size;
     asm_function->data.function.instructions = instructions;
