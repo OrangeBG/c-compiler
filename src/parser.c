@@ -64,16 +64,16 @@ void print_ast(AstNode *node, int level) {
       printf("\n%s)", padding);
       break;
     case AST_EXPRESSION_CONSTANT:
-      printf("Constant(%d)", node->data.constant.value);
+      printf("%sConstant(%d)", padding, node->data.constant.value);
       break;
     case AST_EXPRESSION_UNARY:
       printf("%sUnary(", padding);
       if (node->data.unary.op_type == AST_UNARY_COMPLEMENT) {
-        printf("Complement(");
+        printf("Complement(\n");
       } else {
-        printf("Negate(");
+        printf("Negate(\n");
       }
-      print_ast(node->data.unary.expression, 0);
+      print_ast(node->data.unary.expression, ++level);
       printf("))");
       break;
   }    
