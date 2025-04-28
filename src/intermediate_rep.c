@@ -5,9 +5,9 @@
 
 #define INSTRUCTION_CAPACITY 8
 
+void    check_ir_function_instruction_size(IRNode *asm_function);
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifier_id); 
-void check_ir_function_instruction_size(IRNode *asm_function);
 
 //TODO: Temporary..Replace later
 int temp_number = 0;
