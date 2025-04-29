@@ -26,6 +26,7 @@ void print_immediate_ret(IRNode *ir_node) {
     case IR_PROGRAM:
       printf("Program \n");
       print_immediate_ret(ir_node->data.program.function);
+      printf("\n");
       break;
     case IR_FUNCTION: {
         struct IRFunction *function = &ir_node->data.function; 
