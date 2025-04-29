@@ -66,15 +66,15 @@ int main(int argc, const char *argv[]) {
 
   //TODO: Can we free the lexer tokens after this?
 
-  // AsmNode *asm_nodes = generate_assembly(ast);
+  AsmNode *asm_nodes = generate_assembly(ir);
 
-  // if (print_debug) {
-    // printf("\n>> ASSEMBLY PRINT <<\n\n");
-    // print_assembly(asm_nodes);
+  if (print_debug) {
+    printf("\n>> ASSEMBLY PRINT <<\n\n");
+    print_assembly(asm_nodes);
 
     // printf("\n>> CODE EMIT PRINT <<\n\n");
     // print_code_emit(asm_nodes);
-  // }
+  }
 
   return 0;
 }

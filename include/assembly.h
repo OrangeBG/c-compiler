@@ -1,7 +1,7 @@
 #ifndef ASSEMBLY
 #define ASSEMBLY
 
-#include "../include/parser.h"
+#include "../include/intermediate_rep.h"
 
 typedef struct AsmNode AsmNode;
 
@@ -10,9 +10,23 @@ typedef enum {
   ASM_FUNCTION,
   ASM_INSTRUCTION_MOV,
   ASM_INSTRUCTION_RET,
+  ASM_INSTRUCTION_UNARY,
+  ASM_INSTRUCTION_ALLOCATE_STACK,
   ASM_OPERAND_IMM,
-  ASM_OPERAND_REGISTER
+  ASM_OPERAND_REGISTER,
+  ASM_OPERAND_PSEUDO_REGISTER,
+  ASM_OPERAND_STACK
 } AsmNodeType;
+
+typedef enum {
+  ASM_UNARY_NEG,
+  ASM_UNARY_NOT
+} AsmUnaryOpType;
+
+typedef enum {
+  ASM_REGISTER_AX,
+  ASM_REGISTER_R10
+} AsmRegisterType;
 
 typedef struct AsmNode {
   AsmNodeType type;
@@ -20,12 +34,17 @@ typedef struct AsmNode {
     struct AsmProgram { struct AsmNode *function; } program;
     struct AsmFunction { char* name; int instruction_count; int instruction_capacity; AsmNode *instructions; } function;
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
+    struct AsmInstructionUnary { AsmUnaryOpType operator; AsmNode *operand;  } instruction_unary;
+    struct AsmInstructionAllocateStack { int bytes_to_subtract;  } instruction_allocate_stack;
+    struct AsmInstructionReturn { int ret; } instruction_return;
     struct AsmOperandImmediate { int value; } operand_imm;
-    struct AsmOperandRegister { char *register_name; } operand_register;
+    struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
+    struct AsmOperandPseudoRegister { char *identifier;  } operand_pseudo_register;
+    struct AsmOperandStack { int address;  } operand_stack;
   } data;
 } AsmNode;
 
-AsmNode *generate_assembly(AstNode *ast_nodes);
+AsmNode *generate_assembly(IRNode *ir_nodes);
 void print_assembly(AsmNode *asm_node);
 
 #endif

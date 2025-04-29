@@ -5,9 +5,9 @@
 
 #define INSTRUCTION_CAPACITY 8
 
+void    check_ir_function_instruction_size(IRNode *asm_function);
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifier_id); 
-void check_ir_function_instruction_size(IRNode *asm_function);
 
 //TODO: Temporary..Replace later
 int temp_number = 0;
@@ -26,6 +26,7 @@ void print_immediate_ret(IRNode *ir_node) {
     case IR_PROGRAM:
       printf("Program \n");
       print_immediate_ret(ir_node->data.program.function);
+      printf("\n");
       break;
     case IR_FUNCTION: {
         struct IRFunction *function = &ir_node->data.function; 
