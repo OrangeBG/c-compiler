@@ -36,7 +36,6 @@ typedef struct AsmNode {
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionUnary { AsmUnaryOpType operator; AsmNode *operand;  } instruction_unary;
     struct AsmInstructionAllocateStack { int bytes_to_subtract;  } instruction_allocate_stack;
-    struct AsmInstructionReturn { int ret; } instruction_return;
     struct AsmOperandImmediate { int value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier;  } operand_pseudo_register;

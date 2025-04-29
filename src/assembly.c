@@ -183,7 +183,7 @@ void print_assembly(AsmNode *node) {
       printf("\n");
       break;
     case ASM_INSTRUCTION_RET:
-      printf("RET instruction %d\n", node->data.instruction_return.ret);
+      printf("RET instruction\n");
       break;
     case ASM_INSTRUCTION_UNARY:
       printf("UNARY Instruction ");
