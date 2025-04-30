@@ -6,10 +6,50 @@
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
 #include "../include/intermediate_rep.h"
+//TODO: Remove after testing
+#include "../include/hash_table.h"
 
 char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {
+  //TODO: Add hash table test code here and then remove
+  HashTable table;
+  hash_table_init(&table);
+
+  HashTableEntry *entry = hash_table_get_entry(&table, "test");
+
+  if (entry == NULL) {
+    printf("entry not found\n");
+  }
+  else {
+    printf("entry found\n");
+  }
+
+  HashTableEntry new_entry = {
+    .key = "test",
+    .value = { .integer = 15, .type = HASH_INT }
+  };
+
+  hash_table_add_entry(&table, &new_entry);
+
+  HashTableEntry new_new_entry = {
+    .key = "test",
+    .value = { .integer = 20, .type = HASH_INT }
+  };
+
+  hash_table_add_entry(&table, &new_new_entry);
+
+  HashTableEntry *found_entry = hash_table_get_entry(&table, "test");
+  
+  if (found_entry == NULL) {
+    printf("new entry not found\n");
+  }
+  else {
+    printf("new entry found\n");
+  }
+
+  return 0;
+  
   char* file;
   bool print_debug = true;
    
