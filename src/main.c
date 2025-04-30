@@ -6,7 +6,6 @@
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
 #include "../include/intermediate_rep.h"
-//TODO: Remove after testing
 
 char* load_file(const char *file_path); 
 
