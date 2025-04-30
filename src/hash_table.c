@@ -108,7 +108,6 @@ HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacit
   uint32_t hash = hash_key(key);
   int index = hash % capacity;
   
-  //TODO: not sure if Linear probing is working correctly
   while (true) {
     HashTableEntry *entry = &entries[index]; 
 
