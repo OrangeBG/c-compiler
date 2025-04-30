@@ -32,16 +32,21 @@ int main(int argc, const char *argv[]) {
 
   hash_table_add_entry(&table, &new_entry);
 
-  HashTableEntry new_new_entry = {
-    .key = "test",
-    .value = { .integer = 20, .type = HASH_INT }
-  };
-
-  hash_table_add_entry(&table, &new_new_entry);
-
   HashTableEntry *found_entry = hash_table_get_entry(&table, "test");
   
   if (found_entry == NULL) {
+    printf("new entry not found\n");
+  }
+  else {
+    printf("new entry found\n");
+  }
+
+  hash_table_delete_entry(&table, "test");
+
+  
+  HashTableEntry *found_again_entry = hash_table_get_entry(&table, "test");
+  
+  if (found_again_entry == NULL) {
     printf("new entry not found\n");
   }
   else {

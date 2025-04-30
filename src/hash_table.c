@@ -8,15 +8,28 @@
 #define HASH_TABLE_INITIAL_CAPACITY 8
 #define HASH_TABLE_MAX_LOAD 0.75
 
-uint32_t hash_key(char *key);
-void hash_table_expand(HashTable *table, int new_capacity); 
-HashTableEntry* hash_table_get_entry_with_entries(HashTableEntry *entries, int capacity, char *key); 
+uint32_t        hash_key(char *key);
+void            hash_table_expand(HashTable *table, int new_capacity); 
+HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key); 
 
 void hash_table_init(HashTable *table) {
   printf("Initializing hash table\n");
   table->capacity = 0;
   table->count = 0;
   table->entries = NULL;
+}
+
+void hash_table_delete_entry(HashTable *table, char *key) {
+  HashTableEntry *entry = hash_table_get_entry(table, key);
+
+  if (entry == NULL) {
+    return;
+  }
+
+  printf("deleting hash entry\n");
+
+  entry->key = NULL;
+  entry->value.type = HASH_TOMBSTONE;
 }
 
 void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
@@ -39,7 +52,7 @@ void hash_table_expand(HashTable *table, int new_capacity) {
   HashTableEntry *new_entries = malloc(sizeof(HashTableEntry) * new_capacity);
 
   for (int i = 0; i < new_capacity; i++) {
-    new_entries->key = NULL;
+    new_entries[i].key = NULL;
   }
 
   table->count = 0;
@@ -54,7 +67,7 @@ void hash_table_expand(HashTable *table, int new_capacity) {
       continue;
     }
 
-    HashTableEntry *new_entry = hash_table_get_entry_with_entries(new_entries, new_capacity, old_entry.key); 
+    HashTableEntry *new_entry = hash_table_get_with_entries(new_entries, new_capacity, old_entry.key); 
 
     new_entry->key = old_entry.key;
     new_entry->value = old_entry.value;
@@ -73,7 +86,7 @@ HashTableEntry* hash_table_get_entry(HashTable *table, char *key) {
     return NULL;
   }
 
-  HashTableEntry *entry = hash_table_get_entry_with_entries(table->entries, table->capacity, key);
+  HashTableEntry *entry = hash_table_get_with_entries(table->entries, table->capacity, key);
 
   return entry;
 }
@@ -91,19 +104,19 @@ uint32_t hash_key(char *key) {
   return hash;
 }
 
-HashTableEntry* hash_table_get_entry_with_entries(HashTableEntry *entries, int capacity, char *key) {
+HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
   uint32_t hash = hash_key(key);
   int index = hash % capacity;
   
+  //TODO: not sure if Linear probing is working correctly
   while (true) {
     HashTableEntry *entry = &entries[index]; 
 
-    if (entry->value.type == HASH_TOMBSTONE || entry->key == NULL) {
-      printf("Hash entry not found or is tombstoned\n");
-      return NULL;
+    if (entry->key == NULL && entry->value.type != HASH_TOMBSTONE) {
+      return entry;
     }
-
-    if (entry->key == key) {
+    
+    if (entry->key != NULL && strcmp(entry->key, key) == 0) {
       printf("Hash entry found\n");
       return entry;
     }
