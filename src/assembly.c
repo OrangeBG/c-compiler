@@ -11,8 +11,9 @@ AsmNode* asm_function(IRNode *ir_function);
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction); 
 void     check_function_instruction_size(AsmNode *asm_function); 
-void     asm_pseudo_register_pass(AsmNode *asm_function); 
-void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *top_stack_location); 
+void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
+void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
+void asm_instruction_allocate_stack(AsmNode *asm_function); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes) {  
   AsmNode *program = malloc(sizeof(AsmNode));
@@ -20,13 +21,21 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   program->type = ASM_PROGRAM;
   program->data.program.function = asm_function(ir_nodes->data.program.function); 
 
-  asm_pseudo_register_pass(program->data.program.function);
+  int stack_offset = 0;
+
+  asm_pseudo_register_pass(program->data.program.function, &stack_offset);
+
+  if (program->data.program.function->data.function.instructions[0].type != ASM_INSTRUCTION_ALLOCATE_STACK) {
+    fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack");
+    exit(1);
+  } 
   
+  program->data.program.function->data.function.instructions[0].data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+
   return program;
 }
 
-void asm_pseudo_register_pass(AsmNode *asm_function) {
-  int top_stack_location = 0;
+void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
   
@@ -36,16 +45,16 @@ void asm_pseudo_register_pass(AsmNode *asm_function) {
     switch(instruction->type) {
       case ASM_INSTRUCTION_MOV:        
         if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, &top_stack_location);
+         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, stack_offset);
         }
 
         if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, &top_stack_location);        
+         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, &top_stack_location);        
+         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, stack_offset);        
         }
         break;
       default:
@@ -54,17 +63,17 @@ void asm_pseudo_register_pass(AsmNode *asm_function) {
   }
 }
 
-void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, int *top_stack_location) {
+void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, int * stack_offset) {
   AsmNode *stack_operand = malloc(sizeof(AsmNode));
 
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
-  //TODO: Shouldn't need to do table_entry->key == NULL
+  //TODO: Shouldn't need to do table_entry->key == NULL, but is currently needed here. Need to investigate
   if (table_entry == NULL || table_entry->key == NULL) {
     HashTableEntry new_entry = {
       .key = pseudo_register->data.operand_pseudo_register.identifier,
       .value = {
-        .integer = *top_stack_location += 4,
+        .integer = *stack_offset += 4,
         .type = HASH_INT
       }
     };
@@ -73,7 +82,7 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
 
     pseudo_register->type = ASM_OPERAND_STACK;
     pseudo_register->data.operand_pseudo_register.identifier = NULL;
-    pseudo_register->data.operand_stack.address = *top_stack_location;
+    pseudo_register->data.operand_stack.address = *stack_offset;
 
     return;
   }
@@ -94,6 +103,9 @@ AsmNode* asm_function(IRNode *ir_function) {
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
 
+  //Add the Allocate Stack instruction, but will allocate the stack offset value of the instruction in another pass after building the assembly nodes
+  asm_instruction_allocate_stack(function);
+
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
     switch (ir_function->data.function.instructions[i].type) {
       case IR_INSTRUCTION_RET:
@@ -109,6 +121,17 @@ AsmNode* asm_function(IRNode *ir_function) {
   }
 
   return function;
+}
+
+void asm_instruction_allocate_stack(AsmNode *asm_function) {
+  AsmNode *allocate_stack_instruction = malloc(sizeof(AsmNode));
+  allocate_stack_instruction->type = ASM_INSTRUCTION_ALLOCATE_STACK;
+  allocate_stack_instruction->data.instruction_allocate_stack.bytes_to_subtract = 0;
+
+  check_function_instruction_size(asm_function);
+  
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *allocate_stack_instruction;
+  asm_function->data.function.instruction_count++;
 }
 
 void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) {
@@ -264,8 +287,9 @@ void print_assembly(AsmNode *node) {
     case ASM_OPERAND_STACK:
       printf("Stack %d\n", node->data.operand_stack.address);
       break;
-      //TODO:
-      // ASM_INSTRUCTION_ALLOCATE_STACK,
+    case ASM_INSTRUCTION_ALLOCATE_STACK:
+      printf("Allocate Stack %d\n", node->data.instruction_allocate_stack.bytes_to_subtract);
+      break;
     default:
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
       break;
