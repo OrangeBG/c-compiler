@@ -19,6 +19,7 @@ Token*     previous_token(Parser *parser);
 TokenType  peek_next_token(Parser *parser); 
 char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
+void       print_whitespace(int count); 
 bool       end_of_file(Parser *parser);
 
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
@@ -41,42 +42,52 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
   return ret_program;
 }
 
-void print_ast(AstNode *node, int level) {
- char padding[level];
-  for (int i = 0; i < level; i++) {
-    padding[i] = ' ';
-  }
+void print_ast(AstNode *node, int whitespace) {
 
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      print_ast(node->data.program.function, ++level);
+      print_ast(node->data.program.function, ++whitespace);
       printf(")\n");
       break;
     case AST_FUNCTION:
-      printf("%sFunction (name=\"%s\", body =\n", padding, node->data.function.name);
-      print_ast(node->data.function.statement, ++level);
-      printf("\n%s)\n", padding);
+      print_whitespace(whitespace);
+      printf("Function (name=\"%s\", body =\n", node->data.function.name);
+      print_ast(node->data.function.statement, ++whitespace);
+      printf("\n");
+      print_whitespace(whitespace);
+      printf(")\n)");      
       break;
     case AST_STATEMENT_RETURN:
-      printf("%sReturn(\n", padding);
-      print_ast(node->data.return_stmt.expression, ++level);
-      printf("\n%s)", padding);
+      print_whitespace(whitespace);
+      printf("Return(\n");
+      print_ast(node->data.return_stmt.expression, ++whitespace);
+      printf("\n");
+      print_whitespace(whitespace);
+      printf(")");
       break;
     case AST_EXPRESSION_CONSTANT:
-      printf("%sConstant(%d)", padding, node->data.constant.value);
+      print_whitespace(whitespace);
+      printf("Constant(%d)", node->data.constant.value);
       break;
     case AST_EXPRESSION_UNARY:
-      printf("%sUnary(", padding);
+      print_whitespace(whitespace);
+      printf("Unary(");
       if (node->data.unary.op_type == AST_UNARY_COMPLEMENT) {
         printf("Complement(\n");
       } else {
         printf("Negate(\n");
       }
-      print_ast(node->data.unary.expression, ++level);
+      print_ast(node->data.unary.expression, ++whitespace);
       printf("))");
       break;
   }    
+}
+
+void print_whitespace(int count) {
+  for (int i = 0; i < count;i++) {
+    printf(" ");
+  }
 }
 
 Token* current_token(Parser *parser) {
