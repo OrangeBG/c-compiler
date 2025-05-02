@@ -56,8 +56,8 @@ AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function) {
 
       AsmNode *new_instruction = malloc(sizeof(AsmNode));
 
-      new_instruction->type = instructions->type;
-      new_instruction->data = instructions->data;
+      new_instruction->type = instructions[i].type;
+      new_instruction->data = instructions[i].data;
 
       new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_instruction;
       new_function->data.function.instruction_count++;
