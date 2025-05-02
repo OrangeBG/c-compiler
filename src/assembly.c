@@ -8,12 +8,13 @@
 
 AsmNode* asm_program(IRNode *ir_node);
 AsmNode* asm_function(IRNode *ir_function); 
+AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function);
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction); 
 void     check_function_instruction_size(AsmNode *asm_function); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
-void asm_instruction_allocate_stack(AsmNode *asm_function); 
+void     asm_instruction_allocate_stack(AsmNode *asm_function); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes) {  
   AsmNode *program = malloc(sizeof(AsmNode));
@@ -26,13 +27,74 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   asm_pseudo_register_pass(program->data.program.function, &stack_offset);
 
   if (program->data.program.function->data.function.instructions[0].type != ASM_INSTRUCTION_ALLOCATE_STACK) {
-    fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack");
+    fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.function->data.function.name);
     exit(1);
   } 
   
   program->data.program.function->data.function.instructions[0].data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
+  program->data.program.function = asm_resolve_memory_mov_instructions(program->data.program.function);
+
   return program;
+}
+
+AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function) {
+  AsmNode *new_instructions = malloc(sizeof(AsmNode));
+  AsmNode *new_function = malloc(sizeof(AsmNode));
+  new_function->type = ASM_FUNCTION;
+  new_function->data.function.name = function->data.function.name;
+  new_function->data.function.instruction_count = 0;
+  new_function->data.function.instruction_capacity = 0;
+  new_function->data.function.instructions = new_instructions;
+  
+  int new_instruction_count = 0;
+  AsmNode *instructions = function->data.function.instructions;
+
+  for (int i = 0; i < function->data.function.instruction_count; i++) {
+    if (instructions[i].type != ASM_INSTRUCTION_MOV || (instructions[i].data.instruction_mov.destination->type != ASM_OPERAND_STACK || instructions[i].data.instruction_mov.source->type != ASM_OPERAND_STACK)) {
+      check_function_instruction_size(new_function);
+
+      AsmNode *new_instruction = malloc(sizeof(AsmNode));
+
+      new_instruction->type = instructions->type;
+      new_instruction->data = instructions->data;
+
+      new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_instruction;
+      new_function->data.function.instruction_count++;
+
+      continue;
+    }
+
+    AsmNode *new_source_mov_instruction = malloc(sizeof(AsmNode));
+    new_source_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    new_source_mov_instruction->data.instruction_mov.source = instructions[i].data.instruction_mov.source;
+
+    AsmNode *new_destination = malloc(sizeof(AsmNode));
+    new_destination->type = ASM_OPERAND_REGISTER;
+    new_destination->data.operand_register.op_register = ASM_REGISTER_R10;    
+    new_source_mov_instruction->data.instruction_mov.destination = new_destination;    
+
+    check_function_instruction_size(new_function);
+
+    new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_source_mov_instruction;
+    new_function->data.function.instruction_count++;
+
+    AsmNode *new_source = malloc(sizeof(AsmNode));
+    new_source->type = ASM_OPERAND_REGISTER;
+    new_source->data.operand_register.op_register = ASM_REGISTER_R10;
+        
+    AsmNode *new_destination_mov_instruction = malloc(sizeof(AsmNode));
+    new_destination_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    new_destination_mov_instruction->data.instruction_mov.source = new_source;
+    new_destination_mov_instruction->data.instruction_mov.destination = instructions[i].data.instruction_mov.destination;
+
+    check_function_instruction_size(new_function);
+
+    new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_destination_mov_instruction;
+    new_function->data.function.instruction_count++;
+  }
+
+  return new_function;
 }
 
 void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
