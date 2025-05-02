@@ -33,8 +33,9 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   
   program->data.program.function->data.function.instructions[0].data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
-  program->data.program.function = asm_resolve_memory_mov_instructions(program->data.program.function);
-
+  AsmNode *new_function = asm_resolve_memory_mov_instructions(program->data.program.function);
+  free(program->data.program.function);
+  program->data.program.function = new_function;
   return program;
 }
 
