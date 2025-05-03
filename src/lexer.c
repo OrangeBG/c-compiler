@@ -4,20 +4,23 @@
 #include <string.h>
 #include "../include/lexer.h"
 
-//TODO: May be better to have a larger start size
-#define TOKEN_ARRAY_START_SIZE 1000
+#define TOKEN_ARRAY_START_SIZE 64
 
 const char* TokenTypeStr[] = {
+  "TOKEN_ASTERISK",
   "TOKEN_BITWISE_NOT", 
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_CONSTANT_INT",
   "TOKEN_DECREMENT",
+  "TOKEN_FORWARD_SLASH",
   "TOKEN_IDENTIFIER",
   "TOKEN_INT",
   "TOKEN_NEGATION",
   "TOKEN_OPEN_PAREN",
   "TOKEN_OPEN_BRACE",
+  "TOKEN_PERCENT",
+  "TOKEN_PLUS",
   "TOKEN_RETURN",
   "TOKEN_SEMICOLON",
   "TOKEN_VOID", 
@@ -78,6 +81,10 @@ void load_tokens(Lexer *lexer, char *file) {
       case '}': add_token(TOKEN_CLOSE_BRACE, lexer); break;
       case ';': add_token(TOKEN_SEMICOLON, lexer); break;
       case '~': add_token(TOKEN_BITWISE_NOT, lexer); break;
+      case '+': add_token(TOKEN_PLUS, lexer); break;
+      case '*': add_token(TOKEN_ASTERISK, lexer); break;
+      case '%': add_token(TOKEN_PERCENT, lexer); break;
+      case '/': add_token(TOKEN_FORWARD_SLASH, lexer); break;
       case '-': {
         if (peek_next(lexer, file, '-')) {
           add_token(TOKEN_DECREMENT, lexer);
@@ -103,16 +110,20 @@ void print_tokens(Lexer *lexer, char *file) {
   for (int i = 0; i < lexer->token_count; i++) {
     printf("line %d     ", lexer->tokens[i].line);
     switch (lexer->tokens[i].type) {       
+      case TOKEN_ASTERISK: printf("Asterisk   "); break;
       case TOKEN_BITWISE_NOT: printf("Tilde      "); break;
       case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
       case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
       case TOKEN_CONSTANT_INT: printf("Constant   "); break;
       case TOKEN_DECREMENT: printf("Decrement  "); break;
+      case TOKEN_FORWARD_SLASH: printf("Forward Slash"); break;
       case TOKEN_IDENTIFIER: printf("Identifier ");  break;
       case TOKEN_INT: printf("Int        ");  break;
       case TOKEN_NEGATION: printf("Negation   "); break;
       case TOKEN_OPEN_PAREN: printf("Open Paren "); break;
       case TOKEN_OPEN_BRACE: printf("Open Brace "); break;
+      case TOKEN_PERCENT: printf("Percent    "); break;
+      case TOKEN_PLUS: printf("Plus       "); break;
       case TOKEN_RETURN: printf("Return     "); break;
       case TOKEN_SEMICOLON: printf("Semicolon  "); break;
       case TOKEN_VOID: printf("Void       "); break;
@@ -133,10 +144,7 @@ void add_token(TokenType type, Lexer *lexer) {
   if (lexer->token_count == lexer->token_capacity) {
     int size = lexer->token_capacity == 0 ? TOKEN_ARRAY_START_SIZE : lexer->token_capacity * 2;
     lexer->token_capacity = size;
-    //TODO: Add error when realloc fails
-    //TODO: Realloc is incorrectly reallocating when debugging in windows. However, in osx, it works just fine..... Assigning a large start size until then
-    //      I think it's because I'm not initializing a new pointer here. Refactor to use a new initialized pointer and test 
-    lexer->tokens = realloc(lexer->tokens, size);
+    lexer->tokens = realloc(lexer->tokens, size * sizeof(Token));
   }
 
   Token new_token = {
