@@ -18,14 +18,23 @@ typedef enum {
   AST_UNARY_NEGATE
 } UnaryOpType;
 
+typedef enum {
+  AST_BINARY_ADD,
+  AST_BINARY_SUBTRACT,
+  AST_BINARY_MULTIPLY,
+  AST_BINARY_DIVIDE,
+  AST_BINARY_REMAINDER
+} BinaryOpType;
+
 typedef struct AstNode {
   NodeType type;
   union {
     struct Program { struct AstNode *function; } program;
     struct Function { char* name; struct AstNode *statement; } function;
-    struct ReturnStmt { struct AstNode* expression; } return_stmt;
-    struct Constant { int value; } constant;
-    struct Unary { UnaryOpType op_type; struct AstNode *expression; } unary;
+    struct ReturnStatement { struct AstNode* expression; } return_statement;
+    struct ConstantExpression { int value; } constant_expression;
+    struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;
+    struct BinaryExpression { BinaryOpType op_type; struct AstNode *left_expression; struct AstNode *right_expression; } binary_expression;
   } data;
 } AstNode;
 

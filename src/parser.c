@@ -61,24 +61,24 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_STATEMENT_RETURN:
       print_whitespace(whitespace);
       printf("Return(\n");
-      print_ast(node->data.return_stmt.expression, ++whitespace);
+      print_ast(node->data.return_statement.expression, ++whitespace);
       printf("\n");
       print_whitespace(whitespace);
       printf(")");
       break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
-      printf("Constant(%d)", node->data.constant.value);
+      printf("Constant(%d)", node->data.constant_expression.value);
       break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
       printf("Unary(");
-      if (node->data.unary.op_type == AST_UNARY_COMPLEMENT) {
+      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT) {
         printf("Complement(\n");
       } else {
         printf("Negate(\n");
       }
-      print_ast(node->data.unary.expression, ++whitespace);
+      print_ast(node->data.unary_expression.expression, ++whitespace);
       printf("))");
       break;
   }    
@@ -186,7 +186,7 @@ AstNode* ast_statement(Parser *parser) {
   AstNode *return_node = malloc(sizeof(AstNode));
     
   return_node->type = AST_STATEMENT_RETURN;
-  return_node->data.return_stmt.expression = expression;
+  return_node->data.return_statement.expression = expression;
 
   ast_expect(parser, TOKEN_SEMICOLON);
 
@@ -206,7 +206,7 @@ AstNode* ast_expression(Parser *parser) {
     AstNode *constant = malloc(sizeof(AstNode));
     constant->type = AST_EXPRESSION_CONSTANT;
     //TODO: Only supports up to '9'
-    constant->data.constant.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
+    constant->data.constant_expression.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
 
     return constant;
   } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT) {
@@ -217,8 +217,8 @@ AstNode* ast_expression(Parser *parser) {
 
     AstNode *unary = malloc(sizeof(AstNode));    
     unary->type = AST_EXPRESSION_UNARY;
-    unary->data.unary.op_type = op_type;
-    unary->data.unary.expression = unary_value_expression;
+    unary->data.unary_expression.op_type = op_type;
+    unary->data.unary_expression.expression = unary_value_expression;
 
     return unary;
   } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
