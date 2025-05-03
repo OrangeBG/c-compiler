@@ -244,7 +244,15 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
   check_function_instruction_size(asm_function);
 
   AsmNode *ret_node = malloc(sizeof(AsmNode));
-  ret_node->type = ASM_INSTRUCTION_RET;
+  ret_node->type = ASM_INSTRUCTION_UNARY;
+
+  if (ir_unary_instruction->data.unary.op_type == IR_UNARY_NEGATE) {
+    ret_node->data.instruction_unary.operator = ASM_UNARY_NEG;
+  } else {
+    ret_node->data.instruction_unary.operator = ASM_UNARY_NOT;
+  }
+  
+  ret_node->data.instruction_unary.operand = destination_node;
 
   asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *ret_node;
   asm_function->data.function.instruction_count++;  
@@ -271,7 +279,7 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
 
   AsmNode *destination_node = malloc(sizeof(AsmNode));
   destination_node->type = ASM_OPERAND_REGISTER;
-  destination_node->data.operand_register.op_register = ASM_REGISTER_R10;  
+  destination_node->data.operand_register.op_register = ASM_REGISTER_AX;  
 
   AsmNode *mov_node = malloc(sizeof(AsmNode));
   mov_node->type = ASM_INSTRUCTION_MOV;
