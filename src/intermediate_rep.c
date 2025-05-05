@@ -37,13 +37,43 @@ void print_immediate_ret(IRNode *ir_node) {
             printf("Return(");
             print_immediate_ret(function->instructions[i].data.instruction_ret.value);
             printf(")");
-          } else {      
+          } else if (function->instructions[i].type == IR_INSTRUCTION_UNARY) {      
             struct IRInstructionUnary* unary = &function->instructions[i].data.unary;
 
             printf("Unary(%s", unary->op_type == IR_UNARY_COMPLEMENT ? "Complement, " : "Negate, ");
             print_immediate_ret(unary->source);            
             printf(",");
             print_immediate_ret(unary->destination);
+            printf(")");
+            printf("\n");
+          } else {
+            struct IRInstructionBinary* binary = &function->instructions[i].data.instruction_binary;
+
+            printf("Binary(");
+      
+            switch (binary->op_type) {
+              case IR_BINARY_ADD:
+                printf("Add, ");
+                break;
+              case IR_BINARY_SUBTRACT:
+                printf("Subtract, ");
+                break;
+              case IR_BINARY_DIVIDE:
+                printf("Divide, ");
+                break;
+              case IR_BINARY_MULTIPLY:
+                printf("Multiply, ");
+                break;
+              case IR_BINARY_REMAINDER:
+                printf("Remainder, ");
+                break;
+            }
+            
+            print_immediate_ret(binary->source_1);            
+            printf(",");
+            print_immediate_ret(binary->source_2);            
+            printf(",");
+            print_immediate_ret(binary->destination);
             printf(")");
             printf("\n");
           }
@@ -124,6 +154,53 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         check_ir_function_instruction_size(ir_function);
 
         ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *unary_instruction; 
+        ir_function->data.function.instruction_count++;
+
+        return destination;
+      }
+      break;
+    case AST_EXPRESSION_BINARY: {
+        IRNode *source_1 = ir_value(ast_expression->data.binary_expression.left_expression, ir_function, temp_identifier_id);
+        IRNode *source_2 = ir_value(ast_expression->data.binary_expression.right_expression, ir_function, temp_identifier_id);
+
+        //TODO: Warning, setting hard buffer limit
+        char *destination_name = malloc(10);
+        snprintf(destination_name, 10, "tmp.%d", temp_number++); 
+        
+        IRNode *destination = malloc(sizeof(IRNode));
+        destination->type = IR_VALUE_VAR;
+        destination->data.value_var.identifier = destination_name;
+
+        IRBinaryOpType binary_op_type;
+
+        switch (ast_expression->data.binary_expression.op_type) {
+          case AST_BINARY_ADD:
+            binary_op_type = IR_BINARY_ADD;
+            break;
+          case AST_BINARY_SUBTRACT:
+            binary_op_type = IR_BINARY_SUBTRACT;
+            break;
+          case AST_BINARY_DIVIDE:
+            binary_op_type = IR_BINARY_DIVIDE;
+            break;
+          case AST_BINARY_MULTIPLY:
+            binary_op_type = IR_BINARY_MULTIPLY;
+            break;
+          case AST_BINARY_REMAINDER:
+            binary_op_type = IR_BINARY_REMAINDER;
+            break;
+        }      
+
+        IRNode *binary_instruction = malloc(sizeof(IRNode));         
+        binary_instruction->type = IR_INSTRUCTION_BINARY;
+        binary_instruction->data.instruction_binary.op_type = binary_op_type;
+        binary_instruction->data.instruction_binary.source_1 = source_1;
+        binary_instruction->data.instruction_binary.source_2 = source_2;
+        binary_instruction->data.instruction_binary.destination = destination;
+
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *binary_instruction; 
         ir_function->data.function.instruction_count++;
 
         return destination;
