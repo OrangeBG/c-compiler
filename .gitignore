@@ -12,3 +12,4 @@
 /test/invalid-tests
 /test/valid-tests
 /test/.cache
+compile_commands.json
