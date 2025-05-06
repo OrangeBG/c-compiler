@@ -1,4 +1,5 @@
 - Add generic dynamic array grow function
+- Add generic malloc / error check function
 - Parser: Need to check if we need to malloc the ast's when creating them.
 - Look into constant token and see if it needs to be type specified (ie: token_constant_int)
 - Look into proper exit codes to use.

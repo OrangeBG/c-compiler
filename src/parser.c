@@ -90,10 +90,22 @@ void print_ast(AstNode *node, int whitespace) {
       printf("Binary(\n");
       print_ast(node->data.binary_expression.left_expression, ++whitespace);
   
-      if (node->data.binary_expression.op_type == AST_BINARY_ADD) {
-        printf(" + ");
-      } else {
-        printf(" - ");
+      switch (node->data.binary_expression.op_type) {
+        case AST_BINARY_ADD:
+          printf(" + ");
+          break;
+        case AST_BINARY_SUBTRACT:
+          printf(" - ");
+          break;
+        case AST_BINARY_DIVIDE:
+          printf(" / ");
+          break;
+        case AST_BINARY_MULTIPLY:
+          printf(" * ");
+          break;
+        case AST_BINARY_REMAINDER:
+          printf(" %% ");
+          break;
       }
     
       print_ast(node->data.binary_expression.right_expression, 0);
@@ -236,8 +248,14 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
 
     if (next_token == TOKEN_PLUS) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_ADD;
-    } else {
+    } else if (next_token == TOKEN_NEGATION) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+    } else if (next_token == TOKEN_ASTERISK) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY;
+    } else if (next_token == TOKEN_FORWARD_SLASH) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE;
+    } else {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER;
     }
 
     left = binary_expression;

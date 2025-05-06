@@ -11,6 +11,9 @@ typedef enum {
   ASM_INSTRUCTION_MOV,
   ASM_INSTRUCTION_RET,
   ASM_INSTRUCTION_UNARY,
+  ASM_INSTRUCTION_BINARY,
+  ASM_INSTUCTION_IDIV,
+  ASM_INSTRUCTION_CDQ,
   ASM_INSTRUCTION_ALLOCATE_STACK,
   ASM_OPERAND_IMM,
   ASM_OPERAND_REGISTER,
@@ -24,8 +27,16 @@ typedef enum {
 } AsmUnaryOpType;
 
 typedef enum {
+  ASM_BINARY_ADD,
+  ASM_BINARY_SUB,
+  ASM_BINARY_MULT
+} AsmBinaryOpType;
+
+typedef enum {
   ASM_REGISTER_AX,
-  ASM_REGISTER_R10
+  ASM_REGISTER_DX,
+  ASM_REGISTER_R10,
+  ASM_REGISTER_R11
 } AsmRegisterType;
 
 typedef struct AsmNode {
@@ -35,6 +46,8 @@ typedef struct AsmNode {
     struct AsmFunction { char* name; int instruction_count; int instruction_capacity; AsmNode *instructions; } function;
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionUnary { AsmUnaryOpType operator; AsmNode *operand;  } instruction_unary;
+    struct AsmInstructionBinary { AsmBinaryOpType operator; AsmNode *operand_1; AsmNode *operand_2;  } instruction_binary;
+    struct AsmInstructionIdiv { AsmNode *operand; } instruction_idiv;
     struct AsmInstructionAllocateStack { int bytes_to_subtract;  } instruction_allocate_stack;
     struct AsmOperandImmediate { int value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
