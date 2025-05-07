@@ -552,6 +552,14 @@ void print_assembly(AsmNode *node) {
       print_assembly(node->data.instruction_binary.operand_2);
       printf("\n");
       break;
+    case ASM_INSTRUCTION_CDQ:
+      printf("CDQ Instruction\n");
+      break;
+    case ASM_INSTUCTION_IDIV:
+      printf("IDIV Instruction\n");
+      print_assembly(node->data.instruction_idiv.operand);
+      printf("\n");
+      break;
     case ASM_OPERAND_REGISTER:
       printf("Register %d\n", node->data.operand_register.op_register);
       break;
