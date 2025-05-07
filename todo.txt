@@ -1,3 +1,4 @@
+- Lots of copied code in instruction functions to build source/destination node in Assembly
 - Add generic dynamic array grow function
 - Add generic malloc / error check function
 - Parser: Need to check if we need to malloc the ast's when creating them.
