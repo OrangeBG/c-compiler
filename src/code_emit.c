@@ -54,7 +54,7 @@ void print_code_emit(AsmNode *asm_node) {
     case ASM_INSTRUCTION_CDQ:
       printf("\tcdq\n");
       break;
-    case ASM_INSTUCTION_IDIV:
+    case ASM_INSTRUCTION_IDIV:
       printf("\tidivl\t");
       print_code_emit(asm_node->data.instruction_idiv.operand);
       printf("\n");

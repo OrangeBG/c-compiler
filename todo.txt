@@ -1,3 +1,4 @@
+- Assembly - resolve memory mov and idiv functions can probably be done on a single pass
 - Lots of copied code in instruction functions to build source/destination node in Assembly
 - Add generic dynamic array grow function
 - Add generic malloc / error check function
