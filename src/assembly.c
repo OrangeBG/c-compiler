@@ -8,9 +8,15 @@
 
 AsmNode* asm_program(IRNode *ir_node);
 AsmNode* asm_function(IRNode *ir_function); 
-AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function);
+AsmNode* asm_resolve_instructions(AsmNode *function); 
+void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction);
+void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction); 
+void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction); 
+void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction); 
+void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction); 
+void     asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_instruction); 
 void     check_function_instruction_size(AsmNode *asm_function); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
@@ -33,13 +39,14 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   
   program->data.program.function->data.function.instructions[0].data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
-  AsmNode *new_function = asm_resolve_memory_mov_instructions(program->data.program.function);
+  AsmNode *new_function = asm_resolve_instructions(program->data.program.function);
+
   free(program->data.program.function);
   program->data.program.function = new_function;
   return program;
 }
 
-AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function) {
+AsmNode* asm_resolve_instructions(AsmNode *function) {
   AsmNode *new_instructions = malloc(sizeof(AsmNode));
   AsmNode *new_function = malloc(sizeof(AsmNode));
   new_function->type = ASM_FUNCTION;
@@ -48,37 +55,148 @@ AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function) {
   new_function->data.function.instruction_capacity = 0;
   new_function->data.function.instructions = new_instructions;
   
-  int new_instruction_count = 0;
   AsmNode *instructions = function->data.function.instructions;
 
   for (int i = 0; i < function->data.function.instruction_count; i++) {
-    if (instructions[i].type != ASM_INSTRUCTION_MOV || (instructions[i].data.instruction_mov.destination->type != ASM_OPERAND_STACK || instructions[i].data.instruction_mov.source->type != ASM_OPERAND_STACK)) {
-      check_function_instruction_size(new_function);
+    AsmNodeType instruction_type = instructions[i].type;
 
-      AsmNode *new_instruction = malloc(sizeof(AsmNode));
-
-      new_instruction->type = instructions[i].type;
-      new_instruction->data = instructions[i].data;
-
-      new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_instruction;
-      new_function->data.function.instruction_count++;
-
+    if (instruction_type == ASM_INSTRUCTION_MOV && (instructions[i].data.instruction_mov.destination->type == ASM_OPERAND_STACK || instructions[i].data.instruction_mov.source->type == ASM_OPERAND_STACK)) {
+      //MOV instructions cannot have both a source and destination as memory addresses
+      asm_resolve_mov_memory_addresses(new_function, &instructions[i]);
+      continue;
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.operator == ASM_BINARY_ADD || instructions[i].data.instruction_binary.operator == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK || instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
+      //ADD and SUB instructions cannot have both a source and destination as memory addresses
+      asm_resolve_binary_add_sub_memory_addresses(new_function, &instructions[i]);
+      continue;
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && instructions[i].data.instruction_binary.operator == ASM_BINARY_MULT && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
+      //MUL instructions cannot use a memory address as its destination
+      asm_resolve_binary_mul_memory_addresses(new_function, &instructions[i]);
+      continue;
+    } else if (instructions[i].type == ASM_INSTRUCTION_IDIV && instructions[i].data.instruction_idiv.operand->type == ASM_OPERAND_IMM) {
+      //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
+      asm_resolve_idiv_instructions(new_function, &instructions[i]);
       continue;
     }
 
+    check_function_instruction_size(new_function);
+
+    AsmNode *new_instruction = malloc(sizeof(AsmNode));
+
+    new_instruction->type = instructions[i].type;
+    new_instruction->data = instructions[i].data;
+
+    new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_instruction;
+    new_function->data.function.instruction_count++;
+  }
+
+  return new_function;
+}
+
+void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction) {
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = idiv_instruction->data.instruction_idiv.operand;
+
+  AsmNode *destination = malloc(sizeof(AsmNode));
+  destination->type = ASM_OPERAND_REGISTER;
+  destination->data.operand_register.op_register = ASM_REGISTER_R10;    
+
+  mov_instruction->data.instruction_mov.destination = destination;
+  
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction;
+  function->data.function.instruction_count++;
+
+  AsmNode *new_idiv_instruction = malloc(sizeof(AsmNode));
+  new_idiv_instruction->type = ASM_INSTRUCTION_IDIV;
+  new_idiv_instruction->data.instruction_idiv.operand = destination;
+
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *new_idiv_instruction;
+  function->data.function.instruction_count++;
+}
+
+void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction) {
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_2;
+  
+  AsmNode *destination = malloc(sizeof(AsmNode));
+  destination->type = ASM_OPERAND_REGISTER;
+  destination->data.operand_register.op_register = ASM_REGISTER_R11;    
+
+  mov_instruction->data.instruction_mov.destination = destination;
+  
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction;
+  function->data.function.instruction_count++;
+
+  AsmNode *mull_instruction = malloc(sizeof(AsmNode));
+  mull_instruction->type = ASM_INSTRUCTION_BINARY;
+  mull_instruction->data.instruction_binary.operator = ASM_BINARY_MULT;
+  mull_instruction->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
+  mull_instruction->data.instruction_binary.operand_2 = destination;
+  
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *mull_instruction;
+  function->data.function.instruction_count++;
+
+  AsmNode *mov_instruction_2 = malloc(sizeof(AsmNode));
+  mov_instruction_2->type = ASM_INSTRUCTION_MOV;
+  mov_instruction_2->data.instruction_mov.source = destination;
+  mov_instruction_2->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
+
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction_2;
+  function->data.function.instruction_count++;
+}
+
+void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction) {
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_1;
+
+  AsmNode *destination = malloc(sizeof(AsmNode));
+  destination->type = ASM_OPERAND_REGISTER;
+  destination->data.operand_register.op_register = ASM_REGISTER_R10;    
+
+  mov_instruction->data.instruction_mov.destination = destination;
+
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction;
+  function->data.function.instruction_count++;
+
+  AsmNode *binary_instruction = malloc(sizeof(AsmNode));
+  binary_instruction->type = ASM_INSTRUCTION_BINARY;
+  binary_instruction->data.instruction_binary.operand_1 = destination;
+  binary_instruction->data.instruction_binary.operand_2 = instruction->data.instruction_binary.operand_2;
+
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *binary_instruction;
+  function->data.function.instruction_count++;
+}
+
+void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction) {
     AsmNode *new_source_mov_instruction = malloc(sizeof(AsmNode));
     new_source_mov_instruction->type = ASM_INSTRUCTION_MOV;
-    new_source_mov_instruction->data.instruction_mov.source = instructions[i].data.instruction_mov.source;
+    new_source_mov_instruction->data.instruction_mov.source = instruction->data.instruction_mov.source;
 
     AsmNode *new_destination = malloc(sizeof(AsmNode));
     new_destination->type = ASM_OPERAND_REGISTER;
     new_destination->data.operand_register.op_register = ASM_REGISTER_R10;    
     new_source_mov_instruction->data.instruction_mov.destination = new_destination;    
 
-    check_function_instruction_size(new_function);
+    check_function_instruction_size(function);
 
-    new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_source_mov_instruction;
-    new_function->data.function.instruction_count++;
+    function->data.function.instructions[function->data.function.instruction_count] = *new_source_mov_instruction;
+    function->data.function.instruction_count++;
 
     AsmNode *new_source = malloc(sizeof(AsmNode));
     new_source->type = ASM_OPERAND_REGISTER;
@@ -87,15 +205,12 @@ AsmNode* asm_resolve_memory_mov_instructions(AsmNode *function) {
     AsmNode *new_destination_mov_instruction = malloc(sizeof(AsmNode));
     new_destination_mov_instruction->type = ASM_INSTRUCTION_MOV;
     new_destination_mov_instruction->data.instruction_mov.source = new_source;
-    new_destination_mov_instruction->data.instruction_mov.destination = instructions[i].data.instruction_mov.destination;
+    new_destination_mov_instruction->data.instruction_mov.destination = instruction->data.instruction_mov.destination;
 
-    check_function_instruction_size(new_function);
+    check_function_instruction_size(function);
 
-    new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_destination_mov_instruction;
-    new_function->data.function.instruction_count++;
-  }
-
-  return new_function;
+    function->data.function.instructions[function->data.function.instruction_count] = *new_destination_mov_instruction;
+    function->data.function.instruction_count++;
 }
 
 void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
@@ -118,6 +233,20 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, stack_offset);        
+        }
+        break;
+      case ASM_INSTRUCTION_BINARY:
+        if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, &stack_location_table, stack_offset);        
+        }
+
+        if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, &stack_location_table, stack_offset);        
+        }
+        break;
+      case ASM_INSTRUCTION_IDIV:
+        if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, stack_offset);        
         }
         break;
       default:
@@ -166,7 +295,7 @@ AsmNode* asm_function(IRNode *ir_function) {
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
 
-  //Add the Allocate Stack instruction, but will allocate the stack offset value of the instruction in another pass after building the assembly nodes
+  //Adds the Allocate Stack instruction, but will allocate the stack offset value of the instruction in another pass after building the assembly nodes
   asm_instruction_allocate_stack(function);
 
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
@@ -176,6 +305,18 @@ AsmNode* asm_function(IRNode *ir_function) {
         break;
       case IR_INSTRUCTION_UNARY:
         asm_instruction_unary(function, &ir_function->data.function.instructions[i]);
+        break;
+      case IR_INSTRUCTION_BINARY:        
+        switch (ir_function->data.function.instructions[i].data.instruction_binary.op_type) {
+          case IR_BINARY_ADD:
+          case IR_BINARY_SUBTRACT:
+          case IR_BINARY_MULTIPLY:
+            asm_instruction_binary(function, &ir_function->data.function.instructions[i]);
+            break;
+          default:
+            asm_instruction_binary_division(function, &ir_function->data.function.instructions[i]);
+            break;
+        }
         break;
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
@@ -197,6 +338,192 @@ void asm_instruction_allocate_stack(AsmNode *asm_function) {
   asm_function->data.function.instruction_count++;
 }
 
+void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction) {
+  AsmNode *source_1 = malloc(sizeof(AsmNode));
+
+  switch (ir_binary_instruction->data.instruction_binary.source_1->type) {
+    case IR_VALUE_CONSTANT:
+      source_1->type = ASM_OPERAND_IMM;
+      source_1->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_1->data.value_constant.value;
+      break;
+    case IR_VALUE_VAR:
+      source_1->type = ASM_OPERAND_PSEUDO_REGISTER;
+      source_1->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_1->data.value_var.identifier;
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary source 1 value type %d not found in asm_instruction_binary\n", ir_binary_instruction->data.instruction_binary.source_1->type);
+      exit(1);      
+  }  
+
+  AsmNode *source_2 = malloc(sizeof(AsmNode));
+
+  switch (ir_binary_instruction->data.instruction_binary.source_2->type) {
+    case IR_VALUE_CONSTANT:
+      source_2->type = ASM_OPERAND_IMM;
+      source_2->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_2->data.value_constant.value;
+      break;
+    case IR_VALUE_VAR:
+      source_2->type = ASM_OPERAND_PSEUDO_REGISTER;
+      source_2->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_2->data.value_var.identifier;
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary source 2 value type %d not found in asm_instruction_binary\n", ir_binary_instruction->data.instruction_binary.source_2->type);
+      exit(1);      
+  }  
+
+  AsmNode *destination_node = malloc(sizeof(AsmNode));
+
+  switch (ir_binary_instruction->data.instruction_binary.destination->type) {
+    case IR_VALUE_CONSTANT:
+      destination_node->type = ASM_OPERAND_IMM;
+      destination_node->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.destination->data.value_constant.value;   
+      break;
+    case IR_VALUE_VAR:
+      destination_node->type = ASM_OPERAND_PSEUDO_REGISTER;
+      destination_node->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.destination->data.value_var.identifier;      
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary destination value type %d not found in asm_instruction_binary\n", ir_binary_instruction->data.instruction_binary.destination->type);
+      exit(1);      
+  }  
+
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = source_1;
+  mov_instruction->data.instruction_mov.destination = destination_node;
+
+  AsmNode *binary_instruction = malloc(sizeof(AsmNode));
+  binary_instruction->type = ASM_INSTRUCTION_BINARY;
+  binary_instruction->data.instruction_binary.operand_1 = source_2;
+  binary_instruction->data.instruction_binary.operand_2 = destination_node;
+
+  switch (ir_binary_instruction->data.instruction_binary.op_type) {
+    case IR_BINARY_ADD:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_ADD;
+      break;
+    case IR_BINARY_SUBTRACT:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_SUB;
+      break;
+    case IR_BINARY_MULTIPLY:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_MULT;
+      break;
+    default:
+      break;
+  }
+
+  check_function_instruction_size(asm_function);
+
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_instruction;
+  asm_function->data.function.instruction_count++;
+
+  check_function_instruction_size(asm_function);
+
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *binary_instruction;
+  asm_function->data.function.instruction_count++;
+}
+
+void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_instruction) {
+  AsmNode *source_1 = malloc(sizeof(AsmNode));
+
+  switch (ir_binary_instruction->data.instruction_binary.source_1->type) {
+    case IR_VALUE_CONSTANT:
+      source_1->type = ASM_OPERAND_IMM;
+      source_1->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_1->data.value_constant.value;
+      break;
+    case IR_VALUE_VAR:
+      source_1->type = ASM_OPERAND_PSEUDO_REGISTER;
+      source_1->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_1->data.value_var.identifier;
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary source 1 value type %d not found in asm_instruction_binary_division\n", ir_binary_instruction->data.instruction_binary.source_1->type);
+      exit(1);      
+  }  
+
+  AsmNode *source_2 = malloc(sizeof(AsmNode));
+
+  switch (ir_binary_instruction->data.instruction_binary.source_2->type) {
+    case IR_VALUE_CONSTANT:
+      source_2->type = ASM_OPERAND_IMM;
+      source_2->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_2->data.value_constant.value;
+      break;
+    case IR_VALUE_VAR:
+      source_2->type = ASM_OPERAND_PSEUDO_REGISTER;
+      source_2->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_2->data.value_var.identifier;
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary source 2 value type %d not found in asm_instruction_binary_division\n", ir_binary_instruction->data.instruction_binary.source_2->type);
+      exit(1);      
+  }  
+
+  AsmNode *destination_node = malloc(sizeof(AsmNode));
+
+  switch (ir_binary_instruction->data.instruction_binary.destination->type) {
+    case IR_VALUE_CONSTANT:
+      destination_node->type = ASM_OPERAND_IMM;
+      destination_node->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.destination->data.value_constant.value;   
+      break;
+    case IR_VALUE_VAR:
+      destination_node->type = ASM_OPERAND_PSEUDO_REGISTER;
+      destination_node->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.destination->data.value_var.identifier;      
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary destination value type %d not found in asm_instruction_binary_division\n", ir_binary_instruction->data.instruction_binary.destination->type);
+      exit(1);      
+  }  
+
+  AsmNode *mov_instruction_1 = malloc(sizeof(AsmNode));
+  mov_instruction_1->type = ASM_INSTRUCTION_MOV;
+  mov_instruction_1->data.instruction_mov.source = source_1;
+
+  AsmNode *mov_destination_1 = malloc(sizeof(AsmNode));
+  mov_destination_1->type = ASM_OPERAND_REGISTER;
+  mov_destination_1->data.operand_register.op_register = ASM_REGISTER_AX;
+  
+  mov_instruction_1->data.instruction_mov.destination = mov_destination_1;
+  
+  check_function_instruction_size(asm_function);
+
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_instruction_1;
+  asm_function->data.function.instruction_count++;
+
+  AsmNode *cdq_instruction = malloc(sizeof(AsmNode));
+  cdq_instruction->type = ASM_INSTRUCTION_CDQ;
+
+  check_function_instruction_size(asm_function);
+
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *cdq_instruction;
+  asm_function->data.function.instruction_count++;
+  
+  AsmNode *idiv_instruction = malloc(sizeof(AsmNode));
+  idiv_instruction->type = ASM_INSTRUCTION_IDIV;
+  idiv_instruction->data.instruction_idiv.operand = source_2;
+
+  check_function_instruction_size(asm_function);
+
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *idiv_instruction;
+  asm_function->data.function.instruction_count++;
+
+  AsmNode *mov_instruction_2 = malloc(sizeof(AsmNode));
+  mov_instruction_2->type = ASM_INSTRUCTION_MOV;
+  mov_instruction_2->data.instruction_mov.destination = destination_node;
+
+  AsmNode *mov_destination_2 = malloc(sizeof(AsmNode));
+  mov_destination_2->type = ASM_OPERAND_REGISTER;
+  
+  if (ir_binary_instruction->data.instruction_binary.op_type == IR_BINARY_DIVIDE) {
+    mov_destination_2->data.operand_register.op_register = ASM_REGISTER_AX;
+  } else {
+    mov_destination_2->data.operand_register.op_register = ASM_REGISTER_DX;
+  }
+
+  mov_instruction_2->data.instruction_mov.source = mov_destination_2;
+
+  check_function_instruction_size(asm_function);
+
+  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_instruction_2;
+  asm_function->data.function.instruction_count++;
+}
+ 
 void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) {
   AsmNode *source_node = malloc(sizeof(AsmNode));
 
@@ -344,6 +671,20 @@ void print_assembly(AsmNode *node) {
     case ASM_INSTRUCTION_UNARY:
       printf("UNARY Instruction ");
       print_assembly(node->data.instruction_unary.operand);
+      printf("\n");
+      break;
+    case ASM_INSTRUCTION_BINARY:
+      printf("BINARY Instruction\n");
+      print_assembly(node->data.instruction_binary.operand_1);
+      print_assembly(node->data.instruction_binary.operand_2);
+      printf("\n");
+      break;
+    case ASM_INSTRUCTION_CDQ:
+      printf("CDQ Instruction\n");
+      break;
+    case ASM_INSTRUCTION_IDIV:
+      printf("IDIV Instruction\n");
+      print_assembly(node->data.instruction_idiv.operand);
       printf("\n");
       break;
     case ASM_OPERAND_REGISTER:

@@ -34,6 +34,31 @@ void print_code_emit(AsmNode *asm_node) {
       print_code_emit(asm_node->data.instruction_unary.operand);
       printf("\n");
       break;
+    case ASM_INSTRUCTION_BINARY:
+      switch (asm_node->data.instruction_binary.operator) {
+        case ASM_BINARY_ADD:
+          printf("\taddl\t");
+          break;
+        case ASM_BINARY_SUB:
+          printf("\tsubl\t");
+          break;
+        case ASM_BINARY_MULT:
+          printf("\tmull\t");
+          break;        
+      }
+      print_code_emit(asm_node->data.instruction_binary.operand_1);
+      printf(", ");
+      print_code_emit(asm_node->data.instruction_binary.operand_2);
+      printf("\n");
+      break;
+    case ASM_INSTRUCTION_CDQ:
+      printf("\tcdq\n");
+      break;
+    case ASM_INSTRUCTION_IDIV:
+      printf("\tidivl\t");
+      print_code_emit(asm_node->data.instruction_idiv.operand);
+      printf("\n");
+      break;
     case ASM_INSTRUCTION_RET:
       //Function epilogue
       printf("\tmovq\t%%rbp, %%rsp\n");
@@ -52,8 +77,14 @@ void print_code_emit(AsmNode *asm_node) {
         case ASM_REGISTER_R10:
           printf("%%r10d");
           break;
+        case ASM_REGISTER_R11:
+          printf("%%r11d");
+          break;
         case ASM_REGISTER_AX:
           printf("%%eax");
+          break;
+        case ASM_REGISTER_DX:
+          printf("%%dx");
           break;
       }
       break;
@@ -61,6 +92,6 @@ void print_code_emit(AsmNode *asm_node) {
       printf("-%d(%%rbp)", asm_node->data.operand_stack.address);
       break;
     default:
-      fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'", asm_node->type);
+      fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
   }
 }

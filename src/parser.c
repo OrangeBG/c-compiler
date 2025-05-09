@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -13,7 +14,8 @@ typedef struct Parser {
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
-AstNode*   ast_expression(Parser *parser);
+AstNode*   ast_expression(Parser *parser, int min_precedence);
+AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
 Token*     previous_token(Parser *parser);
 TokenType  peek_next_token(Parser *parser); 
@@ -21,6 +23,8 @@ char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
 bool       end_of_file(Parser *parser);
+bool       is_binary_operator_token(Parser *parser);
+int        get_precedence(TokenType token_type);
 
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
   Parser parser = {
@@ -66,20 +70,46 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")");
       break;
-    case AST_EXPRESSION_CONSTANT:
+    case AST_FACTOR_CONSTANT:
       print_whitespace(whitespace);
-      printf("Constant(%d)", node->data.constant_expression.value);
+      printf("Constant(%d)", node->data.constant_factor.value);
       break;
-    case AST_EXPRESSION_UNARY:
+    case AST_FACTOR_UNARY:
       print_whitespace(whitespace);
       printf("Unary(");
-      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT) {
+      if (node->data.unary_factor.op_type == AST_UNARY_COMPLEMENT) {
         printf("Complement(\n");
       } else {
         printf("Negate(\n");
       }
-      print_ast(node->data.unary_expression.expression, ++whitespace);
+      print_ast(node->data.unary_factor.factor, ++whitespace);
       printf("))");
+      break;
+    case AST_EXPRESSION_BINARY:
+      print_whitespace(whitespace);
+      printf("Binary(\n");
+      print_ast(node->data.binary_expression.left_expression, ++whitespace);
+  
+      switch (node->data.binary_expression.op_type) {
+        case AST_BINARY_ADD:
+          printf(" + ");
+          break;
+        case AST_BINARY_SUBTRACT:
+          printf(" - ");
+          break;
+        case AST_BINARY_DIVIDE:
+          printf(" / ");
+          break;
+        case AST_BINARY_MULTIPLY:
+          printf(" * ");
+          break;
+        case AST_BINARY_REMAINDER:
+          printf(" %% ");
+          break;
+      }
+    
+      print_ast(node->data.binary_expression.right_expression, 0);
+      printf(")");
       break;
   }    
 }
@@ -96,6 +126,14 @@ Token* current_token(Parser *parser) {
 
 Token* previous_token(Parser *parser) {
   return &parser->tokens[parser->current_token_index - 1];
+}
+
+TokenType peek_next_token(Parser *parser) {
+  if (current_token(parser)->type == TOKEN_EOF) {
+    return TOKEN_EOF;
+  }
+
+  return parser->tokens[parser->current_token_index + 1].type;
 }
 
 bool end_of_file(Parser *parser) {
@@ -182,7 +220,7 @@ AstNode* ast_statement(Parser *parser) {
 
   ast_expect(parser, TOKEN_RETURN);
   
-  AstNode *expression = ast_expression(parser);
+  AstNode *expression = ast_expression(parser, 0);
   AstNode *return_node = malloc(sizeof(AstNode));
     
   return_node->type = AST_STATEMENT_RETURN;
@@ -193,9 +231,43 @@ AstNode* ast_statement(Parser *parser) {
   return return_node;
 }
 
+AstNode* ast_expression(Parser *parser, int min_precedence) {
+  AstNode *left = ast_factor(parser);
+
+  TokenType next_token = current_token(parser)->type;
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH) && get_precedence(next_token) >= min_precedence) {
+    parser->current_token_index++;
+
+    AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
+
+    AstNode *binary_expression = malloc(sizeof(AstNode));
+    binary_expression->type = AST_EXPRESSION_BINARY;
+
+    binary_expression->data.binary_expression.left_expression = left;
+    binary_expression->data.binary_expression.right_expression = right;
+
+    if (next_token == TOKEN_PLUS) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_ADD;
+    } else if (next_token == TOKEN_NEGATION) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+    } else if (next_token == TOKEN_ASTERISK) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY;
+    } else if (next_token == TOKEN_FORWARD_SLASH) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE;
+    } else {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER;
+    }
+
+    left = binary_expression;
+    next_token = current_token(parser)->type;
+  } 
+
+  return left;
+}
+
 //TODO: Function is hard to read
-AstNode* ast_expression(Parser *parser) {
-  if (end_of_file(parser)) {
+AstNode* ast_factor(Parser *parser) {
+ if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
     exit(1);
   }
@@ -204,33 +276,52 @@ AstNode* ast_expression(Parser *parser) {
     ast_expect(parser, TOKEN_CONSTANT_INT); 
 
     AstNode *constant = malloc(sizeof(AstNode));
-    constant->type = AST_EXPRESSION_CONSTANT;
+    constant->type = AST_FACTOR_CONSTANT;
     //TODO: Only supports up to '9'
-    constant->data.constant_expression.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
+    constant->data.constant_factor.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
 
     return constant;
   } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT) {
     UnaryOpType op_type = current_token(parser)->type == TOKEN_NEGATION ? AST_UNARY_NEGATE : AST_UNARY_COMPLEMENT;    
     parser->current_token_index++;
 
-    AstNode *unary_value_expression = ast_expression(parser);
+    AstNode *unary_value_expression = ast_factor(parser);
 
     AstNode *unary = malloc(sizeof(AstNode));    
-    unary->type = AST_EXPRESSION_UNARY;
-    unary->data.unary_expression.op_type = op_type;
-    unary->data.unary_expression.expression = unary_value_expression;
+    unary->type = AST_FACTOR_UNARY;
+    unary->data.unary_factor.op_type = op_type;
+    unary->data.unary_factor.factor = unary_value_expression;
 
     return unary;
   } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
     parser->current_token_index++;
 
-    AstNode *expression = ast_expression(parser);
+    AstNode *expression = ast_expression(parser, 0);
         
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
     return expression;
   }    
 
-  fprintf(stderr, "ERROR - Parser: Failed to parse expression for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
+  fprintf(stderr, "ERROR - Parser: Failed to parse factor for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
   exit(1);
 }
+
+int get_precedence(TokenType token_type) {
+  switch (token_type) {
+    case TOKEN_ASTERISK:
+    case TOKEN_FORWARD_SLASH:
+    case TOKEN_PERCENT:
+      return 50;
+      break;
+    case TOKEN_PLUS:
+    case TOKEN_NEGATION:
+      return 45;
+      break;
+    default: {
+      fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence", TokenTypeStr[token_type]);
+      exit(1);
+    }
+  }
+}
+

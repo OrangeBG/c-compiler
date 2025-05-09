@@ -9,8 +9,9 @@ typedef enum {
   AST_PROGRAM,
   AST_FUNCTION,
   AST_STATEMENT_RETURN,
-  AST_EXPRESSION_CONSTANT,
-  AST_EXPRESSION_UNARY
+  AST_EXPRESSION_BINARY,
+  AST_FACTOR_CONSTANT,
+  AST_FACTOR_UNARY
 } NodeType;
 
 typedef enum {
@@ -32,9 +33,9 @@ typedef struct AstNode {
     struct Program { struct AstNode *function; } program;
     struct Function { char* name; struct AstNode *statement; } function;
     struct ReturnStatement { struct AstNode* expression; } return_statement;
-    struct ConstantExpression { int value; } constant_expression;
-    struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; struct AstNode *left_expression; struct AstNode *right_expression; } binary_expression;
+    struct ConstantFactor { int value; } constant_factor;
+    struct UnaryFactor { UnaryOpType op_type; struct AstNode *factor; } unary_factor;
   } data;
 } AstNode;
 
