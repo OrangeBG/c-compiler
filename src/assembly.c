@@ -70,7 +70,8 @@ AsmNode* asm_resolve_instructions(AsmNode *function) {
       continue;
     } else if (instruction_type == ASM_INSTRUCTION_BINARY && instructions[i].data.instruction_binary.operator == ASM_BINARY_MULT && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
       //MUL instructions cannot use a memory address as its destination
-
+      asm_resolve_binary_mul_memory_addresses(new_function, &instructions[i]);
+      continue;
     } else if (instructions[i].type == ASM_INSTRUCTION_IDIV && instructions[i].data.instruction_idiv.operand->type == ASM_OPERAND_IMM) {
       //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
       asm_resolve_idiv_instructions(new_function, &instructions[i]);
@@ -117,7 +118,6 @@ void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction)
   function->data.function.instruction_count++;
 }
 
-//TODO: It looks like the mov instructions source and destinations are inverted
 void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction) {
   AsmNode *mov_instruction = malloc(sizeof(AsmNode));
   mov_instruction->type = ASM_INSTRUCTION_MOV;
@@ -148,7 +148,7 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
   AsmNode *mov_instruction_2 = malloc(sizeof(AsmNode));
   mov_instruction_2->type = ASM_INSTRUCTION_MOV;
   mov_instruction_2->data.instruction_mov.source = destination;
-  mov_instruction_2->data.instruction_mov.destination = instruction->data.instruction_binary.operand_1;
+  mov_instruction_2->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
 
   check_function_instruction_size(function);
 

@@ -47,7 +47,7 @@ void print_code_emit(AsmNode *asm_node) {
           break;        
       }
       print_code_emit(asm_node->data.instruction_binary.operand_1);
-      printf(",");
+      printf(", ");
       print_code_emit(asm_node->data.instruction_binary.operand_2);
       printf("\n");
       break;
