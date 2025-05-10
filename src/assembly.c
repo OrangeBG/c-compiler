@@ -413,6 +413,12 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
     case IR_BINARY_BITWISE_AND:
       binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_AND;
       break;
+    case IR_BINARY_BITWISE_OR:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_OR;
+      break;
+    case IR_BINARY_BITWISE_XOR:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_XOR;
+      break;
     default:
       fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation");
       exit(1);
@@ -693,6 +699,12 @@ void print_assembly(AsmNode *node) {
           break;
         case ASM_BINARY_BITWISE_AND:
           printf("AND -> ");
+          break;
+        case ASM_BINARY_BITWISE_OR:
+          printf("OR -> ");
+          break;
+        case ASM_BINARY_BITWISE_XOR:
+          printf("XOR -> ");
           break;
       }
       printf("Src( ");

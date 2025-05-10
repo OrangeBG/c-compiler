@@ -48,6 +48,12 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_BINARY_BITWISE_AND:
           fprintf(file, "\tandl\t");
           break;
+        case ASM_BINARY_BITWISE_OR:
+          fprintf(file, "\torl\t");
+          break;
+        case ASM_BINARY_BITWISE_XOR:
+          fprintf(file, "\txorl\t");
+          break;
       }
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
       fprintf(file, ", ");
@@ -144,6 +150,12 @@ void print_code_emit(AsmNode *asm_node) {
           break;        
         case ASM_BINARY_BITWISE_AND:
           printf("\tandl\t");
+          break;
+        case ASM_BINARY_BITWISE_OR:
+          printf("\torl\t");
+          break;
+        case ASM_BINARY_BITWISE_XOR:
+          printf("\txorl\t");
           break;
       }
       print_code_emit(asm_node->data.instruction_binary.operand_1);

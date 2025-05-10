@@ -88,6 +88,7 @@ void load_tokens(Lexer *lexer, char *file) {
       case '*': add_token(TOKEN_ASTERISK, lexer); break;
       case '%': add_token(TOKEN_PERCENT, lexer); break;
       case '/': add_token(TOKEN_FORWARD_SLASH, lexer); break;
+      case '^': add_token(TOKEN_BITWISE_XOR, lexer); break;
       case '&': {
         if (peek_next(lexer, file, '&')) {
           add_token(TOKEN_LOGICAL_AND, lexer);
