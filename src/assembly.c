@@ -21,6 +21,7 @@ void     check_function_instruction_size(AsmNode *asm_function);
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
 void     asm_instruction_allocate_stack(AsmNode *asm_function); 
+void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes) {  
   AsmNode *program = malloc(sizeof(AsmNode));
@@ -78,15 +79,12 @@ AsmNode* asm_resolve_instructions(AsmNode *function) {
       continue;
     }
 
-    check_function_instruction_size(new_function);
-
     AsmNode *new_instruction = malloc(sizeof(AsmNode));
 
     new_instruction->type = instructions[i].type;
     new_instruction->data = instructions[i].data;
 
-    new_function->data.function.instructions[new_function->data.function.instruction_count] = *new_instruction;
-    new_function->data.function.instruction_count++;
+    asm_add_instruction_to_function(new_function, new_instruction);
   }
 
   return new_function;
@@ -102,20 +100,14 @@ void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction)
   destination->data.operand_register.op_register = ASM_REGISTER_R10;    
 
   mov_instruction->data.instruction_mov.destination = destination;
-  
-  check_function_instruction_size(function);
 
-  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, mov_instruction);
 
   AsmNode *new_idiv_instruction = malloc(sizeof(AsmNode));
   new_idiv_instruction->type = ASM_INSTRUCTION_IDIV;
   new_idiv_instruction->data.instruction_idiv.operand = destination;
 
-  check_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *new_idiv_instruction;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, new_idiv_instruction);
 }
 
 void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction) {
@@ -129,31 +121,22 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
 
   mov_instruction->data.instruction_mov.destination = destination;
   
-  check_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, mov_instruction);
 
   AsmNode *mull_instruction = malloc(sizeof(AsmNode));
   mull_instruction->type = ASM_INSTRUCTION_BINARY;
   mull_instruction->data.instruction_binary.operator = ASM_BINARY_MULT;
   mull_instruction->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
   mull_instruction->data.instruction_binary.operand_2 = destination;
-  
-  check_function_instruction_size(function);
 
-  function->data.function.instructions[function->data.function.instruction_count] = *mull_instruction;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, mull_instruction);
 
   AsmNode *mov_instruction_2 = malloc(sizeof(AsmNode));
   mov_instruction_2->type = ASM_INSTRUCTION_MOV;
   mov_instruction_2->data.instruction_mov.source = destination;
   mov_instruction_2->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
 
-  check_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction_2;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, mov_instruction_2);
 }
 
 void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction) {
@@ -167,20 +150,14 @@ void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *ins
 
   mov_instruction->data.instruction_mov.destination = destination;
 
-  check_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *mov_instruction;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, mov_instruction);
 
   AsmNode *binary_instruction = malloc(sizeof(AsmNode));
   binary_instruction->type = ASM_INSTRUCTION_BINARY;
   binary_instruction->data.instruction_binary.operand_1 = destination;
   binary_instruction->data.instruction_binary.operand_2 = instruction->data.instruction_binary.operand_2;
 
-  check_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *binary_instruction;
-  function->data.function.instruction_count++;
+  asm_add_instruction_to_function(function, binary_instruction);
 }
 
 void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction) {
@@ -193,10 +170,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction) {
     new_destination->data.operand_register.op_register = ASM_REGISTER_R10;    
     new_source_mov_instruction->data.instruction_mov.destination = new_destination;    
 
-    check_function_instruction_size(function);
-
-    function->data.function.instructions[function->data.function.instruction_count] = *new_source_mov_instruction;
-    function->data.function.instruction_count++;
+    asm_add_instruction_to_function(function, new_source_mov_instruction);
 
     AsmNode *new_source = malloc(sizeof(AsmNode));
     new_source->type = ASM_OPERAND_REGISTER;
@@ -207,10 +181,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction) {
     new_destination_mov_instruction->data.instruction_mov.source = new_source;
     new_destination_mov_instruction->data.instruction_mov.destination = instruction->data.instruction_mov.destination;
 
-    check_function_instruction_size(function);
-
-    function->data.function.instructions[function->data.function.instruction_count] = *new_destination_mov_instruction;
-    function->data.function.instruction_count++;
+    asm_add_instruction_to_function(function, new_destination_mov_instruction);
 }
 
 void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
@@ -335,10 +306,7 @@ void asm_instruction_allocate_stack(AsmNode *asm_function) {
   allocate_stack_instruction->type = ASM_INSTRUCTION_ALLOCATE_STACK;
   allocate_stack_instruction->data.instruction_allocate_stack.bytes_to_subtract = 0;
 
-  check_function_instruction_size(asm_function);
-  
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *allocate_stack_instruction;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, allocate_stack_instruction);
 }
 
 void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction) {
@@ -425,15 +393,8 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
       break;
   }
 
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_instruction;
-  asm_function->data.function.instruction_count++;
-
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *binary_instruction;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, mov_instruction);
+  asm_add_instruction_to_function(asm_function, binary_instruction);
 }
 
 void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_instruction) {
@@ -494,28 +455,19 @@ void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_in
   mov_destination_1->data.operand_register.op_register = ASM_REGISTER_AX;
   
   mov_instruction_1->data.instruction_mov.destination = mov_destination_1;
-  
-  check_function_instruction_size(asm_function);
 
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_instruction_1;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, mov_instruction_1);
 
   AsmNode *cdq_instruction = malloc(sizeof(AsmNode));
   cdq_instruction->type = ASM_INSTRUCTION_CDQ;
 
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *cdq_instruction;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, cdq_instruction);
   
   AsmNode *idiv_instruction = malloc(sizeof(AsmNode));
   idiv_instruction->type = ASM_INSTRUCTION_IDIV;
   idiv_instruction->data.instruction_idiv.operand = source_2;
 
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *idiv_instruction;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, idiv_instruction);
 
   AsmNode *mov_instruction_2 = malloc(sizeof(AsmNode));
   mov_instruction_2->type = ASM_INSTRUCTION_MOV;
@@ -532,10 +484,7 @@ void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_in
 
   mov_instruction_2->data.instruction_mov.source = mov_destination_2;
 
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_instruction_2;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, mov_instruction_2);
 }
  
 void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) {
@@ -577,13 +526,8 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
   mov_node->data.instruction_mov.source = source_node;
   mov_node->data.instruction_mov.destination = destination_node;
 
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_node;
-  asm_function->data.function.instruction_count++;
+  asm_add_instruction_to_function(asm_function, mov_node);
   
-  check_function_instruction_size(asm_function);
-
   AsmNode *ret_node = malloc(sizeof(AsmNode));
   ret_node->type = ASM_INSTRUCTION_UNARY;
 
@@ -595,8 +539,8 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
   
   ret_node->data.instruction_unary.operand = destination_node;
 
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *ret_node;
-  asm_function->data.function.instruction_count++;  
+
+  asm_add_instruction_to_function(asm_function, ret_node);
 }
 
 void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction) {
@@ -628,18 +572,19 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
   mov_node->data.instruction_mov.source = source_node;
   mov_node->data.instruction_mov.destination = destination_node;
 
-  check_function_instruction_size(asm_function);
-
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *mov_node;
-  asm_function->data.function.instruction_count++;
-
-  check_function_instruction_size(asm_function);
+  asm_add_instruction_to_function(asm_function, mov_node);
 
   AsmNode *ret_node = malloc(sizeof(AsmNode));
   ret_node->type = ASM_INSTRUCTION_RET;
 
-  asm_function->data.function.instructions[asm_function->data.function.instruction_count] = *ret_node;
-  asm_function->data.function.instruction_count++;  
+  asm_add_instruction_to_function(asm_function, ret_node);
+}
+
+void asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction) {
+  check_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *instruction;
+  function->data.function.instruction_count++;
 }
 
 void check_function_instruction_size(AsmNode *asm_function) {
