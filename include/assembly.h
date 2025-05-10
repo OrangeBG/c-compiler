@@ -29,7 +29,8 @@ typedef enum {
 typedef enum {
   ASM_BINARY_ADD,
   ASM_BINARY_SUB,
-  ASM_BINARY_MULT
+  ASM_BINARY_MULT,
+  ASM_BINARY_BITWISE_AND
 } AsmBinaryOpType;
 
 typedef enum {

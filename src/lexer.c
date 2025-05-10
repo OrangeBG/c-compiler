@@ -8,7 +8,10 @@
 
 const char* TokenTypeStr[] = {
   "TOKEN_ASTERISK",
-  "TOKEN_BITWISE_NOT", 
+  "TOKEN_BITWISE_AND",
+  "TOKEN_BITWISE_NOT",
+  "TOKEN_BITWISE_OR",
+  "TOKEN_BITWISE_XOR", 
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_CONSTANT_INT",
@@ -85,6 +88,23 @@ void load_tokens(Lexer *lexer, char *file) {
       case '*': add_token(TOKEN_ASTERISK, lexer); break;
       case '%': add_token(TOKEN_PERCENT, lexer); break;
       case '/': add_token(TOKEN_FORWARD_SLASH, lexer); break;
+      case '&': {
+        if (peek_next(lexer, file, '&')) {
+          add_token(TOKEN_LOGICAL_AND, lexer);
+          lexer->current_index += 1; 
+        } else {
+          add_token(TOKEN_BITWISE_AND, lexer);
+        }
+        break;
+      }
+      case '|':
+        if (peek_next(lexer, file, '|')) {
+          add_token(TOKEN_LOGICAL_OR, lexer);
+          lexer->current_index += 1; 
+        } else {
+          add_token(TOKEN_BITWISE_OR, lexer);
+        }
+        break;
       case '-': {
         if (peek_next(lexer, file, '-')) {
           add_token(TOKEN_DECREMENT, lexer);
@@ -111,7 +131,10 @@ void print_tokens(Lexer *lexer, char *file) {
     printf("line %d     ", lexer->tokens[i].line);
     switch (lexer->tokens[i].type) {       
       case TOKEN_ASTERISK: printf("Asterisk   "); break;
+      case TOKEN_BITWISE_AND: printf("Ampersand  "); break;
       case TOKEN_BITWISE_NOT: printf("Tilde      "); break;
+      case TOKEN_BITWISE_OR: printf("Pipe       "); break;
+      case TOKEN_BITWISE_XOR: printf("Caret      "); break;
       case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
       case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
       case TOKEN_CONSTANT_INT: printf("Constant   "); break;
