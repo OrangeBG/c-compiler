@@ -67,6 +67,15 @@ void print_immediate_ret(IRNode *ir_node) {
               case IR_BINARY_REMAINDER:
                 printf("Remainder, ");
                 break;
+              case IR_BINARY_BITWISE_AND:
+                printf("Bitwise And, ");
+                break;
+              case IR_BINARY_BITWISE_OR:
+                printf("Bitwise Or, ");
+                break;
+              case IR_BINARY_BITWISE_XOR:
+                printf("Bitwise XOr, ");
+                break;
             }
             
             print_immediate_ret(binary->source_1);            
@@ -108,7 +117,6 @@ IRNode* ir_function(AstNode *ast_function) {
 
     function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
     function->data.function.instruction_count++;
-
   } else {
     fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
   } 
@@ -189,6 +197,15 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
           case AST_BINARY_REMAINDER:
             binary_op_type = IR_BINARY_REMAINDER;
             break;
+          case AST_BINARY_BITWISE_AND:
+            binary_op_type = IR_BINARY_BITWISE_AND;
+            break;
+          case AST_BINARY_BITWISE_OR:
+            binary_op_type = IR_BINARY_BITWISE_OR;
+            break;
+          case AST_BINARY_BITWISE_XOR:
+            binary_op_type = IR_BINARY_BITWISE_XOR;
+            break;            
         }      
 
         IRNode *binary_instruction = malloc(sizeof(IRNode));         

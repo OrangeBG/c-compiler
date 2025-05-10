@@ -72,6 +72,14 @@ int main(int argc, const char *argv[]) {
     printf("\n>> ASSEMBLY PRINT <<\n\n");
     print_assembly(asm_nodes);
 
+    FILE *assembly_file;
+    assembly_file = fopen("assembly.asm", "w");
+
+    save_assembly_file(asm_nodes, assembly_file);
+
+    fclose(assembly_file);    
+    system("clang -arch x86_64 -c assembly.asm -o assembly.o");
+    
     printf("\n>> CODE EMIT PRINT <<\n\n");
     print_code_emit(asm_nodes);
   }
