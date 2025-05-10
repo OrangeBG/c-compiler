@@ -46,7 +46,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
           fprintf(file, "\tmull\t");
           break;        
         case ASM_BINARY_BITWISE_AND:
-          fprintf(file, "\tand\t");
+          fprintf(file, "\tandl\t");
           break;
       }
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
@@ -143,7 +143,7 @@ void print_code_emit(AsmNode *asm_node) {
           printf("\tmull\t");
           break;        
         case ASM_BINARY_BITWISE_AND:
-          printf("\tand\t");
+          printf("\tandl\t");
           break;
       }
       print_code_emit(asm_node->data.instruction_binary.operand_1);
