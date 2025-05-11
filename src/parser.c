@@ -274,7 +274,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
   AstNode *left = ast_factor(parser);
 
   TokenType next_token = current_token(parser)->type;
-  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT) && get_precedence(next_token) >= min_precedence) {
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR) && get_precedence(next_token) >= min_precedence) {
     parser-> current_token_index++;
 
     AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
@@ -303,8 +303,24 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR;
     } else if (next_token == TOKEN_BITWISE_LEFT_SHIFT) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT;
-    } else {
+    } else if (next_token == TOKEN_BITWISE_RIGHT_SHIFT) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT;
+    } else if (next_token == TOKEN_RELATIONAL_LESS_THAN) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_THAN;
+    } else if (next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_OR_EQUAL;
+    } else if (next_token == TOKEN_RELATIONAL_GREATER_THAN) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_THAN;
+    } else if (next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_OR_EQUAL;
+    } else if (next_token == TOKEN_RELATIONAL_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_EQUAL;
+    } else if (next_token == TOKEN_RELATIONAL_NOT_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_NOT_EQUAL;
+    } else if (next_token == TOKEN_LOGICAL_AND) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_AND;
+    } else if (next_token == TOKEN_LOGICAL_OR) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_OR;
     }
 
     left = binary_expression;
