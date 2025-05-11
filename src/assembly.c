@@ -9,6 +9,7 @@
 AsmNode* asm_program(IRNode *ir_node);
 AsmNode* asm_function(IRNode *ir_function); 
 AsmNode* asm_resolve_instructions(AsmNode *function); 
+AsmNode* asm_operand(IRNode *ir_operand);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction);
 void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction); 
@@ -310,53 +311,9 @@ void asm_instruction_allocate_stack(AsmNode *asm_function) {
 }
 
 void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction) {
-  AsmNode *source_1 = malloc(sizeof(AsmNode));
-
-  switch (ir_binary_instruction->data.instruction_binary.source_1->type) {
-    case IR_VALUE_CONSTANT:
-      source_1->type = ASM_OPERAND_IMM;
-      source_1->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_1->data.value_constant.value;
-      break;
-    case IR_VALUE_VAR:
-      source_1->type = ASM_OPERAND_PSEUDO_REGISTER;
-      source_1->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_1->data.value_var.identifier;
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Binary source 1 value type %d not found in asm_instruction_binary\n", ir_binary_instruction->data.instruction_binary.source_1->type);
-      exit(1);      
-  }  
-
-  AsmNode *source_2 = malloc(sizeof(AsmNode));
-
-  switch (ir_binary_instruction->data.instruction_binary.source_2->type) {
-    case IR_VALUE_CONSTANT:
-      source_2->type = ASM_OPERAND_IMM;
-      source_2->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_2->data.value_constant.value;
-      break;
-    case IR_VALUE_VAR:
-      source_2->type = ASM_OPERAND_PSEUDO_REGISTER;
-      source_2->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_2->data.value_var.identifier;
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Binary source 2 value type %d not found in asm_instruction_binary\n", ir_binary_instruction->data.instruction_binary.source_2->type);
-      exit(1);      
-  }  
-
-  AsmNode *destination_node = malloc(sizeof(AsmNode));
-
-  switch (ir_binary_instruction->data.instruction_binary.destination->type) {
-    case IR_VALUE_CONSTANT:
-      destination_node->type = ASM_OPERAND_IMM;
-      destination_node->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.destination->data.value_constant.value;   
-      break;
-    case IR_VALUE_VAR:
-      destination_node->type = ASM_OPERAND_PSEUDO_REGISTER;
-      destination_node->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.destination->data.value_var.identifier;      
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Binary destination value type %d not found in asm_instruction_binary\n", ir_binary_instruction->data.instruction_binary.destination->type);
-      exit(1);      
-  }  
+  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1);
+  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2);
+  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination);
 
   AsmNode *mov_instruction = malloc(sizeof(AsmNode));
   mov_instruction->type = ASM_INSTRUCTION_MOV;
@@ -398,53 +355,9 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
 }
 
 void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_instruction) {
-  AsmNode *source_1 = malloc(sizeof(AsmNode));
-
-  switch (ir_binary_instruction->data.instruction_binary.source_1->type) {
-    case IR_VALUE_CONSTANT:
-      source_1->type = ASM_OPERAND_IMM;
-      source_1->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_1->data.value_constant.value;
-      break;
-    case IR_VALUE_VAR:
-      source_1->type = ASM_OPERAND_PSEUDO_REGISTER;
-      source_1->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_1->data.value_var.identifier;
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Binary source 1 value type %d not found in asm_instruction_binary_division\n", ir_binary_instruction->data.instruction_binary.source_1->type);
-      exit(1);      
-  }  
-
-  AsmNode *source_2 = malloc(sizeof(AsmNode));
-
-  switch (ir_binary_instruction->data.instruction_binary.source_2->type) {
-    case IR_VALUE_CONSTANT:
-      source_2->type = ASM_OPERAND_IMM;
-      source_2->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.source_2->data.value_constant.value;
-      break;
-    case IR_VALUE_VAR:
-      source_2->type = ASM_OPERAND_PSEUDO_REGISTER;
-      source_2->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.source_2->data.value_var.identifier;
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Binary source 2 value type %d not found in asm_instruction_binary_division\n", ir_binary_instruction->data.instruction_binary.source_2->type);
-      exit(1);      
-  }  
-
-  AsmNode *destination_node = malloc(sizeof(AsmNode));
-
-  switch (ir_binary_instruction->data.instruction_binary.destination->type) {
-    case IR_VALUE_CONSTANT:
-      destination_node->type = ASM_OPERAND_IMM;
-      destination_node->data.operand_imm.value = ir_binary_instruction->data.instruction_binary.destination->data.value_constant.value;   
-      break;
-    case IR_VALUE_VAR:
-      destination_node->type = ASM_OPERAND_PSEUDO_REGISTER;
-      destination_node->data.operand_pseudo_register.identifier = ir_binary_instruction->data.instruction_binary.destination->data.value_var.identifier;      
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Binary destination value type %d not found in asm_instruction_binary_division\n", ir_binary_instruction->data.instruction_binary.destination->type);
-      exit(1);      
-  }  
+  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1);
+  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2);
+  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination);
 
   AsmNode *mov_instruction_1 = malloc(sizeof(AsmNode));
   mov_instruction_1->type = ASM_INSTRUCTION_MOV;
@@ -488,37 +401,8 @@ void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_in
 }
  
 void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) {
-  AsmNode *source_node = malloc(sizeof(AsmNode));
-
-  switch (ir_unary_instruction->data.unary.source->type) {
-    case IR_VALUE_CONSTANT:
-      source_node->type = ASM_OPERAND_IMM;
-      source_node->data.operand_imm.value = ir_unary_instruction->data.unary.source->data.value_constant.value;
-      break;
-    case IR_VALUE_VAR:
-      source_node->type = ASM_OPERAND_PSEUDO_REGISTER;
-      source_node->data.operand_pseudo_register.identifier = ir_unary_instruction->data.unary.source->data.value_var.identifier;      
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Unary source value type %d not found in asm_instruction_unary\n", ir_unary_instruction->data.unary.source->type);
-      exit(1);      
-  }  
-
-  AsmNode *destination_node = malloc(sizeof(AsmNode));
-
-  switch (ir_unary_instruction->data.unary.destination->type) {
-    case IR_VALUE_CONSTANT:
-      destination_node->type = ASM_OPERAND_IMM;
-      destination_node->data.operand_imm.value = ir_unary_instruction->data.unary.destination->data.value_constant.value;   
-      break;
-    case IR_VALUE_VAR:
-      destination_node->type = ASM_OPERAND_PSEUDO_REGISTER;
-      destination_node->data.operand_pseudo_register.identifier = ir_unary_instruction->data.unary.destination->data.value_var.identifier;      
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Unary destination value type %d not found in asm_instruction_unary\n", ir_unary_instruction->data.unary.destination->type);
-      exit(1);      
-  }  
+  AsmNode *source_node = asm_operand(ir_unary_instruction->data.unary.source);
+  AsmNode *destination_node = asm_operand(ir_unary_instruction->data.unary.destination);
 
   AsmNode *mov_node = malloc(sizeof(AsmNode));
 
@@ -544,23 +428,7 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
 }
 
 void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction) {
-  AsmNode *source_node = malloc(sizeof(AsmNode));
-
-  switch (ir_return_instruction->data.instruction_ret.value->type) {
-    case IR_VALUE_CONSTANT: {
-        source_node->type = ASM_OPERAND_IMM;
-        source_node->data.operand_imm.value = ir_return_instruction->data.instruction_ret.value->data.value_constant.value;      
-      }
-      break;
-    case IR_VALUE_VAR:
-        //TODO: I don't think this is needed
-        source_node->type = ASM_OPERAND_PSEUDO_REGISTER;
-        source_node->data.operand_pseudo_register.identifier = ir_return_instruction->data.instruction_ret.value->data.value_var.identifier;      
-      break;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Return value type %d not found in asm_instruction_return\n", ir_return_instruction->data.instruction_ret.value->type);
-      exit(1);
-  }
+  AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value);
 
   AsmNode *destination_node = malloc(sizeof(AsmNode));
   destination_node->type = ASM_OPERAND_REGISTER;
@@ -585,6 +453,26 @@ void asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction) {
 
   function->data.function.instructions[function->data.function.instruction_count] = *instruction;
   function->data.function.instruction_count++;
+}
+
+AsmNode* asm_operand(IRNode *ir_operand) {
+  AsmNode *asm_operand = malloc(sizeof(AsmNode));
+
+  switch (ir_operand->type) {
+    case IR_VALUE_CONSTANT:
+      asm_operand->type = ASM_OPERAND_IMM;
+      asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value;
+      break;
+    case IR_VALUE_VAR:
+      asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
+      asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
+      break;
+    default:
+      fprintf(stderr, "ERROR - Assembler: Binary operand value type %d not found in asm_binary_operand\n", ir_operand->type);
+      exit(1);      
+  }  
+
+  return asm_operand;
 }
 
 void check_function_instruction_size(AsmNode *asm_function) {
