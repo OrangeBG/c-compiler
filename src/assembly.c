@@ -286,6 +286,8 @@ AsmNode* asm_function(IRNode *ir_function) {
           case IR_BINARY_BITWISE_AND:
           case IR_BINARY_BITWISE_OR:
           case IR_BINARY_BITWISE_XOR:
+          case IR_BINARY_BITWISE_LEFT_SHIFT:
+          case IR_BINARY_BITWISE_RIGHT_SHIFT:
             asm_instruction_binary(function, &ir_function->data.function.instructions[i]);
             break;
           default:
@@ -343,6 +345,12 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
       break;
     case IR_BINARY_BITWISE_XOR:
       binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_XOR;
+      break;
+    case IR_BINARY_BITWISE_LEFT_SHIFT:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_LEFT_SHIFT;
+      break;
+    case IR_BINARY_BITWISE_RIGHT_SHIFT:
+      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_RIGHT_SHIFT;
       break;
     default:
       fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation");
@@ -538,6 +546,12 @@ void print_assembly(AsmNode *node) {
           break;
         case ASM_BINARY_BITWISE_XOR:
           printf("XOR -> ");
+          break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:
+          printf("SHL -> ");
+          break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT:
+          printf("SHR -> ");
           break;
       }
       printf("Src( ");

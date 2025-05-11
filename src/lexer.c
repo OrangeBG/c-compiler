@@ -12,6 +12,8 @@ const char* TokenTypeStr[] = {
   "TOKEN_BITWISE_NOT",
   "TOKEN_BITWISE_OR",
   "TOKEN_BITWISE_XOR", 
+  "TOKEN_BITWISE_LEFT_SHIFT",
+  "TOKEN_BITWISE_RIGHT_SHIFT",
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_CONSTANT_INT",
@@ -89,6 +91,18 @@ void load_tokens(Lexer *lexer, char *file) {
       case '%': add_token(TOKEN_PERCENT, lexer); break;
       case '/': add_token(TOKEN_FORWARD_SLASH, lexer); break;
       case '^': add_token(TOKEN_BITWISE_XOR, lexer); break;
+      case '<': {
+        if (peek_next(lexer, file, '<')) {
+          add_token(TOKEN_BITWISE_LEFT_SHIFT, lexer);
+        }
+        break;
+      }
+      case '>': {
+        if (peek_next(lexer, file, '>')) {
+          add_token(TOKEN_BITWISE_RIGHT_SHIFT, lexer);
+        }
+        break;
+      }
       case '&': {
         if (peek_next(lexer, file, '&')) {
           add_token(TOKEN_LOGICAL_AND, lexer);

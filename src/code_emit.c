@@ -54,6 +54,12 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_BINARY_BITWISE_XOR:
           fprintf(file, "\txorl\t");
           break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:
+          fprintf(file, "\tshll\t");
+          break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT:
+          fprintf(file, "\tshrl\t");
+          break;
       }
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
       fprintf(file, ", ");
@@ -156,6 +162,12 @@ void print_code_emit(AsmNode *asm_node) {
           break;
         case ASM_BINARY_BITWISE_XOR:
           printf("\txorl\t");
+          break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:
+          printf("\tshll\t");
+          break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT:
+          printf("\tshrl\t");
           break;
       }
       print_code_emit(asm_node->data.instruction_binary.operand_1);

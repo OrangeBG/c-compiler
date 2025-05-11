@@ -115,6 +115,12 @@ void print_ast(AstNode *node, int whitespace) {
         case AST_BINARY_BITWISE_XOR:
           printf(" ^ ");
           break; 
+        case AST_BINARY_BITWISE_LEFT_SHIFT:
+          printf(" << ");
+          break;
+        case AST_BINARY_BITWISE_RIGHT_SHIFT:
+          printf(" >> ");
+          break;
       }
     
       print_ast(node->data.binary_expression.right_expression, 0);
@@ -244,7 +250,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
   AstNode *left = ast_factor(parser);
 
   TokenType next_token = current_token(parser)->type;
-  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR) && get_precedence(next_token) >= min_precedence) {
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT) && get_precedence(next_token) >= min_precedence) {
     parser-> current_token_index++;
 
     AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
@@ -269,8 +275,12 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_AND;
     } else if (next_token == TOKEN_BITWISE_OR) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_OR;
-    } else {
+    } else if (next_token == TOKEN_BITWISE_XOR) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR;
+    } else if (next_token == TOKEN_BITWISE_LEFT_SHIFT) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT;
+    } else {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT;
     }
 
     left = binary_expression;
@@ -332,6 +342,9 @@ int get_precedence(TokenType token_type) {
     case TOKEN_PLUS:
     case TOKEN_NEGATION:
       return 45;
+    case TOKEN_BITWISE_LEFT_SHIFT:
+    case TOKEN_BITWISE_RIGHT_SHIFT:
+      return 40;
       break;
     case TOKEN_BITWISE_AND:
       return 35;
@@ -343,7 +356,6 @@ int get_precedence(TokenType token_type) {
       return 25;
       break;      
     default: {
-      // return 0;
       fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence", TokenTypeStr[token_type]);
       exit(1);
     }

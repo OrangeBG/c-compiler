@@ -76,6 +76,12 @@ void print_immediate_ret(IRNode *ir_node) {
               case IR_BINARY_BITWISE_XOR:
                 printf("Bitwise XOr, ");
                 break;
+              case IR_BINARY_BITWISE_LEFT_SHIFT:
+                printf("Bitwise Left S., ");
+                break;
+              case IR_BINARY_BITWISE_RIGHT_SHIFT:
+                printf("Bitwise Right S., ");
+                break;
             }
             
             print_immediate_ret(binary->source_1);            
@@ -206,6 +212,12 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
           case AST_BINARY_BITWISE_XOR:
             binary_op_type = IR_BINARY_BITWISE_XOR;
             break;            
+          case AST_BINARY_BITWISE_LEFT_SHIFT:
+            binary_op_type = IR_BINARY_BITWISE_LEFT_SHIFT;
+            break;
+          case AST_BINARY_BITWISE_RIGHT_SHIFT:
+            binary_op_type = IR_BINARY_BITWISE_RIGHT_SHIFT;
+            break;
         }      
 
         IRNode *binary_instruction = malloc(sizeof(IRNode));         
