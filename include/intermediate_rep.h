@@ -11,13 +11,19 @@ typedef enum {
   IR_INSTRUCTION_RET,
   IR_INSTRUCTION_UNARY,
   IR_INSTRUCTION_BINARY,
+  IR_INSTRUCTION_COPY,
+  IR_INSTRUCTION_JUMP,
+  IR_INSTRUCTION_JUMP_IF_ZERO,
+  IR_INSTRUCTION_JUMP_IF_NOT_ZERO,
+  IR_INSTRUCTION_LABEL,
   IR_VALUE_CONSTANT,
   IR_VALUE_VAR
 } IRNodeType;
 
 typedef enum {
   IR_UNARY_COMPLEMENT,
-  IR_UNARY_NEGATE
+  IR_UNARY_NEGATE,
+  IR_UNARY_NOT
 } IRUnaryOpType;
 
 typedef enum {
@@ -30,7 +36,13 @@ typedef enum {
   IR_BINARY_BITWISE_OR,
   IR_BINARY_BITWISE_XOR,
   IR_BINARY_BITWISE_LEFT_SHIFT,
-  IR_BINARY_BITWISE_RIGHT_SHIFT
+  IR_BINARY_BITWISE_RIGHT_SHIFT,
+  IR_BINARY_EQUAL,
+  IR_BINARY_NOT_EQUAL,
+  IR_BINARY_LESS_THAN,
+  IR_BINARY_LESS_OR_EQUAL,
+  IR_BINARY_GREATER_THAN,
+  IR_BINARY_GREATER_OR_EQUAL,
 } IRBinaryOpType;
 
 typedef struct IRNode {
@@ -41,12 +53,17 @@ typedef struct IRNode {
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;
   struct IRInstructionBinary { IRBinaryOpType op_type; IRNode *source_1; IRNode *source_2; IRNode *destination; } instruction_binary;
+  struct IRInstructionCopy { struct IRNode *source; struct IRNode *destination; } instruction_copy;
+  struct IRInstructionJump { char *target; } instruction_jump;
+  struct IRInstructionJumpIfZero { IRNode *condition; char *target; } instruction_jump_if_zero;
+  struct IRInstructionJumpIfNotZero { IRNode *condition; char *target; } instruction_jump_if_not_zero;
+  struct IRInstructionLabel { char *identifier; } instruction_label;
   struct IRValueConstant { int value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
  } data; 
 } IRNode;
 
 IRNode* generate_intermediate_rep(AstNode *ast_node);
-void print_immediate_ret(IRNode *ir_node);
+void print_intermediate_ret(IRNode *ir_node);
 
 #endif

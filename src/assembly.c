@@ -523,36 +523,29 @@ void print_assembly(AsmNode *node) {
       printf("RET -> \n");
       break;
     case ASM_INSTRUCTION_UNARY:
-      printf("UNARY Instruction ");
+      printf("UNARY - ");
+      switch (node->data.instruction_unary.operator) {
+        case ASM_UNARY_NEG:
+          printf("NEG ");
+          break;
+        case ASM_UNARY_NOT:
+          printf("NOT");
+          break;
+      }
+      
       print_assembly(node->data.instruction_unary.operand);
       printf("\n");
       break;
     case ASM_INSTRUCTION_BINARY:
       switch (node->data.instruction_binary.operator) {
-        case ASM_BINARY_ADD:
-          printf("ADD -> ");
-          break;
-        case ASM_BINARY_SUB:
-          printf("SUB -> ");
-          break;
-        case ASM_BINARY_MULT:
-          printf("MUL -> ");
-          break;
-        case ASM_BINARY_BITWISE_AND:
-          printf("AND -> ");
-          break;
-        case ASM_BINARY_BITWISE_OR:
-          printf("OR -> ");
-          break;
-        case ASM_BINARY_BITWISE_XOR:
-          printf("XOR -> ");
-          break;
-        case ASM_BINARY_BITWISE_LEFT_SHIFT:
-          printf("SHL -> ");
-          break;
-        case ASM_BINARY_BITWISE_RIGHT_SHIFT:
-          printf("SHR -> ");
-          break;
+        case ASM_BINARY_ADD:                  printf("ADD -> "); break;
+        case ASM_BINARY_SUB:                  printf("SUB -> "); break;
+        case ASM_BINARY_MULT:                 printf("MUL -> "); break;
+        case ASM_BINARY_BITWISE_AND:          printf("AND -> "); break;
+        case ASM_BINARY_BITWISE_OR:           printf("OR -> "); break;
+        case ASM_BINARY_BITWISE_XOR:          printf("XOR -> "); break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:   printf("SHL -> "); break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT:  printf("SHR -> "); break;
       }
       printf("Src( ");
       print_assembly(node->data.instruction_binary.operand_1);

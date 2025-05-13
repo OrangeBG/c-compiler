@@ -11,6 +11,7 @@ IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifie
 
 //TODO: Temporary..Replace later
 int temp_number = 0;
+int temp_label = 0;
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -21,11 +22,11 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   return program;
 }
 
-void print_immediate_ret(IRNode *ir_node) {
+void print_intermediate_ret(IRNode *ir_node) {
   switch (ir_node->type) {
     case IR_PROGRAM:
       printf("Program \n");
-      print_immediate_ret(ir_node->data.program.function);
+      print_intermediate_ret(ir_node->data.program.function);
       printf("\n");
       break;
     case IR_FUNCTION: {
@@ -35,62 +36,66 @@ void print_immediate_ret(IRNode *ir_node) {
         for (int i = 0; i < function->instruction_count; i++) {
           if (function->instructions[i].type == IR_INSTRUCTION_RET) {
             printf("Return(");
-            print_immediate_ret(function->instructions[i].data.instruction_ret.value);
+            print_intermediate_ret(function->instructions[i].data.instruction_ret.value);
             printf(")");
           } else if (function->instructions[i].type == IR_INSTRUCTION_UNARY) {      
             struct IRInstructionUnary* unary = &function->instructions[i].data.unary;
 
             printf("Unary(%s", unary->op_type == IR_UNARY_COMPLEMENT ? "Complement, " : "Negate, ");
-            print_immediate_ret(unary->source);            
+            print_intermediate_ret(unary->source);            
             printf(",");
-            print_immediate_ret(unary->destination);
+            print_intermediate_ret(unary->destination);
             printf(")");
             printf("\n");
-          } else {
+          } else if (function->instructions[i].type == IR_INSTRUCTION_BINARY) {
             struct IRInstructionBinary* binary = &function->instructions[i].data.instruction_binary;
 
             printf("Binary(");
       
             switch (binary->op_type) {
-              case IR_BINARY_ADD:
-                printf("Add, ");
-                break;
-              case IR_BINARY_SUBTRACT:
-                printf("Subtract, ");
-                break;
-              case IR_BINARY_DIVIDE:
-                printf("Divide, ");
-                break;
-              case IR_BINARY_MULTIPLY:
-                printf("Multiply, ");
-                break;
-              case IR_BINARY_REMAINDER:
-                printf("Remainder, ");
-                break;
-              case IR_BINARY_BITWISE_AND:
-                printf("Bitwise And, ");
-                break;
-              case IR_BINARY_BITWISE_OR:
-                printf("Bitwise Or, ");
-                break;
-              case IR_BINARY_BITWISE_XOR:
-                printf("Bitwise XOr, ");
-                break;
-              case IR_BINARY_BITWISE_LEFT_SHIFT:
-                printf("Bitwise Left S., ");
-                break;
-              case IR_BINARY_BITWISE_RIGHT_SHIFT:
-                printf("Bitwise Right S., ");
-                break;
+              case IR_BINARY_ADD:                 printf("Add, "); break;
+              case IR_BINARY_SUBTRACT:            printf("Subtract, "); break;
+              case IR_BINARY_DIVIDE:              printf("Divide, "); break;
+              case IR_BINARY_MULTIPLY:            printf("Multiply, "); break;
+              case IR_BINARY_REMAINDER:           printf("Remainder, "); break;
+              case IR_BINARY_BITWISE_AND:         printf("Bitwise AND, "); break;
+              case IR_BINARY_BITWISE_OR:          printf("Bitwise OR, "); break;
+              case IR_BINARY_BITWISE_XOR:         printf("Bitwise XOR, "); break;
+              case IR_BINARY_BITWISE_LEFT_SHIFT:  printf("Bitwise Left S., "); break;
+              case IR_BINARY_BITWISE_RIGHT_SHIFT: printf("Bitwise Right S., "); break;
+              case IR_BINARY_EQUAL:               printf("Equal, "); break;
+              case IR_BINARY_NOT_EQUAL:           printf("Not Equal, "); break;
+              case IR_BINARY_LESS_THAN:           printf("Less Than, "); break;
+              case IR_BINARY_LESS_OR_EQUAL:       printf("Less or Equal, "); break;
+              case IR_BINARY_GREATER_THAN:        printf("Greater Than, "); break;
+              case IR_BINARY_GREATER_OR_EQUAL:    printf("Greater or Equal, "); break;
             }
             
-            print_immediate_ret(binary->source_1);            
+            print_intermediate_ret(binary->source_1);            
             printf(",");
-            print_immediate_ret(binary->source_2);            
+            print_intermediate_ret(binary->source_2);            
             printf(",");
-            print_immediate_ret(binary->destination);
+            print_intermediate_ret(binary->destination);
             printf(")");
             printf("\n");
+          } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP_IF_ZERO) {
+            printf("Jump If Zero(");
+            print_intermediate_ret(function->instructions[i].data.instruction_jump_if_zero.condition);
+            printf(", %s)\n", function->instructions[i].data.instruction_jump_if_zero.target);
+          } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP_IF_NOT_ZERO) {
+            printf("Jump If Not Zero(");
+            print_intermediate_ret(function->instructions[i].data.instruction_jump_if_not_zero.condition);
+            printf(" , %s\n", function->instructions[i].data.instruction_jump_if_not_zero.target);
+          } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP) {
+            printf("Jump(%s)\n", function->instructions[i].data.instruction_jump.target);
+          } else if (function->instructions[i].type == IR_INSTRUCTION_COPY) {
+            printf("Copy(Source(");
+            print_intermediate_ret(function->instructions[i].data.instruction_copy.source);
+            printf(") (Destination(");
+            print_intermediate_ret(function->instructions[i].data.instruction_copy.destination);
+            printf(")\n");
+          } else if (function->instructions[i].type == IR_INSTRUCTION_LABEL) {
+            printf("Label(%s)\n", function->instructions[i].data.instruction_label.identifier);
           }
         }
       }
@@ -173,7 +178,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         return destination;
       }
       break;
-    case AST_EXPRESSION_BINARY: {
+    case AST_EXPRESSION_BINARY: {      
         IRNode *source_1 = ir_value(ast_expression->data.binary_expression.left_expression, ir_function, temp_identifier_id);
         IRNode *source_2 = ir_value(ast_expression->data.binary_expression.right_expression, ir_function, temp_identifier_id);
 
@@ -185,39 +190,107 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         destination->type = IR_VALUE_VAR;
         destination->data.value_var.identifier = destination_name;
 
+        if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND) {
+          char *label_name = malloc(10);
+          snprintf(label_name, 10, "L.%d", temp_number++); 
+
+          IRNode *jmp_instruction_v1 = malloc(sizeof(IRNode));
+          jmp_instruction_v1->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
+          jmp_instruction_v1->data.instruction_jump_if_zero.condition = source_1;
+          jmp_instruction_v1->data.instruction_jump_if_zero.target = label_name;
+
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *jmp_instruction_v1; 
+          ir_function->data.function.instruction_count++;
+
+          IRNode *jmp_instruction_v2 = malloc(sizeof(IRNode));
+          jmp_instruction_v2->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
+          jmp_instruction_v2->data.instruction_jump_if_zero.condition = source_2;
+          jmp_instruction_v2->data.instruction_jump_if_zero.target = label_name;
+
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *jmp_instruction_v2; 
+          ir_function->data.function.instruction_count++;
+
+          IRNode *result_1 = malloc(sizeof(IRNode));
+          result_1->type = IR_VALUE_CONSTANT;
+          result_1->data.value_constant.value = 1;
+
+          IRNode *copy_1 = malloc(sizeof(IRNode));
+          copy_1->type = IR_INSTRUCTION_COPY;
+          copy_1->data.instruction_copy.destination = destination;
+          copy_1->data.instruction_copy.source = result_1;
+          
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_1; 
+          ir_function->data.function.instruction_count++;
+
+          IRNode *jmp_instruction = malloc(sizeof(IRNode));
+          jmp_instruction->type = IR_INSTRUCTION_JUMP;
+          jmp_instruction->data.instruction_jump.target = "end";
+
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *jmp_instruction; 
+          ir_function->data.function.instruction_count++;
+
+          IRNode *label = malloc(sizeof(IRNode));
+          label->type = IR_INSTRUCTION_LABEL;
+          label->data.instruction_label.identifier = label_name;
+
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *label; 
+          ir_function->data.function.instruction_count++;
+
+          IRNode *result_0 = malloc(sizeof(IRNode));
+          result_0->type = IR_VALUE_CONSTANT;
+          result_0->data.value_constant.value = 0;
+
+          IRNode *copy_2 = malloc(sizeof(IRNode));
+          copy_2->type = IR_INSTRUCTION_COPY;
+          copy_2->data.instruction_copy.destination = destination;
+          copy_2->data.instruction_copy.source = result_0;
+          
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_2; 
+          ir_function->data.function.instruction_count++;
+
+          IRNode *label_end = malloc(sizeof(IRNode));
+          label_end->type = IR_INSTRUCTION_LABEL;
+          label_end->data.instruction_label.identifier = "end";
+
+          check_ir_function_instruction_size(ir_function);
+
+          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *label_end; 
+          ir_function->data.function.instruction_count++;
+
+          return destination;
+        }
+
         IRBinaryOpType binary_op_type;
 
         switch (ast_expression->data.binary_expression.op_type) {
-          case AST_BINARY_ADD:
-            binary_op_type = IR_BINARY_ADD;
-            break;
-          case AST_BINARY_SUBTRACT:
-            binary_op_type = IR_BINARY_SUBTRACT;
-            break;
-          case AST_BINARY_DIVIDE:
-            binary_op_type = IR_BINARY_DIVIDE;
-            break;
-          case AST_BINARY_MULTIPLY:
-            binary_op_type = IR_BINARY_MULTIPLY;
-            break;
-          case AST_BINARY_REMAINDER:
-            binary_op_type = IR_BINARY_REMAINDER;
-            break;
-          case AST_BINARY_BITWISE_AND:
-            binary_op_type = IR_BINARY_BITWISE_AND;
-            break;
-          case AST_BINARY_BITWISE_OR:
-            binary_op_type = IR_BINARY_BITWISE_OR;
-            break;
-          case AST_BINARY_BITWISE_XOR:
-            binary_op_type = IR_BINARY_BITWISE_XOR;
-            break;            
-          case AST_BINARY_BITWISE_LEFT_SHIFT:
-            binary_op_type = IR_BINARY_BITWISE_LEFT_SHIFT;
-            break;
-          case AST_BINARY_BITWISE_RIGHT_SHIFT:
-            binary_op_type = IR_BINARY_BITWISE_RIGHT_SHIFT;
-            break;
+          case AST_BINARY_ADD:                  binary_op_type = IR_BINARY_ADD; break;
+          case AST_BINARY_SUBTRACT:             binary_op_type = IR_BINARY_SUBTRACT; break;
+          case AST_BINARY_DIVIDE:               binary_op_type = IR_BINARY_DIVIDE; break;
+          case AST_BINARY_MULTIPLY:             binary_op_type = IR_BINARY_MULTIPLY; break;
+          case AST_BINARY_REMAINDER:            binary_op_type = IR_BINARY_REMAINDER; break;
+          case AST_BINARY_BITWISE_AND:          binary_op_type = IR_BINARY_BITWISE_AND; break;
+          case AST_BINARY_BITWISE_OR:           binary_op_type = IR_BINARY_BITWISE_OR; break;
+          case AST_BINARY_BITWISE_XOR:          binary_op_type = IR_BINARY_BITWISE_XOR; break;            
+          case AST_BINARY_BITWISE_LEFT_SHIFT:   binary_op_type = IR_BINARY_BITWISE_LEFT_SHIFT; break;
+          case AST_BINARY_BITWISE_RIGHT_SHIFT:  binary_op_type = IR_BINARY_BITWISE_RIGHT_SHIFT; break;
+          case AST_BINARY_EQUAL:                binary_op_type = IR_BINARY_EQUAL; break;
+          case AST_BINARY_NOT_EQUAL:            binary_op_type = IR_BINARY_NOT_EQUAL; break;
+          case AST_BINARY_LESS_THAN:            binary_op_type = IR_BINARY_LESS_THAN; break;
+          case AST_BINARY_LESS_OR_EQUAL:        binary_op_type = IR_BINARY_LESS_OR_EQUAL; break;
+          case AST_BINARY_GREATER_THAN:         binary_op_type = IR_BINARY_GREATER_THAN; break;
+          case AST_BINARY_GREATER_OR_EQUAL:     binary_op_type = IR_BINARY_GREATER_OR_EQUAL; break;
         }      
 
         IRNode *binary_instruction = malloc(sizeof(IRNode));         

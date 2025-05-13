@@ -91,60 +91,24 @@ void print_ast(AstNode *node, int whitespace) {
       print_ast(node->data.binary_expression.left_expression, ++whitespace);
   
       switch (node->data.binary_expression.op_type) {
-        case AST_BINARY_ADD:
-          printf(" + ");
-          break;
-        case AST_BINARY_SUBTRACT:
-          printf(" - ");
-          break;
-        case AST_BINARY_DIVIDE:
-          printf(" / ");
-          break;
-        case AST_BINARY_MULTIPLY:
-          printf(" * ");
-          break;
-        case AST_BINARY_REMAINDER:
-          printf(" %% ");
-          break;
-        case AST_BINARY_BITWISE_AND:
-          printf(" & ");
-          break; 
-        case AST_BINARY_BITWISE_OR:
-          printf(" | ");
-          break; 
-        case AST_BINARY_BITWISE_XOR:
-          printf(" ^ ");
-          break; 
-        case AST_BINARY_BITWISE_LEFT_SHIFT:
-          printf(" << ");
-          break;
-        case AST_BINARY_BITWISE_RIGHT_SHIFT:
-          printf(" >> ");
-          break;
-        case AST_BINARY_AND:
-          printf(" && ");
-          break;
-        case AST_BINARY_OR:
-          printf(" || ");
-          break;
-        case AST_BINARY_GREATER_THAN:
-          printf(" > ");
-          break;
-        case AST_BINARY_GREATER_OR_EQUAL:
-          printf(" >= ");
-          break;
-        case AST_BINARY_LESS_THAN:
-          printf(" < ");
-          break;
-        case AST_BINARY_LESS_OR_EQUAL:
-          printf(" <= ");
-          break;
-        case AST_BINARY_EQUAL:
-          printf(" == ");
-          break;
-        case AST_BINARY_NOT_EQUAL:
-          printf(" != ");
-          break;
+        case AST_BINARY_ADD:                  printf(" + "); break;
+        case AST_BINARY_SUBTRACT:             printf(" - "); break;
+        case AST_BINARY_DIVIDE:               printf(" / "); break;
+        case AST_BINARY_MULTIPLY:             printf(" * "); break;
+        case AST_BINARY_REMAINDER:            printf(" %% "); break;
+        case AST_BINARY_BITWISE_AND:          printf(" & "); break; 
+        case AST_BINARY_BITWISE_OR:           printf(" | "); break; 
+        case AST_BINARY_BITWISE_XOR:          printf(" ^ "); break; 
+        case AST_BINARY_BITWISE_LEFT_SHIFT:   printf(" << "); break;
+        case AST_BINARY_BITWISE_RIGHT_SHIFT:  printf(" >> "); break;
+        case AST_BINARY_AND:                  printf(" && "); break;
+        case AST_BINARY_OR:                   printf(" || "); break;
+        case AST_BINARY_GREATER_THAN:         printf(" > "); break;
+        case AST_BINARY_GREATER_OR_EQUAL:     printf(" >= "); break;
+        case AST_BINARY_LESS_THAN:            printf(" < "); break;
+        case AST_BINARY_LESS_OR_EQUAL:        printf(" <= "); break;
+        case AST_BINARY_EQUAL:                printf(" == "); break;
+        case AST_BINARY_NOT_EQUAL:            printf(" != "); break;
       }
     
       print_ast(node->data.binary_expression.right_expression, 0);
