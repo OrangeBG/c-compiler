@@ -147,7 +147,7 @@ void load_tokens(Lexer *lexer, char *file) {
       case '&': {
         if (peek_next(lexer, file, '&')) {
           add_token(TOKEN_LOGICAL_AND, lexer);
-          lexer->start_index += 1; 
+          lexer->start_index++; 
         } else {
           add_token(TOKEN_BITWISE_AND, lexer);
         }
@@ -205,6 +205,9 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_OPEN_BRACE: printf("Open Brace "); break;
       case TOKEN_PERCENT: printf("Percent    "); break;
       case TOKEN_PLUS: printf("Plus       "); break;
+      case TOKEN_LOGICAL_AND: printf("And        "); break;
+      case TOKEN_LOGICAL_OR: printf("Or         "); break;
+      case TOKEN_LOGICAL_NOT: printf("Not        "); break;
       case TOKEN_RELATIONAL_EQUAL: printf("Equal      "); break;
       case TOKEN_RELATIONAL_NOT_EQUAL: printf("Not Equal  "); break;
       case TOKEN_RELATIONAL_LESS_THAN: printf("Less Than  "); break;
