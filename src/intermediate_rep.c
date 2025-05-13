@@ -158,11 +158,11 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         IRUnaryOpType unary_op_type;
 
-        if (ast_expression->data.unary_factor.op_type == AST_UNARY_COMPLEMENT) {
-          unary_op_type = IR_UNARY_COMPLEMENT;
-        } else {
-          unary_op_type = IR_UNARY_NEGATE;
-        }        
+        switch (ast_expression->data.unary_factor.op_type) {
+          case AST_UNARY_COMPLEMENT: unary_op_type = IR_UNARY_COMPLEMENT; break;
+          case AST_UNARY_NEGATE:     unary_op_type = IR_UNARY_NEGATE; break;
+          case AST_UNARY_NOT:        unary_op_type = IR_UNARY_NOT; break;
+        }
 
         IRNode *unary_instruction = malloc(sizeof(IRNode));         
         unary_instruction->type = IR_INSTRUCTION_UNARY;
@@ -291,6 +291,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
           case AST_BINARY_LESS_OR_EQUAL:        binary_op_type = IR_BINARY_LESS_OR_EQUAL; break;
           case AST_BINARY_GREATER_THAN:         binary_op_type = IR_BINARY_GREATER_THAN; break;
           case AST_BINARY_GREATER_OR_EQUAL:     binary_op_type = IR_BINARY_GREATER_OR_EQUAL; break;
+          default: break;
         }      
 
         IRNode *binary_instruction = malloc(sizeof(IRNode));         
