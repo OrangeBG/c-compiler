@@ -660,7 +660,7 @@ void print_assembly(AsmNode *node) {
       printf("Pseudo Register %s ", node->data.operand_pseudo_register.identifier);
       break;
     case ASM_OPERAND_IMM:
-      printf("Register %d ", node->data.operand_imm.value);
+      printf("IMM %d ", node->data.operand_imm.value);
       break;
     case ASM_OPERAND_STACK:
       printf("Stack %d ", node->data.operand_stack.address);
