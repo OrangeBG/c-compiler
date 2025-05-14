@@ -190,14 +190,21 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         destination->type = IR_VALUE_VAR;
         destination->data.value_var.identifier = destination_name;
 
-        if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND) {
+        if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND || ast_expression->data.binary_expression.op_type == AST_BINARY_OR) {
           char *label_name = malloc(10);
           snprintf(label_name, 10, "L.%d", temp_number++); 
 
           IRNode *jmp_instruction_v1 = malloc(sizeof(IRNode));
-          jmp_instruction_v1->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
-          jmp_instruction_v1->data.instruction_jump_if_zero.condition = source_1;
-          jmp_instruction_v1->data.instruction_jump_if_zero.target = label_name;
+
+          if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND) { 
+            jmp_instruction_v1->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
+            jmp_instruction_v1->data.instruction_jump_if_zero.condition = source_1;
+            jmp_instruction_v1->data.instruction_jump_if_zero.target = label_name;
+          } else {
+            jmp_instruction_v1->type = IR_INSTRUCTION_JUMP_IF_NOT_ZERO;  
+            jmp_instruction_v1->data.instruction_jump_if_not_zero.condition = source_1;
+            jmp_instruction_v1->data.instruction_jump_if_not_zero.target = label_name;
+          }
 
           check_ir_function_instruction_size(ir_function);
 
@@ -205,9 +212,16 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
           ir_function->data.function.instruction_count++;
 
           IRNode *jmp_instruction_v2 = malloc(sizeof(IRNode));
-          jmp_instruction_v2->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
-          jmp_instruction_v2->data.instruction_jump_if_zero.condition = source_2;
-          jmp_instruction_v2->data.instruction_jump_if_zero.target = label_name;
+
+          if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND) { 
+            jmp_instruction_v2->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
+            jmp_instruction_v2->data.instruction_jump_if_zero.condition = source_2;
+            jmp_instruction_v2->data.instruction_jump_if_zero.target = label_name;
+          } else {
+            jmp_instruction_v2->type = IR_INSTRUCTION_JUMP_IF_NOT_ZERO;  
+            jmp_instruction_v2->data.instruction_jump_if_not_zero.condition = source_2;
+            jmp_instruction_v2->data.instruction_jump_if_not_zero.target = label_name;
+          }
 
           check_ir_function_instruction_size(ir_function);
 
