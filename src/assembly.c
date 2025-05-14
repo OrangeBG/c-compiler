@@ -17,7 +17,7 @@ void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *ins
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction); 
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction); 
-void     asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_instruction); 
+void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction); 
 void     check_function_instruction_size(AsmNode *asm_function); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
@@ -227,9 +227,7 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
   }
 }
 
-void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, int * stack_offset) {
-  AsmNode *stack_operand = malloc(sizeof(AsmNode));
-
+void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, int *stack_offset) {
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
   //TODO: Shouldn't need to do table_entry->key == NULL, but is currently needed here. Need to investigate
@@ -362,7 +360,7 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
   asm_add_instruction_to_function(asm_function, binary_instruction);
 }
 
-void asm_instruction_binary_division(AsmNode *asm_function, IRNode *ir_binary_instruction) {
+void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction) {
   AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1);
   AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2);
   AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination);
