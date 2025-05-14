@@ -50,12 +50,12 @@ typedef enum {
 } AsmRegisterType;
 
 typedef enum {
-  E,
-  NE,
-  G,
-  GE,
-  L,
-  LE
+  ASM_CONDITION_EQUAL,
+  ASM_CONDITION_NOT_EQUAL,
+  ASM_CONDITION_GREATER,
+  ASM_CONDITION_GREATER_EQUAL,
+  ASM_CONDITION_LESS,
+  ASM_CONDITION_LESS_EQUAL
 } AsmConditionCode;
 
 typedef struct AsmNode {
