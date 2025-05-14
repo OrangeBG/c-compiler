@@ -385,23 +385,11 @@ void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
   
+  AsmNode *condition = asm_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition);;
   AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
-
-  AsmNode *condition = malloc(sizeof(AsmNode));
-
-  if (ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition->type == IR_VALUE_CONSTANT) {
-    condition->type = ASM_OPERAND_IMM;
-    condition->data.operand_imm.value = ir_jump_if_not_zero_instruction->data.value_constant.value;
-  } else if (ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition->type == IR_VALUE_VAR) {
-    condition->type = ASM_OPERAND_PSEUDO_REGISTER;
-    condition->data.operand_pseudo_register.identifier = ir_jump_if_not_zero_instruction->data.value_var.identifier;
-  } else {
-    printf("ERROR - Assembler: Condition type not found in asm_instruction_jump_if_not_zero()");
-    exit(1);
-  }
-
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
   asm_add_instruction_to_function(asm_function, cmp_instruction);
