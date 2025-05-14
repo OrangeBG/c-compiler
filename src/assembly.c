@@ -613,18 +613,19 @@ void print_assembly(AsmNode *node) {
       printf("RET -> \n");
       break;
     case ASM_INSTRUCTION_UNARY:
-      printf("UNARY - ");
+      printf("UNARY -> Operator( ");
       switch (node->data.instruction_unary.operator) {
         case ASM_UNARY_NEG:
-          printf("NEG ");
+          printf("NEG )");
           break;
         case ASM_UNARY_NOT:
-          printf("NOT");
+          printf("NOT )");
           break;
       }
-      
+
+      printf(" Operand( ");      
       print_assembly(node->data.instruction_unary.operand);
-      printf("\n");
+      printf(")\n");
       break;
     case ASM_INSTRUCTION_BINARY:
       switch (node->data.instruction_binary.operator) {
