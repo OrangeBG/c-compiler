@@ -9,10 +9,6 @@ void    check_ir_function_instruction_size(IRNode *asm_function);
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifier_id); 
 
-//TODO: Temporary..Replace later
-int temp_number = 0;
-int temp_label = 0;
-
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
 
@@ -136,6 +132,10 @@ IRNode* ir_function(AstNode *ast_function) {
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id) {
+  //TODO: Testing static variables to maintain static storage duration
+  static int temp_number;
+  static int temp_label;
+
   switch (ast_expression->type) {
     case AST_FACTOR_CONSTANT: {
         IRNode *constant = malloc(sizeof(IRNode));
@@ -192,7 +192,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND || ast_expression->data.binary_expression.op_type == AST_BINARY_OR) {
           char *label_name = malloc(10);
-          snprintf(label_name, 10, "L.%d", temp_number++); 
+          snprintf(label_name, 10, "L.%d", temp_label++); 
 
           IRNode *jmp_instruction_v1 = malloc(sizeof(IRNode));
 

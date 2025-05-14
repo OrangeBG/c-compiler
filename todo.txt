@@ -1,3 +1,4 @@
+- Mul assembly is producing an error
 - Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
 - Add generic dynamic array grow function
 - Add generic malloc / error check function
