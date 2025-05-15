@@ -12,6 +12,7 @@ AsmNode* asm_resolve_instructions(AsmNode *function);
 AsmNode* asm_operand(IRNode *ir_operand);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction);
 void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction); 
+void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
@@ -73,6 +74,10 @@ AsmNode* asm_resolve_instructions(AsmNode *function) {
       //MOV instructions cannot have both a source and destination as memory addresses
       asm_resolve_mov_memory_addresses(new_function, &instructions[i]);
       continue;
+    } else if (instruction_type == ASM_INSTRUCTION_CMP && (instructions[i].data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK)) {
+      //CMP instructions cannot have both a source and destination as memory addresses
+      asm_resolve_cmp_memory_addresses(new_function, &instructions[i]);
+      continue;      
     } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.operator == ASM_BINARY_ADD || instructions[i].data.instruction_binary.operator == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK || instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
       //ADD and SUB instructions cannot have both a source and destination as memory addresses
       asm_resolve_binary_add_sub_memory_addresses(new_function, &instructions[i]);
@@ -168,6 +173,26 @@ void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *ins
   asm_add_instruction_to_function(function, binary_instruction);
 }
 
+void asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction) {
+  AsmNode *r10_register = malloc(sizeof(AsmNode));
+  r10_register->type = ASM_OPERAND_REGISTER;
+  r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
+
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_1;
+  mov_instruction->data.instruction_mov.destination = r10_register;
+
+  asm_add_instruction_to_function(function, mov_instruction);
+
+  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  cmp_instruction->type = ASM_INSTRUCTION_CMP;
+  cmp_instruction->data.instruction_cmp.operand_1 = r10_register;
+  cmp_instruction->data.instruction_cmp.operand_2 = instruction->data.instruction_cmp.operand_2;
+  
+  asm_add_instruction_to_function(function, cmp_instruction);
+}
+
 void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction) {
     AsmNode *new_source_mov_instruction = malloc(sizeof(AsmNode));
     new_source_mov_instruction->type = ASM_INSTRUCTION_MOV;
@@ -176,6 +201,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction) {
     AsmNode *new_destination = malloc(sizeof(AsmNode));
     new_destination->type = ASM_OPERAND_REGISTER;
     new_destination->data.operand_register.op_register = ASM_REGISTER_R10;    
+
     new_source_mov_instruction->data.instruction_mov.destination = new_destination;    
 
     asm_add_instruction_to_function(function, new_source_mov_instruction);
