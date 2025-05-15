@@ -70,15 +70,15 @@ AsmNode* asm_resolve_instructions(AsmNode *function) {
   for (int i = 0; i < function->data.function.instruction_count; i++) {
     AsmNodeType instruction_type = instructions[i].type;
 
-    if (instruction_type == ASM_INSTRUCTION_MOV && (instructions[i].data.instruction_mov.destination->type == ASM_OPERAND_STACK || instructions[i].data.instruction_mov.source->type == ASM_OPERAND_STACK)) {
+    if (instruction_type == ASM_INSTRUCTION_MOV && instructions[i].data.instruction_mov.destination->type == ASM_OPERAND_STACK && instructions[i].data.instruction_mov.source->type == ASM_OPERAND_STACK) {
       //MOV instructions cannot have both a source and destination as memory addresses
       asm_resolve_mov_memory_addresses(new_function, &instructions[i]);
       continue;
-    } else if (instruction_type == ASM_INSTRUCTION_CMP && (instructions[i].data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK)) {
+    } else if (instruction_type == ASM_INSTRUCTION_CMP && instructions[i].data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
       //CMP instructions cannot have both a source and destination as memory addresses
       asm_resolve_cmp_memory_addresses(new_function, &instructions[i]);
       continue;      
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.operator == ASM_BINARY_ADD || instructions[i].data.instruction_binary.operator == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK || instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.operator == ASM_BINARY_ADD || instructions[i].data.instruction_binary.operator == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
       //ADD and SUB instructions cannot have both a source and destination as memory addresses
       asm_resolve_binary_add_sub_memory_addresses(new_function, &instructions[i]);
       continue;
