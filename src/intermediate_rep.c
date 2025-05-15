@@ -197,7 +197,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         if (ast_expression->data.binary_expression.op_type == AST_BINARY_AND || ast_expression->data.binary_expression.op_type == AST_BINARY_OR) {
           char *label_name = malloc(10);
-          snprintf(label_name, 10, "L.%d", temp_label++); 
+          snprintf(label_name, 10, "%d", temp_label++); 
 
           IRNode *jmp_instruction_v1 = malloc(sizeof(IRNode));
 

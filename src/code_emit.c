@@ -134,6 +134,47 @@ void print_code_emit(AsmNode *asm_node) {
       print_code_emit(asm_node->data.instruction_mov.destination);      
       printf("\n");
       break;
+    case ASM_INSTRUCTION_CMP:
+      printf("\tcmpl\t");
+      print_code_emit(asm_node->data.instruction_cmp.operand_1);
+      printf(", ");
+      print_code_emit(asm_node->data.instruction_cmp.operand_2);
+      printf("\n");
+      break;
+    case ASM_INSTRUCTION_JMP:
+      printf("\tjmp\tL%s\n", asm_node->data.instruction_label.identifier);
+      break;
+    case ASM_INSTRUCTION_JMPCC:
+      printf("\tj");
+
+      switch (asm_node->data.instruction_jmp_cc.condition_code) {
+        case ASM_CONDITION_EQUAL:         printf("e"); break;
+        case ASM_CONDITION_NOT_EQUAL:     printf("ne"); break;
+        case ASM_CONDITION_GREATER:       printf("g"); break;
+        case ASM_CONDITION_GREATER_EQUAL: printf("ge"); break;
+        case ASM_CONDITION_LESS:          printf("l"); break;
+        case ASM_CONDITION_LESS_EQUAL:    printf("le"); break;
+      }
+      printf("\tL%s\n", asm_node->data.instruction_jmp_cc.identifier);
+      break;
+    case ASM_INSTRUCTION_SETCC:
+      printf("\tset");
+
+      switch (asm_node->data.instruction_set_cc.condition_code) {
+        case ASM_CONDITION_EQUAL:         printf("e"); break;
+        case ASM_CONDITION_NOT_EQUAL:     printf("ne"); break;
+        case ASM_CONDITION_GREATER:       printf("g"); break;
+        case ASM_CONDITION_GREATER_EQUAL: printf("ge"); break;
+        case ASM_CONDITION_LESS:          printf("l"); break;
+        case ASM_CONDITION_LESS_EQUAL:    printf("le"); break;
+      }
+      printf("\t");
+      print_code_emit(asm_node->data.instruction_set_cc.operand);
+      printf("\n");
+      break;
+    case ASM_INSTRUCTION_LABEL:
+      printf("L%s\n", asm_node->data.instruction_label.identifier);
+      break;
     case ASM_INSTRUCTION_UNARY:
       if (asm_node->data.instruction_unary.operator == ASM_UNARY_NEG) {
         printf("\tnegl\t");
@@ -145,30 +186,14 @@ void print_code_emit(AsmNode *asm_node) {
       break;
     case ASM_INSTRUCTION_BINARY:
       switch (asm_node->data.instruction_binary.operator) {
-        case ASM_BINARY_ADD:
-          printf("\taddl\t");
-          break;
-        case ASM_BINARY_SUB:
-          printf("\tsubl\t");
-          break;
-        case ASM_BINARY_MULT:
-          printf("\tmull\t");
-          break;        
-        case ASM_BINARY_BITWISE_AND:
-          printf("\tandl\t");
-          break;
-        case ASM_BINARY_BITWISE_OR:
-          printf("\torl\t");
-          break;
-        case ASM_BINARY_BITWISE_XOR:
-          printf("\txorl\t");
-          break;
-        case ASM_BINARY_BITWISE_LEFT_SHIFT:
-          printf("\tshll\t");
-          break;
-        case ASM_BINARY_BITWISE_RIGHT_SHIFT:
-          printf("\tshrl\t");
-          break;
+        case ASM_BINARY_ADD:                 printf("\taddl\t"); break;
+        case ASM_BINARY_SUB:                 printf("\tsubl\t"); break;
+        case ASM_BINARY_MULT:                printf("\tmull\t"); break;        
+        case ASM_BINARY_BITWISE_AND:         printf("\tandl\t"); break;
+        case ASM_BINARY_BITWISE_OR:          printf("\torl\t"); break;
+        case ASM_BINARY_BITWISE_XOR:         printf("\txorl\t"); break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:  printf("\tshll\t"); break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT: printf("\tshrl\t"); break;
       }
       print_code_emit(asm_node->data.instruction_binary.operand_1);
       printf(", ");

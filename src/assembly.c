@@ -6,6 +6,7 @@
 
 #define INSTRUCTION_CAPACITY 8
 
+//TODO: Is this being used?
 AsmNode* asm_program(IRNode *ir_node);
 AsmNode* asm_function(IRNode *ir_function); 
 AsmNode* asm_resolve_instructions(AsmNode *function); 
@@ -254,6 +255,14 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
          asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, stack_offset);        
         }
         break;
+      case ASM_INSTRUCTION_CMP:
+        if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, &stack_location_table, stack_offset);
+        }        
+
+        if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, stack_offset);
+        }        
       default:
         break;
     }
