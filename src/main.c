@@ -61,7 +61,7 @@ int main(int argc, const char *argv[]) {
 
   if (print_debug) {
     printf("\n>> IR PRINT <<\n\n");
-    print_immediate_ret(ir);
+    print_intermediate_ret(ir);
   }
 
   //TODO: Can we free the lexer tokens after this?

@@ -12,9 +12,14 @@ typedef enum {
   ASM_INSTRUCTION_RET,
   ASM_INSTRUCTION_UNARY,
   ASM_INSTRUCTION_BINARY,
+  ASM_INSTRUCTION_ALLOCATE_STACK,
   ASM_INSTRUCTION_IDIV,
   ASM_INSTRUCTION_CDQ,
-  ASM_INSTRUCTION_ALLOCATE_STACK,
+  ASM_INSTRUCTION_CMP,
+  ASM_INSTRUCTION_JMP,
+  ASM_INSTRUCTION_JMPCC,
+  ASM_INSTRUCTION_SETCC,
+  ASM_INSTRUCTION_LABEL,
   ASM_OPERAND_IMM,
   ASM_OPERAND_REGISTER,
   ASM_OPERAND_PSEUDO_REGISTER,
@@ -44,6 +49,15 @@ typedef enum {
   ASM_REGISTER_R11
 } AsmRegisterType;
 
+typedef enum {
+  ASM_CONDITION_EQUAL,
+  ASM_CONDITION_NOT_EQUAL,
+  ASM_CONDITION_GREATER,
+  ASM_CONDITION_GREATER_EQUAL,
+  ASM_CONDITION_LESS,
+  ASM_CONDITION_LESS_EQUAL
+} AsmConditionCode;
+
 typedef struct AsmNode {
   AsmNodeType type;
   union {
@@ -53,6 +67,11 @@ typedef struct AsmNode {
     struct AsmInstructionUnary { AsmUnaryOpType operator; AsmNode *operand;  } instruction_unary;
     struct AsmInstructionBinary { AsmBinaryOpType operator; AsmNode *operand_1; AsmNode *operand_2;  } instruction_binary;
     struct AsmInstructionIdiv { AsmNode *operand; } instruction_idiv;
+    struct AsmInstructionCmp { AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
+    struct AsmInstructionJmp { char *identifier; } instruction_jmp;
+    struct AsmInstructionJmpCC { AsmConditionCode condition_code; char *identifier; } instruction_jmp_cc;
+    struct AsmInstructionSetCC { AsmConditionCode condition_code; AsmNode *operand; } instruction_set_cc;
+    struct AsmInstructionLabel { char *identifier; } instruction_label;
     struct AsmInstructionAllocateStack { int bytes_to_subtract;  } instruction_allocate_stack;
     struct AsmOperandImmediate { int value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;

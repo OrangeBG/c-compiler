@@ -91,36 +91,24 @@ void print_ast(AstNode *node, int whitespace) {
       print_ast(node->data.binary_expression.left_expression, ++whitespace);
   
       switch (node->data.binary_expression.op_type) {
-        case AST_BINARY_ADD:
-          printf(" + ");
-          break;
-        case AST_BINARY_SUBTRACT:
-          printf(" - ");
-          break;
-        case AST_BINARY_DIVIDE:
-          printf(" / ");
-          break;
-        case AST_BINARY_MULTIPLY:
-          printf(" * ");
-          break;
-        case AST_BINARY_REMAINDER:
-          printf(" %% ");
-          break;
-        case AST_BINARY_BITWISE_AND:
-          printf(" & ");
-          break; 
-        case AST_BINARY_BITWISE_OR:
-          printf(" | ");
-          break; 
-        case AST_BINARY_BITWISE_XOR:
-          printf(" ^ ");
-          break; 
-        case AST_BINARY_BITWISE_LEFT_SHIFT:
-          printf(" << ");
-          break;
-        case AST_BINARY_BITWISE_RIGHT_SHIFT:
-          printf(" >> ");
-          break;
+        case AST_BINARY_ADD:                  printf(" + "); break;
+        case AST_BINARY_SUBTRACT:             printf(" - "); break;
+        case AST_BINARY_DIVIDE:               printf(" / "); break;
+        case AST_BINARY_MULTIPLY:             printf(" * "); break;
+        case AST_BINARY_REMAINDER:            printf(" %% "); break;
+        case AST_BINARY_BITWISE_AND:          printf(" & "); break; 
+        case AST_BINARY_BITWISE_OR:           printf(" | "); break; 
+        case AST_BINARY_BITWISE_XOR:          printf(" ^ "); break; 
+        case AST_BINARY_BITWISE_LEFT_SHIFT:   printf(" << "); break;
+        case AST_BINARY_BITWISE_RIGHT_SHIFT:  printf(" >> "); break;
+        case AST_BINARY_AND:                  printf(" && "); break;
+        case AST_BINARY_OR:                   printf(" || "); break;
+        case AST_BINARY_GREATER_THAN:         printf(" > "); break;
+        case AST_BINARY_GREATER_OR_EQUAL:     printf(" >= "); break;
+        case AST_BINARY_LESS_THAN:            printf(" < "); break;
+        case AST_BINARY_LESS_OR_EQUAL:        printf(" <= "); break;
+        case AST_BINARY_EQUAL:                printf(" == "); break;
+        case AST_BINARY_NOT_EQUAL:            printf(" != "); break;
       }
     
       print_ast(node->data.binary_expression.right_expression, 0);
@@ -250,7 +238,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
   AstNode *left = ast_factor(parser);
 
   TokenType next_token = current_token(parser)->type;
-  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT) && get_precedence(next_token) >= min_precedence) {
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR) && get_precedence(next_token) >= min_precedence) {
     parser-> current_token_index++;
 
     AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
@@ -279,8 +267,24 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR;
     } else if (next_token == TOKEN_BITWISE_LEFT_SHIFT) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT;
-    } else {
+    } else if (next_token == TOKEN_BITWISE_RIGHT_SHIFT) {
       binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT;
+    } else if (next_token == TOKEN_RELATIONAL_LESS_THAN) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_THAN;
+    } else if (next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_OR_EQUAL;
+    } else if (next_token == TOKEN_RELATIONAL_GREATER_THAN) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_THAN;
+    } else if (next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_OR_EQUAL;
+    } else if (next_token == TOKEN_RELATIONAL_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_EQUAL;
+    } else if (next_token == TOKEN_RELATIONAL_NOT_EQUAL) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_NOT_EQUAL;
+    } else if (next_token == TOKEN_LOGICAL_AND) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_AND;
+    } else if (next_token == TOKEN_LOGICAL_OR) {
+      binary_expression->data.binary_expression.op_type = AST_BINARY_OR;
     }
 
     left = binary_expression;
@@ -306,8 +310,25 @@ AstNode* ast_factor(Parser *parser) {
     constant->data.constant_factor.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
 
     return constant;
-  } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT) {
-    UnaryOpType op_type = current_token(parser)->type == TOKEN_NEGATION ? AST_UNARY_NEGATE : AST_UNARY_COMPLEMENT;    
+  } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT || current_token(parser)->type == TOKEN_LOGICAL_NOT) {
+
+    UnaryOpType op_type; 
+    switch(current_token(parser)->type) {
+      case TOKEN_NEGATION:
+        op_type = AST_UNARY_NEGATE;
+        break;
+      case TOKEN_BITWISE_NOT:
+        op_type = AST_UNARY_COMPLEMENT;
+        break;
+      case TOKEN_LOGICAL_NOT:
+        op_type = AST_UNARY_NOT;
+        break;
+      default:
+        fprintf(stderr, "ERROR - Parser: Unary token type not found for ast_factor()");
+        exit(1);
+        break;
+    }
+    
     parser->current_token_index++;
 
     AstNode *unary_value_expression = ast_factor(parser);
@@ -337,24 +358,31 @@ int get_precedence(TokenType token_type) {
     case TOKEN_ASTERISK:
     case TOKEN_FORWARD_SLASH:
     case TOKEN_PERCENT:
-      return 50;
-      break;
+      return 13;
     case TOKEN_PLUS:
     case TOKEN_NEGATION:
-      return 45;
+      return 12;
     case TOKEN_BITWISE_LEFT_SHIFT:
     case TOKEN_BITWISE_RIGHT_SHIFT:
-      return 40;
-      break;
+      return 11;
+    case TOKEN_RELATIONAL_GREATER_THAN:
+    case TOKEN_RELATIONAL_GREATER_OR_EQUAL:
+    case TOKEN_RELATIONAL_LESS_THAN:
+    case TOKEN_RELATIONAL_LESS_OR_EQUAL:
+      return 10;
+    case TOKEN_RELATIONAL_EQUAL:
+    case TOKEN_RELATIONAL_NOT_EQUAL:
+      return 9;
     case TOKEN_BITWISE_AND:
-      return 35;
-      break;
+      return 8;
     case TOKEN_BITWISE_XOR:
-      return 30;
-      break;
+      return 7;
     case TOKEN_BITWISE_OR:
-      return 25;
-      break;      
+      return 6;
+    case TOKEN_LOGICAL_AND:
+      return 5;
+    case TOKEN_LOGICAL_OR:
+      return 4;
     default: {
       fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence", TokenTypeStr[token_type]);
       exit(1);

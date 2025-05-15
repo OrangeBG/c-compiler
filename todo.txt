@@ -1,5 +1,6 @@
-- Assembly - resolve memory mov and idiv functions can probably be done on a single pass
-- Lots of copied code in instruction functions to build source/destination node in Assembly
+- Investigate memory arenas
+- Mul assembly is producing an error
+- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
 - Add generic dynamic array grow function
 - Add generic malloc / error check function
 - Parser: Need to check if we need to malloc the ast's when creating them.
