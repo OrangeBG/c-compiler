@@ -37,7 +37,12 @@ void print_intermediate_ret(IRNode *ir_node) {
           } else if (function->instructions[i].type == IR_INSTRUCTION_UNARY) {      
             struct IRInstructionUnary* unary = &function->instructions[i].data.unary;
 
-            printf("Unary(%s", unary->op_type == IR_UNARY_COMPLEMENT ? "Complement, " : "Negate, ");
+            switch (unary->op_type) {
+              case IR_UNARY_NEGATE:     printf("Negate, "); break;
+              case IR_UNARY_COMPLEMENT: printf("Complement, "); break;
+              case IR_UNARY_NOT:        printf("Not, "); break;
+            }
+            
             print_intermediate_ret(unary->source);            
             printf(",");
             print_intermediate_ret(unary->destination);

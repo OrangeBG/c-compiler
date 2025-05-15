@@ -18,6 +18,7 @@ void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset);
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction); 
+void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction); 
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction); 
 void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction); 
 void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction); 
@@ -280,7 +281,11 @@ AsmNode* asm_function(IRNode *ir_function) {
         asm_instruction_return(function, &ir_function->data.function.instructions[i]);
         break;
       case IR_INSTRUCTION_UNARY:
-        asm_instruction_unary(function, &ir_function->data.function.instructions[i]);
+        if (ir_function->data.function.instructions[i].data.unary.op_type == IR_UNARY_NOT) {
+          asm_instruction_unary_not(function, &ir_function->data.function.instructions[i]);
+        } else {
+          asm_instruction_unary(function, &ir_function->data.function.instructions[i]);
+        }
         break;
       case IR_INSTRUCTION_BINARY:        
         switch (ir_function->data.function.instructions[i].data.instruction_binary.op_type) {
@@ -459,6 +464,36 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
 
   asm_add_instruction_to_function(asm_function, mov_instruction);
   asm_add_instruction_to_function(asm_function, binary_instruction);
+}
+
+void asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction) {
+  AsmNode *source = asm_operand(ir_unary_not_instruction->data.unary.source);
+  AsmNode *destination_node = asm_operand(ir_unary_not_instruction->data.unary.destination);
+
+  AsmNode *imm_operand = malloc(sizeof(AsmNode));
+  imm_operand->type = ASM_OPERAND_IMM;
+  imm_operand->data.operand_imm.value = 0;
+
+  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  cmp_instruction->type = ASM_INSTRUCTION_CMP;
+  cmp_instruction->data.instruction_cmp.operand_1 = imm_operand;
+  cmp_instruction->data.instruction_cmp.operand_2 = source;
+
+  asm_add_instruction_to_function(asm_function, cmp_instruction);
+
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = imm_operand;
+  mov_instruction->data.instruction_mov.destination = destination_node;
+
+  asm_add_instruction_to_function(asm_function, mov_instruction);
+
+  AsmNode *set_cc_instruction = malloc(sizeof(AsmNode));  
+  set_cc_instruction->type = ASM_INSTRUCTION_SETCC;
+  set_cc_instruction->data.instruction_set_cc.condition_code = ASM_CONDITION_EQUAL;
+  set_cc_instruction->data.instruction_set_cc.operand = destination_node;
+
+  asm_add_instruction_to_function(asm_function, set_cc_instruction);
 }
 
 void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction) {
