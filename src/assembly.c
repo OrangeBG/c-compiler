@@ -787,7 +787,7 @@ void print_assembly(AsmNode *node) {
         case ASM_CONDITION_LESS:           printf("Less"); break;
         case ASM_CONDITION_LESS_EQUAL:     printf("Less or Equal"); break;
       }
-      printf(" )");
+      printf(" )\n");
       break;
     case ASM_INSTRUCTION_SETCC:
       printf("SETCC -> Operand( ");

@@ -25,6 +25,47 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       save_assembly_file(asm_node->data.instruction_mov.destination, file);      
       fprintf(file, "\n");
       break;
+    case ASM_INSTRUCTION_CMP:
+      fprintf(file, "\tcmpl\t");
+      save_assembly_file(asm_node->data.instruction_cmp.operand_1, file);
+      fprintf(file, ", ");
+      save_assembly_file(asm_node->data.instruction_cmp.operand_2, file);
+      fprintf(file, "\n");
+      break;
+    case ASM_INSTRUCTION_JMP:
+      fprintf(file, "\tjmp\tL%s\n", asm_node->data.instruction_label.identifier);
+      break;
+    case ASM_INSTRUCTION_JMPCC:
+      fprintf(file, "\tj");
+
+      switch (asm_node->data.instruction_jmp_cc.condition_code) {
+        case ASM_CONDITION_EQUAL:         fprintf(file, "e"); break;
+        case ASM_CONDITION_NOT_EQUAL:     fprintf(file, "ne"); break;
+        case ASM_CONDITION_GREATER:       fprintf(file, "g"); break;
+        case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
+        case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
+        case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
+      }
+      fprintf(file, "\tL%s\n", asm_node->data.instruction_jmp_cc.identifier);
+      break;
+    case ASM_INSTRUCTION_SETCC:
+      fprintf(file, "\tset");
+
+      switch (asm_node->data.instruction_set_cc.condition_code) {
+        case ASM_CONDITION_EQUAL:         fprintf(file, "e"); break;
+        case ASM_CONDITION_NOT_EQUAL:     fprintf(file, "ne"); break;
+        case ASM_CONDITION_GREATER:       fprintf(file, "g"); break;
+        case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
+        case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
+        case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
+      }
+      fprintf(file, "\t");
+      save_assembly_file(asm_node->data.instruction_set_cc.operand, file);
+      fprintf(file, "\n");
+      break;
+    case ASM_INSTRUCTION_LABEL:
+      fprintf(file, "L%s:\n", asm_node->data.instruction_label.identifier);
+      break;
     case ASM_INSTRUCTION_UNARY:
       if (asm_node->data.instruction_unary.operator == ASM_UNARY_NEG) {
         fprintf(file, "\tnegl\t");
@@ -36,30 +77,14 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       break;
     case ASM_INSTRUCTION_BINARY:
       switch (asm_node->data.instruction_binary.operator) {
-        case ASM_BINARY_ADD:
-          fprintf(file, "\taddl\t");
-          break;
-        case ASM_BINARY_SUB:
-          fprintf(file, "\tsubl\t");
-          break;
-        case ASM_BINARY_MULT:
-          fprintf(file, "\tmull\t");
-          break;        
-        case ASM_BINARY_BITWISE_AND:
-          fprintf(file, "\tandl\t");
-          break;
-        case ASM_BINARY_BITWISE_OR:
-          fprintf(file, "\torl\t");
-          break;
-        case ASM_BINARY_BITWISE_XOR:
-          fprintf(file, "\txorl\t");
-          break;
-        case ASM_BINARY_BITWISE_LEFT_SHIFT:
-          fprintf(file, "\tshll\t");
-          break;
-        case ASM_BINARY_BITWISE_RIGHT_SHIFT:
-          fprintf(file, "\tshrl\t");
-          break;
+        case ASM_BINARY_ADD:                  fprintf(file, "\taddl\t"); break;
+        case ASM_BINARY_SUB:                  fprintf(file, "\tsubl\t"); break;
+        case ASM_BINARY_MULT:                 fprintf(file, "\tmull\t"); break;        
+        case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tandl\t"); break;
+        case ASM_BINARY_BITWISE_OR:           fprintf(file, "\torl\t"); break;
+        case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txorl\t"); break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:   fprintf(file, "\tshll\t"); break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshrl\t"); break;
       }
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
       fprintf(file, ", ");
@@ -173,7 +198,7 @@ void print_code_emit(AsmNode *asm_node) {
       printf("\n");
       break;
     case ASM_INSTRUCTION_LABEL:
-      printf("L%s\n", asm_node->data.instruction_label.identifier);
+      printf("L%s:\n", asm_node->data.instruction_label.identifier);
       break;
     case ASM_INSTRUCTION_UNARY:
       if (asm_node->data.instruction_unary.operator == ASM_UNARY_NEG) {
