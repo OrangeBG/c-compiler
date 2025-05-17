@@ -61,6 +61,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
       fprintf(file, "\t");
       //1 Byte name registers for set cc
+      if (asm_node->data.instruction_set_cc.operand->type == ASM_OPERAND_REGISTER) {
       switch (asm_node->data.instruction_set_cc.operand->data.operand_register.op_register) {
         case ASM_REGISTER_R10:
           printf("%%r10b");
@@ -74,6 +75,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_REGISTER_DX:
           printf("%%dl");
           break;
+      }
+      } else {
+        save_assembly_file(asm_node->data.instruction_set_cc.operand, file);
       }
       fprintf(file, "\n");
       break;
@@ -209,19 +213,23 @@ void print_code_emit(AsmNode *asm_node) {
       }
       printf("\t");
       //1 Byte name registers for set cc
-      switch (asm_node->data.instruction_set_cc.operand->data.operand_register.op_register) {
-        case ASM_REGISTER_R10:
-          printf("%%r10b");
-          break;
-        case ASM_REGISTER_R11:
-          printf("%%r11b");
-          break;
-        case ASM_REGISTER_AX:
-          printf("%%al");
-          break;
-        case ASM_REGISTER_DX:
-          printf("%%dl");
-          break;
+      if (asm_node->data.instruction_set_cc.operand->type == ASM_OPERAND_REGISTER) {
+        switch (asm_node->data.instruction_set_cc.operand->data.operand_register.op_register) {
+          case ASM_REGISTER_R10:
+            printf("%%r10b");
+            break;
+          case ASM_REGISTER_R11:
+            printf("%%r11b");
+            break;
+          case ASM_REGISTER_AX:
+            printf("%%al");
+            break;
+          case ASM_REGISTER_DX:
+            printf("%%dl");
+            break;
+        }
+      } else {
+        print_code_emit(asm_node->data.instruction_set_cc.operand);
       }
       printf("\n");
       break;
