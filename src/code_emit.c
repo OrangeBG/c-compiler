@@ -60,7 +60,21 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
       }
       fprintf(file, "\t");
-      save_assembly_file(asm_node->data.instruction_set_cc.operand, file);
+      //1 Byte name registers for set cc
+      switch (asm_node->data.instruction_set_cc.operand->data.operand_register.op_register) {
+        case ASM_REGISTER_R10:
+          printf("%%r10b");
+          break;
+        case ASM_REGISTER_R11:
+          printf("%%r11b");
+          break;
+        case ASM_REGISTER_AX:
+          printf("%%al");
+          break;
+        case ASM_REGISTER_DX:
+          printf("%%dl");
+          break;
+      }
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_LABEL:
@@ -194,7 +208,21 @@ void print_code_emit(AsmNode *asm_node) {
         case ASM_CONDITION_LESS_EQUAL:    printf("le"); break;
       }
       printf("\t");
-      print_code_emit(asm_node->data.instruction_set_cc.operand);
+      //1 Byte name registers for set cc
+      switch (asm_node->data.instruction_set_cc.operand->data.operand_register.op_register) {
+        case ASM_REGISTER_R10:
+          printf("%%r10b");
+          break;
+        case ASM_REGISTER_R11:
+          printf("%%r11b");
+          break;
+        case ASM_REGISTER_AX:
+          printf("%%al");
+          break;
+        case ASM_REGISTER_DX:
+          printf("%%dl");
+          break;
+      }
       printf("\n");
       break;
     case ASM_INSTRUCTION_LABEL:
