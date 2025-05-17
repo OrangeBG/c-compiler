@@ -86,7 +86,7 @@ void print_intermediate_ret(IRNode *ir_node) {
           } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP_IF_NOT_ZERO) {
             printf("Jump If Not Zero(");
             print_intermediate_ret(function->instructions[i].data.instruction_jump_if_not_zero.condition);
-            printf(" , %s\n", function->instructions[i].data.instruction_jump_if_not_zero.target);
+            printf(" , %s)\n", function->instructions[i].data.instruction_jump_if_not_zero.target);
           } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP) {
             printf("Jump(%s)\n", function->instructions[i].data.instruction_jump.target);
           } else if (function->instructions[i].type == IR_INSTRUCTION_COPY) {

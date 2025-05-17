@@ -6,14 +6,13 @@
 
 #define INSTRUCTION_CAPACITY 8
 
-//TODO: Is this being used?
-AsmNode* asm_program(IRNode *ir_node);
 AsmNode* asm_function(IRNode *ir_function); 
 AsmNode* asm_resolve_instructions(AsmNode *function); 
 AsmNode* asm_operand(IRNode *ir_operand);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction);
 void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction); 
+void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
@@ -79,6 +78,11 @@ AsmNode* asm_resolve_instructions(AsmNode *function) {
       //CMP instructions cannot have both a source and destination as memory addresses
       asm_resolve_cmp_memory_addresses(new_function, &instructions[i]);
       continue;      
+    } else if (instruction_type == ASM_INSTRUCTION_CMP && instructions[i].data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
+      //CMP instructions cannot have a constant as the second operand.
+      //TODO: Investigate if this is also needed for sub, add, and imul instructions
+      asm_resolve_cmp_constant_in_operand_2(new_function, &instructions[i]);
+      continue;
     } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.operator == ASM_BINARY_ADD || instructions[i].data.instruction_binary.operator == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
       //ADD and SUB instructions cannot have both a source and destination as memory addresses
       asm_resolve_binary_add_sub_memory_addresses(new_function, &instructions[i]);
@@ -172,6 +176,30 @@ void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *ins
   binary_instruction->data.instruction_binary.operand_2 = instruction->data.instruction_binary.operand_2;
 
   asm_add_instruction_to_function(function, binary_instruction);
+}
+
+void asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction) {
+  AsmNode *r11_register = malloc(sizeof(AsmNode));
+  r11_register->type = ASM_OPERAND_REGISTER;
+  r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
+
+  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_2;
+  mov_instruction->data.instruction_mov.destination = r11_register;
+
+  asm_add_instruction_to_function(function, mov_instruction);
+
+  AsmNode *eax_register = malloc(sizeof(AsmNode));
+  eax_register->type = ASM_OPERAND_REGISTER;
+  eax_register->data.operand_register.op_register = ASM_REGISTER_AX;
+  
+  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  cmp_instruction->type = ASM_INSTRUCTION_CMP;
+  cmp_instruction->data.instruction_cmp.operand_1 = eax_register;
+  cmp_instruction->data.instruction_cmp.operand_2 = r11_register;
+
+  asm_add_instruction_to_function(function, cmp_instruction);
 }
 
 void asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction) {

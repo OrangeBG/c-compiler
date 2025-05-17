@@ -72,7 +72,6 @@ int main(int argc, const char *argv[]) {
     printf("\n>> ASSEMBLY PRINT <<\n\n");
     print_assembly(asm_nodes);
 
-    printf("\n>> SAVING ASSEMBLY <<\n\n");
     FILE *assembly_file;
     assembly_file = fopen("assembly.asm", "w");
 
