@@ -142,16 +142,16 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
   static int temp_label;
 
   switch (ast_expression->type) {
-    case AST_FACTOR_CONSTANT: {
+    case AST_EXPRESSION_CONSTANT: {
         IRNode *constant = malloc(sizeof(IRNode));
         constant->type = IR_VALUE_CONSTANT;
-        constant->data.value_constant.value = ast_expression->data.constant_factor.value;
+        constant->data.value_constant.value = ast_expression->data.constant_expression.value;
 
         return constant;
       }
       break;
-    case AST_FACTOR_UNARY: {
-        IRNode *source = ir_value(ast_expression->data.unary_factor.factor, ir_function, temp_identifier_id);
+    case AST_EXPRESSION_UNARY: {
+        IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id);
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
@@ -163,7 +163,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         IRUnaryOpType unary_op_type;
 
-        switch (ast_expression->data.unary_factor.op_type) {
+        switch (ast_expression->data.unary_expression.op_type) {
           case AST_UNARY_COMPLEMENT: unary_op_type = IR_UNARY_COMPLEMENT; break;
           case AST_UNARY_NEGATE:     unary_op_type = IR_UNARY_NEGATE; break;
           case AST_UNARY_NOT:        unary_op_type = IR_UNARY_NOT; break;

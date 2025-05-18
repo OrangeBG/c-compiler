@@ -70,19 +70,19 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")");
       break;
-    case AST_FACTOR_CONSTANT:
+    case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
-      printf("Constant(%d)", node->data.constant_factor.value);
+      printf("Constant(%d)", node->data.constant_expression.value);
       break;
-    case AST_FACTOR_UNARY:
+    case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
       printf("Unary(");
-      if (node->data.unary_factor.op_type == AST_UNARY_COMPLEMENT) {
+      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT) {
         printf("Complement(\n");
       } else {
         printf("Negate(\n");
       }
-      print_ast(node->data.unary_factor.factor, ++whitespace);
+      print_ast(node->data.unary_expression.expression, ++whitespace);
       printf("))");
       break;
     case AST_EXPRESSION_BINARY:
@@ -305,9 +305,9 @@ AstNode* ast_factor(Parser *parser) {
     ast_expect(parser, TOKEN_CONSTANT_INT); 
 
     AstNode *constant = malloc(sizeof(AstNode));
-    constant->type = AST_FACTOR_CONSTANT;
+    constant->type = AST_EXPRESSION_CONSTANT;
     //TODO: Only supports up to '9'
-    constant->data.constant_factor.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
+    constant->data.constant_expression.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
 
     return constant;
   } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT || current_token(parser)->type == TOKEN_LOGICAL_NOT) {
@@ -334,9 +334,9 @@ AstNode* ast_factor(Parser *parser) {
     AstNode *unary_value_expression = ast_factor(parser);
 
     AstNode *unary = malloc(sizeof(AstNode));    
-    unary->type = AST_FACTOR_UNARY;
-    unary->data.unary_factor.op_type = op_type;
-    unary->data.unary_factor.factor = unary_value_expression;
+    unary->type = AST_EXPRESSION_UNARY;
+    unary->data.unary_expression.op_type = op_type;
+    unary->data.unary_expression.expression = unary_value_expression;
 
     return unary;
   } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
@@ -383,6 +383,8 @@ int get_precedence(TokenType token_type) {
       return 5;
     case TOKEN_LOGICAL_OR:
       return 4;
+    case TOKEN_EQUAL:
+      return 2;
     default: {
       fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence", TokenTypeStr[token_type]);
       exit(1);
