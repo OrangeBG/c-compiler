@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/types.h>
 #include "../include/parser.h"
 
 #define BLOCK_STARTING_ALLOCATION 8
@@ -17,6 +18,7 @@ typedef struct Parser {
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
+AstNode*   ast_declaration(Parser *parser);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
@@ -61,8 +63,12 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_FUNCTION:
       print_whitespace(whitespace);
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
-      print_ast(node->data.function.statement, ++whitespace);
-      printf("\n");
+
+      for (int i = 0; i < node->data.function.block_count; i++) {
+        print_ast(node->data.function.blocks[i].data.block.block_item, ++whitespace);
+        printf("\n");
+      }   
+
       print_whitespace(whitespace);
       printf(")\n)");      
       break;
@@ -155,11 +161,14 @@ void add_to_function_block(AstNode *function, AstNode *expr_or_stmt) {
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? BLOCK_STARTING_ALLOCATION : current_capacity * 2;
 
-    AsmNode *instructions = realloc(function->data.function.blocks, new_size * sizeof(AstNode));
+    AstNode *blocks = realloc(function->data.function.blocks, new_size * sizeof(AstNode));
 
-    asm_function->data.function.instruction_capacity = new_size;
-    asm_function->data.function.instructions = instructions;
+    function->data.function.block_capacity = new_size;
+    function->data.function.blocks = blocks;
   } 
+
+  function->data.function.blocks[function->data.function.block_count] = *expr_or_stmt;
+  function->data.function.block_count++;
 }
 
 void ast_expect(Parser *parser, TokenType expected_type) {
@@ -210,16 +219,17 @@ AstNode* ast_function(Parser *parser) {
       ast_expect(parser, TOKEN_CLOSE_BRACE);
       return function;
     }
+
     if (current_token(parser)->type == TOKEN_INT) {
-      //TODO: Add declaration
+      AstNode *declaration = ast_declaration(parser);
+      add_to_function_block(function, declaration);
     } else {
-      //TODO: Add statement    
+      AstNode *stmt = ast_statement(parser);
+      add_to_function_block(function, stmt);
     }
   }
 
-  // AstNode *stmt = ast_statement(parser);
-  // ast_expect(parser, TOKEN_CLOSE_BRACE);
-  // return function;
+  return function;
 }
 
 char* ast_identifier(Parser *parser) {
@@ -245,6 +255,29 @@ char* ast_identifier(Parser *parser) {
   parser->current_token_index++;
 
   return ret_val;
+}
+
+AstNode* ast_declaration(Parser *parser) {
+  ast_expect(parser, TOKEN_INT);
+
+  char *identifier = ast_identifier(parser);
+  ast_expect(parser, TOKEN_IDENTIFIER);
+
+  AstNode *declaration = malloc(sizeof(AstNode));
+  declaration->type = AST_DECLARATION;
+  declaration->data.declaration.identifier = identifier;
+
+  if (current_token(parser)->type == TOKEN_EQUAL) {
+    ast_expect(parser, TOKEN_EQUAL);
+    AstNode *expression = ast_expression(parser, 0);
+
+    declaration->data.declaration.has_expression = true;
+    declaration->data.declaration.expression = expression;
+  }
+
+  ast_expect(parser, TOKEN_SEMICOLON);
+
+  return declaration;
 }
 
 AstNode* ast_statement(Parser *parser) { 
