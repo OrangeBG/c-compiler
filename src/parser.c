@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "../include/parser.h"
+
+#define BLOCK_STARTING_ALLOCATION 8
 
 typedef struct Parser {
   int token_count;
@@ -22,6 +25,7 @@ TokenType  peek_next_token(Parser *parser);
 char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
+void       add_to_function_block(AstNode *function, AstNode *expr_or_stmt);
 bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
@@ -143,6 +147,21 @@ bool end_of_file(Parser *parser) {
   return parser->tokens[parser->current_token_index].type == TOKEN_EOF;
 }
 
+
+void add_to_function_block(AstNode *function, AstNode *expr_or_stmt) {
+  int current_count = function->data.function.block_count;
+  int current_capacity = function->data.function.block_capacity;
+
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? BLOCK_STARTING_ALLOCATION : current_capacity * 2;
+
+    AsmNode *instructions = realloc(function->data.function.blocks, new_size * sizeof(AstNode));
+
+    asm_function->data.function.instruction_capacity = new_size;
+    asm_function->data.function.instructions = instructions;
+  } 
+}
+
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
     fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], previous_token(parser)->line);
@@ -178,16 +197,29 @@ AstNode* ast_function(Parser *parser) {
   ast_expect(parser, TOKEN_CLOSE_PAREN);
   ast_expect(parser, TOKEN_OPEN_BRACE);
 
-  AstNode *stmt = ast_statement(parser);
-  AstNode *function = malloc(sizeof(AstNode));
-  
+
+  AstNode *function = malloc(sizeof(AstNode)); 
   function->type = AST_FUNCTION;
   function->data.function.name = id_name;
-  function->data.function.statement = stmt;
+  function->data.function.block_count = 0;
+  function->data.function.block_capacity = 0;
+  function->data.function.blocks = NULL;
 
-  ast_expect(parser, TOKEN_CLOSE_BRACE);
+  while(true) {
+    if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
+      ast_expect(parser, TOKEN_CLOSE_BRACE);
+      return function;
+    }
+    if (current_token(parser)->type == TOKEN_INT) {
+      //TODO: Add declaration
+    } else {
+      //TODO: Add statement    
+    }
+  }
 
-  return function;
+  // AstNode *stmt = ast_statement(parser);
+  // ast_expect(parser, TOKEN_CLOSE_BRACE);
+  // return function;
 }
 
 char* ast_identifier(Parser *parser) {

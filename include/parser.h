@@ -55,7 +55,7 @@ typedef struct AstNode {
   NodeType type;
   union {
     struct Program { struct AstNode *function; } program;
-    struct Function { char* name; AstNode* blocks; int block_count; } function;
+    struct Function { char* name; AstNode* blocks; int block_count; int block_capacity; } function;
     struct Block { AstBlockType type; AstNode *block_item; } block;
     struct Declaration { char* identifier; bool has_expression; AstNode* expression; } declaration;
     struct ReturnStatement { struct AstNode* expression; } return_statement;

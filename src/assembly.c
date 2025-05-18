@@ -731,7 +731,7 @@ void check_function_instruction_size(AsmNode *asm_function) {
   int current_capacity = asm_function->data.function.instruction_capacity;
 
   if (current_count == current_capacity) {
-    int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * INSTRUCTION_CAPACITY;
+    int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * 2;
 
     AsmNode *instructions = realloc(asm_function->data.function.instructions, new_size * sizeof(AsmNode));
 
