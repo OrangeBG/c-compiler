@@ -1,3 +1,4 @@
+- Parser: Check if statements are being handled correctly
 - Investigate memory arenas
 - Mul assembly is producing an error
 - Similar to lexer print, create string arrays for other compiler phases for print friendly printing  

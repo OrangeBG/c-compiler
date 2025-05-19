@@ -17,8 +17,8 @@ typedef struct Parser {
  
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
-AstNode*   ast_statement(Parser *parser);
-AstNode*   ast_declaration(Parser *parser);
+void       ast_statement(Parser *parser, AstNode *function);
+void       ast_declaration(Parser *parser, AstNode *function);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
@@ -65,7 +65,7 @@ void print_ast(AstNode *node, int whitespace) {
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
 
       for (int i = 0; i < node->data.function.block_count; i++) {
-        print_ast(node->data.function.blocks[i].data.block.block_item, ++whitespace);
+        print_ast(&node->data.function.blocks[i], ++whitespace);
         printf("\n");
       }   
 
@@ -153,7 +153,6 @@ bool end_of_file(Parser *parser) {
   return parser->tokens[parser->current_token_index].type == TOKEN_EOF;
 }
 
-
 void add_to_function_block(AstNode *function, AstNode *expr_or_stmt) {
   int current_count = function->data.function.block_count;
   int current_capacity = function->data.function.block_capacity;
@@ -221,15 +220,11 @@ AstNode* ast_function(Parser *parser) {
     }
 
     if (current_token(parser)->type == TOKEN_INT) {
-      AstNode *declaration = ast_declaration(parser);
-      add_to_function_block(function, declaration);
+      ast_declaration(parser, function);
     } else {
-      AstNode *stmt = ast_statement(parser);
-      add_to_function_block(function, stmt);
+      ast_statement(parser, function);
     }
   }
-
-  return function;
 }
 
 char* ast_identifier(Parser *parser) {
@@ -257,7 +252,7 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-AstNode* ast_declaration(Parser *parser) {
+void ast_declaration(Parser *parser, AstNode *function) {
   ast_expect(parser, TOKEN_INT);
 
   char *identifier = ast_identifier(parser);
@@ -276,27 +271,37 @@ AstNode* ast_declaration(Parser *parser) {
   }
 
   ast_expect(parser, TOKEN_SEMICOLON);
-
-  return declaration;
+  add_to_function_block(function, declaration);
 }
 
-AstNode* ast_statement(Parser *parser) { 
+void ast_statement(Parser *parser, AstNode *function) { 
   if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
     exit(1);
   }
 
-  ast_expect(parser, TOKEN_RETURN);
+  if (current_token(parser)->type == TOKEN_SEMICOLON) {
+    ast_expect(parser, TOKEN_SEMICOLON);
+    return;
+  }
+
+  if (current_token(parser)->type == TOKEN_RETURN) {
+    ast_expect(parser, TOKEN_RETURN);
   
-  AstNode *expression = ast_expression(parser, 0);
-  AstNode *return_node = malloc(sizeof(AstNode));
+    AstNode *expression = ast_expression(parser, 0);
+    AstNode *return_node = malloc(sizeof(AstNode));
     
-  return_node->type = AST_STATEMENT_RETURN;
-  return_node->data.return_statement.expression = expression;
+    return_node->type = AST_STATEMENT_RETURN;
+    return_node->data.return_statement.expression = expression;
 
-  ast_expect(parser, TOKEN_SEMICOLON);
+    ast_expect(parser, TOKEN_SEMICOLON);
+    add_to_function_block(function, return_node);
+    return;
+  }
 
-  return return_node;
+  AstNode *expression = ast_expression(parser, 0);
+  add_to_function_block(function, expression);
+  
 }
 
 AstNode* ast_expression(Parser *parser, int min_precedence) {
