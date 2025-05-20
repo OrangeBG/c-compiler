@@ -30,6 +30,13 @@ void hash_table_delete_entry(HashTable *table, char *key) {
 }
 
 void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
+  HashTableEntry *found_entry = hash_table_get_entry(table, entry->key);
+
+  if (found_entry->key != NULL) {
+    fprintf(stderr, "ERROR - Hash Table: Added to table with existing '%s' key", entry->key);
+    exit(1);
+  }
+    
   uint32_t hash = hash_key(entry->key);
 
   if (table->count + 1 > table->capacity * HASH_TABLE_MAX_LOAD) {
@@ -97,6 +104,7 @@ uint32_t hash_key(char *key) {
 HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
   uint32_t hash = hash_key(key);
   int index = hash % capacity;
+  int initial_index = index;
   
   while (true) {
     HashTableEntry *entry = &entries[index]; 
