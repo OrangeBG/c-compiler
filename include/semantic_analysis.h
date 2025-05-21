@@ -3,6 +3,6 @@
 
 #include "parser.h"
 
-void run_semantic_analysis(AstNode ast_nodes);
+void run_semantic_analysis(AstNode *ast_nodes);
 
 #endif

@@ -6,6 +6,7 @@
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
 #include "../include/intermediate_rep.h"
+#include "../include/semantic_analysis.h"
 
 char* load_file(const char *file_path); 
 
@@ -56,6 +57,8 @@ int main(int argc, const char *argv[]) {
     printf("\n>> AST PRINT <<\n\n");
     print_ast(ast, 0);
   }
+
+  run_semantic_analysis(ast);
 
   IRNode *ir = generate_intermediate_rep(ast);
 
