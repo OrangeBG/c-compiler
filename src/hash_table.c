@@ -18,6 +18,30 @@ void hash_table_init(HashTable *table) {
   table->entries = NULL;
 }
 
+void hash_table_print(HashTable *table) {
+  printf("HashTable:\n");
+
+  for (int i = 0; i < table->capacity; i++) {
+    if (table->entries[i].key == NULL) {
+      continue;
+    }
+    
+    printf("index: %d\tkey: %s \t", i, table->entries[i].key);    
+    
+    switch(table->entries[i].value.type) {
+      case HASH_STRING:
+        printf("value: %s\n", table->entries[i].value.string);
+        break;
+      case HASH_INT:
+        printf("value: %d\n", table->entries[i].value.integer);
+        break;
+      case HASH_TOMBSTONE:
+        printf("value: Tombstone\n");
+        break;
+    }   
+  }
+}
+
 void hash_table_delete_entry(HashTable *table, char *key) {
   HashTableEntry *entry = hash_table_get_entry(table, key);
 
@@ -32,7 +56,7 @@ void hash_table_delete_entry(HashTable *table, char *key) {
 void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
   HashTableEntry *found_entry = hash_table_get_entry(table, entry->key);
 
-  if (found_entry->key != NULL) {
+  if (found_entry != NULL && found_entry->key != NULL) {
     fprintf(stderr, "ERROR - Hash Table: Added to table with existing '%s' key", entry->key);
     exit(1);
   }
