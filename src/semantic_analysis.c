@@ -7,6 +7,7 @@
 
 void semantic_variable_resolution(AstNode *ast_nodes);
 void semantic_resolve_declaration(AstNode *ast_nodes);
+void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table); 
 
 void run_semantic_analysis(AstNode *ast_nodes) {
   semantic_variable_resolution(ast_nodes);
@@ -45,12 +46,37 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
       char *new_identifier = malloc(var_length + 5);
       strcpy(new_identifier, identifier);
 
-      snprintf(new_identifier + var_length, 100 - var_length, "%d", var_suffix);
+      snprintf(new_identifier + var_length, 100 - var_length, ".%d", var_suffix);
       new_variable_entry->value.string = new_identifier;
 
       hash_table_add_entry(&variable_table, new_variable_entry);
+
+      if (stmt_or_decl->data.declaration.has_expression == true) {
+        semantic_resolve_expressison(stmt_or_decl->data.declaration.expression, &variable_table);
+      }
     }
   }
 
   hash_table_print(&variable_table);
+}
+
+void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table) {
+  if (expression->type == AST_EXPRESSION_ASSIGNMENT) {
+    if (expression->data.assignement_expression.left_expression->type != AST_EXPRESSION_VARIABLE) {
+      fprintf(stderr, "Invalid LValue for assignment expression");
+      exit(1);
+    }
+
+    semantic_resolve_expressison(expression->data.assignement_expression.left_expression, variable_table);
+    semantic_resolve_expressison(expression->data.assignement_expression.right_expression, variable_table);
+  } else if (expression->type == AST_EXPRESSION_VARIABLE) {
+    HashTableEntry *entry = hash_table_get_entry(variable_table, expression->data.variable_expression.identifier);
+
+    if (entry == NULL || entry->key == NULL) {
+      fprintf(stderr, "Undeclared variable hash table entry for '%s'", expression->data.variable_expression.identifier);
+      exit(1);
+    } 
+
+    expression->data.variable_expression.identifier = entry->value.string;
+  }
 }

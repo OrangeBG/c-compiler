@@ -128,7 +128,6 @@ uint32_t hash_key(char *key) {
 HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
   uint32_t hash = hash_key(key);
   int index = hash % capacity;
-  int initial_index = index;
   
   while (true) {
     HashTableEntry *entry = &entries[index]; 
