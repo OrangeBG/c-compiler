@@ -57,6 +57,12 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
 
       stmt_or_decl->data.declaration.identifier = new_identifier;
     }
+    else if (stmt_or_decl->type == AST_STATEMENT_RETURN) {
+      semantic_resolve_expressison(stmt_or_decl->data.return_statement.expression, &variable_table);
+    }
+    else if (stmt_or_decl->type == AST_STATEMENT_EXPRESSION) {
+      semantic_resolve_expressison(stmt_or_decl->data.expression_statement.expression, &variable_table);
+    }
   }
 }
 
