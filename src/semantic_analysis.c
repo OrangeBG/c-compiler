@@ -54,10 +54,10 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
       if (stmt_or_decl->data.declaration.has_expression == true) {
         semantic_resolve_expressison(stmt_or_decl->data.declaration.expression, &variable_table);
       }
+
+      stmt_or_decl->data.declaration.identifier = new_identifier;
     }
   }
-
-  hash_table_print(&variable_table);
 }
 
 void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table) {
