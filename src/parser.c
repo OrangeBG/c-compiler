@@ -293,7 +293,7 @@ void ast_declaration(Parser *parser, AstNode *function) {
   declaration->data.declaration.identifier = identifier;
 
   if (current_token(parser)->type == TOKEN_EQUAL) {
-    //TODO: Fix as ast_identifier eats the token but we need it to feef into ast_expression();
+    //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
     parser->current_token_index--;
     AstNode *expression = ast_expression(parser, 0);
 

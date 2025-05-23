@@ -14,6 +14,7 @@ void run_semantic_analysis(AstNode *ast_nodes) {
 }
 
 //Create a mapping for each defined variable into a unique name which will help keep track of variables in multi-scoped functions/blocks
+//TODO: Cleanup function
 void semantic_variable_resolution(AstNode *ast_nodes) {
   HashTable variable_table;
   hash_table_init(&variable_table); 

@@ -119,19 +119,41 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
 
-  if (ast_function->data.function.statement->type == AST_STATEMENT_RETURN) {
-    IRNode *value = ir_value(ast_function->data.function.statement->data.return_statement.expression, function, 0);
-    IRNode *return_instruction = malloc(sizeof(IRNode));
-    return_instruction->type = IR_INSTRUCTION_RET;
-    return_instruction->data.instruction_ret.value = value;
+  for (int i = 0; i < ast_function->data.function.block_count; i++) {
+    if (ast_function->data.function.blocks[i].data.block.type == AST_BLOCK_STATEMENT) {
+      IRNode *value = ir_value(ast_function->data.function.blocks[i].data.block.block_item->data.return_statement.expression, function, 0);
+      IRNode *return_instruction = malloc(sizeof(IRNode));
+      return_instruction->type = IR_INSTRUCTION_RET;
+      return_instruction->data.instruction_ret.value = value;
 
-    check_ir_function_instruction_size(function);
+      check_ir_function_instruction_size(function);
 
-    function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
-    function->data.function.instruction_count++;
-  } else {
-    fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
-  } 
+      function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
+      function->data.function.instruction_count++;
+      continue;
+    } 
+
+    if (!ast_function->data.function.blocks[i].data.declaration.has_expression) {
+      continue;
+    }
+
+    IRNode *value = ir_value(ast_function->data.function.blocks[i].data.declaration.expression, function, 0);
+    printf("i");
+  }
+  
+  // if (ast_function->data.function.statement->type == AST_STATEMENT_RETURN) {
+  //   IRNode *value = ir_value(ast_function->data.function.statement->data.return_statement.expression, function, 0);
+  //   IRNode *return_instruction = malloc(sizeof(IRNode));
+  //   return_instruction->type = IR_INSTRUCTION_RET;
+  //   return_instruction->data.instruction_ret.value = value;
+
+  //   check_ir_function_instruction_size(function);
+
+  //   function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
+  //   function->data.function.instruction_count++;
+  // } else {
+  //   fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
+  // } 
 
   return function;
 }
@@ -142,6 +164,21 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
   static int temp_label;
 
   switch (ast_expression->type) {
+    case AST_EXPRESSION_VARIABLE: {
+      IRNode *variable = malloc(sizeof(IRNode));
+      variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
+      return variable;
+    }
+    case AST_EXPRESSION_ASSIGNMENT: {
+      IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id);
+
+      IRNode *copy_instruction = malloc(sizeof(IRNode));
+      copy_instruction->type = IR_INSTRUCTION_COPY;
+      copy_instruction->data.instruction_copy.source = result;
+
+      // copy_instruction->data.instruction_copy.destination       
+      return result;
+    }
     case AST_EXPRESSION_CONSTANT: {
         IRNode *constant = malloc(sizeof(IRNode));
         constant->type = IR_VALUE_CONSTANT;
