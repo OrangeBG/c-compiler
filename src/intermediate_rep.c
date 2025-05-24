@@ -121,6 +121,10 @@ IRNode* ir_function(AstNode *ast_function) {
 
   for (int i = 0; i < ast_function->data.function.block_count; i++) {
     if (ast_function->data.function.blocks[i].data.block.type == AST_BLOCK_STATEMENT) {
+      if (ast_function->data.function.blocks[i].data.block.block_item->type == AST_STATEMENT_NULL) {
+        continue;
+      }      
+
       IRNode *value = ir_value(ast_function->data.function.blocks[i].data.block.block_item->data.return_statement.expression, function, 0);
       IRNode *return_instruction = malloc(sizeof(IRNode));
       return_instruction->type = IR_INSTRUCTION_RET;
@@ -140,20 +144,6 @@ IRNode* ir_function(AstNode *ast_function) {
     IRNode *value = ir_value(ast_function->data.function.blocks[i].data.declaration.expression, function, 0);
     printf("i");
   }
-  
-  // if (ast_function->data.function.statement->type == AST_STATEMENT_RETURN) {
-  //   IRNode *value = ir_value(ast_function->data.function.statement->data.return_statement.expression, function, 0);
-  //   IRNode *return_instruction = malloc(sizeof(IRNode));
-  //   return_instruction->type = IR_INSTRUCTION_RET;
-  //   return_instruction->data.instruction_ret.value = value;
-
-  //   check_ir_function_instruction_size(function);
-
-  //   function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
-  //   function->data.function.instruction_count++;
-  // } else {
-  //   fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
-  // } 
 
   return function;
 }
@@ -176,7 +166,17 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       copy_instruction->type = IR_INSTRUCTION_COPY;
       copy_instruction->data.instruction_copy.source = result;
 
-      // copy_instruction->data.instruction_copy.destination       
+      IRNode *variable = malloc(sizeof(IRNode));
+      variable->type = IR_VALUE_VAR;
+      variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+
+      copy_instruction->data.instruction_copy.destination = variable;      
+
+      check_ir_function_instruction_size(ir_function);
+
+      ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_instruction; 
+      ir_function->data.function.instruction_count++;
+      
       return result;
     }
     case AST_EXPRESSION_CONSTANT: {

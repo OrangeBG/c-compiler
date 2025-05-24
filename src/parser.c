@@ -306,6 +306,10 @@ void ast_declaration(Parser *parser, AstNode *function) {
 }
 
 void ast_statement(Parser *parser, AstNode *function) { 
+  //TODO: May need to wrap each statement type into a parent Statement node
+  // AstNode *statement = malloc(sizeof(AstNode));
+  // statement->type = AST_STATEMENT
+
   if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
     exit(1);
@@ -331,6 +335,7 @@ void ast_statement(Parser *parser, AstNode *function) {
   }
 
   AstNode *expression = ast_expression(parser, 0);
+  
   add_to_function_block(function, expression);
   
 }
