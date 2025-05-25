@@ -64,6 +64,10 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
     else if (stmt_or_decl->type == AST_STATEMENT_EXPRESSION) {
       semantic_resolve_expressison(stmt_or_decl->data.expression_statement.expression, &variable_table);
     }
+    else if (stmt_or_decl->type == AST_EXPRESSION_ASSIGNMENT) {
+      semantic_resolve_expressison(stmt_or_decl->data.assignement_expression.left_expression, &variable_table);
+      semantic_resolve_expressison(stmt_or_decl->data.assignement_expression.right_expression, &variable_table);
+    }
   }
 }
 
@@ -76,6 +80,9 @@ void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table
 
     semantic_resolve_expressison(expression->data.assignement_expression.left_expression, variable_table);
     semantic_resolve_expressison(expression->data.assignement_expression.right_expression, variable_table);
+  } else if (expression->type == AST_EXPRESSION_BINARY) {
+    semantic_resolve_expressison(expression->data.binary_expression.left_expression, variable_table);
+    semantic_resolve_expressison(expression->data.binary_expression.right_expression, variable_table);
   } else if (expression->type == AST_EXPRESSION_VARIABLE) {
     HashTableEntry *entry = hash_table_get_entry(variable_table, expression->data.variable_expression.identifier);
 
