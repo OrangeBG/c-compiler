@@ -120,13 +120,27 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instructions = instructions;
 
   for (int i = 0; i < ast_function->data.function.block_count; i++) {
-    if (ast_function->data.function.blocks[i].data.block.type == AST_BLOCK_STATEMENT) {
-      if (ast_function->data.function.blocks[i].data.block.block_item->type == AST_STATEMENT_NULL) {
-        continue;
-      }      
+    AstNode *block_item = &ast_function->data.function.blocks[i];
 
-      IRNode *value = ir_value(ast_function->data.function.blocks[i].data.block.block_item->data.return_statement.expression, function, 0);
+    if (block_item->type == AST_DECLARATION) {
+      if (!block_item->data.declaration.has_expression) {
+        continue;
+      }
+
+      //TODO: Probably should rename to something like generate ir
+      ir_value(block_item->data.declaration.expression, function, 0);    
+      continue;
+    }
+
+    //If not a declaration, then it's a statement
+    if (block_item->type == AST_STATEMENT_NULL) {
+      continue;
+    }
+
+    if (block_item->type == AST_STATEMENT_RETURN) {
+      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0);
       IRNode *return_instruction = malloc(sizeof(IRNode));
+
       return_instruction->type = IR_INSTRUCTION_RET;
       return_instruction->data.instruction_ret.value = value;
 
@@ -135,15 +149,10 @@ IRNode* ir_function(AstNode *ast_function) {
       function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
       function->data.function.instruction_count++;
       continue;
-    } 
-
-    if (!ast_function->data.function.blocks[i].data.declaration.has_expression) {
-      continue;
     }
 
-    IRNode *value = ir_value(ast_function->data.function.blocks[i].data.declaration.expression, function, 0);
-    printf("i");
-  }
+    ir_value(block_item, function, 0);
+  }    
 
   return function;
 }
@@ -156,6 +165,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
   switch (ast_expression->type) {
     case AST_EXPRESSION_VARIABLE: {
       IRNode *variable = malloc(sizeof(IRNode));
+      variable->type = IR_VALUE_VAR;
       variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
       return variable;
     }

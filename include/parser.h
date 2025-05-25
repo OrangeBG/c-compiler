@@ -47,19 +47,12 @@ typedef enum {
   AST_BINARY_BITWISE_RIGHT_SHIFT
 } BinaryOpType;
 
-typedef enum {
-  AST_BLOCK_STATEMENT,
-  AST_BLOCK_DECLARATION
-} AstBlockType;
-
 typedef struct AstNode {
   NodeType type;
   union {
     struct Program { struct AstNode *function; } program;
     struct Function { char* name; AstNode* blocks; int block_count; int block_capacity; } function;
-    struct Block { AstBlockType type; AstNode *block_item; } block;
     struct Declaration { char* identifier; bool has_expression; AstNode* expression; } declaration;
-    // struct Statement { AstNode* statement; } statement;
     struct ReturnStatement { struct AstNode* expression; } return_statement;
     struct ExpressionStatement { struct AstNode* expression; } expression_statement;
     struct ConstantExpression { int value; } constant_expression;
