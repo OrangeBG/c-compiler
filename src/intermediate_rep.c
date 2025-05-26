@@ -119,19 +119,54 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
 
-  if (ast_function->data.function.statement->type == AST_STATEMENT_RETURN) {
-    IRNode *value = ir_value(ast_function->data.function.statement->data.return_statement.expression, function, 0);
-    IRNode *return_instruction = malloc(sizeof(IRNode));
-    return_instruction->type = IR_INSTRUCTION_RET;
-    return_instruction->data.instruction_ret.value = value;
+  for (int i = 0; i < ast_function->data.function.block_count; i++) {
+    AstNode *block_item = &ast_function->data.function.blocks[i];
 
-    check_ir_function_instruction_size(function);
+    if (block_item->type == AST_DECLARATION) {
+      if (!block_item->data.declaration.has_expression) {
+        continue;
+      }
 
-    function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
-    function->data.function.instruction_count++;
-  } else {
-    fprintf(stderr, "ERROR - IR: Unsupported statement in ir_function");
-  } 
+      //TODO: Probably should rename to something like generate ir
+      ir_value(block_item->data.declaration.expression, function, 0);    
+      continue;
+    }
+
+    //If not a declaration, then it's a statement
+    if (block_item->type == AST_STATEMENT_NULL) {
+      continue;
+    }
+
+    if (block_item->type == AST_STATEMENT_RETURN) {
+      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0);
+      IRNode *return_instruction = malloc(sizeof(IRNode));
+
+      return_instruction->type = IR_INSTRUCTION_RET;
+      return_instruction->data.instruction_ret.value = value;
+
+      check_ir_function_instruction_size(function);
+
+      function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
+      function->data.function.instruction_count++;
+      continue;
+    }
+
+    ir_value(block_item, function, 0);
+  }    
+
+  //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
+  IRNode *zero_value = malloc(sizeof(IRNode));
+  zero_value->type = IR_VALUE_CONSTANT;
+  zero_value->data.value_constant.value = 0;
+
+  IRNode *return_instruction = malloc(sizeof(IRNode));
+  return_instruction->type = IR_INSTRUCTION_RET;
+  return_instruction->data.instruction_ret.value = zero_value;
+
+  check_ir_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *return_instruction;
+  function->data.function.instruction_count++;
 
   return function;
 }
@@ -142,16 +177,42 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
   static int temp_label;
 
   switch (ast_expression->type) {
-    case AST_FACTOR_CONSTANT: {
+    case AST_EXPRESSION_VARIABLE: {
+      IRNode *variable = malloc(sizeof(IRNode));
+      variable->type = IR_VALUE_VAR;
+      variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
+      return variable;
+    }
+    case AST_EXPRESSION_ASSIGNMENT: {
+      IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id);
+
+      IRNode *copy_instruction = malloc(sizeof(IRNode));
+      copy_instruction->type = IR_INSTRUCTION_COPY;
+      copy_instruction->data.instruction_copy.source = result;
+
+      IRNode *variable = malloc(sizeof(IRNode));
+      variable->type = IR_VALUE_VAR;
+      variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+
+      copy_instruction->data.instruction_copy.destination = variable;      
+
+      check_ir_function_instruction_size(ir_function);
+
+      ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_instruction; 
+      ir_function->data.function.instruction_count++;
+      
+      return result;
+    }
+    case AST_EXPRESSION_CONSTANT: {
         IRNode *constant = malloc(sizeof(IRNode));
         constant->type = IR_VALUE_CONSTANT;
-        constant->data.value_constant.value = ast_expression->data.constant_factor.value;
+        constant->data.value_constant.value = ast_expression->data.constant_expression.value;
 
         return constant;
       }
       break;
-    case AST_FACTOR_UNARY: {
-        IRNode *source = ir_value(ast_expression->data.unary_factor.factor, ir_function, temp_identifier_id);
+    case AST_EXPRESSION_UNARY: {
+        IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id);
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
@@ -163,7 +224,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         IRUnaryOpType unary_op_type;
 
-        switch (ast_expression->data.unary_factor.op_type) {
+        switch (ast_expression->data.unary_expression.op_type) {
           case AST_UNARY_COMPLEMENT: unary_op_type = IR_UNARY_COMPLEMENT; break;
           case AST_UNARY_NEGATE:     unary_op_type = IR_UNARY_NEGATE; break;
           case AST_UNARY_NOT:        unary_op_type = IR_UNARY_NOT; break;

@@ -2,7 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <sys/types.h>
 #include "../include/parser.h"
+
+#define BLOCK_STARTING_ALLOCATION 8
 
 typedef struct Parser {
   int token_count;
@@ -13,7 +17,8 @@ typedef struct Parser {
  
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
-AstNode*   ast_statement(Parser *parser);
+void       ast_statement(Parser *parser, AstNode *function);
+void       ast_declaration(Parser *parser, AstNode *function);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
@@ -22,6 +27,7 @@ TokenType  peek_next_token(Parser *parser);
 char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
+void       add_to_function_block(AstNode *function, AstNode *expr_or_stmt);
 bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
@@ -47,7 +53,6 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
 }
 
 void print_ast(AstNode *node, int whitespace) {
-
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
@@ -57,10 +62,26 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_FUNCTION:
       print_whitespace(whitespace);
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
-      print_ast(node->data.function.statement, ++whitespace);
-      printf("\n");
+
+      for (int i = 0; i < node->data.function.block_count; i++) {
+        print_ast(&node->data.function.blocks[i], ++whitespace);
+        printf("\n");
+      }   
+
       print_whitespace(whitespace);
       printf(")\n)");      
+      break;
+    case AST_DECLARATION:
+      print_whitespace(whitespace);
+      printf("Declaration(%s,\n", node->data.declaration.identifier);
+
+      if (node->data.declaration.has_expression) {
+        print_ast(node->data.declaration.expression, ++whitespace);
+      }
+
+      print_whitespace(whitespace);
+      printf(")\n");
+      
       break;
     case AST_STATEMENT_RETURN:
       print_whitespace(whitespace);
@@ -70,19 +91,25 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")");
       break;
-    case AST_FACTOR_CONSTANT:
+    case AST_STATEMENT_NULL:
       print_whitespace(whitespace);
-      printf("Constant(%d)", node->data.constant_factor.value);
+      printf("Null()\n");
       break;
-    case AST_FACTOR_UNARY:
+    case AST_STATEMENT_EXPRESSION:
+      break;
+    case AST_EXPRESSION_CONSTANT:
+      print_whitespace(whitespace);
+      printf("Constant(%d)", node->data.constant_expression.value);
+      break;
+    case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
       printf("Unary(");
-      if (node->data.unary_factor.op_type == AST_UNARY_COMPLEMENT) {
+      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT) {
         printf("Complement(\n");
       } else {
         printf("Negate(\n");
       }
-      print_ast(node->data.unary_factor.factor, ++whitespace);
+      print_ast(node->data.unary_expression.expression, ++whitespace);
       printf("))");
       break;
     case AST_EXPRESSION_BINARY:
@@ -114,7 +141,20 @@ void print_ast(AstNode *node, int whitespace) {
       print_ast(node->data.binary_expression.right_expression, 0);
       printf(")");
       break;
+      case AST_EXPRESSION_VARIABLE:
+        print_whitespace(whitespace);
+        printf("Variable(%s)", node->data.variable_expression.identifier);
+        break;
+      case AST_EXPRESSION_ASSIGNMENT:
+        print_whitespace(whitespace);
+        printf("Assignment(Left(");
+        print_ast(node->data.assignement_expression.left_expression, 0);
+        printf("), Right(");
+        print_ast(node->data.assignement_expression.right_expression, 0);
+        printf(")\n");
+        break;
   }    
+
 }
 
 void print_whitespace(int count) {
@@ -141,6 +181,23 @@ TokenType peek_next_token(Parser *parser) {
 
 bool end_of_file(Parser *parser) {
   return parser->tokens[parser->current_token_index].type == TOKEN_EOF;
+}
+
+void add_to_function_block(AstNode *function, AstNode *expr_or_stmt) {
+  int current_count = function->data.function.block_count;
+  int current_capacity = function->data.function.block_capacity;
+
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? BLOCK_STARTING_ALLOCATION : current_capacity * 2;
+
+    AstNode *blocks = realloc(function->data.function.blocks, new_size * sizeof(AstNode));
+
+    function->data.function.block_capacity = new_size;
+    function->data.function.blocks = blocks;
+  } 
+
+  function->data.function.blocks[function->data.function.block_count] = *expr_or_stmt;
+  function->data.function.block_count++;
 }
 
 void ast_expect(Parser *parser, TokenType expected_type) {
@@ -178,16 +235,26 @@ AstNode* ast_function(Parser *parser) {
   ast_expect(parser, TOKEN_CLOSE_PAREN);
   ast_expect(parser, TOKEN_OPEN_BRACE);
 
-  AstNode *stmt = ast_statement(parser);
-  AstNode *function = malloc(sizeof(AstNode));
-  
+
+  AstNode *function = malloc(sizeof(AstNode)); 
   function->type = AST_FUNCTION;
   function->data.function.name = id_name;
-  function->data.function.statement = stmt;
+  function->data.function.block_count = 0;
+  function->data.function.block_capacity = 0;
+  function->data.function.blocks = NULL;
 
-  ast_expect(parser, TOKEN_CLOSE_BRACE);
+  while(true) {
+    if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
+      ast_expect(parser, TOKEN_CLOSE_BRACE);
+      return function;
+    }
 
-  return function;
+    if (current_token(parser)->type == TOKEN_INT) {
+      ast_declaration(parser, function);
+    } else {
+      ast_statement(parser, function);
+    }
+  }
 }
 
 char* ast_identifier(Parser *parser) {
@@ -215,30 +282,86 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-AstNode* ast_statement(Parser *parser) { 
+void ast_declaration(Parser *parser, AstNode *function) {
+  ast_expect(parser, TOKEN_INT);
+
+  char *identifier = ast_identifier(parser);
+  // ast_expect(parser, TOKEN_IDENTIFIER);
+
+  AstNode *declaration = malloc(sizeof(AstNode));
+  declaration->type = AST_DECLARATION;
+  declaration->data.declaration.identifier = identifier;
+
+  if (current_token(parser)->type == TOKEN_EQUAL) {
+    //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
+    parser->current_token_index--;
+    AstNode *expression = ast_expression(parser, 0);
+
+    declaration->data.declaration.has_expression = true;
+    declaration->data.declaration.expression = expression;
+  }
+
+  ast_expect(parser, TOKEN_SEMICOLON);
+  add_to_function_block(function, declaration);
+}
+
+void ast_statement(Parser *parser, AstNode *function) { 
+  //TODO: May need to wrap each statement type into a parent Statement node
+  // AstNode *statement = malloc(sizeof(AstNode));
+  // statement->type = AST_STATEMENT
+
   if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
     exit(1);
   }
 
-  ast_expect(parser, TOKEN_RETURN);
+  if (current_token(parser)->type == TOKEN_SEMICOLON) {
+    ast_expect(parser, TOKEN_SEMICOLON);
+    return;
+  }
+
+  if (current_token(parser)->type == TOKEN_RETURN) {
+    ast_expect(parser, TOKEN_RETURN);
   
-  AstNode *expression = ast_expression(parser, 0);
-  AstNode *return_node = malloc(sizeof(AstNode));
+    AstNode *expression = ast_expression(parser, 0);
+    AstNode *return_node = malloc(sizeof(AstNode));
     
-  return_node->type = AST_STATEMENT_RETURN;
-  return_node->data.return_statement.expression = expression;
+    return_node->type = AST_STATEMENT_RETURN;
+    return_node->data.return_statement.expression = expression;
 
-  ast_expect(parser, TOKEN_SEMICOLON);
+    ast_expect(parser, TOKEN_SEMICOLON);
+    add_to_function_block(function, return_node);
+    return;
+  }
 
-  return return_node;
+  AstNode *expression = ast_expression(parser, 0);
+  
+  add_to_function_block(function, expression);
+  
 }
 
 AstNode* ast_expression(Parser *parser, int min_precedence) {
   AstNode *left = ast_factor(parser);
 
   TokenType next_token = current_token(parser)->type;
-  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR) && get_precedence(next_token) >= min_precedence) {
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR | next_token == TOKEN_EQUAL) && get_precedence(next_token) >= min_precedence) {
+
+    if (current_token(parser)->type == TOKEN_EQUAL) {
+      //right-associative assignment      
+      parser-> current_token_index++;
+
+      AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
+      AstNode *assignment_expression= malloc(sizeof(AstNode));
+
+      assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
+      assignment_expression->data.assignement_expression.left_expression = left;
+      assignment_expression->data.assignement_expression.right_expression = right;
+
+      left = assignment_expression;
+
+      return left;
+    } 
+
     parser-> current_token_index++;
 
     AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
@@ -305,9 +428,9 @@ AstNode* ast_factor(Parser *parser) {
     ast_expect(parser, TOKEN_CONSTANT_INT); 
 
     AstNode *constant = malloc(sizeof(AstNode));
-    constant->type = AST_FACTOR_CONSTANT;
+    constant->type = AST_EXPRESSION_CONSTANT;
     //TODO: Only supports up to '9'
-    constant->data.constant_factor.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
+    constant->data.constant_expression.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
 
     return constant;
   } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT || current_token(parser)->type == TOKEN_LOGICAL_NOT) {
@@ -334,9 +457,9 @@ AstNode* ast_factor(Parser *parser) {
     AstNode *unary_value_expression = ast_factor(parser);
 
     AstNode *unary = malloc(sizeof(AstNode));    
-    unary->type = AST_FACTOR_UNARY;
-    unary->data.unary_factor.op_type = op_type;
-    unary->data.unary_factor.factor = unary_value_expression;
+    unary->type = AST_EXPRESSION_UNARY;
+    unary->data.unary_expression.op_type = op_type;
+    unary->data.unary_expression.expression = unary_value_expression;
 
     return unary;
   } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
@@ -347,7 +470,13 @@ AstNode* ast_factor(Parser *parser) {
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
     return expression;
-  }    
+  } else if (current_token(parser)->type == TOKEN_IDENTIFIER) {
+    AstNode *identifier_node = malloc(sizeof(AstNode));
+    identifier_node->type = AST_EXPRESSION_VARIABLE;
+    identifier_node->data.variable_expression.identifier = ast_identifier(parser);
+
+    return identifier_node;
+  }
 
   fprintf(stderr, "ERROR - Parser: Failed to parse factor for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
   exit(1);
@@ -383,6 +512,8 @@ int get_precedence(TokenType token_type) {
       return 5;
     case TOKEN_LOGICAL_OR:
       return 4;
+    case TOKEN_EQUAL:
+      return 2;
     default: {
       fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence", TokenTypeStr[token_type]);
       exit(1);

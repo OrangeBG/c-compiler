@@ -1,9 +1,21 @@
-- Investigate memory arenas
-- Mul assembly is producing an error
-- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
-- Add generic dynamic array grow function
-- Add generic malloc / error check function
-- Parser: Need to check if we need to malloc the ast's when creating them.
-- Look into constant token and see if it needs to be type specified (ie: token_constant_int)
-- Look into proper exit codes to use.
-- There are a lot dependencies that need both Token* and the char* file. Maybe combine them into a struct  
+# Bugs
+	- Mul assembly is producing an error
+
+# Tech Debt
+	- Code emit has duplicate print and save logic functions. Look into combing to shared functionality
+	- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
+	- Parser: Need to check if we need to malloc the ast's when creating them.
+	- Look into constant token and see if it needs to be type specified (ie: token_constant_int)
+	- Look into proper exit codes to use.
+	- There are a lot dependencies that need both Token* and the char* file. Maybe combine them into a struct  
+
+# Testing Needed
+	- Hash Table: add error when attempting to add to the table with an existing key (**NOTE** Added code but have not tested. New code in hash_table_add_entry()
+
+# Research
+	- Investigate memory arenas
+
+# Features
+	- Add generic dynamic array grow function
+	- Add generic malloc / error check function
+	- Add Typedef support: Refer to pg 108 - Sandler Nora.

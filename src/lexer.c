@@ -197,6 +197,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
       case TOKEN_CONSTANT_INT: printf("Constant   "); break;
       case TOKEN_DECREMENT: printf("Decrement  "); break;
+      case TOKEN_EQUAL: printf("Equal      "); break;
       case TOKEN_FORWARD_SLASH: printf("Forward Slash"); break;
       case TOKEN_IDENTIFIER: printf("Identifier ");  break;
       case TOKEN_INT: printf("Int        ");  break;

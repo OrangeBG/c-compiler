@@ -2,6 +2,7 @@
 #define PARSER
 
 #include "../include/lexer.h"
+#include <stdbool.h>
 
 typedef struct AstNode AstNode;
 
@@ -9,9 +10,14 @@ typedef enum {
   AST_PROGRAM,
   AST_FUNCTION,
   AST_STATEMENT_RETURN,
+  AST_STATEMENT_EXPRESSION,
+  AST_STATEMENT_NULL,
+  AST_DECLARATION,
   AST_EXPRESSION_BINARY,
-  AST_FACTOR_CONSTANT,
-  AST_FACTOR_UNARY
+  AST_EXPRESSION_CONSTANT,
+  AST_EXPRESSION_UNARY,
+  AST_EXPRESSION_VARIABLE,
+  AST_EXPRESSION_ASSIGNMENT
 } NodeType;
 
 typedef enum {
@@ -45,11 +51,15 @@ typedef struct AstNode {
   NodeType type;
   union {
     struct Program { struct AstNode *function; } program;
-    struct Function { char* name; struct AstNode *statement; } function;
+    struct Function { char* name; AstNode* blocks; int block_count; int block_capacity; } function;
+    struct Declaration { char* identifier; bool has_expression; AstNode* expression; } declaration;
     struct ReturnStatement { struct AstNode* expression; } return_statement;
+    struct ExpressionStatement { struct AstNode* expression; } expression_statement;
+    struct ConstantExpression { int value; } constant_expression;
+    struct VariableExpression { char* identifier; } variable_expression;
+    struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; struct AstNode *left_expression; struct AstNode *right_expression; } binary_expression;
-    struct ConstantFactor { int value; } constant_factor;
-    struct UnaryFactor { UnaryOpType op_type; struct AstNode *factor; } unary_factor;
+    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
   } data;
 } AstNode;
 
