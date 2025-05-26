@@ -28,6 +28,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_FORWARD_SLASH",
   "TOKEN_FORWARD_SLASH_EQUAL",
   "TOKEN_IDENTIFIER",
+  "TOKEN_INCREMENT",
   "TOKEN_INT",
   "TOKEN_LOGICAL_AND",
   "TOKEN_LOGICAL_OR",
@@ -104,10 +105,6 @@ void load_tokens(Lexer *lexer, char *file) {
       case '}': add_token(TOKEN_CLOSE_BRACE, lexer); break;
       case ';': add_token(TOKEN_SEMICOLON, lexer); break;
       case '~': add_token(TOKEN_BITWISE_NOT, lexer); break;
-      case '*': add_token(TOKEN_ASTERISK, lexer); break;
-      case '%': add_token(TOKEN_PERCENT, lexer); break;
-      case '/': add_token(TOKEN_FORWARD_SLASH, lexer); break;
-      case '^': add_token(TOKEN_BITWISE_XOR, lexer); break;
       case '+': {
           if (peek_next(lexer, file, '+')) {
             add_token(TOKEN_INCREMENT, lexer);
@@ -123,6 +120,52 @@ void load_tokens(Lexer *lexer, char *file) {
           
           add_token(TOKEN_PLUS, lexer);
           break;
+      }
+      case '-': {
+        if (peek_next(lexer, file, '-')) {
+          add_token(TOKEN_DECREMENT, lexer);
+          lexer->start_index += 1; 
+          break;
+        }
+
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_NEGATION_EQUAL, lexer);
+          lexer->start_index += 1; 
+          break;
+        }
+
+        add_token(TOKEN_NEGATION, lexer);
+        break;
+      }
+      case '*': {
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_ASTERISK_EQUAL, lexer);
+          lexer->start_index += 1;
+          break;
+        }
+
+        add_token(TOKEN_ASTERISK, lexer);
+        break;
+      }
+      case '/': {
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_FORWARD_SLASH_EQUAL, lexer);
+          lexer->start_index += 1;
+          break;
+        }
+
+        add_token(TOKEN_FORWARD_SLASH, lexer);
+        break;
+      }
+      case '%': {
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_PERCENT_EQUAL, lexer);
+          lexer->start_index += 1;
+          break;
+        }
+
+        add_token(TOKEN_PERCENT, lexer);
+        break;
       }
       case '=': {
         if (peek_next(lexer, file, '=')) {
@@ -144,55 +187,91 @@ void load_tokens(Lexer *lexer, char *file) {
         break;
       }
       case '<': {
-        if (peek_next(lexer, file, '<')) {
-          add_token(TOKEN_BITWISE_LEFT_SHIFT, lexer);
-          lexer->start_index++;
-        } else if (peek_next(lexer, file, '=')) {
+        if (peek_next(lexer, file, '=')) {
           add_token(TOKEN_RELATIONAL_LESS_OR_EQUAL, lexer);
           lexer->start_index++;
-        } else {
-          add_token(TOKEN_RELATIONAL_LESS_THAN, lexer);
+          break;
         }
-        break;
+        
+        if (!peek_next(lexer, file, '<')) {
+          add_token(TOKEN_RELATIONAL_LESS_THAN, lexer);
+          break;
+        }
+
+        lexer->start_index++;
+        
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_BITWISE_LEFT_SHIFT_EQUAL, lexer);
+          lexer->start_index++;
+          break;
+        }
+
+        add_token(TOKEN_BITWISE_LEFT_SHIFT, lexer);
+        break;          
       }
       case '>': {
-        if (peek_next(lexer, file, '>')) {
-          add_token(TOKEN_BITWISE_RIGHT_SHIFT, lexer);
-          lexer->start_index++;
-        } else if (peek_next(lexer, file, '=')) {
+        if (peek_next(lexer, file, '=')) {
           add_token(TOKEN_RELATIONAL_GREATER_OR_EQUAL, lexer);
           lexer->start_index++;
-        } else {
-          add_token(TOKEN_RELATIONAL_GREATER_THAN, lexer);
+          break;
         }
-        break;
+        
+        if (!peek_next(lexer, file, '<')) {
+          add_token(TOKEN_RELATIONAL_GREATER_THAN, lexer);
+          break;
+        }
+
+        lexer->start_index++;
+        
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_BITWISE_RIGHT_SHIFT_EQUAL, lexer);
+          lexer->start_index++;
+          break;
+        }
+
+        add_token(TOKEN_BITWISE_RIGHT_SHIFT, lexer);
+        break;          
       }
       case '&': {
         if (peek_next(lexer, file, '&')) {
           add_token(TOKEN_LOGICAL_AND, lexer);
           lexer->start_index++; 
-        } else {
-          add_token(TOKEN_BITWISE_AND, lexer);
+          break;
         }
+
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_BITWISE_AND_EQUAL, lexer);
+          lexer->start_index++; 
+          break;
+        }
+
+        add_token(TOKEN_BITWISE_AND, lexer);
         break;
       }
       case '|':
         if (peek_next(lexer, file, '|')) {
           add_token(TOKEN_LOGICAL_OR, lexer);
           lexer->start_index += 1; 
-        } else {
-          add_token(TOKEN_BITWISE_OR, lexer);
-        }
-        break;
-      case '-': {
-        if (peek_next(lexer, file, '-')) {
-          add_token(TOKEN_DECREMENT, lexer);
-          lexer->start_index += 1; 
-        } else {
-          add_token(TOKEN_NEGATION, lexer);
+          break;
         } 
+
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_BITWISE_OR_EQUAL, lexer);
+          lexer->start_index++; 
+          break;
+        }
+
+        add_token(TOKEN_BITWISE_OR, lexer);
         break;
-      }
+      case '^':
+        if (peek_next(lexer, file, '=')) {
+          add_token(TOKEN_BITWISE_XOR_EQUAL, lexer);
+          lexer->start_index++; 
+          break;
+        }
+
+        add_token(TOKEN_BITWISE_XOR, lexer);
+        break;
       default:
         fprintf(stderr, "ERROR - Lexer: Invalid token '%c' (line %d)\n", cur_char, lexer->line);
         exit(1);
