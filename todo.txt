@@ -10,7 +10,6 @@
 	- There are a lot dependencies that need both Token* and the char* file. Maybe combine them into a struct  
 
 # Testing Needed
-	- Hash Table: add error when attempting to add to the table with an existing key (**NOTE** Added code but have not tested. New code in hash_table_add_entry()
 
 # Research
 	- Investigate memory arenas

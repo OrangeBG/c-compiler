@@ -57,7 +57,7 @@ void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
   HashTableEntry *found_entry = hash_table_get_entry(table, entry->key);
 
   if (found_entry != NULL && found_entry->key != NULL) {
-    fprintf(stderr, "ERROR - Hash Table: Added to table with existing '%s' key", entry->key);
+    fprintf(stderr, "ERROR - Hash Table: Added to table with existing '%s' key\n", entry->key);
     exit(1);
   }
     
