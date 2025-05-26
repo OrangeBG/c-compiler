@@ -97,7 +97,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       switch (asm_node->data.instruction_binary.operator) {
         case ASM_BINARY_ADD:                  fprintf(file, "\taddl\t"); break;
         case ASM_BINARY_SUB:                  fprintf(file, "\tsubl\t"); break;
-        case ASM_BINARY_MULT:                 fprintf(file, "\tmull\t"); break;        
+        case ASM_BINARY_MULT:                 fprintf(file, "\timull\t"); break;        
         case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tandl\t"); break;
         case ASM_BINARY_BITWISE_OR:           fprintf(file, "\torl\t"); break;
         case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txorl\t"); break;
@@ -249,7 +249,7 @@ void print_code_emit(AsmNode *asm_node) {
       switch (asm_node->data.instruction_binary.operator) {
         case ASM_BINARY_ADD:                 printf("\taddl\t"); break;
         case ASM_BINARY_SUB:                 printf("\tsubl\t"); break;
-        case ASM_BINARY_MULT:                printf("\tmull\t"); break;        
+        case ASM_BINARY_MULT:                printf("\timull\t"); break;        
         case ASM_BINARY_BITWISE_AND:         printf("\tandl\t"); break;
         case ASM_BINARY_BITWISE_OR:          printf("\torl\t"); break;
         case ASM_BINARY_BITWISE_XOR:         printf("\txorl\t"); break;

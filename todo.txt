@@ -1,5 +1,4 @@
 # Bugs
-	- Mul assembly is producing an error
 
 # Tech Debt
 	- Code emit has duplicate print and save logic functions. Look into combing to shared functionality
