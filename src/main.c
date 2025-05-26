@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 #include "../include/lexer.h"
 #include "../include/parser.h"
 #include "../include/assembly.h"
@@ -43,24 +44,36 @@ int main(int argc, const char *argv[]) {
     #endif
   }
 
+  double benchmarks[5];
+
+  benchmarks[0] = (double)clock();
+  
   Lexer lexer = init_lexer();
   load_tokens(&lexer, file);
+
+  benchmarks[0] = ((double) (clock() - benchmarks[0])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> LEXER PRINT <<\n\n");
     print_tokens(&lexer, file);
   }
 
+  benchmarks[1] = clock();
   AstNode *ast = parse_ast(lexer.tokens, lexer.token_count, file);
+  benchmarks[1] = ((double) (clock() - benchmarks[1])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> AST PRINT <<\n\n");
     print_ast(ast, 0);
   }
 
+  benchmarks[2] = clock();
   run_semantic_analysis(ast);
+  benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
+  benchmarks[3] = clock();
   IRNode *ir = generate_intermediate_rep(ast);
+  benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> IR PRINT <<\n\n");
@@ -69,7 +82,9 @@ int main(int argc, const char *argv[]) {
 
   //TODO: Can we free the lexer tokens after this?
 
+  benchmarks[4] = clock();
   AsmNode *asm_nodes = generate_assembly(ir);
+  benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> ASSEMBLY PRINT <<\n\n");
@@ -87,6 +102,13 @@ int main(int argc, const char *argv[]) {
     print_code_emit(asm_nodes);
   }
 
+  printf("\n>> BENCHMARKS <<\n");
+  printf("Lexer    : %f seconds\n", benchmarks[0]);
+  printf("Parser   : %f seconds\n", benchmarks[1]);
+  printf("Semantic : %f seconds\n", benchmarks[2]);
+  printf("Int. Rep.: %f seconds\n", benchmarks[3]);
+  printf("Assembly : %f seconds\n", benchmarks[4]);
+                                 
   return 0;
 }
 
