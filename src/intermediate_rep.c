@@ -154,6 +154,20 @@ IRNode* ir_function(AstNode *ast_function) {
     ir_value(block_item, function, 0);
   }    
 
+  //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
+  IRNode *zero_value = malloc(sizeof(IRNode));
+  zero_value->type = IR_VALUE_CONSTANT;
+  zero_value->data.value_constant.value = 0;
+
+  IRNode *return_instruction = malloc(sizeof(IRNode));
+  return_instruction->type = IR_INSTRUCTION_RET;
+  return_instruction->data.instruction_ret.value = zero_value;
+
+  check_ir_function_instruction_size(function);
+
+  function->data.function.instructions[function->data.function.instruction_count] = *return_instruction;
+  function->data.function.instruction_count++;
+
   return function;
 }
 
