@@ -1,6 +1,7 @@
 # Bugs
 
 # Tech Debt
+	- Check CQL parser for revision to lexing where I'm not incrementing the start_index when doing peek token checks.
 	- Code emit has duplicate print and save logic functions. Look into combing to shared functionality
 	- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
 	- Parser: Need to check if we need to malloc the ast's when creating them.
