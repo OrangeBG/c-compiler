@@ -345,7 +345,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
 
   TokenType next_token = current_token(parser)->type;
 
-  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR || next_token == TOKEN_EQUAL || next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL) && get_precedence(next_token) >= min_precedence) {
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR || next_token == TOKEN_EQUAL || next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token == TOKEN_PERCENT_EQUAL) && get_precedence(next_token) >= min_precedence) {
 
     if (current_token(parser)->type == TOKEN_EQUAL) {
       //right-associative assignment      
@@ -363,7 +363,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
       return left;
     } 
 
-    if (current_token(parser)->type == TOKEN_PLUS_EQUAL || current_token(parser)->type == TOKEN_NEGATION_EQUAL || current_token(parser)->type == TOKEN_ASTERISK_EQUAL || current_token(parser)->type == TOKEN_FORWARD_SLASH_EQUAL) {
+    if (current_token(parser)->type == TOKEN_PLUS_EQUAL || current_token(parser)->type == TOKEN_NEGATION_EQUAL || current_token(parser)->type == TOKEN_ASTERISK_EQUAL || current_token(parser)->type == TOKEN_FORWARD_SLASH_EQUAL || current_token(parser)->type == TOKEN_PERCENT_EQUAL) {
       TokenType op_type = current_token(parser)->type;
 
       parser->current_token_index++;
@@ -378,6 +378,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
         case TOKEN_NEGATION_EQUAL:      binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
         case TOKEN_ASTERISK_EQUAL:      binary->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
         case TOKEN_FORWARD_SLASH_EQUAL: binary->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
+        case TOKEN_PERCENT_EQUAL:       binary->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
         default:
           fprintf(stderr, "ERROR - Parser: Compound assignment type not found '%d'\n", op_type);
           exit(1);

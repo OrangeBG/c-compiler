@@ -1,7 +1,6 @@
 # Bugs
 
 # Tech Debt
-	- Implement compound assignment ops: %=
 	- Bitwise compound assignment ops: &=, |=, ^=, <<=, and >>=
 	- Increment and decrement ops: ++ and --
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
