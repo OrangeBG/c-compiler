@@ -84,11 +84,18 @@ void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table
     semantic_resolve_expressison(expression->data.binary_expression.left_expression, variable_table);
     semantic_resolve_expressison(expression->data.binary_expression.right_expression, variable_table);
   } else if (expression->type == AST_EXPRESSION_VARIABLE) {
-    HashTableEntry *entry = hash_table_get_entry(variable_table, expression->data.variable_expression.identifier);
+    HashTableEntry *entry = hash_table_get_entry(variable_table, expression->data.variable_expression.identifier);  
 
     if (entry == NULL || entry->key == NULL) {
-      fprintf(stderr, "Undeclared variable hash table entry for '%s'", expression->data.variable_expression.identifier);
-      exit(1);
+      //check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
+      char *found_period = (char*)memchr(expression->data.variable_expression.identifier, '.', strlen(expression->data.variable_expression.identifier));
+
+      if (found_period == NULL) {      
+        fprintf(stderr, "Undeclared variable hash table entry for '%s'", expression->data.variable_expression.identifier);
+        exit(1);
+      }
+
+      return;
     } 
 
     expression->data.variable_expression.identifier = entry->value.string;
