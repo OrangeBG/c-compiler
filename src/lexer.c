@@ -199,6 +199,7 @@ void load_tokens(Lexer *lexer, char *file) {
         }
 
         lexer->start_index++;
+        lexer->current_index++;
         
         if (peek_next(lexer, file, '=')) {
           add_token(TOKEN_BITWISE_LEFT_SHIFT_EQUAL, lexer);
@@ -216,12 +217,13 @@ void load_tokens(Lexer *lexer, char *file) {
           break;
         }
         
-        if (!peek_next(lexer, file, '<')) {
+        if (!peek_next(lexer, file, '>')) {
           add_token(TOKEN_RELATIONAL_GREATER_THAN, lexer);
           break;
         }
 
         lexer->start_index++;
+        lexer->current_index++;
         
         if (peek_next(lexer, file, '=')) {
           add_token(TOKEN_BITWISE_RIGHT_SHIFT_EQUAL, lexer);
