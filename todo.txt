@@ -1,7 +1,8 @@
 # Bugs
+	- Code emit seems to be printing the same output after test file is changed.
+	- Only supporting single digit ints.
 
 # Tech Debt
-	- Lexer print needs to support compound operators
 	- Increment and decrement ops: ++ and --
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
 	- Check CQL parser for revision to lexing where I'm not incrementing the start_index when doing peek token checks.
