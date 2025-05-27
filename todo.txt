@@ -1,10 +1,10 @@
 # Bugs
 
 # Tech Debt
+	- Lexer print needs to support compound operators
 	- Increment and decrement ops: ++ and --
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
 	- Check CQL parser for revision to lexing where I'm not incrementing the start_index when doing peek token checks.
-	- Code emit has duplicate print and save logic functions. Look into combing to shared functionality
 	- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
 	- Parser: Need to check if we need to malloc the ast's when creating them.
 	- Look into constant token and see if it needs to be type specified (ie: token_constant_int)

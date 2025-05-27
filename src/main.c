@@ -92,15 +92,16 @@ int main(int argc, const char *argv[]) {
     print_assembly(asm_nodes);
 
     FILE *assembly_file;
-    assembly_file = fopen("assembly.asm", "w");
+    assembly_file = fopen("assembly.asm", "rw");
 
     save_assembly_file(asm_nodes, assembly_file);
 
-    fclose(assembly_file);    
     system("clang -arch x86_64 -c assembly.asm -o assembly.o");
     
     printf("\n>> CODE EMIT PRINT <<\n\n");
-    print_code_emit(asm_nodes);
+    print_code_emit(assembly_file);
+    
+    fclose(assembly_file);
   }
 
   double total_benchmark_end = (double)clock();
