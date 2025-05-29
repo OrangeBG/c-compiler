@@ -33,7 +33,7 @@ void print_intermediate_ret(IRNode *ir_node) {
           if (function->instructions[i].type == IR_INSTRUCTION_RET) {
             printf("Return(");
             print_intermediate_ret(function->instructions[i].data.instruction_ret.value);
-            printf(")");
+            printf(")\n");
           } else if (function->instructions[i].type == IR_INSTRUCTION_UNARY) {      
             struct IRInstructionUnary* unary = &function->instructions[i].data.unary;
 

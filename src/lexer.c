@@ -313,6 +313,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_FORWARD_SLASH: printf("Forward Slash"); break;
       case TOKEN_FORWARD_SLASH_EQUAL: printf("Forward Slash Equal"); break;
       case TOKEN_IDENTIFIER: printf("Identifier ");  break;
+      case TOKEN_INCREMENT: printf("Increment  "); break;
       case TOKEN_INT: printf("Int        ");  break;
       case TOKEN_NEGATION: printf("Negation   "); break;
       case TOKEN_NEGATION_EQUAL: printf("Negation Equal"); break;
