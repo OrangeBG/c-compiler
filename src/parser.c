@@ -348,7 +348,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
   //TODO: May be easier to check outliers rather than what is being done here
   while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR || next_token == TOKEN_EQUAL || next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token == TOKEN_PERCENT_EQUAL || next_token == TOKEN_BITWISE_AND_EQUAL || next_token == TOKEN_BITWISE_OR_EQUAL || next_token == TOKEN_BITWISE_XOR_EQUAL || next_token == TOKEN_BITWISE_LEFT_SHIFT_EQUAL || next_token == TOKEN_BITWISE_RIGHT_SHIFT_EQUAL || next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT) && get_precedence(next_token) >= min_precedence) {
 
-    if (next_token == TOKEN_INCREMENT) {
+    if (next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT) {
       parser-> current_token_index++;
 
       AstNode *increment_assignment = malloc(sizeof(AstNode));
@@ -357,7 +357,13 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
 
       AstNode *binary_exp = malloc(sizeof(AstNode));
       binary_exp->type = AST_EXPRESSION_BINARY;
-      binary_exp->data.binary_expression.op_type = AST_BINARY_ADD;
+
+      if (next_token == TOKEN_INCREMENT) {
+        binary_exp->data.binary_expression.op_type = AST_BINARY_ADD;
+      } else {
+        binary_exp->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+      }
+      
       binary_exp->data.binary_expression.left_expression = left;
 
       AstNode *constant = malloc(sizeof(AstNode));
