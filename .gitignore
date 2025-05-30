@@ -1,5 +1,6 @@
 /build-osx
 /build-win
+/build-linux
 /build
 /.cache
 /tester/build-osx
