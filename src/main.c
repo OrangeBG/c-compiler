@@ -8,25 +8,11 @@
 #include "../include/code_emit.h"
 #include "../include/intermediate_rep.h"
 #include "../include/semantic_analysis.h"
-#include "../include/arena.h"
 
 char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {  
-  Arena arena;
-  arena_init(&arena, sizeof(int), 1000); 
-
-  arena.next = (void*)1;
-  arena_add(&arena);
-
-  arena.next = (void*)3;
-  arena_add(&arena);
-
-  arena.next = (void*)5;
-  arena_add(&arena);
-
-  return 0;
-  
+ 
   char* file;
   bool print_debug = true;
    

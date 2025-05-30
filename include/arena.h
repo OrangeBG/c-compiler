@@ -5,13 +5,14 @@
 #include <stdlib.h>
 
 typedef struct {
-  int capacity;
-  int count;
-  void *arena;
-  void *next;
+  size_t capacity;
+  size_t offset;
+  size_t base_size;
+  void *allocation;
 } Arena;
 
 void arena_init(Arena *arena, int base_size, int capacity);  
-void arena_add(Arena *arena);
+void* arena_alloc(Arena *arena);
+void arena_free(Arena *arena);
 
 #endif
