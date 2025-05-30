@@ -17,13 +17,17 @@ typedef enum {
   AST_EXPRESSION_CONSTANT,
   AST_EXPRESSION_UNARY,
   AST_EXPRESSION_VARIABLE,
-  AST_EXPRESSION_ASSIGNMENT
+  AST_EXPRESSION_ASSIGNMENT,
+  AST_EXPRESSION_POSTFIX_INCREMENT,
+  AST_EXPRESSION_POSTFIX_DECREMENT
 } NodeType;
 
 typedef enum {
   AST_UNARY_COMPLEMENT,
   AST_UNARY_NEGATE,
-  AST_UNARY_NOT
+  AST_UNARY_NOT,
+  AST_UNARY_PREFIX_INCREMENT,
+  AST_UNARY_PREFIX_DECREMENT
 } UnaryOpType;
 
 typedef enum {
@@ -60,6 +64,7 @@ typedef struct AstNode {
     struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; struct AstNode *left_expression; struct AstNode *right_expression; } binary_expression;
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
+    struct PostfixExpression { AstNode *expression; } postfix_expression;
   } data;
 } AstNode;
 
