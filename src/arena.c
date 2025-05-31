@@ -31,3 +31,7 @@ void arena_free(Arena *arena) {
   arena->capacity = 0;
   arena->offset = 0;
 }
+
+void arena_reset(Arena *arena) {
+  arena->offset = 0;
+}
