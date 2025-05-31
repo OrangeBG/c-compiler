@@ -103,15 +103,11 @@ void print_ast(AstNode *node, int whitespace) {
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
       print_whitespace(whitespace);
-      printf("Postfix Increment(");
-      print_ast(node->data.postfix_expression.expression, whitespace);
-      printf(")");
+      printf("Postfix Increment(%s)", node->data.postfix_expression.identifier);
       break;
     case AST_EXPRESSION_POSTFIX_DECREMENT:
       print_whitespace(whitespace);
-      printf("Postfix Decrement(");
-      print_ast(node->data.postfix_expression.expression, whitespace);
-      printf(")");
+      printf("Postfix Decrement(%s)", node->data.postfix_expression.identifier);
       break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
@@ -371,7 +367,8 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
         postfix_expression->type = AST_EXPRESSION_POSTFIX_DECREMENT;
       }
 
-      postfix_expression->data.postfix_expression.expression = left;
+      //TODO: We should validate that 'left' is an identifier
+      postfix_expression->data.postfix_expression.identifier = left->data.variable_expression.identifier;
 
       return postfix_expression;
     }

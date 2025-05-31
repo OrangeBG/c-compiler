@@ -7,7 +7,7 @@
 
 void    check_ir_function_instruction_size(IRNode *asm_function);
 IRNode* ir_function(AstNode *ast_function);
-IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifier_id); 
+IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, char **postfix_variable); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -121,6 +121,8 @@ IRNode* ir_function(AstNode *ast_function) {
 
   for (int i = 0; i < ast_function->data.function.block_count; i++) {
     AstNode *block_item = &ast_function->data.function.blocks[i];
+    //@Debt
+    char *postfix;
 
     if (block_item->type == AST_DECLARATION) {
       if (!block_item->data.declaration.has_expression) {
@@ -128,7 +130,7 @@ IRNode* ir_function(AstNode *ast_function) {
       }
 
       //TODO: Probably should rename to something like generate ir
-      ir_value(block_item->data.declaration.expression, function, 0);    
+      ir_value(block_item->data.declaration.expression, function, 0, &postfix);    
       continue;
     }
 
@@ -138,7 +140,7 @@ IRNode* ir_function(AstNode *ast_function) {
     }
 
     if (block_item->type == AST_STATEMENT_RETURN) {
-      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0);
+      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0, &postfix);
       IRNode *return_instruction = malloc(sizeof(IRNode));
 
       return_instruction->type = IR_INSTRUCTION_RET;
@@ -151,7 +153,7 @@ IRNode* ir_function(AstNode *ast_function) {
       continue;
     }
 
-    ir_value(block_item, function, 0);
+    ir_value(block_item, function, 0, &postfix);
   }    
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
@@ -171,7 +173,7 @@ IRNode* ir_function(AstNode *ast_function) {
   return function;
 }
 
-IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id) {
+IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, char**postfix_variable) {
   //TODO: Testing static variables to maintain static storage duration
   static int temp_number;
   static int temp_label;
@@ -184,7 +186,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       return variable;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id);
+      IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id, postfix_variable);
 
       IRNode *copy_instruction = malloc(sizeof(IRNode));
       copy_instruction->type = IR_INSTRUCTION_COPY;
@@ -204,15 +206,23 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       return result;
     }
     case AST_EXPRESSION_CONSTANT: {
-        IRNode *constant = malloc(sizeof(IRNode));
-        constant->type = IR_VALUE_CONSTANT;
-        constant->data.value_constant.value = ast_expression->data.constant_expression.value;
+      IRNode *constant = malloc(sizeof(IRNode));
+      constant->type = IR_VALUE_CONSTANT;
+      constant->data.value_constant.value = ast_expression->data.constant_expression.value;
 
-        return constant;
-      }
+      return constant;
+    }
+    break;
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+      postfix_variable = &ast_expression->data.postfix_expression.identifier;
+
+      IRNode *variable = malloc(sizeof(IRNode));
+      variable->type = IR_VALUE_VAR;
+      variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
+      return variable;
       break;
     case AST_EXPRESSION_UNARY: {
-        IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id);
+        IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id, postfix_variable);
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
@@ -245,8 +255,8 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       }
       break;
     case AST_EXPRESSION_BINARY: {      
-        IRNode *source_1 = ir_value(ast_expression->data.binary_expression.left_expression, ir_function, temp_identifier_id);
-        IRNode *source_2 = ir_value(ast_expression->data.binary_expression.right_expression, ir_function, temp_identifier_id);
+        IRNode *source_1 = ir_value(ast_expression->data.binary_expression.left_expression, ir_function, temp_identifier_id, postfix_variable);
+        IRNode *source_2 = ir_value(ast_expression->data.binary_expression.right_expression, ir_function, temp_identifier_id, postfix_variable);
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
