@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "../include/intermediate_rep.h"
+#include "../include/arena.h"
 
 #define INSTRUCTION_CAPACITY 8
 
 void    check_ir_function_instruction_size(IRNode *asm_function);
+void    ir_add_postfix_operations(IRNode *asm_function, Arena *ast_postfix_arena);
 IRNode* ir_function(AstNode *ast_function);
-IRNode* ir_value(AstNode *ast_statement, IRNode *ir_function, int temp_identifier_id); 
+IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -119,7 +121,14 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
 
+  Arena postfix_arena;
+
+  //@WARNING: Hardcoded postfix arena size
+  arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50);
+
   for (int i = 0; i < ast_function->data.function.block_count; i++) {
+    arena_reset(&postfix_arena);
+    
     AstNode *block_item = &ast_function->data.function.blocks[i];
 
     if (block_item->type == AST_DECLARATION) {
@@ -128,7 +137,9 @@ IRNode* ir_function(AstNode *ast_function) {
       }
 
       //TODO: Probably should rename to something like generate ir
-      ir_value(block_item->data.declaration.expression, function, 0);    
+      ir_value(block_item->data.declaration.expression, function, 0, &postfix_arena);    
+      ir_add_postfix_operations(function, &postfix_arena);
+      
       continue;
     }
 
@@ -138,7 +149,7 @@ IRNode* ir_function(AstNode *ast_function) {
     }
 
     if (block_item->type == AST_STATEMENT_RETURN) {
-      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0);
+      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0, &postfix_arena);
       IRNode *return_instruction = malloc(sizeof(IRNode));
 
       return_instruction->type = IR_INSTRUCTION_RET;
@@ -148,10 +159,14 @@ IRNode* ir_function(AstNode *ast_function) {
 
       function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
       function->data.function.instruction_count++;
+      ir_add_postfix_operations(function, &postfix_arena);
       continue;
     }
 
-    ir_value(block_item, function, 0);
+    ir_value(block_item, function, 0, &postfix_arena);
+    ir_add_postfix_operations(function, &postfix_arena);
+
+    arena_free(&postfix_arena);
   }    
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
@@ -171,7 +186,7 @@ IRNode* ir_function(AstNode *ast_function) {
   return function;
 }
 
-IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id) {
+IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena) {
   //TODO: Testing static variables to maintain static storage duration
   static int temp_number;
   static int temp_label;
@@ -184,7 +199,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       return variable;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id);
+      IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id, postfix_arena);
 
       IRNode *copy_instruction = malloc(sizeof(IRNode));
       copy_instruction->type = IR_INSTRUCTION_COPY;
@@ -204,15 +219,26 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       return result;
     }
     case AST_EXPRESSION_CONSTANT: {
-        IRNode *constant = malloc(sizeof(IRNode));
-        constant->type = IR_VALUE_CONSTANT;
-        constant->data.value_constant.value = ast_expression->data.constant_expression.value;
+      IRNode *constant = malloc(sizeof(IRNode));
+      constant->type = IR_VALUE_CONSTANT;
+      constant->data.value_constant.value = ast_expression->data.constant_expression.value;
 
-        return constant;
-      }
-      break;
+      return constant;
+    }
+    break;
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+    case AST_EXPRESSION_POSTFIX_DECREMENT:
+    {
+      AstNode *postfix_node = arena_alloc(postfix_arena);
+      *postfix_node = *ast_expression->data.postfix_expression.expression;
+
+      IRNode *variable = malloc(sizeof(IRNode));
+      variable->type = IR_VALUE_VAR;
+      variable->data.value_var.identifier = ast_expression->data.postfix_expression.expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+      return variable;
+    }
     case AST_EXPRESSION_UNARY: {
-        IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id);
+        IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id, postfix_arena);
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
@@ -245,8 +271,8 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       }
       break;
     case AST_EXPRESSION_BINARY: {      
-        IRNode *source_1 = ir_value(ast_expression->data.binary_expression.left_expression, ir_function, temp_identifier_id);
-        IRNode *source_2 = ir_value(ast_expression->data.binary_expression.right_expression, ir_function, temp_identifier_id);
+        IRNode *source_1 = ir_value(ast_expression->data.binary_expression.left_expression, ir_function, temp_identifier_id, postfix_arena);
+        IRNode *source_2 = ir_value(ast_expression->data.binary_expression.right_expression, ir_function, temp_identifier_id, postfix_arena);
 
         //TODO: Warning, setting hard buffer limit
         char *destination_name = malloc(10);
@@ -410,3 +436,14 @@ void check_ir_function_instruction_size(IRNode *asm_function) {
     asm_function->data.function.instructions = instructions;
   } 
 } 
+
+void ir_add_postfix_operations(IRNode *ir_function, Arena *ast_postfix_arena) {
+  if (ast_postfix_arena->offset == 0) {
+    return;
+  }
+
+  for (int i = 0; i < ast_postfix_arena->offset; i += ast_postfix_arena->base_size) {    
+    AstNode *node = (AstNode*)((char *)ast_postfix_arena->allocation);
+    ir_value(node, ir_function, 0, ast_postfix_arena);    
+  }
+}

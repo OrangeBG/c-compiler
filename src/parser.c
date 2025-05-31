@@ -101,6 +101,18 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Constant(%d)", node->data.constant_expression.value);
       break;
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+      print_whitespace(whitespace);
+      printf("Postfix Increment(");
+      print_ast(node->data.postfix_expression.expression, whitespace);
+      printf(")");
+      break;
+    case AST_EXPRESSION_POSTFIX_DECREMENT:
+      print_whitespace(whitespace);
+      printf("Postfix Decrement(");
+      print_ast(node->data.postfix_expression.expression, whitespace);
+      printf(")");
+      break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
       printf("Unary(");
@@ -351,30 +363,41 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
     if (next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT) {
       parser-> current_token_index++;
 
-      AstNode *increment_assignment = malloc(sizeof(AstNode));
-      increment_assignment->type = AST_EXPRESSION_ASSIGNMENT;
-      increment_assignment->data.assignement_expression.left_expression = left;
-
-      AstNode *binary_exp = malloc(sizeof(AstNode));
-      binary_exp->type = AST_EXPRESSION_BINARY;
+      AstNode *postfix_expression = malloc(sizeof(AstNode));
 
       if (next_token == TOKEN_INCREMENT) {
-        binary_exp->data.binary_expression.op_type = AST_BINARY_ADD;
+        postfix_expression->type = AST_EXPRESSION_POSTFIX_INCREMENT;
       } else {
-        binary_exp->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+        postfix_expression->type = AST_EXPRESSION_POSTFIX_DECREMENT;
       }
+
+      //TODO: We should validate that 'left' is an identifier. May do in semantic analysis
+
+      AstNode *postfix_assignment = malloc(sizeof(AstNode));
+      postfix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
+      postfix_assignment->data.assignement_expression.left_expression = left;
+
+      AstNode *postfix_constant = malloc(sizeof(AstNode));
+      postfix_constant->type = AST_EXPRESSION_CONSTANT;
+      postfix_constant->data.constant_expression.value = 1;
       
-      binary_exp->data.binary_expression.left_expression = left;
+      AstNode *postfix_binary = malloc(sizeof(AstNode));
+      postfix_binary->type = AST_EXPRESSION_BINARY;
+      
+      if (next_token == TOKEN_INCREMENT) {
+        postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
+      } else {
+        postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+      }
 
-      AstNode *constant = malloc(sizeof(AstNode));
-      constant->type = AST_EXPRESSION_CONSTANT;
-      constant->data.constant_expression.value = 1;
+      postfix_binary->data.binary_expression.left_expression = left;
+      postfix_binary->data.binary_expression.right_expression = postfix_constant;
 
-      binary_exp->data.binary_expression.right_expression = constant;
+      postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
 
-      increment_assignment->data.assignement_expression.right_expression = binary_exp;
-
-      return increment_assignment;
+      postfix_expression->data.postfix_expression.expression = postfix_assignment;
+      
+      return postfix_expression;
     }
     
     if (next_token == TOKEN_EQUAL) {
