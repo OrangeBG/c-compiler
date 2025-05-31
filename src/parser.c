@@ -383,7 +383,13 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
       
       AstNode *postfix_binary = malloc(sizeof(AstNode));
       postfix_binary->type = AST_EXPRESSION_BINARY;
-      postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
+      
+      if (next_token == TOKEN_INCREMENT) {
+        postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
+      } else {
+        postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+      }
+
       postfix_binary->data.binary_expression.left_expression = left;
       postfix_binary->data.binary_expression.right_expression = postfix_constant;
 

@@ -226,7 +226,9 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       return constant;
     }
     break;
-    case AST_EXPRESSION_POSTFIX_INCREMENT: {
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+    case AST_EXPRESSION_POSTFIX_DECREMENT:
+    {
       AstNode *postfix_node = arena_alloc(postfix_arena);
       *postfix_node = *ast_expression->data.postfix_expression.expression;
 
