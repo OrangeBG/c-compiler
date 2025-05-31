@@ -1,6 +1,5 @@
 # Bugs
 	- Code emit seems to be printing the same output after test file is changed.
-	- Only supporting single digit ints.
 
 # Tech Debt
 	- Implement memory arena to parser, ir and asm

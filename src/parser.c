@@ -535,8 +535,12 @@ AstNode* ast_factor(Parser *parser) {
 
     AstNode *constant = malloc(sizeof(AstNode));
     constant->type = AST_EXPRESSION_CONSTANT;
-    //TODO: Only supports up to '9'
-    constant->data.constant_expression.value = (int)(parser->file[previous_token(parser)->start_index] - 48);   
+
+    char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
+    strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
+    
+    int constant_value = atoi(slice);
+    constant->data.constant_expression.value = constant_value;
 
     return constant;
   } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT || current_token(parser)->type == TOKEN_LOGICAL_NOT) {
