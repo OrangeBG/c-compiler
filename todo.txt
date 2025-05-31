@@ -3,9 +3,7 @@
 	- Only supporting single digit ints.
 
 # Tech Debt
-	- Validate increment and decrement operators in semantic analysis
 	- Implement memory arena to parser, ir and asm
-	- Increment and decrement ops: ++ and --
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
 	- Check CQL parser for revision to lexing where I'm not incrementing the start_index when doing peek token checks.
 	- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  
