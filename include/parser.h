@@ -19,7 +19,9 @@ typedef enum {
   AST_EXPRESSION_VARIABLE,
   AST_EXPRESSION_ASSIGNMENT,
   AST_EXPRESSION_POSTFIX_INCREMENT,
-  AST_EXPRESSION_POSTFIX_DECREMENT
+  AST_EXPRESSION_POSTFIX_DECREMENT,
+  AST_EXPRESSION_PREFIX_INCREMENT,
+  AST_EXPRESSION_PREFIX_DECREMENT,
 } NodeType;
 
 typedef enum {
@@ -64,7 +66,7 @@ typedef struct AstNode {
     struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; struct AstNode *left_expression; struct AstNode *right_expression; } binary_expression;
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
-    struct PostfixExpression { AstNode *expression; } postfix_expression;
+    struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
   } data;
 } AstNode;
 

@@ -83,8 +83,8 @@ void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table
   } else if (expression->type == AST_EXPRESSION_BINARY) {
     semantic_resolve_expressison(expression->data.binary_expression.left_expression, variable_table);
     semantic_resolve_expressison(expression->data.binary_expression.right_expression, variable_table);
-  } else if (expression->type == AST_EXPRESSION_POSTFIX_INCREMENT) {
-    semantic_resolve_expressison(expression->data.postfix_expression.expression, variable_table);
+  } else if (expression->type == AST_EXPRESSION_POSTFIX_INCREMENT || expression->type == AST_EXPRESSION_POSTFIX_DECREMENT || expression->type == AST_EXPRESSION_PREFIX_INCREMENT || expression->type == AST_EXPRESSION_PREFIX_DECREMENT ) {
+    semantic_resolve_expressison(expression->data.increment_decrement_expression.expression, variable_table);
   } else if (expression->type == AST_EXPRESSION_VARIABLE) {
     HashTableEntry *entry = hash_table_get_entry(variable_table, expression->data.variable_expression.identifier);  
 

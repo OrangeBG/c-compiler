@@ -104,13 +104,25 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_EXPRESSION_POSTFIX_INCREMENT:
       print_whitespace(whitespace);
       printf("Postfix Increment(");
-      print_ast(node->data.postfix_expression.expression, whitespace);
+      print_ast(node->data.increment_decrement_expression.expression, 0);
       printf(")");
       break;
     case AST_EXPRESSION_POSTFIX_DECREMENT:
       print_whitespace(whitespace);
       printf("Postfix Decrement(");
-      print_ast(node->data.postfix_expression.expression, whitespace);
+      print_ast(node->data.increment_decrement_expression.expression, 0);
+      printf(")");
+      break;
+    case AST_EXPRESSION_PREFIX_INCREMENT:
+      print_whitespace(whitespace);
+      printf("Prefix Increment(");
+      print_ast(node->data.increment_decrement_expression.expression, 0);
+      printf(")");
+      break;
+    case AST_EXPRESSION_PREFIX_DECREMENT:
+      print_whitespace(whitespace);
+      printf("Prefix Decrement(");
+      print_ast(node->data.increment_decrement_expression.expression, 0);
       printf(")");
       break;
     case AST_EXPRESSION_UNARY:
@@ -395,7 +407,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
 
       postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
 
-      postfix_expression->data.postfix_expression.expression = postfix_assignment;
+      postfix_expression->data.increment_decrement_expression.expression = postfix_assignment;
       
       return postfix_expression;
     }
@@ -556,6 +568,52 @@ AstNode* ast_factor(Parser *parser) {
     unary->data.unary_expression.expression = unary_value_expression;
 
     return unary;
+  } else if (current_token(parser)->type == TOKEN_INCREMENT || current_token(parser)->type == TOKEN_DECREMENT) {
+      AstNode *prefix_expression = malloc(sizeof(AstNode));
+
+      if (current_token(parser)->type == TOKEN_INCREMENT) {
+        prefix_expression->type = AST_EXPRESSION_PREFIX_INCREMENT;
+      } else {
+        prefix_expression->type = AST_EXPRESSION_PREFIX_DECREMENT;
+      }
+
+      //TODO: See if we can do this a little better. Need to adnvance and retract token index in order to validate and get identifier
+      parser-> current_token_index++;
+      ast_expect(parser, TOKEN_IDENTIFIER);
+      parser-> current_token_index--;
+
+      char *left_identifier = ast_identifier(parser);
+
+      AstNode *left = malloc(sizeof(AstNode));
+      left->type = AST_EXPRESSION_VARIABLE;
+      left->data.variable_expression.identifier = left_identifier;
+      
+      AstNode *prefix_assignment = malloc(sizeof(AstNode));
+      prefix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
+      prefix_assignment->data.assignement_expression.left_expression = left;
+
+      AstNode *postfix_constant = malloc(sizeof(AstNode));
+      postfix_constant->type = AST_EXPRESSION_CONSTANT;
+      postfix_constant->data.constant_expression.value = 1;
+      
+      AstNode *postfix_binary = malloc(sizeof(AstNode));
+      postfix_binary->type = AST_EXPRESSION_BINARY;
+      
+      if (prefix_expression->type == AST_EXPRESSION_PREFIX_INCREMENT) {
+        postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
+      } else {
+        postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+      }
+
+      postfix_binary->data.binary_expression.left_expression = left;
+      postfix_binary->data.binary_expression.right_expression = postfix_constant;
+
+      prefix_assignment->data.assignement_expression.right_expression = postfix_binary;
+
+      prefix_expression->data.increment_decrement_expression.expression = prefix_assignment;
+      
+      return prefix_assignment;
+
   } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
     parser->current_token_index++;
 

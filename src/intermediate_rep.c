@@ -230,12 +230,17 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
     case AST_EXPRESSION_POSTFIX_DECREMENT:
     {
       AstNode *postfix_node = arena_alloc(postfix_arena);
-      *postfix_node = *ast_expression->data.postfix_expression.expression;
+      *postfix_node = *ast_expression->data.increment_decrement_expression.expression;
 
       IRNode *variable = malloc(sizeof(IRNode));
       variable->type = IR_VALUE_VAR;
-      variable->data.value_var.identifier = ast_expression->data.postfix_expression.expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+      variable->data.value_var.identifier = ast_expression->data.increment_decrement_expression.expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
       return variable;
+    }
+    case AST_EXPRESSION_PREFIX_INCREMENT:
+    case AST_EXPRESSION_PREFIX_DECREMENT:
+    {
+      return ir_value(ast_expression->data.increment_decrement_expression.expression, ir_function, temp_identifier_id, postfix_arena);
     }
     case AST_EXPRESSION_UNARY: {
         IRNode *source = ir_value(ast_expression->data.unary_expression.expression, ir_function, temp_identifier_id, postfix_arena);
