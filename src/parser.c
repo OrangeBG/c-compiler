@@ -372,8 +372,25 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
       }
 
       //TODO: We should validate that 'left' is an identifier. May do in semantic analysis
-      postfix_expression->data.postfix_expression.expression = left;
+      // postfix_expression->data.postfix_expression.expression = left;
 
+      AstNode *postfix_assignment = malloc(sizeof(AstNode));
+      postfix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
+      postfix_assignment->data.assignement_expression.left_expression = left;
+
+      AstNode *postfix_constant = malloc(sizeof(AstNode));
+      postfix_constant->type = AST_EXPRESSION_CONSTANT;
+      postfix_constant->data.constant_expression.value = 1;
+      
+      AstNode *postfix_binary = malloc(sizeof(AstNode));
+      postfix_binary->type = AST_EXPRESSION_BINARY;
+      postfix_binary->data.binary_expression.left_expression = left;
+      postfix_binary->data.binary_expression.right_expression = postfix_constant;
+
+      postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
+
+      postfix_expression->data.postfix_expression.expression = postfix_assignment;
+      
       return postfix_expression;
     }
     

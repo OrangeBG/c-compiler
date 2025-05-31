@@ -7,7 +7,7 @@
 #define INSTRUCTION_CAPACITY 8
 
 void    check_ir_function_instruction_size(IRNode *asm_function);
-void    ir_add_postfix_operations(IRNode *asm_function, Arena *ast_postfix_arena, int *temp_number);
+void    ir_add_postfix_operations(IRNode *asm_function, Arena *ast_postfix_arena);
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena); 
 
@@ -141,7 +141,8 @@ IRNode* ir_function(AstNode *ast_function) {
 
       //TODO: Probably should rename to something like generate ir
       ir_value(block_item->data.declaration.expression, function, 0, &postfix_arena);    
-      //TODO: Resolve postfix
+      ir_add_postfix_operations(function, &postfix_arena);
+      
       continue;
     }
 
@@ -236,7 +237,8 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
       IRNode *variable = malloc(sizeof(IRNode));
       variable->type = IR_VALUE_VAR;
-      variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
+      // variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
+      variable->data.value_var.identifier = ast_expression->data.postfix_expression.expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
       return variable;
     }
     case AST_EXPRESSION_UNARY: {
@@ -439,19 +441,13 @@ void check_ir_function_instruction_size(IRNode *asm_function) {
   } 
 } 
 
-void ir_add_postfix_operations(IRNode *asm_function, Arena *ast_postfix_arena, int *temp_number) {
+void ir_add_postfix_operations(IRNode *ir_function, Arena *ast_postfix_arena) {
   if (ast_postfix_arena->offset == 0) {
     return;
   }
 
   for (int i = 0; i < ast_postfix_arena->offset; i += ast_postfix_arena->base_size) {    
-        char *destination_name = malloc(10);
-        snprintf(destination_name, 10, "tmp.%d", *temp_number++); 
-        
-        IRNode *destination = malloc(sizeof(IRNode));
-        destination->type = IR_VALUE_VAR;
-        destination->data.value_var.identifier = destination_name;
-
-        
+    AstNode *node = (AstNode*)((char *)ast_postfix_arena->allocation);
+    ir_value(node, ir_function, 0, ast_postfix_arena);    
   }
 }
