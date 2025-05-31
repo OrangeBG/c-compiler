@@ -131,9 +131,6 @@ IRNode* ir_function(AstNode *ast_function) {
     
     AstNode *block_item = &ast_function->data.function.blocks[i];
 
-    //@Debt: Figure out a better way to store/handle postfix operand(s)
-    // char *postfix;
-
     if (block_item->type == AST_DECLARATION) {
       if (!block_item->data.declaration.has_expression) {
         continue;
@@ -162,13 +159,12 @@ IRNode* ir_function(AstNode *ast_function) {
 
       function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
       function->data.function.instruction_count++;
-      //TODO: Resolve postfix
+      ir_add_postfix_operations(function, &postfix_arena);
       continue;
     }
 
     ir_value(block_item, function, 0, &postfix_arena);
-
-    //TODO: Resolve postfix
+    ir_add_postfix_operations(function, &postfix_arena);
 
     arena_free(&postfix_arena);
   }    
@@ -231,13 +227,11 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
     }
     break;
     case AST_EXPRESSION_POSTFIX_INCREMENT: {
-      // *postfix_variable = ast_expression->data.postfix_expression.expression->data.variable_expression.identifier;
       AstNode *postfix_node = arena_alloc(postfix_arena);
       *postfix_node = *ast_expression->data.postfix_expression.expression;
 
       IRNode *variable = malloc(sizeof(IRNode));
       variable->type = IR_VALUE_VAR;
-      // variable->data.value_var.identifier = ast_expression->data.variable_expression.identifier;
       variable->data.value_var.identifier = ast_expression->data.postfix_expression.expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
       return variable;
     }
