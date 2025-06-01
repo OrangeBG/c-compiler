@@ -59,6 +59,9 @@ int main(int argc, const char *argv[]) {
     print_tokens(&lexer, file);
   }
 
+  //@Temp
+  return 0;
+
   benchmarks[1] = clock();
   AstNode *ast = parse_ast(lexer.tokens, lexer.token_count, file);
   benchmarks[1] = ((double) (clock() - benchmarks[1])) / CLOCKS_PER_SEC;

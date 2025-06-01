@@ -22,12 +22,15 @@ const char* TokenTypeStr[] = {
   "TOKEN_BITWISE_RIGHT_SHIFT_EQUAL",
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
+  "TOKEN_COLON",
   "TOKEN_CONSTANT_INT",
   "TOKEN_DECREMENT",
+  "TOKEN_ELSE",
   "TOKEN_EQUAL",
   "TOKEN_FORWARD_SLASH",
   "TOKEN_FORWARD_SLASH_EQUAL",
   "TOKEN_IDENTIFIER",
+  "TOKEN_IF",
   "TOKEN_INCREMENT",
   "TOKEN_INT",
   "TOKEN_LOGICAL_AND",
@@ -39,6 +42,8 @@ const char* TokenTypeStr[] = {
   "TOKEN_OPEN_BRACE",
   "TOKEN_PERCENT",
   "TOKEN_PLUS",
+  "TOKEN_PLUS_EQUAL",
+  "TOKEN_QUESTION_MARK",
   "TOKEN_RELATIONAL_EQUAL",
   "TOKEN_RELATIONAL_NOT_EQUAL",
   "TOKEN_RELATIONAL_LESS_THAN",
@@ -105,6 +110,8 @@ void load_tokens(Lexer *lexer, char *file) {
       case '}': add_token(TOKEN_CLOSE_BRACE, lexer); break;
       case ';': add_token(TOKEN_SEMICOLON, lexer); break;
       case '~': add_token(TOKEN_BITWISE_NOT, lexer); break;
+      case '?': add_token(TOKEN_QUESTION_MARK, lexer); break;
+      case ':': add_token(TOKEN_COLON, lexer); break;
       case '+': {
           if (peek_next(lexer, file, '+')) {
             lexer->current_index++;
@@ -307,12 +314,15 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_BITWISE_LEFT_SHIFT_EQUAL: printf("L. Shift Equal"); break;
       case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
       case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
+      case TOKEN_COLON: printf("Colon      "); break;
       case TOKEN_CONSTANT_INT: printf("Constant   "); break;
       case TOKEN_DECREMENT: printf("Decrement  "); break;
+      case TOKEN_ELSE: printf("Else       "); break;
       case TOKEN_EQUAL: printf("Equal      "); break;
       case TOKEN_FORWARD_SLASH: printf("Forward Slash"); break;
       case TOKEN_FORWARD_SLASH_EQUAL: printf("Forward Slash Equal"); break;
       case TOKEN_IDENTIFIER: printf("Identifier ");  break;
+      case TOKEN_IF: printf("If         "); break;
       case TOKEN_INCREMENT: printf("Increment  "); break;
       case TOKEN_INT: printf("Int        ");  break;
       case TOKEN_NEGATION: printf("Negation   "); break;
@@ -323,6 +333,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_PERCENT_EQUAL: printf("Percent Equal"); break;
       case TOKEN_PLUS: printf("Plus       "); break;
       case TOKEN_PLUS_EQUAL: printf("Plus Equal "); break;
+      case TOKEN_QUESTION_MARK: printf("Question Mark"); break;
       case TOKEN_LOGICAL_AND: printf("And        "); break;
       case TOKEN_LOGICAL_OR: printf("Or         "); break;
       case TOKEN_LOGICAL_NOT: printf("Not        "); break;
@@ -418,7 +429,16 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
   //TODO: Need to support the rest of the keywords
   //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
-    case 'i': return check_keyword(0, 2, "nt", TOKEN_INT, lexer, file); 
+    case 'e': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
+    case 'i': {
+      if (lexer->current_index - lexer->start_index > 0) {
+        switch (file[lexer->start_index + 1]) {
+          case 'n': return check_keyword(0, 2, "nt", TOKEN_INT, lexer, file);
+          case 'f': return check_keyword(0, 1, "f", TOKEN_IF, lexer, file);
+        }
+      } 
+      break;
+     }
     case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
     case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
   }
