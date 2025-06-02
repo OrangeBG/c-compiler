@@ -337,7 +337,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_LOGICAL_AND: printf("And        "); break;
       case TOKEN_LOGICAL_OR: printf("Or         "); break;
       case TOKEN_LOGICAL_NOT: printf("Not        "); break;
-      case TOKEN_RELATIONAL_EQUAL: printf("Equal      "); break;
+      case TOKEN_RELATIONAL_EQUAL: printf("Rel. Equal "); break;
       case TOKEN_RELATIONAL_NOT_EQUAL: printf("Not Equal  "); break;
       case TOKEN_RELATIONAL_LESS_THAN: printf("Less Than  "); break;
       case TOKEN_RELATIONAL_LESS_OR_EQUAL: printf("Less or Equal"); break;

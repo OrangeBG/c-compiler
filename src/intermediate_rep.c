@@ -424,7 +424,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       break;
   }
 
-  fprintf(stderr, "ERROR - IR: AST expression type not supported %d", ast_expression->type);
+  fprintf(stderr, "ERROR - IR: AST expression type not supported %d\n", ast_expression->type);
   exit(1);    
 }
 

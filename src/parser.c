@@ -95,7 +95,21 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Null()\n");
       break;
-    case AST_STATEMENT_EXPRESSION:
+     case AST_STATEMENT_EXPRESSION:
+      print_whitespace(whitespace);
+      printf("Expression Statement(");
+      print_ast(node->data.expression_statement.expression, 0);
+      printf(")\n");
+      break;
+    case AST_STATEMENT_IF:      
+      print_whitespace(whitespace);
+      printf("If( Condition( ");
+      print_ast(node->data.if_statement.condition_expression, 0);
+      printf(") Then( ");
+      print_ast(node->data.if_statement.then_statement, 0);
+      printf(") Else( ");
+      print_ast(node->data.if_statement.else_statement, 0);
+      printf(")\n");
       break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
@@ -124,6 +138,17 @@ void print_ast(AstNode *node, int whitespace) {
       printf("Prefix Decrement(");
       print_ast(node->data.increment_decrement_expression.expression, 0);
       printf(")");
+      break;
+    case AST_EXPRESSION_CONDITIONAL:
+      print_whitespace(whitespace);
+
+      printf("Conditional(Condition(");
+      print_ast(node->data.conditional_expression.condition, 0);
+      printf(") True Exp(");
+      print_ast(node->data.conditional_expression.true_expression, 0);
+      printf(") False Exp(");
+      print_ast(node->data.conditional_expression.false_expression, 0);
+      printf(")\n");      
       break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
@@ -359,6 +384,8 @@ void ast_statement(Parser *parser, AstNode *function) {
   }
 
   if (current_token(parser)->type == TOKEN_IF) {
+    //TODO: No IfStatement ASTNode is being made here.. This needs to be made and added into the function block
+
     ast_expect(parser, TOKEN_IF);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
@@ -366,12 +393,19 @@ void ast_statement(Parser *parser, AstNode *function) {
 
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
+    ast_statement(parser, function);
+
+    if (current_token(parser)->type != TOKEN_ELSE) {
+      return;
+    }
+
+    ast_expect(parser, TOKEN_ELSE);
+    ast_statement(parser, function);
+    return;
   }
 
-  AstNode *expression = ast_expression(parser, 0);
-  
-  add_to_function_block(function, expression);
-  
+  AstNode *expression = ast_expression(parser, 0);  
+  add_to_function_block(function, expression);  
 }
 
 AstNode* ast_expression(Parser *parser, int min_precedence) {
@@ -380,7 +414,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
   TokenType next_token = current_token(parser)->type;
 
   //TODO: May be easier to check outliers rather than what is being done here
-  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR || next_token == TOKEN_EQUAL || next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token == TOKEN_PERCENT_EQUAL || next_token == TOKEN_BITWISE_AND_EQUAL || next_token == TOKEN_BITWISE_OR_EQUAL || next_token == TOKEN_BITWISE_XOR_EQUAL || next_token == TOKEN_BITWISE_LEFT_SHIFT_EQUAL || next_token == TOKEN_BITWISE_RIGHT_SHIFT_EQUAL || next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT) && get_precedence(next_token) >= min_precedence) {
+  while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR || next_token == TOKEN_EQUAL || next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token == TOKEN_PERCENT_EQUAL || next_token == TOKEN_BITWISE_AND_EQUAL || next_token == TOKEN_BITWISE_OR_EQUAL || next_token == TOKEN_BITWISE_XOR_EQUAL || next_token == TOKEN_BITWISE_LEFT_SHIFT_EQUAL || next_token == TOKEN_BITWISE_RIGHT_SHIFT_EQUAL || next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT || next_token == TOKEN_QUESTION_MARK) && get_precedence(next_token) >= min_precedence) {
 
     if (next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT) {
       parser-> current_token_index++;
@@ -437,6 +471,24 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
 
       return left;
     } 
+
+    if (next_token == TOKEN_QUESTION_MARK) {
+      ast_expect(parser, TOKEN_QUESTION_MARK);
+
+      AstNode *middle = ast_expression(parser, 0);
+
+      ast_expect(parser, TOKEN_COLON);
+
+      AstNode *right = ast_expression(parser, get_precedence(next_token));
+
+      AstNode *conditional = malloc(sizeof(AstNode));
+      conditional->type = AST_EXPRESSION_CONDITIONAL;
+      conditional->data.conditional_expression.condition = left;
+      conditional->data.conditional_expression.true_expression = middle;
+      conditional->data.conditional_expression.false_expression = right;
+
+      return conditional;
+    }
 
     if (next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token  == TOKEN_PERCENT_EQUAL || next_token == TOKEN_BITWISE_AND_EQUAL || next_token == TOKEN_BITWISE_OR_EQUAL || next_token == TOKEN_BITWISE_XOR_EQUAL || next_token == TOKEN_BITWISE_LEFT_SHIFT_EQUAL || next_token == TOKEN_BITWISE_RIGHT_SHIFT_EQUAL) {
 
@@ -681,6 +733,8 @@ int get_precedence(TokenType token_type) {
       return 5;
     case TOKEN_LOGICAL_OR:
       return 4;
+    case TOKEN_QUESTION_MARK:
+      return 3;
     case TOKEN_EQUAL:
     case TOKEN_PLUS_EQUAL:
     case TOKEN_NEGATION_EQUAL:
@@ -694,7 +748,7 @@ int get_precedence(TokenType token_type) {
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:
       return 2;
     default: {
-      fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence", TokenTypeStr[token_type]);
+      fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence\n", TokenTypeStr[token_type]);
       exit(1);
     }
   }
