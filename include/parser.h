@@ -12,6 +12,7 @@ typedef enum {
   AST_STATEMENT_RETURN,
   AST_STATEMENT_EXPRESSION,
   AST_STATEMENT_NULL,
+  AST_STATEMENT_IF,
   AST_DECLARATION,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
@@ -57,10 +58,11 @@ typedef struct AstNode {
   NodeType type;
   union {
     struct Program { struct AstNode *function; } program;
-    struct Function { char* name; AstNode* blocks; int block_count; int block_capacity; } function;
-    struct Declaration { char* identifier; bool has_expression; AstNode* expression; } declaration;
-    struct ReturnStatement { struct AstNode* expression; } return_statement;
-    struct ExpressionStatement { struct AstNode* expression; } expression_statement;
+    struct Function { char* name; AstNode *blocks; int block_count; int block_capacity; } function;
+    struct Declaration { char* identifier; bool has_expression; AstNode *expression; } declaration;
+    struct ReturnStatement { struct AstNode *expression; } return_statement;
+    struct ExpressionStatement { struct AstNode *expression; } expression_statement;
+    struct IfStatement { struct AstNode *expression; struct AstNode *then_statement; AstNode *else_statement;  } if_statement;
     struct ConstantExpression { int value; } constant_expression;
     struct VariableExpression { char* identifier; } variable_expression;
     struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;

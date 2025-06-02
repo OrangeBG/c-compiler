@@ -358,6 +358,16 @@ void ast_statement(Parser *parser, AstNode *function) {
     return;
   }
 
+  if (current_token(parser)->type == TOKEN_IF) {
+    ast_expect(parser, TOKEN_IF);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    AstNode *expression = ast_expression(parser, 0);
+
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+  }
+
   AstNode *expression = ast_expression(parser, 0);
   
   add_to_function_block(function, expression);
