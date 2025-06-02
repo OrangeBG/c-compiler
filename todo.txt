@@ -2,6 +2,7 @@
 	- Code emit seems to be printing the same output after test file is changed.
 
 # Tech Debt
+	- Parser 'if statement' needs a way to store 'then' and 'else' statements
 	- Parser print is ugly
 	- Implement memory arena to parser, ir and asm
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
