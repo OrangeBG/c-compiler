@@ -17,7 +17,7 @@ typedef struct Parser {
  
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
-void       ast_statement(Parser *parser, AstNode *function);
+AstNode*   ast_statement(Parser *parser);
 void       ast_declaration(Parser *parser, AstNode *function);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
@@ -107,8 +107,11 @@ void print_ast(AstNode *node, int whitespace) {
       print_ast(node->data.if_statement.condition_expression, 0);
       printf(") Then( ");
       print_ast(node->data.if_statement.then_statement, 0);
-      printf(") Else( ");
-      print_ast(node->data.if_statement.else_statement, 0);
+
+      if (node->data.if_statement.else_statement != NULL) {
+        printf(") Else( ");
+        print_ast(node->data.if_statement.else_statement, 0);
+      }
       printf(")\n");
       break;
     case AST_EXPRESSION_CONSTANT:
@@ -301,7 +304,8 @@ AstNode* ast_function(Parser *parser) {
     if (current_token(parser)->type == TOKEN_INT) {
       ast_declaration(parser, function);
     } else {
-      ast_statement(parser, function);
+      AstNode *statement = ast_statement(parser);
+      add_to_function_block(function, statement);
     }
   }
 }
@@ -354,11 +358,7 @@ void ast_declaration(Parser *parser, AstNode *function) {
   add_to_function_block(function, declaration);
 }
 
-void ast_statement(Parser *parser, AstNode *function) { 
-  //TODO: May need to wrap each statement type into a parent Statement node
-  // AstNode *statement = malloc(sizeof(AstNode));
-  // statement->type = AST_STATEMENT
-
+AstNode *ast_statement(Parser *parser) { 
   if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
     exit(1);
@@ -366,7 +366,9 @@ void ast_statement(Parser *parser, AstNode *function) {
 
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
     ast_expect(parser, TOKEN_SEMICOLON);
-    return;
+    AstNode *null_statement = malloc(sizeof(AstNode));
+    null_statement->type = AST_STATEMENT_NULL;
+    return null_statement;
   }
 
   if (current_token(parser)->type == TOKEN_RETURN) {
@@ -379,33 +381,38 @@ void ast_statement(Parser *parser, AstNode *function) {
     return_node->data.return_statement.expression = expression;
 
     ast_expect(parser, TOKEN_SEMICOLON);
-    add_to_function_block(function, return_node);
-    return;
+    return return_node;
   }
 
   if (current_token(parser)->type == TOKEN_IF) {
-    //TODO: No IfStatement ASTNode is being made here.. This needs to be made and added into the function block
-
     ast_expect(parser, TOKEN_IF);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
-    AstNode *expression = ast_expression(parser, 0);
+    AstNode *condition_expression = ast_expression(parser, 0);
 
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
-    ast_statement(parser, function);
+    AstNode *statement = ast_statement(parser);
+
+    AstNode *if_statement = malloc(sizeof(AstNode));
+    if_statement->type = AST_STATEMENT_IF;
+    if_statement->data.if_statement.condition_expression = condition_expression;
+    if_statement->data.if_statement.then_statement = statement;
 
     if (current_token(parser)->type != TOKEN_ELSE) {
-      return;
+      return if_statement;
     }
 
     ast_expect(parser, TOKEN_ELSE);
-    ast_statement(parser, function);
-    return;
+    AstNode *else_statement = ast_statement(parser);
+
+    if_statement->data.if_statement.else_statement = else_statement;
+
+    return if_statement;
   }
 
   AstNode *expression = ast_expression(parser, 0);  
-  add_to_function_block(function, expression);  
+  return expression;
 }
 
 AstNode* ast_expression(Parser *parser, int min_precedence) {
