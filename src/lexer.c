@@ -408,7 +408,7 @@ void add_number_token(Lexer *lexer, char *file) {
 }
 
 void add_identifier_token(Lexer *lexer, char *file) {
-  while (file[lexer->current_index + 1] != '\0' && (is_alpha_char(file[lexer->current_index + 1]) || is_numeric_char(file[lexer->current_index + 1]))) {
+  while (file[lexer->current_index + 1] != '\0' && (is_alpha_char(file[lexer->current_index + 1]) || is_numeric_char(file[lexer->current_index + 1]) || file[lexer->current_index + 1] == '_')) {
     lexer->current_index++;
   }
   
