@@ -73,7 +73,8 @@ Lexer init_lexer() {
     .token_capacity = 0,
     .token_count = 0,
     .tokens = NULL,
-    .in_multi_line_comment = false
+    .in_multi_line_comment = false,
+    .in_single_line_comment = false
   };
 
   return lexer;
@@ -92,6 +93,16 @@ void load_tokens(Lexer *lexer, char *file) {
         lexer->current_index += 1;
       }
       
+      lexer->start_index = lexer->current_index + 1;
+      lexer->current_index = lexer->start_index;
+      continue;
+    }
+
+    if (lexer->in_single_line_comment) {
+      if (cur_char == '\n') {
+        lexer->in_single_line_comment = false;
+      }
+
       lexer->start_index = lexer->current_index + 1;
       lexer->current_index = lexer->start_index;
       continue;
@@ -176,6 +187,12 @@ void load_tokens(Lexer *lexer, char *file) {
         if (peek_next(lexer, file, '*')) {
           lexer->current_index += 1;
           lexer->in_multi_line_comment= true;
+          break;
+        }   
+
+        if (peek_next(lexer, file, '/')) {
+          lexer->current_index += 1;
+          lexer->in_single_line_comment= true;
           break;
         }   
 
