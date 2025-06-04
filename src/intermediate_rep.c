@@ -10,6 +10,7 @@ void    check_ir_function_instruction_size(IRNode *asm_function);
 void    ir_add_postfix_operations(IRNode *asm_function, Arena *ast_postfix_arena);
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena); 
+void    ir_emit_return(AstNode *block_item, IRNode *function, Arena *postfix_arena);
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -165,7 +166,12 @@ IRNode* ir_function(AstNode *ast_function) {
       function->data.function.instructions[function->data.function.instruction_count] = *jump_if_zero; 
       function->data.function.instruction_count++;
 
-      ir_value(block_item->data.if_statement.then_statement, function, 0, &postfix_arena);
+      //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
+      if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
+        ir_emit_return(block_item->data.if_statement.then_statement, function, &postfix_arena);
+      } else {
+        ir_value(block_item->data.if_statement.then_statement, function, 0, &postfix_arena);
+      }
 
       IRNode *if_label = malloc(sizeof(IRNode));
       if_label->type = IR_INSTRUCTION_LABEL;
@@ -177,20 +183,11 @@ IRNode* ir_function(AstNode *ast_function) {
       function->data.function.instruction_count++;
 
       //TODO: Add else statement support
+      continue;
     }
 
     if (block_item->type == AST_STATEMENT_RETURN) {
-      IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0, &postfix_arena);
-      IRNode *return_instruction = malloc(sizeof(IRNode));
-
-      return_instruction->type = IR_INSTRUCTION_RET;
-      return_instruction->data.instruction_ret.value = value;
-
-      check_ir_function_instruction_size(function);
-
-      function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
-      function->data.function.instruction_count++;
-      ir_add_postfix_operations(function, &postfix_arena);
+      ir_emit_return(block_item, function, &postfix_arena);
       continue;
     }
 
@@ -215,6 +212,19 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instruction_count++;
 
   return function;
+}
+void ir_emit_return(AstNode *block_item, IRNode *function, Arena *postfix_arena) {
+    IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0, postfix_arena);
+    IRNode *return_instruction = malloc(sizeof(IRNode));
+
+    return_instruction->type = IR_INSTRUCTION_RET;
+    return_instruction->data.instruction_ret.value = value;
+
+    check_ir_function_instruction_size(function);
+
+    function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
+    function->data.function.instruction_count++;
+    ir_add_postfix_operations(function, postfix_arena);
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena) {
