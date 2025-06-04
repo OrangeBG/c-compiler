@@ -101,7 +101,7 @@ void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table
       char *found_period = (char*)memchr(expression->data.variable_expression.identifier, '.', strlen(expression->data.variable_expression.identifier));
 
       if (found_period == NULL) {      
-        fprintf(stderr, "Undeclared variable hash table entry for '%s'", expression->data.variable_expression.identifier);
+        fprintf(stderr, "Undeclared variable hash table entry for '%s'\n", expression->data.variable_expression.identifier);
         exit(1);
       }
 
