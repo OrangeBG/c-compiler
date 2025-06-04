@@ -1,6 +1,8 @@
 #ifndef LEXER
 #define LEXER
 
+#include <stdbool.h>
+
 typedef enum {
   TOKEN_ASTERISK,
   TOKEN_ASTERISK_EQUAL,
@@ -68,6 +70,7 @@ typedef struct {
   int token_capacity;
   int token_count;
   Token* tokens;
+  bool in_multi_line_comment;
 } Lexer;
 
 Lexer init_lexer();

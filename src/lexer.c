@@ -72,7 +72,8 @@ Lexer init_lexer() {
     .line = 1,
     .token_capacity = 0,
     .token_count = 0,
-    .tokens = NULL
+    .tokens = NULL,
+    .in_multi_line_comment = false
   };
 
   return lexer;
@@ -83,6 +84,17 @@ void load_tokens(Lexer *lexer, char *file) {
     char cur_char = file[lexer->start_index];
     if (cur_char == '\0') {
       break;
+    }
+
+    if (lexer->in_multi_line_comment) {
+      if (cur_char == '*' && peek_next(lexer, file, '/')) {
+        lexer->in_multi_line_comment = false;
+        lexer->current_index += 1;
+      }
+      
+      lexer->start_index = lexer->current_index + 1;
+      lexer->current_index = lexer->start_index;
+      continue;
     }
 
     if (is_alpha_char(cur_char)) {
@@ -161,6 +173,12 @@ void load_tokens(Lexer *lexer, char *file) {
           break;
         }
 
+        if (peek_next(lexer, file, '*')) {
+          lexer->current_index += 1;
+          lexer->in_multi_line_comment= true;
+          break;
+        }   
+
         add_token(TOKEN_FORWARD_SLASH, lexer);
         break;
       }
@@ -205,7 +223,6 @@ void load_tokens(Lexer *lexer, char *file) {
           break;
         }
 
-        // lexer->start_index++;
         lexer->current_index++;
         
         if (peek_next(lexer, file, '=')) {
@@ -229,7 +246,6 @@ void load_tokens(Lexer *lexer, char *file) {
           break;
         }
 
-        // lexer->start_index++;
         lexer->current_index++;
         
         if (peek_next(lexer, file, '=')) {
@@ -288,8 +304,6 @@ void load_tokens(Lexer *lexer, char *file) {
 
     lexer->current_index++;
     lexer->start_index = lexer->current_index;
-    // lexer->start_index++;
-    // lexer->current_index = lexer->start_index;
   }  
 
   add_token(TOKEN_EOF, lexer);
