@@ -122,6 +122,7 @@ IRNode* ir_function(AstNode *ast_function) {
   function->data.function.instructions = instructions;
 
   Arena postfix_arena;
+  static int temp_label;
 
   //@WARNING: Hardcoded postfix arena size
   arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50);
@@ -146,6 +147,36 @@ IRNode* ir_function(AstNode *ast_function) {
     //If not a declaration, then it's a statement
     if (block_item->type == AST_STATEMENT_NULL) {
       continue;
+    }
+
+    if (block_item->type == AST_STATEMENT_IF) {
+      IRNode *condition = ir_value(block_item->data.if_statement.condition_expression, function, 0, &postfix_arena);
+
+      char *label_name = malloc(20);
+      snprintf(label_name, 10, "%d.if", temp_label++); 
+
+      IRNode *jump_if_zero = malloc(sizeof(IRNode));
+      jump_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
+      jump_if_zero->data.instruction_jump_if_zero.condition = condition;
+      jump_if_zero->data.instruction_jump_if_zero.target = label_name;
+      
+      check_ir_function_instruction_size(function);
+
+      function->data.function.instructions[function->data.function.instruction_count] = *jump_if_zero; 
+      function->data.function.instruction_count++;
+
+      ir_value(block_item->data.if_statement.then_statement, function, 0, &postfix_arena);
+
+      IRNode *if_label = malloc(sizeof(IRNode));
+      if_label->type = IR_INSTRUCTION_LABEL;
+      if_label->data.instruction_label.identifier = label_name;
+
+      check_ir_function_instruction_size(function);
+
+      function->data.function.instructions[function->data.function.instruction_count] = *if_label; 
+      function->data.function.instruction_count++;
+
+      //TODO: Add else statement support
     }
 
     if (block_item->type == AST_STATEMENT_RETURN) {
