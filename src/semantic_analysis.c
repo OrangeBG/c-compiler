@@ -58,6 +58,11 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
 
       stmt_or_decl->data.declaration.identifier = new_identifier;
     }
+    else if (stmt_or_decl->type == AST_STATEMENT_IF) {
+      semantic_resolve_expressison(stmt_or_decl->data.if_statement.condition_expression, &variable_table);
+      semantic_resolve_expressison(stmt_or_decl->data.if_statement.then_statement, &variable_table);
+      semantic_resolve_expressison(stmt_or_decl->data.if_statement.else_statement, &variable_table);
+    }
     else if (stmt_or_decl->type == AST_STATEMENT_RETURN) {
       semantic_resolve_expressison(stmt_or_decl->data.return_statement.expression, &variable_table);
     }

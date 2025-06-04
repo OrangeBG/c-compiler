@@ -69,7 +69,7 @@ void print_ast(AstNode *node, int whitespace) {
       }   
 
       print_whitespace(whitespace);
-      printf(")\n)");      
+      printf(")\n");      
       break;
     case AST_DECLARATION:
       print_whitespace(whitespace);
@@ -107,10 +107,12 @@ void print_ast(AstNode *node, int whitespace) {
       print_ast(node->data.if_statement.condition_expression, 0);
       printf(") Then( ");
       print_ast(node->data.if_statement.then_statement, 0);
+      printf(")");
 
       if (node->data.if_statement.else_statement != NULL) {
-        printf(") Else( ");
+        printf(" Else( ");
         print_ast(node->data.if_statement.else_statement, 0);
+        printf(")");
       }
       printf(")\n");
       break;
@@ -203,7 +205,7 @@ void print_ast(AstNode *node, int whitespace) {
         print_ast(node->data.assignement_expression.left_expression, 0);
         printf("), Right(");
         print_ast(node->data.assignement_expression.right_expression, 0);
-        printf(")\n");
+        printf("))\n");
         break;
   }    
 
