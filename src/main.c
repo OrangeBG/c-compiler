@@ -105,16 +105,17 @@ int main(int argc, const char *argv[]) {
     fclose(assembly_file);
   }
 
-  double total_benchmark_end = (double)clock();
+  if (print_debug) {
+    double total_benchmark_end = (double)clock();
 
-  printf("\n>> BENCHMARKS <<\n");
-  printf("Lexer    : %f seconds\n", benchmarks[0]);
-  printf("Parser   : %f seconds\n", benchmarks[1]);
-  printf("Semantic : %f seconds\n", benchmarks[2]);
-  printf("Int. Rep.: %f seconds\n", benchmarks[3]);
-  printf("Assembly : %f seconds\n", benchmarks[4]);
-  printf("Total Compile Time: %f seconds\n", ((double) (total_benchmark_end - total_benchmark_start)) / CLOCKS_PER_SEC);
-                                 
+    printf("\n>> BENCHMARKS <<\n");
+    printf("Lexer    : %f seconds\n", benchmarks[0]);
+    printf("Parser   : %f seconds\n", benchmarks[1]);
+    printf("Semantic : %f seconds\n", benchmarks[2]);
+    printf("Int. Rep.: %f seconds\n", benchmarks[3]);
+    printf("Assembly : %f seconds\n", benchmarks[4]);
+    printf("Total Compile Time: %f seconds\n", ((double) (total_benchmark_end - total_benchmark_start)) / CLOCKS_PER_SEC);
+  }             
   return 0;
 }
 

@@ -1,6 +1,10 @@
 # Bugs
 
+# Incomplete
+	- IR 'If' statement does not support else statements
+
 # Tech Debt
+	- IR is maintaining static ints to produce temp values/labels. Create a struct for these and have them passed into functions. Then remove any suffixes we are applying to labels. For example, if statements produce label names like '0.if'
 	- Parser print is ugly
 	- Implement memory arena to parser, ir and asm
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.

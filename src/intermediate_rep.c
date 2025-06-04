@@ -240,6 +240,84 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       return variable;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
+      if (ast_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONDITIONAL) {
+        IRNode *condition = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.condition, ir_function, temp_identifier_id, postfix_arena);
+
+        char *end_label_name = malloc(20);
+        snprintf(end_label_name, 10, "%d", temp_label++); 
+
+        char *false_label_name = malloc(20);
+        snprintf(false_label_name, 10, "%d", temp_label++); 
+
+        IRNode *false_jump = malloc(sizeof(IRNode));
+        false_jump->type = IR_INSTRUCTION_JUMP_IF_ZERO;
+        false_jump->data.instruction_jump_if_zero.condition = condition;
+        false_jump->data.instruction_jump_if_zero.target = false_label_name;
+
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_jump; 
+        ir_function->data.function.instruction_count++;
+        
+        IRNode *true_value = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.true_expression, ir_function, temp_identifier_id, postfix_arena);
+
+        IRNode *copy_instruction = malloc(sizeof(IRNode));
+        copy_instruction->type = IR_INSTRUCTION_COPY;
+        copy_instruction->data.instruction_copy.source = true_value;
+
+        IRNode *variable = malloc(sizeof(IRNode));
+        variable->type = IR_VALUE_VAR;
+        variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+
+        copy_instruction->data.instruction_copy.destination = variable;      
+
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_instruction; 
+        ir_function->data.function.instruction_count++;
+        
+        IRNode *end_jump = malloc(sizeof(IRNode));
+        end_jump->type = IR_INSTRUCTION_JUMP;
+        end_jump->data.instruction_jump.target = end_label_name;
+
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *end_jump;
+        ir_function->data.function.instruction_count++;
+
+        IRNode *false_label = malloc(sizeof(IRNode));
+        false_label->type = IR_INSTRUCTION_LABEL;
+        false_label->data.instruction_label.identifier = false_label_name;
+
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_label;
+        ir_function->data.function.instruction_count++;    
+      
+        IRNode *false_value = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.false_expression, ir_function, temp_identifier_id, postfix_arena);
+
+        IRNode *copy_false_instruction = malloc(sizeof(IRNode));
+        copy_false_instruction->type = IR_INSTRUCTION_COPY;
+        copy_false_instruction->data.instruction_copy.source = false_value;
+        copy_false_instruction->data.instruction_copy.destination = variable;      
+
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_false_instruction; 
+        ir_function->data.function.instruction_count++;
+        
+        IRNode *end_label = malloc(sizeof(IRNode));
+        end_label->type = IR_INSTRUCTION_LABEL;
+        end_label->data.instruction_label.identifier = end_label_name;
+        
+        check_ir_function_instruction_size(ir_function);
+
+        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *end_label;
+        ir_function->data.function.instruction_count++;
+
+        return NULL;
+      }
+        
       IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, temp_identifier_id, postfix_arena);
 
       IRNode *copy_instruction = malloc(sizeof(IRNode));
@@ -259,6 +337,70 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
       
       return result;
     }
+    // case AST_EXPRESSION_CONDITIONAL: {
+    //     IRNode *condition = ir_value(ast_expression->data.conditional_expression.condition, ir_function, temp_identifier_id, postfix_arena);
+        
+    //     char *end_label_name = malloc(20);
+    //     snprintf(end_label_name, 10, "%d", temp_label++); 
+
+    //     char *false_label_name = malloc(20);
+    //     snprintf(false_label_name, 10, "%d", temp_label++); 
+
+    //     IRNode *false_jump = malloc(sizeof(IRNode));
+    //     false_jump->type = IR_INSTRUCTION_JUMP_IF_ZERO;
+    //     false_jump->data.instruction_jump_if_zero.condition = condition;
+    //     false_jump->data.instruction_jump_if_zero.target = false_label_name;
+
+    //     check_ir_function_instruction_size(ir_function);
+
+    //     ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_jump; 
+    //     ir_function->data.function.instruction_count++;
+
+    //     IRNode *true_value = ir_value(ast_expression->data.conditional_expression.true_expression, ir_function, temp_identifier_id, postfix_arena);
+
+    //     check_ir_function_instruction_size(ir_function);
+
+    //     ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *true_value;
+    //     ir_function->data.function.instruction_count++;
+
+    //     IRNode *end_jump = malloc(sizeof(IRNode));
+    //     end_jump->type = IR_INSTRUCTION_JUMP;
+    //     end_jump->data.instruction_jump.target = end_label_name;
+
+    //     check_ir_function_instruction_size(ir_function);
+
+    //     ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *end_jump;
+    //     ir_function->data.function.instruction_count++;
+
+    //     IRNode *false_label = malloc(sizeof(IRNode));
+    //     false_label->type = IR_INSTRUCTION_LABEL;
+    //     false_label->data.instruction_label.identifier = false_label_name;
+
+    //     check_ir_function_instruction_size(ir_function);
+
+    //     ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_label;
+    //     ir_function->data.function.instruction_count++;
+
+    //     IRNode *false_value = ir_value(ast_expression->data.conditional_expression.false_expression, ir_function, temp_identifier_id, postfix_arena);
+
+    //     check_ir_function_instruction_size(ir_function);
+
+    //     ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_value;
+    //     ir_function->data.function.instruction_count++;
+
+    //     IRNode *end_label = malloc(sizeof(IRNode));
+    //     end_label->type = IR_INSTRUCTION_LABEL;
+    //     end_label->data.instruction_label.identifier = end_label_name;
+        
+    //     check_ir_function_instruction_size(ir_function);
+
+    //     ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *end_label;
+    //     ir_function->data.function.instruction_count++;
+
+    //     //TODO: I don't think returning this is correct
+    //     return condition;
+    //   }
+    //   break;
     case AST_EXPRESSION_CONSTANT: {
       IRNode *constant = malloc(sizeof(IRNode));
       constant->type = IR_VALUE_CONSTANT;
