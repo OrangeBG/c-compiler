@@ -6,11 +6,12 @@
 
 #define INSTRUCTION_CAPACITY 8
 
-void    check_ir_function_instruction_size(IRNode *asm_function);
-void    ir_add_postfix_operations(IRNode *asm_function, Arena *ast_postfix_arena);
+void    check_ir_function_instruction_size(IRNode *ir_function);
+void    ir_add_postfix_operations(IRNode *ir_function, Arena *ast_postfix_arena);
 IRNode* ir_function(AstNode *ast_function);
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena); 
 void    ir_emit_return(AstNode *block_item, IRNode *function, Arena *postfix_arena);
+void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -160,11 +161,8 @@ IRNode* ir_function(AstNode *ast_function) {
       jump_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
       jump_if_zero->data.instruction_jump_if_zero.condition = condition;
       jump_if_zero->data.instruction_jump_if_zero.target = label_name;
-      
-      check_ir_function_instruction_size(function);
-
-      function->data.function.instructions[function->data.function.instruction_count] = *jump_if_zero; 
-      function->data.function.instruction_count++;
+     
+      ir_add_instruction_to_function(function, jump_if_zero);
 
       //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
       if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
@@ -177,10 +175,7 @@ IRNode* ir_function(AstNode *ast_function) {
       if_label->type = IR_INSTRUCTION_LABEL;
       if_label->data.instruction_label.identifier = label_name;
 
-      check_ir_function_instruction_size(function);
-
-      function->data.function.instructions[function->data.function.instruction_count] = *if_label; 
-      function->data.function.instruction_count++;
+      ir_add_instruction_to_function(function, if_label);
 
       //TODO: Add else statement support
       continue;
@@ -206,25 +201,19 @@ IRNode* ir_function(AstNode *ast_function) {
   return_instruction->type = IR_INSTRUCTION_RET;
   return_instruction->data.instruction_ret.value = zero_value;
 
-  check_ir_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *return_instruction;
-  function->data.function.instruction_count++;
+  ir_add_instruction_to_function(function, return_instruction);
 
   return function;
 }
 void ir_emit_return(AstNode *block_item, IRNode *function, Arena *postfix_arena) {
-    IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0, postfix_arena);
-    IRNode *return_instruction = malloc(sizeof(IRNode));
+  IRNode *value = ir_value(block_item->data.return_statement.expression, function, 0, postfix_arena);
+  IRNode *return_instruction = malloc(sizeof(IRNode));
 
-    return_instruction->type = IR_INSTRUCTION_RET;
-    return_instruction->data.instruction_ret.value = value;
+  return_instruction->type = IR_INSTRUCTION_RET;
+  return_instruction->data.instruction_ret.value = value;
 
-    check_ir_function_instruction_size(function);
-
-    function->data.function.instructions[function->data.function.instruction_count] = *return_instruction; 
-    function->data.function.instruction_count++;
-    ir_add_postfix_operations(function, postfix_arena);
+  ir_add_instruction_to_function(function, return_instruction);
+  ir_add_postfix_operations(function, postfix_arena);
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifier_id, Arena *postfix_arena) {
@@ -254,10 +243,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         false_jump->data.instruction_jump_if_zero.condition = condition;
         false_jump->data.instruction_jump_if_zero.target = false_label_name;
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_jump; 
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, false_jump);
         
         IRNode *true_value = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.true_expression, ir_function, temp_identifier_id, postfix_arena);
 
@@ -271,28 +257,19 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
         copy_instruction->data.instruction_copy.destination = variable;      
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_instruction; 
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, copy_instruction);
         
         IRNode *end_jump = malloc(sizeof(IRNode));
         end_jump->type = IR_INSTRUCTION_JUMP;
         end_jump->data.instruction_jump.target = end_label_name;
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *end_jump;
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, end_jump);
 
         IRNode *false_label = malloc(sizeof(IRNode));
         false_label->type = IR_INSTRUCTION_LABEL;
         false_label->data.instruction_label.identifier = false_label_name;
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *false_label;
-        ir_function->data.function.instruction_count++;    
+        ir_add_instruction_to_function(ir_function, false_label);
       
         IRNode *false_value = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.false_expression, ir_function, temp_identifier_id, postfix_arena);
 
@@ -301,19 +278,13 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         copy_false_instruction->data.instruction_copy.source = false_value;
         copy_false_instruction->data.instruction_copy.destination = variable;      
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_false_instruction; 
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, copy_false_instruction);
         
         IRNode *end_label = malloc(sizeof(IRNode));
         end_label->type = IR_INSTRUCTION_LABEL;
-        end_label->data.instruction_label.identifier = end_label_name;
-        
-        check_ir_function_instruction_size(ir_function);
+        end_label->data.instruction_label.identifier = end_label_name;     
 
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *end_label;
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, end_label);
 
         return NULL;
       }
@@ -330,10 +301,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
 
       copy_instruction->data.instruction_copy.destination = variable;      
 
-      check_ir_function_instruction_size(ir_function);
-
-      ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_instruction; 
-      ir_function->data.function.instruction_count++;
+      ir_add_instruction_to_function(ir_function, copy_instruction);
       
       return result;
     }
@@ -450,10 +418,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         unary_instruction->data.unary.source = source;
         unary_instruction->data.unary.destination = destination;
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *unary_instruction; 
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, unary_instruction);
 
         return destination;
       }
@@ -486,10 +451,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
             jmp_instruction_v1->data.instruction_jump_if_not_zero.target = label_name;
           }
 
-          check_ir_function_instruction_size(ir_function);
-
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *jmp_instruction_v1; 
-          ir_function->data.function.instruction_count++;
+          ir_add_instruction_to_function(ir_function, jmp_instruction_v1);
 
           IRNode *jmp_instruction_v2 = malloc(sizeof(IRNode));
 
@@ -503,10 +465,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
             jmp_instruction_v2->data.instruction_jump_if_not_zero.target = label_name;
           }
 
-          check_ir_function_instruction_size(ir_function);
-
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *jmp_instruction_v2; 
-          ir_function->data.function.instruction_count++;
+          ir_add_instruction_to_function(ir_function, jmp_instruction_v2);
 
           IRNode *result_1 = malloc(sizeof(IRNode));
           result_1->type = IR_VALUE_CONSTANT;
@@ -515,30 +474,21 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
           IRNode *copy_1 = malloc(sizeof(IRNode));
           copy_1->type = IR_INSTRUCTION_COPY;
           copy_1->data.instruction_copy.destination = destination;
-          copy_1->data.instruction_copy.source = result_1;
-          
-          check_ir_function_instruction_size(ir_function);
+          copy_1->data.instruction_copy.source = result_1;        
 
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_1; 
-          ir_function->data.function.instruction_count++;
+          ir_add_instruction_to_function(ir_function, copy_1);
 
           IRNode *jmp_instruction = malloc(sizeof(IRNode));
           jmp_instruction->type = IR_INSTRUCTION_JUMP;
           jmp_instruction->data.instruction_jump.target = "end";
 
-          check_ir_function_instruction_size(ir_function);
-
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *jmp_instruction; 
-          ir_function->data.function.instruction_count++;
-
+          ir_add_instruction_to_function(ir_function, jmp_instruction);
+          
           IRNode *label = malloc(sizeof(IRNode));
           label->type = IR_INSTRUCTION_LABEL;
           label->data.instruction_label.identifier = label_name;
 
-          check_ir_function_instruction_size(ir_function);
-
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *label; 
-          ir_function->data.function.instruction_count++;
+          ir_add_instruction_to_function(ir_function, label);
 
           IRNode *result_0 = malloc(sizeof(IRNode));
           result_0->type = IR_VALUE_CONSTANT;
@@ -547,21 +497,15 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
           IRNode *copy_2 = malloc(sizeof(IRNode));
           copy_2->type = IR_INSTRUCTION_COPY;
           copy_2->data.instruction_copy.destination = destination;
-          copy_2->data.instruction_copy.source = result_0;
-          
-          check_ir_function_instruction_size(ir_function);
+          copy_2->data.instruction_copy.source = result_0;        
 
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *copy_2; 
-          ir_function->data.function.instruction_count++;
+          ir_add_instruction_to_function(ir_function, copy_2);
 
           IRNode *label_end = malloc(sizeof(IRNode));
           label_end->type = IR_INSTRUCTION_LABEL;
           label_end->data.instruction_label.identifier = "end";
 
-          check_ir_function_instruction_size(ir_function);
-
-          ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *label_end; 
-          ir_function->data.function.instruction_count++;
+          ir_add_instruction_to_function(ir_function, label_end);
 
           return destination;
         }
@@ -595,10 +539,7 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
         binary_instruction->data.instruction_binary.source_2 = source_2;
         binary_instruction->data.instruction_binary.destination = destination;
 
-        check_ir_function_instruction_size(ir_function);
-
-        ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *binary_instruction; 
-        ir_function->data.function.instruction_count++;
+        ir_add_instruction_to_function(ir_function, binary_instruction);
 
         return destination;
       }
@@ -611,17 +552,17 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, int temp_identifi
   exit(1);    
 }
 
-void check_ir_function_instruction_size(IRNode *asm_function) {
-  int current_count = asm_function->data.function.instruction_count;
-  int current_capacity = asm_function->data.function.instruction_capacity;
+void check_ir_function_instruction_size(IRNode *ir_function) {
+  int current_count = ir_function->data.function.instruction_count;
+  int current_capacity = ir_function->data.function.instruction_capacity;
 
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * INSTRUCTION_CAPACITY;
 
-    IRNode *instructions = realloc(asm_function->data.function.instructions, new_size * sizeof(IRNode));
+    IRNode *instructions = realloc(ir_function->data.function.instructions, new_size * sizeof(IRNode));
 
-    asm_function->data.function.instruction_capacity = new_size;
-    asm_function->data.function.instructions = instructions;
+    ir_function->data.function.instruction_capacity = new_size;
+    ir_function->data.function.instructions = instructions;
   } 
 } 
 
@@ -634,4 +575,10 @@ void ir_add_postfix_operations(IRNode *ir_function, Arena *ast_postfix_arena) {
     AstNode *node = (AstNode*)((char *)ast_postfix_arena->allocation);
     ir_value(node, ir_function, 0, ast_postfix_arena);    
   }
+}
+
+void ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction) {
+  check_ir_function_instruction_size(ir_function);
+  ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *ir_instruction; 
+  ir_function->data.function.instruction_count++;
 }
