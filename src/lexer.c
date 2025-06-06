@@ -164,7 +164,7 @@ void load_tokens(Lexer *lexer, char *file) {
         if (peek_next(lexer, file, '*')) {
           lexer->current_index += 2;
 
-          while (file[lexer->current_index] != '*' && !peek_next(lexer, file, '/') && file[lexer->current_index] != '\0') {
+          while ((file[lexer->current_index] != '*' || (file[lexer->current_index] == '*' && !peek_next(lexer, file, '/'))) && file[lexer->current_index] != '\0') {
             if (file[lexer->current_index] == '\n') {
               lexer->line++;
             }
