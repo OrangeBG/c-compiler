@@ -466,10 +466,11 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
     }
     
     if (next_token == TOKEN_EQUAL) {
-      //right-associative assignment      
-      parser-> current_token_index++;
+      //right-associative assignment
+      ast_expect(parser, TOKEN_EQUAL);
 
-      AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
+      // AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
+      AstNode *right = ast_expression(parser, get_precedence(peek_next_token(parser)));
       AstNode *assignment_expression= malloc(sizeof(AstNode));
 
       assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
@@ -503,7 +504,7 @@ AstNode* ast_expression(Parser *parser, int min_precedence) {
 
       parser->current_token_index++;
 
-      AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
+      AstNode *right = ast_expression(parser, get_precedence(next_token));
 
       AstNode *binary = malloc(sizeof(AstNode));
       binary->type = AST_EXPRESSION_BINARY;
@@ -757,8 +758,9 @@ int get_precedence(TokenType token_type) {
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:
       return 2;
     default: {
-      fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence\n", TokenTypeStr[token_type]);
-      exit(1);
+      // fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence\n", TokenTypeStr[token_type]);
+      // exit(1);
+      return -1;
     }
   }
 }
