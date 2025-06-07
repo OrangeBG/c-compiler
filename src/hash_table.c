@@ -60,16 +60,17 @@ void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
     fprintf(stderr, "ERROR - Hash Table: Added to table with existing '%s' key\n", entry->key);
     exit(1);
   }
-    
-  uint32_t hash = hash_key(entry->key);
 
   if (table->count + 1 > table->capacity * HASH_TABLE_MAX_LOAD) {
     int new_capacity = table->capacity < HASH_TABLE_INITIAL_CAPACITY ? HASH_TABLE_INITIAL_CAPACITY : table->capacity * 2;
-    hash_table_expand(table, new_capacity);    
+    hash_table_expand(table, new_capacity);        
+
+    //find and assign the entry from the new table
+    found_entry = hash_table_get_entry(table, entry->key);
   }
 
-  uint32_t index = hash % table->capacity;
-  table->entries[index] = *entry;  
+  found_entry->key = entry->key;
+  found_entry->value = entry->value;    
   table->count++;
 }
 
@@ -102,7 +103,7 @@ void hash_table_expand(HashTable *table, int new_capacity) {
 }
 
 HashTableEntry* hash_table_get_entry(HashTable *table, char *key) {
-  if (table->count == 0) {
+  if (table->capacity == 0) {
     return NULL;
   }
 
