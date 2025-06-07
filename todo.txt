@@ -1,5 +1,4 @@
 # Bugs
-	- Bug when attempting to expand the hash table
 
 # Incomplete
 	- IR 'If' statement does not support else statements
