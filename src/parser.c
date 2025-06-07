@@ -199,14 +199,23 @@ void print_ast(AstNode *node, int whitespace) {
         print_whitespace(whitespace);
         printf("Variable(%s)", node->data.variable_expression.identifier);
         break;
-      case AST_EXPRESSION_ASSIGNMENT:
+      case AST_EXPRESSION_ASSIGNMENT: {
+        int indentation = whitespace += 1;
         print_whitespace(whitespace);
-        printf("Assignment(Left(");
-        print_ast(node->data.assignement_expression.left_expression, 0);
-        printf("), Right(");
-        print_ast(node->data.assignement_expression.right_expression, 0);
-        printf("))\n");
+        printf("Assignment(\n");
+        print_whitespace(indentation);
+        printf("Left(\n");
+        print_ast(node->data.assignement_expression.left_expression, ++indentation);
+        printf(")\n");
+
+        print_whitespace(indentation);
+        printf("Right(\n");
+        print_ast(node->data.assignement_expression.left_expression, ++indentation);
+        printf(")\n");
+        print_whitespace(indentation);
+        printf(")\n");
         break;
+      }
   }    
 
 }
