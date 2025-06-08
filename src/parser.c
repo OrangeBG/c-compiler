@@ -210,7 +210,7 @@ void print_ast(AstNode *node, int whitespace) {
 
         print_whitespace(indentation);
         printf("Right(\n");
-        print_ast(node->data.assignement_expression.left_expression, ++indentation);
+        print_ast(node->data.assignement_expression.right_expression, ++indentation);
         printf(")\n");
         print_whitespace(indentation);
         printf(")\n");
