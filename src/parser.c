@@ -147,7 +147,10 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_EXPRESSION_CONDITIONAL:
       print_whitespace(whitespace);
 
-      printf("Conditional(Condition(");
+      printf("Conditional(\n");
+      int indent = whitespace++;
+      print_whitespace(indent);
+      printf("Condition(\n");
       print_ast(node->data.conditional_expression.condition, 0);
       printf(") True Exp(");
       print_ast(node->data.conditional_expression.true_expression, 0);
