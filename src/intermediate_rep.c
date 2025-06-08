@@ -181,6 +181,8 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
       //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
       if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
         ir_emit_return(block_item->data.if_statement.then_statement, function, emit_status);
+      } else if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_NULL) {
+        continue;
       } else {
         ir_value(block_item->data.if_statement.then_statement, function, emit_status);
       }

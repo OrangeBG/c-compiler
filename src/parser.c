@@ -408,8 +408,6 @@ AstNode *ast_statement(Parser *parser) {
 
     AstNode *statement = ast_statement(parser);
 
-    ast_expect(parser, TOKEN_SEMICOLON);
-
     AstNode *if_statement = malloc(sizeof(AstNode));
     if_statement->type = AST_STATEMENT_IF;
     if_statement->data.if_statement.condition_expression = condition_expression;
