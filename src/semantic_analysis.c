@@ -82,7 +82,7 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
 void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table) {
   if (expression->type == AST_EXPRESSION_ASSIGNMENT) {
     if (expression->data.assignement_expression.left_expression->type != AST_EXPRESSION_VARIABLE) {
-      fprintf(stderr, "Invalid LValue for assignment expression");
+      fprintf(stderr, "ERROR - Semantic Analysis: Invalid LValue for assignment expression\n");
       exit(1);
     }
 
