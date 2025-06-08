@@ -426,6 +426,7 @@ AstNode *ast_statement(Parser *parser) {
   }
 
   AstNode *expression = ast_expression(parser, 0);  
+  ast_expect(parser, TOKEN_SEMICOLON);
   return expression;
 }
 
