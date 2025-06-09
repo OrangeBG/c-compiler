@@ -76,9 +76,6 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
       semantic_resolve_expressison(stmt_or_decl->data.assignement_expression.left_expression, &variable_table);
       semantic_resolve_expressison(stmt_or_decl->data.assignement_expression.right_expression, &variable_table);
     }
-    else if (stmt_or_decl->type == AST_EXPRESSION_UNARY) {
-      semantic_resolve_expressison(stmt_or_decl->data.unary_expression.expression, &variable_table);
-    }
   }
 }
 
@@ -112,7 +109,8 @@ void semantic_resolve_expressison(AstNode *expression, HashTable *variable_table
     } 
 
     expression->data.variable_expression.identifier = entry->value.string;
-  } else if (expression->type == AST_EXPRESSION_UNARY) {
+  }
+  else if (expression->type == AST_EXPRESSION_UNARY) {
     semantic_resolve_expressison(expression->data.unary_expression.expression, variable_table);
   }
 }
