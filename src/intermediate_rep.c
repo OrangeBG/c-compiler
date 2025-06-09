@@ -306,8 +306,16 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
 
       IRNode *variable = malloc(sizeof(IRNode));
       variable->type = IR_VALUE_VAR;
-      variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
 
+      if (ast_expression->data.assignement_expression.left_expression->type == AST_EXPRESSION_VARIABLE) {
+        variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+      } else if (ast_expression->data.assignement_expression.left_expression->type == AST_EXPRESSION_UNARY) {
+        variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.unary_expression.expression->data.variable_expression.identifier;
+      } else {
+        fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Expression Assignment\n");
+        exit(1);
+      }
+      
       copy_instruction->data.instruction_copy.destination = variable;      
 
       ir_add_instruction_to_function(ir_function, copy_instruction);
@@ -367,7 +375,18 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
 
       IRNode *variable = malloc(sizeof(IRNode));
       variable->type = IR_VALUE_VAR;
-      variable->data.value_var.identifier = ast_expression->data.increment_decrement_expression.expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
+
+      AstNode *postfix_expression = ast_expression->data.increment_decrement_expression.expression->data.assignement_expression.left_expression;
+
+      if (postfix_expression->type == AST_EXPRESSION_VARIABLE) {
+        variable->data.value_var.identifier = postfix_expression->data.variable_expression.identifier;
+      } else if (postfix_expression->type == AST_EXPRESSION_UNARY) {
+        variable->data.value_var.identifier = postfix_expression->data.unary_expression.expression->data.variable_expression.identifier;
+      } else {
+        fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Postfix expression\n");
+        exit(1);
+      }
+      
       return variable;
     }
     case AST_EXPRESSION_PREFIX_INCREMENT:
