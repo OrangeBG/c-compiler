@@ -169,32 +169,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
     }
 
     if (block_item->type == AST_STATEMENT_IF) {
-      IRNode *condition = ir_value(block_item->data.if_statement.condition_expression, function, emit_status);
-      char *label_name = ir_create_temp_label(emit_status);
-
-      IRNode *jump_if_zero = malloc(sizeof(IRNode));
-      jump_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
-      jump_if_zero->data.instruction_jump_if_zero.condition = condition;
-      jump_if_zero->data.instruction_jump_if_zero.target = label_name;
-     
-      ir_add_instruction_to_function(function, jump_if_zero);
-
-      //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
-      if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
-        ir_emit_return(block_item->data.if_statement.then_statement, function, emit_status);
-      } else if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_NULL) {
-        continue;
-      } else {
-        ir_value(block_item->data.if_statement.then_statement, function, emit_status);
-      }
-
-      IRNode *if_label = malloc(sizeof(IRNode));
-      if_label->type = IR_INSTRUCTION_LABEL;
-      if_label->data.instruction_label.identifier = label_name;
-
-      ir_add_instruction_to_function(function, if_label);
-
-      //TODO: Add else statement support
+      ir_emit_if(block_item, function, emit_status);
       continue;
     }
 
@@ -250,6 +225,8 @@ void ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status
     ir_emit_return(block_item->data.if_statement.then_statement, function, emit_status);
   } else if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_NULL) {
     return;
+  } else if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_IF) {
+    ir_emit_if(block_item->data.if_statement.then_statement, function, emit_status);
   } else {
     ir_value(block_item->data.if_statement.then_statement, function, emit_status);
   }
