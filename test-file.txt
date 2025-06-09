@@ -1,7 +1,10 @@
-/* Postfix operators have higher precedence than prefix */
-
 int main(void) {
-    int a = 1;
-    int b = !a++;
-    return (a == 2 && b == 0);
+    int a = 0;
+    if ( (a = 1) )
+        if (a == 1)
+            a = 3;
+        else
+            a = 4;
+
+    return a;
 }
