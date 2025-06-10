@@ -661,21 +661,14 @@ AstNode* ast_factor(Parser *parser) {
       AstNode *prefix_expression = malloc(sizeof(AstNode));
 
       if (current_token(parser)->type == TOKEN_INCREMENT) {
+        ast_expect(parser, TOKEN_INCREMENT);
         prefix_expression->type = AST_EXPRESSION_PREFIX_INCREMENT;
       } else {
+        ast_expect(parser, TOKEN_DECREMENT);
         prefix_expression->type = AST_EXPRESSION_PREFIX_DECREMENT;
       }
 
-      //TODO: See if we can do this a little better. Need to adnvance and retract token index in order to validate and get identifier
-      parser-> current_token_index++;
-      ast_expect(parser, TOKEN_IDENTIFIER);
-      parser-> current_token_index--;
-
-      char *left_identifier = ast_identifier(parser);
-
-      AstNode *left = malloc(sizeof(AstNode));
-      left->type = AST_EXPRESSION_VARIABLE;
-      left->data.variable_expression.identifier = left_identifier;
+      AstNode *left = ast_expression(parser, 0);
       
       AstNode *prefix_assignment = malloc(sizeof(AstNode));
       prefix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
