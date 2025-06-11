@@ -180,8 +180,6 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
 
     ir_value(block_item, function, emit_status);
     ir_add_postfix_operations(function, emit_status);
-
-    arena_free(&emit_status->postfix_arena);
   }    
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
