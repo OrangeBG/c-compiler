@@ -316,6 +316,7 @@ AstNode* ast_block(Parser *parser) {
   ast_expect(parser, TOKEN_OPEN_BRACE);
 
   AstNode *block = malloc(sizeof(AstNode));
+  block->type = AST_BLOCK;
   block->data.block.block_count = 0;
   block->data.block.block_capacity = 0;
   block->data.block.block_items = NULL;
