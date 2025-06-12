@@ -63,13 +63,16 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
 
-      for (int i = 0; i < node->data.function.block_count; i++) {
-        print_ast(&node->data.function.blocks[i], ++whitespace);
-        printf("\n");
-      }   
+      print_ast(node->data.function.block, ++whitespace);
 
       print_whitespace(whitespace);
       printf(")\n");      
+      break;
+    case AST_BLOCK:
+      for (int i = 0; i < node->data.block.block_count; i++) {
+        print_ast(&node->data.block.block_items[i], ++whitespace);
+        printf("\n");
+      }   
       break;
     case AST_DECLARATION:
       print_whitespace(whitespace);
@@ -250,20 +253,20 @@ bool end_of_file(Parser *parser) {
 }
 
 void add_to_function_block(AstNode *function, AstNode *expr_or_stmt) {
-  int current_count = function->data.function.block_count;
-  int current_capacity = function->data.function.block_capacity;
+  int current_count = function->data.function.block->data.block.block_count;
+  int current_capacity = function->data.function.block->data.block.block_capacity;
 
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? BLOCK_STARTING_ALLOCATION : current_capacity * 2;
 
-    AstNode *blocks = realloc(function->data.function.blocks, new_size * sizeof(AstNode));
+    AstNode *blocks = realloc(function->data.function.block->data.block.block_items, new_size * sizeof(AstNode));
 
-    function->data.function.block_capacity = new_size;
-    function->data.function.blocks = blocks;
+    function->data.function.block->data.block.block_capacity = new_size;
+    function->data.function.block->data.block.block_items = blocks;
   } 
 
-  function->data.function.blocks[function->data.function.block_count] = *expr_or_stmt;
-  function->data.function.block_count++;
+  function->data.function.block->data.block.block_items[function->data.function.block->data.block.block_count] = *expr_or_stmt;
+  function->data.function.block->data.block.block_count++;
 }
 
 void ast_expect(Parser *parser, TokenType expected_type) {
@@ -305,9 +308,11 @@ AstNode* ast_function(Parser *parser) {
   AstNode *function = malloc(sizeof(AstNode)); 
   function->type = AST_FUNCTION;
   function->data.function.name = id_name;
-  function->data.function.block_count = 0;
-  function->data.function.block_capacity = 0;
-  function->data.function.blocks = NULL;
+
+  function->data.function.block = malloc(sizeof(AstNode));
+  function->data.function.block->data.block.block_count = 0;
+  function->data.function.block->data.block.block_capacity = 0;
+  function->data.function.block->data.block.block_items = NULL;
 
   while(true) {
     if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {

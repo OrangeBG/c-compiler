@@ -146,10 +146,10 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
 
   emit_status->postfix_arena = postfix_arena;
 
-  for (int i = 0; i < ast_function->data.function.block_count; i++) {
+  for (int i = 0; i < ast_function->data.function.block->data.block.block_count; i++) {
     arena_reset(&emit_status->postfix_arena);
     
-    AstNode *block_item = &ast_function->data.function.blocks[i];
+    AstNode *block_item = &ast_function->data.function.block->data.block.block_items[i];
 
     if (block_item->type == AST_DECLARATION) {
       if (!block_item->data.declaration.has_expression) {

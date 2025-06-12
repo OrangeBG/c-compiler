@@ -24,8 +24,8 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
   //TODO: Will need to increment this when blocks are added
   int var_suffix = 0;
 
-  for (int i = 0; i < function->data.function.block_count; i++) {   
-    AstNode *stmt_or_decl = &function->data.function.blocks[i];
+  for (int i = 0; i < function->data.function.block->data.block.block_count; i++) {   
+    AstNode *stmt_or_decl = &function->data.function.block->data.block.block_items[i];
     
     if (stmt_or_decl->type == AST_DECLARATION) {        
       char* identifier = stmt_or_decl->data.declaration.identifier;
