@@ -1,10 +1,14 @@
 int main(void) {
-    int a = 2;
-    int b;
+    int x = 1;
+
     {
-        a = -4;
-        int a = 7;
-        b = a + 1;
+        int x = 2;
+        if (x > 1) {
+            x = 3;
+            int x = 4;
+        }
+
+        return x;
     }
-    return b == 8 && a == -4;
+    return x;
 }

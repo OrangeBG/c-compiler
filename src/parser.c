@@ -71,7 +71,11 @@ void print_ast(AstNode *node, int whitespace) {
       break;
     case AST_BLOCK:
       for (int i = 0; i < node->data.block.block_count; i++) {
+        print_whitespace(whitespace);
+        printf("START BLOCK\n");
         print_ast(&node->data.block.block_items[i], ++whitespace);
+        print_whitespace(whitespace);        
+        printf("END BLOCK\n");
         printf("\n");
       }   
       break;
