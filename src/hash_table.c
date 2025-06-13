@@ -155,7 +155,7 @@ HashTable* hash_table_clone(HashTable *table) {
   
   HashTableEntry *entries_copy = malloc(sizeof(HashTableEntry) * table->capacity);
 
-  memcpy(&entries_copy, table->entries, sizeof(HashTableEntry) * table->capacity);
+  memcpy(entries_copy, table->entries, sizeof(HashTableEntry));
 
   table_copy->capacity = table->capacity;
   table_copy->count = table->count;
