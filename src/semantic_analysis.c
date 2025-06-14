@@ -40,16 +40,19 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
 
       HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
       new_variable_entry->key = identifier;
-      new_variable_entry->value.type = HASH_STRING;
+      new_variable_entry->value.type = HASH_INT;
 
-      size_t var_length = strlen(identifier);
+      char converted_identifier[256];
 
-      //TODO: Find a better way to do this rather than '+5'
-      char *new_identifier = malloc(var_length + 5);
-      strcpy(new_identifier, identifier);
+      HashTableEntry *parent_entry = hash_table_get_entry(parent_variable_table, identifier);
 
-      snprintf(new_identifier + var_length, 100 - var_length, ".0");
-      new_variable_entry->value.string = new_identifier;
+      if (parent_entry != NULL && parent_entry->key != NULL) {
+        new_variable_entry->value.integer = parent_entry->value.integer + 1;
+        snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", identifier, parent_entry->value.integer + 1);
+      } else {  
+        new_variable_entry->value.integer = 0;
+        snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", identifier, 0);
+      }    
 
       hash_table_add_entry(variable_table, new_variable_entry);
 
@@ -57,7 +60,7 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
         semantic_variable_resolve_expression(stmt_or_decl->data.declaration.expression, variable_table);
       }
 
-      stmt_or_decl->data.declaration.identifier = new_identifier;
+      stmt_or_decl->data.declaration.identifier = converted_identifier;
     }
     else if (stmt_or_decl->type == AST_STATEMENT_IF) {
       semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.condition_expression, variable_table);
