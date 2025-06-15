@@ -43,6 +43,7 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
       new_variable_entry->value.type = HASH_INT;
 
       char converted_identifier[256];
+      //char *converted_identifier = malloc(sizeof(char));
 
       HashTableEntry *parent_entry = hash_table_get_entry(parent_variable_table, identifier);
 
@@ -113,8 +114,10 @@ void semantic_variable_resolve_expression(AstNode *expression, HashTable *variab
 
       return;
     } 
-
-    expression->data.variable_expression.identifier = entry->value.string;
+    
+    char *converted_identifier = malloc(256);
+    snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", entry->key, entry->value.integer);
+    expression->data.variable_expression.identifier = converted_identifier;
   }
   else if (expression->type == AST_EXPRESSION_UNARY) {
     semantic_variable_resolve_expression(expression->data.unary_expression.expression, variable_table);
