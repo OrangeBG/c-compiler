@@ -144,3 +144,22 @@ HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacit
     index = (index + 1) % capacity;
   }
 }
+
+HashTable* hash_table_clone(HashTable *table) {
+  HashTable *table_copy = malloc(sizeof(HashTable));
+
+  if (table->count == 0) {
+      hash_table_init(table_copy);
+      return table_copy;
+  }
+  
+  HashTableEntry *entries_copy = malloc(sizeof(HashTableEntry) * table->capacity);
+
+  memcpy(entries_copy, table->entries, sizeof(HashTableEntry) * table->capacity);
+
+  table_copy->capacity = table->capacity;
+  table_copy->count = table->count;
+  table_copy->entries = entries_copy;
+  
+  return table_copy;
+}

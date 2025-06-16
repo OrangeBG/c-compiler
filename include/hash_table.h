@@ -31,5 +31,6 @@ void hash_table_add_entry(HashTable *table, HashTableEntry *entry);
 void hash_table_delete_entry(HashTable *table, char *key); 
 void hash_table_print(HashTable *table);
 HashTableEntry* hash_table_get_entry(HashTable *table, char *key); 
+HashTable*      hash_table_clone(HashTable *table);
 
 #endif

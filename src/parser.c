@@ -17,6 +17,7 @@ typedef struct Parser {
  
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
+AstNode*   ast_block(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
 void       ast_declaration(Parser *parser, AstNode *function);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
@@ -27,7 +28,7 @@ TokenType  peek_next_token(Parser *parser);
 char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
-void       add_to_function_block(AstNode *function, AstNode *expr_or_stmt);
+void       add_to_block(AstNode *function, AstNode *expr_or_stmt);
 bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
@@ -63,13 +64,20 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
 
-      for (int i = 0; i < node->data.function.block_count; i++) {
-        print_ast(&node->data.function.blocks[i], ++whitespace);
-        printf("\n");
-      }   
+      print_ast(node->data.function.block, ++whitespace);
 
       print_whitespace(whitespace);
       printf(")\n");      
+      break;
+    case AST_BLOCK:
+      print_whitespace(whitespace);
+      printf("START BLOCK\n");
+      for (int i = 0; i < node->data.block.block_count; i++) {
+        print_ast(&node->data.block.block_items[i], ++whitespace);
+        printf("\n");
+      }   
+      print_whitespace(whitespace);
+      printf("END BLOCK\n");
       break;
     case AST_DECLARATION:
       print_whitespace(whitespace);
@@ -249,21 +257,21 @@ bool end_of_file(Parser *parser) {
   return parser->tokens[parser->current_token_index].type == TOKEN_EOF;
 }
 
-void add_to_function_block(AstNode *function, AstNode *expr_or_stmt) {
-  int current_count = function->data.function.block_count;
-  int current_capacity = function->data.function.block_capacity;
+void add_to_block(AstNode *block, AstNode *expr_or_stmt) {
+  int current_count = block->data.block.block_count;
+  int current_capacity = block->data.block.block_capacity;
 
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? BLOCK_STARTING_ALLOCATION : current_capacity * 2;
 
-    AstNode *blocks = realloc(function->data.function.blocks, new_size * sizeof(AstNode));
+    AstNode *blocks = realloc(block->data.block.block_items, new_size * sizeof(AstNode));
 
-    function->data.function.block_capacity = new_size;
-    function->data.function.blocks = blocks;
+    block->data.block.block_capacity = new_size;
+    block->data.block.block_items = blocks;
   } 
 
-  function->data.function.blocks[function->data.function.block_count] = *expr_or_stmt;
-  function->data.function.block_count++;
+  block->data.block.block_items[block->data.block.block_count] = *expr_or_stmt;
+  block->data.block.block_count++;
 }
 
 void ast_expect(Parser *parser, TokenType expected_type) {
@@ -299,29 +307,40 @@ AstNode* ast_function(Parser *parser) {
   ast_expect(parser, TOKEN_OPEN_PAREN);
   ast_expect(parser, TOKEN_VOID);
   ast_expect(parser, TOKEN_CLOSE_PAREN);
-  ast_expect(parser, TOKEN_OPEN_BRACE);
-
 
   AstNode *function = malloc(sizeof(AstNode)); 
   function->type = AST_FUNCTION;
   function->data.function.name = id_name;
-  function->data.function.block_count = 0;
-  function->data.function.block_capacity = 0;
-  function->data.function.blocks = NULL;
+  function->data.function.block = ast_block(parser);
 
+  return function;
+}
+
+AstNode* ast_block(Parser *parser) {
+  ast_expect(parser, TOKEN_OPEN_BRACE);
+
+  AstNode *block = malloc(sizeof(AstNode));
+  block->type = AST_BLOCK;
+  block->data.block.block_count = 0;
+  block->data.block.block_capacity = 0;
+  block->data.block.block_items = NULL;
+
+  //TODO: While(true) loop seems dangerous if no close brace is supplied
   while(true) {
     if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
       ast_expect(parser, TOKEN_CLOSE_BRACE);
-      return function;
+      return block;
     }
 
     if (current_token(parser)->type == TOKEN_INT) {
-      ast_declaration(parser, function);
+      ast_declaration(parser, block);
     } else {
       AstNode *statement = ast_statement(parser);
-      add_to_function_block(function, statement);
+      add_to_block(block, statement);
     }
   }
+
+  ast_expect(parser, TOKEN_CLOSE_BRACE);
 }
 
 char* ast_identifier(Parser *parser) {
@@ -349,11 +368,10 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-void ast_declaration(Parser *parser, AstNode *function) {
+void ast_declaration(Parser *parser, AstNode *block) {
   ast_expect(parser, TOKEN_INT);
 
   char *identifier = ast_identifier(parser);
-  // ast_expect(parser, TOKEN_IDENTIFIER);
 
   AstNode *declaration = malloc(sizeof(AstNode));
   declaration->type = AST_DECLARATION;
@@ -369,7 +387,7 @@ void ast_declaration(Parser *parser, AstNode *function) {
   }
 
   ast_expect(parser, TOKEN_SEMICOLON);
-  add_to_function_block(function, declaration);
+  add_to_block(block, declaration);
 }
 
 AstNode *ast_statement(Parser *parser) { 
@@ -423,6 +441,11 @@ AstNode *ast_statement(Parser *parser) {
     if_statement->data.if_statement.else_statement = else_statement;
 
     return if_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
+    AstNode *block = ast_block(parser);
+    return block;
   }
 
   AstNode *expression = ast_expression(parser, 0);  

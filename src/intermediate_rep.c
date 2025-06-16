@@ -17,6 +17,7 @@ void    check_ir_function_instruction_size(IRNode *ir_function);
 void    ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status);
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status);
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emit_status); 
+void    ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status);
 void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
@@ -143,13 +144,29 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   //@WARNING: Hardcoded postfix arena size
   //TODO: May be better to initialize outside of this function and instead reset the allocated arena
   arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50);
-
   emit_status->postfix_arena = postfix_arena;
 
-  for (int i = 0; i < ast_function->data.function.block_count; i++) {
+  ir_block(ast_function->data.function.block, function, emit_status);
+
+  //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
+  IRNode *zero_value = malloc(sizeof(IRNode));
+  zero_value->type = IR_VALUE_CONSTANT;
+  zero_value->data.value_constant.value = 0;
+
+  IRNode *return_instruction = malloc(sizeof(IRNode));
+  return_instruction->type = IR_INSTRUCTION_RET;
+  return_instruction->data.instruction_ret.value = zero_value;
+
+  ir_add_instruction_to_function(function, return_instruction);
+
+  return function;
+}
+
+void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
+  for (int i = 0; i < block->data.block.block_count; i++) {
     arena_reset(&emit_status->postfix_arena);
     
-    AstNode *block_item = &ast_function->data.function.blocks[i];
+    AstNode *block_item = &block->data.block.block_items[i];
 
     if (block_item->type == AST_DECLARATION) {
       if (!block_item->data.declaration.has_expression) {
@@ -178,22 +195,14 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
       continue;
     }
 
+    if (block_item->type == AST_BLOCK) {
+      ir_block(block_item, function, emit_status);
+      continue;
+    }
+
     ir_value(block_item, function, emit_status);
     ir_add_postfix_operations(function, emit_status);
-  }    
-
-  //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
-  IRNode *zero_value = malloc(sizeof(IRNode));
-  zero_value->type = IR_VALUE_CONSTANT;
-  zero_value->data.value_constant.value = 0;
-
-  IRNode *return_instruction = malloc(sizeof(IRNode));
-  return_instruction->type = IR_INSTRUCTION_RET;
-  return_instruction->data.instruction_ret.value = zero_value;
-
-  ir_add_instruction_to_function(function, return_instruction);
-
-  return function;
+  }
 }
 
 void ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status) {
@@ -207,8 +216,8 @@ void ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_st
   ir_add_postfix_operations(function, emit_status);
 }
 
-void ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status) {
-  IRNode *condition = ir_value(block_item->data.if_statement.condition_expression, function, emit_status);
+void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
+  IRNode *condition = ir_value(if_node->data.if_statement.condition_expression, function, emit_status);
   char *label_name = ir_create_temp_label(emit_status);
 
   IRNode *jump_if_zero = malloc(sizeof(IRNode));
@@ -218,15 +227,17 @@ void ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status
 
   ir_add_instruction_to_function(function, jump_if_zero);
 
-  //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
-  if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
-    ir_emit_return(block_item->data.if_statement.then_statement, function, emit_status);
-  } else if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_NULL) {
+  // //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
+  if (if_node->data.if_statement.then_statement->type == AST_BLOCK) {
+    ir_block(if_node->data.if_statement.then_statement, function, emit_status);
+  } else if (if_node->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
+    ir_emit_return(if_node->data.if_statement.then_statement, function, emit_status);
+  } else if (if_node->data.if_statement.then_statement->type == AST_STATEMENT_NULL) {
     return;
-  } else if (block_item->data.if_statement.then_statement->type == AST_STATEMENT_IF) {
-    ir_emit_if(block_item->data.if_statement.then_statement, function, emit_status);
+  } else if (if_node->data.if_statement.then_statement->type == AST_STATEMENT_IF) {
+    ir_emit_if(if_node->data.if_statement.then_statement, function, emit_status);
   } else {
-    ir_value(block_item->data.if_statement.then_statement, function, emit_status);
+    ir_value(if_node->data.if_statement.then_statement, function, emit_status);
   }
 
   IRNode *if_label = malloc(sizeof(IRNode));

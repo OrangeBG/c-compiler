@@ -24,3 +24,4 @@
 	- Add generic dynamic array grow function
 	- Add generic malloc / error check function
 	- Add Typedef support: Refer to pg 108 - Sandler Nora.
+	- Add goto support: Refer to pg 128 - Sandler Nora.
