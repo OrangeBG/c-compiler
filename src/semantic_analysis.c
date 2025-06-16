@@ -33,10 +33,11 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
       
       HashTableEntry *existing_variable_entry = hash_table_get_entry(variable_table, identifier);
 
-      if (existing_variable_entry != NULL && existing_variable_entry->key != NULL) {
-        fprintf(stderr, "Duplicate '%s' variable found in block", identifier);
-        exit(1);
-      }
+      //@Bug: Broken - Need to fix.. Need to find a way to trave locally defined variables vs ones we cloned from the parent table
+      // if (existing_variable_entry != NULL && existing_variable_entry->key != NULL) {
+      //   fprintf(stderr, "Duplicate '%s' variable found in block", identifier);
+      //   exit(1);
+      // }
 
       HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
       new_variable_entry->key = identifier;
@@ -65,7 +66,15 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
     }
     else if (stmt_or_decl->type == AST_STATEMENT_IF) {
       semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.condition_expression, variable_table);
-      semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.then_statement, variable_table);
+
+      if (stmt_or_decl->data.if_statement.then_statement->type == AST_BLOCK) {
+        hash_table_print(variable_table);
+        HashTableEntry *entry = hash_table_get_entry(variable_table, "x");
+
+        semantic_variable_resolve_block(stmt_or_decl->data.if_statement.then_statement, variable_table);
+      } else {
+        semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.then_statement, variable_table);
+      }
 
       if (stmt_or_decl->data.if_statement.else_statement != NULL) {
         semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.else_statement, variable_table);

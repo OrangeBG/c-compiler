@@ -70,14 +70,14 @@ void print_ast(AstNode *node, int whitespace) {
       printf(")\n");      
       break;
     case AST_BLOCK:
+      print_whitespace(whitespace);
+      printf("START BLOCK\n");
       for (int i = 0; i < node->data.block.block_count; i++) {
-        print_whitespace(whitespace);
-        printf("START BLOCK\n");
         print_ast(&node->data.block.block_items[i], ++whitespace);
-        print_whitespace(whitespace);        
-        printf("END BLOCK\n");
         printf("\n");
       }   
+      print_whitespace(whitespace);
+      printf("END BLOCK\n");
       break;
     case AST_DECLARATION:
       print_whitespace(whitespace);
