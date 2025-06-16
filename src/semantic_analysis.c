@@ -93,6 +93,8 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
       semantic_variable_resolve_block(stmt_or_decl, variable_table); 
     }
   }
+
+  free(local_declared_variables.entries);
 }
 
 void semantic_variable_resolve_expression(AstNode *expression, HashTable *variable_table) {
