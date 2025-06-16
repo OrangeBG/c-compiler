@@ -13,8 +13,6 @@ void run_semantic_analysis(AstNode *ast_nodes) {
   semantic_variable_resolution(ast_nodes);
 }
 
-//Create a mapping for each defined variable into a unique name which will help keep track of variables in multi-scoped functions/blocks
-//TODO: Cleanup function
 void semantic_variable_resolution(AstNode *ast_nodes) {
   HashTable variable_table;
   hash_table_init(&variable_table); 
@@ -24,6 +22,8 @@ void semantic_variable_resolution(AstNode *ast_nodes) {
 
 void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_table) {
   HashTable *variable_table = hash_table_clone(parent_variable_table);
+  HashTable local_declared_variables;
+  hash_table_init(&local_declared_variables);
 
   for (int i = 0; i < block->data.block.block_count; i++) {   
     AstNode *stmt_or_decl = &block->data.block.block_items[i];
@@ -31,32 +31,32 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
     if (stmt_or_decl->type == AST_DECLARATION) {        
       char* identifier = stmt_or_decl->data.declaration.identifier;
       
-      HashTableEntry *existing_variable_entry = hash_table_get_entry(variable_table, identifier);
+      HashTableEntry *existing_variable = hash_table_get_entry(&local_declared_variables, identifier);
 
-      //@Bug: Broken - Need to fix.. Need to find a way to trave locally defined variables vs ones we cloned from the parent table
-      // if (existing_variable_entry != NULL && existing_variable_entry->key != NULL) {
-      //   fprintf(stderr, "Duplicate '%s' variable found in block", identifier);
-      //   exit(1);
-      // }
+      if (existing_variable != NULL && existing_variable->key != NULL) {
+        fprintf(stderr, "Duplicate '%s' variable found in block\n", identifier);
+        exit(1);
+      }
 
-      HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
-      new_variable_entry->key = identifier;
-      new_variable_entry->value.type = HASH_INT;
-
+      //TODO: Check if this is needed. When commented out, it looks like we're properly performing the variable resolution
       char converted_identifier[256];
-      //char *converted_identifier = malloc(sizeof(char));
 
       HashTableEntry *parent_entry = hash_table_get_entry(parent_variable_table, identifier);
 
       if (parent_entry != NULL && parent_entry->key != NULL) {
-        new_variable_entry->value.integer = parent_entry->value.integer + 1;
+        existing_variable = hash_table_get_entry(variable_table, identifier);
+        existing_variable->value.integer = parent_entry->value.integer + 1;
         snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", identifier, parent_entry->value.integer + 1);
+        hash_table_add_entry(&local_declared_variables, existing_variable);
       } else {  
+        HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
+        new_variable_entry->key = identifier;
+        new_variable_entry->value.type = HASH_INT;
         new_variable_entry->value.integer = 0;
         snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", identifier, 0);
+        hash_table_add_entry(variable_table, new_variable_entry);
+        hash_table_add_entry(&local_declared_variables, new_variable_entry);
       }    
-
-      hash_table_add_entry(variable_table, new_variable_entry);
 
       if (stmt_or_decl->data.declaration.has_expression == true) {
         semantic_variable_resolve_expression(stmt_or_decl->data.declaration.expression, variable_table);
