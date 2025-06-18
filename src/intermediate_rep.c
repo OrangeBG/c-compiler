@@ -20,6 +20,8 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
 void    ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status);
 void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_goto(AstNode *goto_node, IRNode *function); 
+void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
@@ -200,6 +202,16 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       continue;
     }
 
+    if (block_item->type == AST_STATEMENT_GOTO) {
+      ir_emit_goto(block_item, function);
+      continue;
+    }
+
+    if (block_item->type == AST_STATEMENT_GOTO_LABEL) {
+      ir_emit_goto_label(block_item, function);
+      continue;
+    }
+
     ir_value(block_item, function, emit_status);
     ir_add_postfix_operations(function, emit_status);
   }
@@ -228,16 +240,22 @@ void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
   ir_add_instruction_to_function(function, jump_if_zero);
 
   // //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
-  if (if_node->data.if_statement.then_statement->type == AST_BLOCK) {
-    ir_block(if_node->data.if_statement.then_statement, function, emit_status);
-  } else if (if_node->data.if_statement.then_statement->type == AST_STATEMENT_RETURN) {
-    ir_emit_return(if_node->data.if_statement.then_statement, function, emit_status);
-  } else if (if_node->data.if_statement.then_statement->type == AST_STATEMENT_NULL) {
+  AstNode *then_statement = if_node->data.if_statement.then_statement;
+
+  if (then_statement->type == AST_BLOCK) {
+    ir_block(then_statement, function, emit_status);
+  } else if (then_statement->type == AST_STATEMENT_RETURN) {
+    ir_emit_return(then_statement, function, emit_status);
+  } else if (then_statement->type == AST_STATEMENT_NULL) {
     return;
-  } else if (if_node->data.if_statement.then_statement->type == AST_STATEMENT_IF) {
-    ir_emit_if(if_node->data.if_statement.then_statement, function, emit_status);
+  } else if (then_statement->type == AST_STATEMENT_IF) {
+    ir_emit_if(then_statement, function, emit_status);
+  } else if (then_statement->type == AST_STATEMENT_GOTO) {
+    ir_emit_goto(then_statement, function);
+  } else if (then_statement->type == AST_STATEMENT_GOTO_LABEL) {
+    ir_emit_goto_label(then_statement, function);
   } else {
-    ir_value(if_node->data.if_statement.then_statement, function, emit_status);
+    ir_value(then_statement, function, emit_status);
   }
 
   IRNode *if_label = malloc(sizeof(IRNode));
@@ -245,6 +263,22 @@ void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
   if_label->data.instruction_label.identifier = label_name;
 
   ir_add_instruction_to_function(function, if_label);
+}
+
+void ir_emit_goto(AstNode *goto_node, IRNode *function) {
+  IRNode *jmp_instruction = malloc(sizeof(IRNode));
+  jmp_instruction->type = IR_INSTRUCTION_JUMP;
+  jmp_instruction->data.instruction_jump.target = goto_node->data.goto_statement.label;
+
+  ir_add_instruction_to_function(function, jmp_instruction);
+}
+
+void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
+  IRNode *label = malloc(sizeof(IRNode));
+  label->type = IR_INSTRUCTION_LABEL;
+  label->data.instruction_label.identifier = goto_label_node->data.goto_statement.label;
+
+  ir_add_instruction_to_function(function, label);
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emit_status) {
