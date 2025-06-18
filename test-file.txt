@@ -1,5 +1,13 @@
-int main(void) {
-    int to_shiftr = 382574;
-    to_shiftr >>= 4;
-    return to_shiftr;
-}
+int main() {
+    int n = 0;  
+
+    // If the number is zero, jump to
+  	// jump_here label
+    if (n == 0)
+        goto jump_here;
+
+    int x = 5;
+    
+jump_here:
+    return 0;
+} 
