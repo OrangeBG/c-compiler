@@ -85,9 +85,11 @@ typedef struct AstNode {
     struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
     struct GotoLableStatement { char *label; } goto_label_statement;
-    struct WhileStatement { AstNode *condition; AstNode *statement_body; } while_statement;
-    struct DoWhileStatement { AstNode *statement_body; AstNode *condition; } do_while_statement;
-    struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; } for_statement;
+    struct WhileStatement { AstNode *condition; AstNode *statement_body; char *label; } while_statement;
+    struct DoWhileStatement { AstNode *statement_body; AstNode *condition; char *label; } do_while_statement;
+    struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; char *label; } for_statement;
+    struct BreakStatement { char *label; } break_statement;
+    struct ContinueStatement { char *label; } continue_statement;
     struct ConstantExpression { int value; } constant_expression;
     struct VariableExpression { char *identifier; } variable_expression;
     struct UnaryExpression { UnaryOpType op_type; AstNode *expression; } unary_expression;

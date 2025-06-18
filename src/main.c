@@ -17,11 +17,9 @@ int main(int argc, const char *argv[]) {
    
   if (argc == 1) {
     file = load_file("../test-file.txt");
-  }
-  else if (argc == 2) {
+  } else if (argc == 2) {
     file = load_file(argv[1]);
-  }
-  else if (argc == 3) {
+  } else if (argc == 3) {
     //To disable printing when running the tester
     if (*argv[1] == 't') {
       print_debug = false;
@@ -30,8 +28,7 @@ int main(int argc, const char *argv[]) {
       fprintf(stderr, "Invalid command '%s'\n", argv[1]);
       exit(1);
     }
-  }
-  else {
+  } else {
     fprintf(stderr, "Too many arguments\n");
     exit(1);
   }

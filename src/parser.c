@@ -462,6 +462,75 @@ AstNode *ast_statement(Parser *parser) {
     return goto_statement;
   }
 
+  if (current_token(parser)->type == TOKEN_BREAK) {
+    ast_expect(parser, TOKEN_BREAK);
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    //TODO: Implement break label
+  }
+
+  if (current_token(parser)->type == TOKEN_CONTINUE) {
+    ast_expect(parser, TOKEN_CONTINUE);
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    //TODO: Implement continue label
+  }
+
+  if (current_token(parser)->type == TOKEN_WHILE) {
+    ast_expect(parser, TOKEN_WHILE);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    AstNode *condition_expression = ast_expression(parser, 0);
+    
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+    AstNode *statements = ast_statement(parser);
+
+    AstNode *while_statement = malloc(sizeof(AstNode));
+    while_statement->type = AST_STATEMENT_WHILE;
+    while_statement->data.while_statement.condition = condition_expression;
+    while_statement->data.while_statement.statement_body = statements;
+
+    //TODO: Add while label
+
+    return while_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_DO) {
+    ast_expect(parser, TOKEN_DO);
+
+    AstNode *statements = ast_statement(parser);
+    
+    ast_expect(parser, TOKEN_WHILE);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    AstNode *condition_expression = ast_expression(parser, 0);
+    
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    AstNode *do_statement = malloc(sizeof(AstNode));
+    do_statement->type = AST_STATEMENT_DO_WHILE;
+    do_statement->data.do_while_statement.condition = condition_expression;
+    do_statement->data.do_while_statement.statement_body = statements;
+
+    //TODO: Add do while label
+
+    return do_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_FOR) {
+    ast_expect(parser, TOKEN_FOR);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    //TODO: Add init
+    //TODO: Add condition
+    //TODO: Add post
+    //TODO: Add Statement   
+    
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+  }
+  
   AstNode *expression = ast_expression(parser, 0);  
 
   //TODO: See if we add this in ast_expression() instead of doing this goto label check
