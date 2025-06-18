@@ -20,13 +20,17 @@ const char* TokenTypeStr[] = {
   "TOKEN_BITWISE_LEFT_SHIFT_EQUAL",
   "TOKEN_BITWISE_RIGHT_SHIFT",
   "TOKEN_BITWISE_RIGHT_SHIFT_EQUAL",
+  "TOKEN_BREAK",
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_COLON",
   "TOKEN_CONSTANT_INT",
+  "TOKEN_CONTINUE",
   "TOKEN_DECREMENT",
+  "TOKEN_DO",
   "TOKEN_ELSE",
   "TOKEN_EQUAL",
+  "TOKEN_FOR",
   "TOKEN_FORWARD_SLASH",
   "TOKEN_FORWARD_SLASH_EQUAL",
   "TOKEN_GOTO",
@@ -55,6 +59,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_RETURN",
   "TOKEN_SEMICOLON",
   "TOKEN_VOID", 
+  "TOKEN_WHILE",
   "TOKEN_EOF"
 };
 
@@ -452,7 +457,11 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
   //TODO: Need to support the rest of the keywords
   //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
+    case 'b': return check_keyword(0, 4, "reak", TOKEN_BREAK, lexer, file);
+    case 'c': return check_keyword(0, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
+    case 'd': return check_keyword(0, 1, "o", TOKEN_DO, lexer, file);
     case 'e': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
+    case 'f': return check_keyword(0, 2, "or", TOKEN_FOR, lexer, file);
     case 'g': return check_keyword(0, 3, "oto", TOKEN_GOTO, lexer, file);
     case 'i': {
       if (lexer->current_index - lexer->start_index > 0) {
@@ -465,6 +474,7 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
      }
     case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
     case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
+    case 'w': return check_keyword(0, 4, "hile", TOKEN_WHILE, lexer, file);
   }
 
   return TOKEN_IDENTIFIER;
