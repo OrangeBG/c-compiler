@@ -1,4 +1,4 @@
-int main() {
+int main(void) {
     int n = 0;  
 
     // If the number is zero, jump to
