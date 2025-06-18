@@ -29,6 +29,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_EQUAL",
   "TOKEN_FORWARD_SLASH",
   "TOKEN_FORWARD_SLASH_EQUAL",
+  "TOKEN_GOTO",
   "TOKEN_IDENTIFIER",
   "TOKEN_IF",
   "TOKEN_INCREMENT",
@@ -342,6 +343,7 @@ void print_tokens(Lexer *lexer, char *file) {
       case TOKEN_EQUAL: printf("Equal      "); break;
       case TOKEN_FORWARD_SLASH: printf("Forward Slash"); break;
       case TOKEN_FORWARD_SLASH_EQUAL: printf("Forward Slash Equal"); break;
+      case TOKEN_GOTO: printf("Goto       "); break;
       case TOKEN_IDENTIFIER: printf("Identifier ");  break;
       case TOKEN_IF: printf("If         "); break;
       case TOKEN_INCREMENT: printf("Increment  "); break;
@@ -451,6 +453,7 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
   //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
     case 'e': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
+    case 'g': return check_keyword(0, 3, "oto", TOKEN_GOTO, lexer, file);
     case 'i': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {

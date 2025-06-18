@@ -448,8 +448,26 @@ AstNode *ast_statement(Parser *parser) {
     return block;
   }
 
+  if (current_token(parser)->type == TOKEN_GOTO) {
+    ast_expect(parser, TOKEN_GOTO);
+
+    char *goto_label = ast_identifier(parser);
+
+    AstNode *goto_statement = malloc(sizeof(AstNode));
+    goto_statement->type = AST_STATEMENT_GOTO;
+    goto_statement->data.goto_statement.label = goto_label;
+
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    return goto_statement;
+  }
+
   AstNode *expression = ast_expression(parser, 0);  
-  ast_expect(parser, TOKEN_SEMICOLON);
+
+  //TODO: See if we add this in ast_expression() instead of doing this goto label check
+  if (expression->type != AST_STATEMENT_GOTO_LABEL) {
+    ast_expect(parser, TOKEN_SEMICOLON);
+  }
   return expression;
 }
 
@@ -728,9 +746,20 @@ AstNode* ast_factor(Parser *parser) {
 
     return expression;
   } else if (current_token(parser)->type == TOKEN_IDENTIFIER) {
+    char *identifier = ast_identifier(parser);
+
+    if (current_token(parser)->type == TOKEN_COLON) {
+      ast_expect(parser, TOKEN_COLON);
+      AstNode *goto_label_node = malloc(sizeof(AstNode));
+      goto_label_node->type = AST_STATEMENT_GOTO_LABEL;
+      goto_label_node->data.goto_label_statement.label = identifier;
+
+      return goto_label_node;
+    }
+
     AstNode *identifier_node = malloc(sizeof(AstNode));
     identifier_node->type = AST_EXPRESSION_VARIABLE;
-    identifier_node->data.variable_expression.identifier = ast_identifier(parser);
+    identifier_node->data.variable_expression.identifier = identifier;
 
     return identifier_node;
   } 
