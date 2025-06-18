@@ -68,9 +68,7 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
       semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.condition_expression, variable_table);
 
       if (stmt_or_decl->data.if_statement.then_statement->type == AST_BLOCK) {
-        hash_table_print(variable_table);
         HashTableEntry *entry = hash_table_get_entry(variable_table, "x");
-
         semantic_variable_resolve_block(stmt_or_decl->data.if_statement.then_statement, variable_table);
       } else {
         semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.then_statement, variable_table);
@@ -127,7 +125,7 @@ void semantic_variable_resolve_expression(AstNode *expression, HashTable *variab
     } 
     
     char *converted_identifier = malloc(256);
-    snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", entry->key, entry->value.integer);
+    snprintf(converted_identifier, 256, "%s.%d", entry->key, entry->value.integer);
     expression->data.variable_expression.identifier = converted_identifier;
   }
   else if (expression->type == AST_EXPRESSION_UNARY) {

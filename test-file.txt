@@ -1,14 +1,5 @@
 int main(void) {
-    int x = 1;
-
-    {
-        int x = 2;
-        if (x > 1) {
-            x = 3;
-            int x = 4;
-        }
-
-        return x;
-    }
-    return x;
+    int to_shiftr = 382574;
+    to_shiftr >>= 4;
+    return to_shiftr;
 }
