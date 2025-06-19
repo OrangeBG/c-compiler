@@ -98,6 +98,22 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")\n");      
       break;
+    case AST_STATEMENT_GOTO:
+      print_whitespace(whitespace);
+      printf("Goto (%s)\n", node->data.goto_statement.label);
+      break;      
+    case AST_STATEMENT_GOTO_LABEL:
+      print_whitespace(whitespace);
+      printf("Goto Label(%s)\n", node->data.goto_label_statement.label);
+      break;      
+    case AST_STATEMENT_BREAK:
+      print_whitespace(whitespace);
+      printf("Break(id = %d)\n", node->data.break_statement.label_id);
+      break;
+    case AST_STATEMENT_CONTINUE:
+      print_whitespace(whitespace);
+      printf("Continue(id = %d)\n", node->data.continue_statement.label_id);
+      break;
     case AST_STATEMENT_RETURN:
       print_whitespace(whitespace);
       printf("Return(\n");
@@ -301,8 +317,11 @@ void print_ast(AstNode *node, int whitespace) {
         printf(")\n");
         break;
       }
+      default: {
+        printf("ERROR - Parser: Missing ast node type for printing: %d", node->type);
+        exit(1);
+    }
   }    
-
 }
 
 void print_whitespace(int count) {
