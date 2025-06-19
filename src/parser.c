@@ -604,6 +604,8 @@ AstNode *ast_statement(Parser *parser) {
       dec_or_exp = ast_declaration(parser);
     } else {
       dec_or_exp= ast_expression(parser, 0);
+      //TODO: Weird we do this for expressions but are handled in ast_declaration()
+      ast_expect(parser, TOKEN_SEMICOLON);
     }
 
     for_loop_statement->data.for_statement.for_loop_init = dec_or_exp;
