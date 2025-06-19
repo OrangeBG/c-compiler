@@ -8,6 +8,7 @@
 #include "../include/stack.h"
 
 #define BLOCK_STARTING_ALLOCATION 8
+#define ADD_WHITESPACE whitespace + 5
 
 typedef struct Parser {
   int token_count;
@@ -65,47 +66,44 @@ void print_ast(AstNode *node, int whitespace) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      print_ast(node->data.program.function, ++whitespace);
+      print_ast(node->data.program.function, ADD_WHITESPACE);
       printf(")\n");
       break;
     case AST_FUNCTION:
       print_whitespace(whitespace);
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
 
-      print_ast(node->data.function.block, ++whitespace);
+      print_ast(node->data.function.block, ADD_WHITESPACE);
 
       print_whitespace(whitespace);
       printf(")\n");      
       break;
     case AST_BLOCK:
       print_whitespace(whitespace);
-      printf("START BLOCK\n");
+      printf("Block (\n");
       for (int i = 0; i < node->data.block.block_count; i++) {
-        print_ast(&node->data.block.block_items[i], ++whitespace);
-        printf("\n");
+        print_ast(&node->data.block.block_items[i], ADD_WHITESPACE);
       }   
       print_whitespace(whitespace);
-      printf("END BLOCK\n");
+      printf(")\n");
       break;
     case AST_DECLARATION:
       print_whitespace(whitespace);
-      printf("Declaration(%s,\n", node->data.declaration.identifier);
+      printf("Declaration (id = \"%s\"\n", node->data.declaration.identifier);
 
       if (node->data.declaration.has_expression) {
-        print_ast(node->data.declaration.expression, ++whitespace);
+        print_ast(node->data.declaration.expression, ADD_WHITESPACE);
       }
 
       print_whitespace(whitespace);
-      printf(")\n");
-      
+      printf(")\n");      
       break;
     case AST_STATEMENT_RETURN:
       print_whitespace(whitespace);
       printf("Return(\n");
-      print_ast(node->data.return_statement.expression, ++whitespace);
-      printf("\n");
+      print_ast(node->data.return_statement.expression, ADD_WHITESPACE);
       print_whitespace(whitespace);
-      printf(")");
+      printf(")\n");
       break;
     case AST_STATEMENT_NULL:
       print_whitespace(whitespace);
@@ -113,141 +111,193 @@ void print_ast(AstNode *node, int whitespace) {
       break;
      case AST_STATEMENT_EXPRESSION:
       print_whitespace(whitespace);
-      printf("Expression Statement(");
-      print_ast(node->data.expression_statement.expression, 0);
+      printf("Expression Statement(\n");
+      print_ast(node->data.expression_statement.expression, ADD_WHITESPACE);
       printf(")\n");
       break;
     case AST_STATEMENT_IF:      
       print_whitespace(whitespace);
-      printf("If( Condition( ");
-      print_ast(node->data.if_statement.condition_expression, 0);
-      printf(") Then( ");
-      print_ast(node->data.if_statement.then_statement, 0);
-      printf(")");
+      printf("If (\n");
+      print_ast(node->data.if_statement.condition_expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n ");
+      print_whitespace(whitespace);
+      printf("Then(\n");
+      print_ast(node->data.if_statement.then_statement, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
 
       if (node->data.if_statement.else_statement != NULL) {
-        printf(" Else( ");
-        print_ast(node->data.if_statement.else_statement, 0);
-        printf(")");
+        print_whitespace(whitespace);
+        printf("Else(\n");
+        print_ast(node->data.if_statement.else_statement, ADD_WHITESPACE);
+        print_whitespace(whitespace);
+        printf(")\n");
       }
-      printf(")\n");
       break;
     case AST_STATEMENT_WHILE:
       print_whitespace(whitespace);
       printf("While (\n");
-      print_whitespace(whitespace + 1);
-      printf("Condition (\n");
-      print_ast(node->data.while_statement.condition, whitespace + 1);
-      print_whitespace(whitespace + 1);
-      printf(")\n");
-      print_whitespace(whitespace + 1);
-      printf("Body (\n");
-      print_ast(node->data.while_statement.statement_body, whitespace + 1);
-      print_whitespace(whitespace + 1);
-      printf(")\n");
+      print_whitespace(ADD_WHITESPACE);
+      printf("Id = %d\n", node->data.while_statement.label_id);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Condition =\n");
+      print_ast(node->data.while_statement.condition, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
+      printf("Statements =\n");
+      print_ast(node->data.while_statement.statement_body, ADD_WHITESPACE + 5);
       print_whitespace(whitespace);
       printf(")\n");
+      break;
+    case AST_STATEMENT_DO_WHILE:
+      print_whitespace(whitespace);
+      printf("Do (\n");
+      print_whitespace(ADD_WHITESPACE);
+      printf("Id = %d\n", node->data.do_while_statement.label_id);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Statements = \n");
+      print_ast(node->data.do_while_statement.statement_body, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Condition = \n");
+      print_ast(node->data.do_while_statement.condition, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
+      printf(")\n");
+      break;
+    case AST_STATEMENT_FOR:
+      print_whitespace(whitespace);
+      printf("For (\n");
+      print_whitespace(ADD_WHITESPACE);
+      printf("Id = %d\n", node->data.for_statement.label_id);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Init = \n");
+      print_ast(node->data.for_statement.for_loop_init, ADD_WHITESPACE + 5);
+
+      if (node->data.for_statement.condition_expression != NULL) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Condition = \n");
+        print_ast(node->data.for_statement.condition_expression, ADD_WHITESPACE + 5);
+      }
+
+      if (node->data.for_statement.post_expression != NULL) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Post = \n");
+        print_ast(node->data.for_statement.post_expression, ADD_WHITESPACE + 5);
+      }
+
+      print_whitespace(whitespace);
+      printf(")\n");      
       break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
-      printf("Constant(%d)", node->data.constant_expression.value);
+      printf("Constant(%d)\n", node->data.constant_expression.value);
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
       print_whitespace(whitespace);
-      printf("Postfix Increment(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Postfix Increment(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_POSTFIX_DECREMENT:
       print_whitespace(whitespace);
-      printf("Postfix Decrement(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Postfix Decrement(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_PREFIX_INCREMENT:
       print_whitespace(whitespace);
-      printf("Prefix Increment(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Prefix Increment(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_PREFIX_DECREMENT:
       print_whitespace(whitespace);
-      printf("Prefix Decrement(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Prefix Decrement(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_CONDITIONAL:
       print_whitespace(whitespace);
-
       printf("Conditional(\n");
-      int indent = whitespace++;
-      print_whitespace(indent);
-      printf("Condition(\n");
-      print_ast(node->data.conditional_expression.condition, 0);
-      printf(") True Exp(");
-      print_ast(node->data.conditional_expression.true_expression, 0);
-      printf(") False Exp(");
-      print_ast(node->data.conditional_expression.false_expression, 0);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Condition = \n");
+      print_ast(node->data.conditional_expression.condition, ADD_WHITESPACE + 5);
+      printf("True Expression = \n");
+      print_ast(node->data.conditional_expression.true_expression, ADD_WHITESPACE + 5);
+      printf("False Expression = \n");
+      print_ast(node->data.conditional_expression.false_expression, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
       printf(")\n");      
       break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
-      printf("Unary(");
-      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT) {
-        printf("Complement(\n");
-      } else {
-        printf("Negate(\n");
+      printf("Unary (type = ");
+
+      switch (node->data.unary_expression.op_type) {
+        case AST_UNARY_COMPLEMENT: printf("Complement"); break;
+        case AST_UNARY_NEGATE: printf("Negate"); break;
+        case AST_UNARY_NOT: printf("Not"); break;
+        case AST_UNARY_PREFIX_INCREMENT: printf("Prefix Increment"); break;
+        case AST_UNARY_PREFIX_DECREMENT: printf("Prefix Decrement"); break;
       }
-      print_ast(node->data.unary_expression.expression, ++whitespace);
-      printf("))");
+      printf("\n");      
+      print_ast(node->data.unary_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_BINARY:
       print_whitespace(whitespace);
-      printf("Binary(\n");
-      print_ast(node->data.binary_expression.left_expression, ++whitespace);
-  
+      printf("Binary( op type = ");
       switch (node->data.binary_expression.op_type) {
-        case AST_BINARY_ADD:                  printf(" + "); break;
-        case AST_BINARY_SUBTRACT:             printf(" - "); break;
-        case AST_BINARY_DIVIDE:               printf(" / "); break;
-        case AST_BINARY_MULTIPLY:             printf(" * "); break;
-        case AST_BINARY_REMAINDER:            printf(" %% "); break;
-        case AST_BINARY_BITWISE_AND:          printf(" & "); break; 
-        case AST_BINARY_BITWISE_OR:           printf(" | "); break; 
-        case AST_BINARY_BITWISE_XOR:          printf(" ^ "); break; 
-        case AST_BINARY_BITWISE_LEFT_SHIFT:   printf(" << "); break;
-        case AST_BINARY_BITWISE_RIGHT_SHIFT:  printf(" >> "); break;
-        case AST_BINARY_AND:                  printf(" && "); break;
-        case AST_BINARY_OR:                   printf(" || "); break;
-        case AST_BINARY_GREATER_THAN:         printf(" > "); break;
-        case AST_BINARY_GREATER_OR_EQUAL:     printf(" >= "); break;
-        case AST_BINARY_LESS_THAN:            printf(" < "); break;
-        case AST_BINARY_LESS_OR_EQUAL:        printf(" <= "); break;
-        case AST_BINARY_EQUAL:                printf(" == "); break;
-        case AST_BINARY_NOT_EQUAL:            printf(" != "); break;
+        case AST_BINARY_ADD:                  printf("\"+\""); break;
+        case AST_BINARY_SUBTRACT:             printf("\"-\""); break;
+        case AST_BINARY_DIVIDE:               printf("\"/\""); break;
+        case AST_BINARY_MULTIPLY:             printf("\"*\""); break;
+        case AST_BINARY_REMAINDER:            printf("\"%%\""); break;
+        case AST_BINARY_BITWISE_AND:          printf("\"&\""); break; 
+        case AST_BINARY_BITWISE_OR:           printf("\"|\""); break; 
+        case AST_BINARY_BITWISE_XOR:          printf("\"^\""); break; 
+        case AST_BINARY_BITWISE_LEFT_SHIFT:   printf("\"<<\""); break;
+        case AST_BINARY_BITWISE_RIGHT_SHIFT:  printf("\">>\""); break;
+        case AST_BINARY_AND:                  printf("\"&&\""); break;
+        case AST_BINARY_OR:                   printf("\"||\""); break;
+        case AST_BINARY_GREATER_THAN:         printf("\">\""); break;
+        case AST_BINARY_GREATER_OR_EQUAL:     printf("\">=\""); break;
+        case AST_BINARY_LESS_THAN:            printf("\"<\""); break;
+        case AST_BINARY_LESS_OR_EQUAL:        printf("\"<=\""); break;
+        case AST_BINARY_EQUAL:                printf("\"==\""); break;
+        case AST_BINARY_NOT_EQUAL:            printf("\"!=\""); break;
       }
-    
-      print_ast(node->data.binary_expression.right_expression, 0);
-      printf(")");
+      printf("\n");    
+      print_whitespace(ADD_WHITESPACE);
+      printf("Left = \n");
+      print_ast(node->data.binary_expression.left_expression, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Right = \n");    
+      print_ast(node->data.binary_expression.right_expression, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
       case AST_EXPRESSION_VARIABLE:
         print_whitespace(whitespace);
-        printf("Variable(%s)", node->data.variable_expression.identifier);
+        printf("Variable(%s)\n", node->data.variable_expression.identifier);
         break;
       case AST_EXPRESSION_ASSIGNMENT: {
-        int indentation = whitespace += 1;
         print_whitespace(whitespace);
         printf("Assignment(\n");
-        print_whitespace(indentation);
-        printf("Left(\n");
-        print_ast(node->data.assignement_expression.left_expression, ++indentation);
-        printf(")\n");
+        print_whitespace(ADD_WHITESPACE);
+        printf("Left = \n");
+        print_ast(node->data.assignement_expression.left_expression, ADD_WHITESPACE + 5);
+        printf("\n");
 
-        print_whitespace(indentation);
-        printf("Right(\n");
-        print_ast(node->data.assignement_expression.right_expression, ++indentation);
-        printf(")\n");
-        print_whitespace(indentation);
+        print_whitespace(ADD_WHITESPACE);
+        printf("Right = \n");
+        print_ast(node->data.assignement_expression.right_expression, ADD_WHITESPACE + 5);
+        printf("\n");
+        print_whitespace(whitespace);
         printf(")\n");
         break;
       }
@@ -256,9 +306,7 @@ void print_ast(AstNode *node, int whitespace) {
 }
 
 void print_whitespace(int count) {
-  for (int i = 0; i < count;i++) {
-    printf(" ");
-  }
+  printf("%*s", count, "");
 }
 
 Token* current_token(Parser *parser) {
