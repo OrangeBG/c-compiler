@@ -22,7 +22,7 @@ AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
 AstNode*   ast_block(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
-void       ast_declaration(Parser *parser, AstNode *function);
+AstNode*   ast_declaration(Parser *parser);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
@@ -357,7 +357,8 @@ AstNode* ast_block(Parser *parser) {
     }
 
     if (current_token(parser)->type == TOKEN_INT) {
-      ast_declaration(parser, block);
+      AstNode *declaration = ast_declaration(parser);
+      add_to_block(block, declaration);
     } else {
       AstNode *statement = ast_statement(parser);
       add_to_block(block, statement);
@@ -392,7 +393,7 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-void ast_declaration(Parser *parser, AstNode *block) {
+AstNode* ast_declaration(Parser *parser) {
   ast_expect(parser, TOKEN_INT);
 
   char *identifier = ast_identifier(parser);
@@ -411,7 +412,8 @@ void ast_declaration(Parser *parser, AstNode *block) {
   }
 
   ast_expect(parser, TOKEN_SEMICOLON);
-  add_to_block(block, declaration);
+
+  return declaration;
 }
 
 AstNode *ast_statement(Parser *parser) { 
@@ -595,7 +597,16 @@ AstNode *ast_statement(Parser *parser) {
     AstNode *for_loop_statement = malloc(sizeof(AstNode));
     for_loop_statement->type = AST_STATEMENT_FOR;
 
-    AstNode *stmt_or_exp = ast_statement(parser);
+    AstNode *dec_or_exp;
+
+    //TODO: This will not work when we introduce declaration types other than 'int'
+    if (current_token(parser)->type == TOKEN_INT) {
+      dec_or_exp = ast_declaration(parser);
+    } else {
+      dec_or_exp= ast_expression(parser, 0);
+    }
+
+    for_loop_statement->data.for_statement.for_loop_init = dec_or_exp;
 
     if (current_token(parser)->type != TOKEN_SEMICOLON) {
       AstNode *for_condition = ast_expression(parser, 0);
