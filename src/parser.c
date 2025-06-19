@@ -600,7 +600,9 @@ AstNode *ast_statement(Parser *parser) {
     AstNode *dec_or_exp;
 
     //TODO: This will not work when we introduce declaration types other than 'int'
-    if (current_token(parser)->type == TOKEN_INT) {
+    if (current_token(parser)->type == TOKEN_SEMICOLON) {
+      ast_expect(parser, TOKEN_SEMICOLON);    
+    } else if (current_token(parser)->type == TOKEN_INT) {
       dec_or_exp = ast_declaration(parser);
     } else {
       dec_or_exp= ast_expression(parser, 0);
@@ -617,7 +619,7 @@ AstNode *ast_statement(Parser *parser) {
 
     ast_expect(parser, TOKEN_SEMICOLON);
 
-    if (current_token(parser)->type != TOKEN_SEMICOLON) {
+    if (current_token(parser)->type != TOKEN_SEMICOLON && current_token(parser)->type != TOKEN_CLOSE_PAREN) {
       AstNode *post_expression = ast_expression(parser, 0);
       for_loop_statement->data.for_statement.post_expression = post_expression;
     }
