@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include "../include/parser.h"
+#include "../include/stack.h"
 
 #define BLOCK_STARTING_ALLOCATION 8
 
@@ -13,6 +14,8 @@ typedef struct Parser {
   int current_token_index;
   Token *tokens;
   char* file;
+  int current_loop_label_index;
+  Stack loop_label_stack;
 } Parser;
  
 AstNode*   ast_program(Parser *parser);
@@ -34,11 +37,16 @@ bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
 
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
+  Stack loop_label_stack;
+  stack_init(&loop_label_stack, sizeof(int), sizeof(int) * 128);
+
   Parser parser = {
     .token_count = token_count,
     .current_token_index = 0,
     .tokens = tokens,
-    .file = file
+    .file = file,
+    .current_loop_label_index = 0,
+    .loop_label_stack = loop_label_stack
   };
   
   AstNode *ret_program = ast_program(&parser);
