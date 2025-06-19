@@ -132,6 +132,22 @@ void print_ast(AstNode *node, int whitespace) {
       }
       printf(")\n");
       break;
+    case AST_STATEMENT_WHILE:
+      print_whitespace(whitespace);
+      printf("While (\n");
+      print_whitespace(whitespace + 1);
+      printf("Condition (\n");
+      print_ast(node->data.while_statement.condition, whitespace + 1);
+      print_whitespace(whitespace + 1);
+      printf(")\n");
+      print_whitespace(whitespace + 1);
+      printf("Body (\n");
+      print_ast(node->data.while_statement.statement_body, whitespace + 1);
+      print_whitespace(whitespace + 1);
+      printf(")\n");
+      print_whitespace(whitespace);
+      printf(")\n");
+      break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
       printf("Constant(%d)", node->data.constant_expression.value);
@@ -566,15 +582,43 @@ AstNode *ast_statement(Parser *parser) {
   }
 
   if (current_token(parser)->type == TOKEN_FOR) {
+    Stack *loop_label_stack = &parser->loop_label_stack;
+    StackValue loop_stack_value = {
+      .type = STACK_INT,
+      .data.integer = parser->current_loop_label_id++
+    };
+    stack_push(loop_label_stack, loop_stack_value);
+
     ast_expect(parser, TOKEN_FOR);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
-    //TODO: Add init
-    //TODO: Add condition
-    //TODO: Add post
-    //TODO: Add Statement   
-    
+    AstNode *for_loop_statement = malloc(sizeof(AstNode));
+    for_loop_statement->type = AST_STATEMENT_FOR;
+
+    AstNode *stmt_or_exp = ast_statement(parser);
+
+    if (current_token(parser)->type != TOKEN_SEMICOLON) {
+      AstNode *for_condition = ast_expression(parser, 0);
+      for_loop_statement->data.for_statement.condition_expression = for_condition;
+    }
+
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    if (current_token(parser)->type != TOKEN_SEMICOLON) {
+      AstNode *post_expression = ast_expression(parser, 0);
+      for_loop_statement->data.for_statement.post_expression = post_expression;
+    }
+
     ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+    AstNode *for_statements = ast_statement(parser);
+
+    for_loop_statement->data.for_statement.statement_body = for_statements;    
+    for_loop_statement->data.for_statement.label_id = loop_stack_value.data.integer;
+
+    stack_pop(&parser->loop_label_stack);
+
+    return for_loop_statement;
   }
   
   AstNode *expression = ast_expression(parser, 0);  

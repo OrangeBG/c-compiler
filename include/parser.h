@@ -65,10 +65,10 @@ typedef enum {
   AST_BINARY_BITWISE_RIGHT_SHIFT
 } BinaryOpType;
 
-typedef enum {
-  AST_FOR_INIT_DECLARATION,
-  AST_FOR_INIT_EXPRESSION
-} ForInitType;
+// typedef enum {
+//   AST_FOR_INIT_DECLARATION,
+//   AST_FOR_INIT_EXPRESSION
+// } ForInitType;
 
 
 typedef struct AstNode {
@@ -78,13 +78,13 @@ typedef struct AstNode {
     struct Function { char *name; AstNode *block;} function;
     struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
-    struct ForLoopInit { ForInitType init_type; AstNode *init;  } for_loop_init;
+    // struct ForLoopInit { ForInitType init_type; AstNode *init;  } for_loop_init;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
     struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
-    struct GotoLableStatement { char *label; } goto_label_statement;
+    struct GotoLabelStatement { char *label; } goto_label_statement;
     struct WhileStatement { AstNode *condition; AstNode *statement_body; int label_id; } while_statement;
     struct DoWhileStatement { AstNode *statement_body; AstNode *condition; int label_id; } do_while_statement;
     struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
