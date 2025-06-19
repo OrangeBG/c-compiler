@@ -14,7 +14,7 @@ typedef struct Parser {
   int current_token_index;
   Token *tokens;
   char* file;
-  int current_loop_label_index;
+  int current_loop_label_id;
   Stack loop_label_stack;
 } Parser;
  
@@ -45,7 +45,7 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
     .current_token_index = 0,
     .tokens = tokens,
     .file = file,
-    .current_loop_label_index = 0,
+    .current_loop_label_id = 0,
     .loop_label_stack = loop_label_stack
   };
   
@@ -474,17 +474,46 @@ AstNode *ast_statement(Parser *parser) {
     ast_expect(parser, TOKEN_BREAK);
     ast_expect(parser, TOKEN_SEMICOLON);
 
-    //TODO: Implement break label
+    StackValue *current_loop_label = stack_top(&parser->loop_label_stack);
+
+    if (current_loop_label == NULL) {
+      fprintf(stderr, "ERROR: Parser - Null loop label value for 'break'. Line %d", parser->tokens[parser->current_token_index].line);
+      exit(1);
+    }
+
+    AstNode *break_statement = malloc(sizeof(AstNode));
+    break_statement->type = AST_STATEMENT_BREAK;
+    break_statement->data.break_statement.label_id = current_loop_label->data.integer;
+
+    return break_statement;
   }
 
   if (current_token(parser)->type == TOKEN_CONTINUE) {
     ast_expect(parser, TOKEN_CONTINUE);
     ast_expect(parser, TOKEN_SEMICOLON);
 
-    //TODO: Implement continue label
+    StackValue *current_loop_label = stack_top(&parser->loop_label_stack);
+
+    if (current_loop_label == NULL) {
+      fprintf(stderr, "ERROR: Parser - Null loop label value for 'continue'. Line %d", parser->tokens[parser->current_token_index].line);
+      exit(1);
+    }
+
+    AstNode *continue_statement = malloc(sizeof(AstNode));
+    continue_statement->type = AST_STATEMENT_CONTINUE;
+    continue_statement->data.continue_statement.label_id = current_loop_label->data.integer;
+
+    return continue_statement;
   }
 
   if (current_token(parser)->type == TOKEN_WHILE) {
+    Stack *loop_label_stack = &parser->loop_label_stack;
+    StackValue loop_stack_value = {
+      .type = STACK_INT,
+      .data.integer = parser->current_loop_label_id++
+    };
+    stack_push(loop_label_stack, loop_stack_value);
+    
     ast_expect(parser, TOKEN_WHILE);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
@@ -498,13 +527,21 @@ AstNode *ast_statement(Parser *parser) {
     while_statement->type = AST_STATEMENT_WHILE;
     while_statement->data.while_statement.condition = condition_expression;
     while_statement->data.while_statement.statement_body = statements;
+    while_statement->data.while_statement.label_id = loop_stack_value.data.integer;
 
-    //TODO: Add while label
+    stack_pop(&parser->loop_label_stack);
 
     return while_statement;
   }
 
   if (current_token(parser)->type == TOKEN_DO) {
+    Stack *loop_label_stack = &parser->loop_label_stack;
+    StackValue loop_stack_value = {
+      .type = STACK_INT,
+      .data.integer = parser->current_loop_label_id++
+    };
+    stack_push(loop_label_stack, loop_stack_value);
+
     ast_expect(parser, TOKEN_DO);
 
     AstNode *statements = ast_statement(parser);
@@ -521,8 +558,9 @@ AstNode *ast_statement(Parser *parser) {
     do_statement->type = AST_STATEMENT_DO_WHILE;
     do_statement->data.do_while_statement.condition = condition_expression;
     do_statement->data.do_while_statement.statement_body = statements;
+    do_statement->data.do_while_statement.label_id = loop_stack_value.data.integer;
 
-    //TODO: Add do while label
+    stack_pop(&parser->loop_label_stack);
 
     return do_statement;
   }
