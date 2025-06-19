@@ -38,7 +38,7 @@ int        get_precedence(TokenType token_type);
 
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
   Stack loop_label_stack;
-  stack_init(&loop_label_stack, sizeof(int), sizeof(int) * 128);
+  stack_init(&loop_label_stack, 128);
 
   Parser parser = {
     .token_count = token_count,
