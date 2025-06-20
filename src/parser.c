@@ -184,9 +184,12 @@ void print_ast(AstNode *node, int whitespace) {
       printf("For (\n");
       print_whitespace(ADD_WHITESPACE);
       printf("Id = %d\n", node->data.for_statement.label_id);
-      print_whitespace(ADD_WHITESPACE);
-      printf("Init = \n");
-      print_ast(node->data.for_statement.for_loop_init, ADD_WHITESPACE + 5);
+
+      if (node->data.for_statement.for_loop_init != NULL) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Init = \n");
+        print_ast(node->data.for_statement.for_loop_init, ADD_WHITESPACE + 5);
+      }
 
       if (node->data.for_statement.condition_expression != NULL) {
         print_whitespace(ADD_WHITESPACE);
@@ -669,6 +672,7 @@ AstNode *ast_statement(Parser *parser) {
     //TODO: This will not work when we introduce declaration types other than 'int'
     if (current_token(parser)->type == TOKEN_SEMICOLON) {
       ast_expect(parser, TOKEN_SEMICOLON);    
+      dec_or_exp = NULL;
     } else if (current_token(parser)->type == TOKEN_INT) {
       dec_or_exp = ast_declaration(parser);
     } else {
