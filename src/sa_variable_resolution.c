@@ -2,25 +2,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/semantic_analysis.h"
+#include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
 
-void semantic_variable_resolution(AstNode *ast_nodes);
-void semantic_variable_resolve_expression(AstNode *expression, HashTable *variable_table); 
-void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_table); 
+void sa_variable_resolve_expression(AstNode *expression, HashTable *variable_table); 
+void sa_variable_resolve_block(AstNode *block, HashTable *parent_variable_table); 
 
-void run_semantic_analysis(AstNode *ast_nodes) {
-  semantic_variable_resolution(ast_nodes);
-}
-
-void semantic_variable_resolution(AstNode *ast_nodes) {
+void sa_variable_resolution(AstNode *ast_nodes) {
   HashTable variable_table;
   hash_table_init(&variable_table); 
 
-  semantic_variable_resolve_block(ast_nodes->data.program.function->data.function.block, &variable_table);
+  sa_variable_resolve_block(ast_nodes->data.program.function->data.function.block, &variable_table);
 }
 
-void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_table) {
+void sa_variable_resolve_block(AstNode *block, HashTable *parent_variable_table) {
   HashTable *variable_table = hash_table_clone(parent_variable_table);
   HashTable local_declared_variables;
   hash_table_init(&local_declared_variables);
@@ -57,91 +52,91 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
       }    
 
       if (stmt_or_decl->data.declaration.has_expression == true) {
-        semantic_variable_resolve_expression(stmt_or_decl->data.declaration.expression, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.declaration.expression, variable_table);
       }
 
       stmt_or_decl->data.declaration.identifier = converted_identifier;
     }
     else if (stmt_or_decl->type == AST_STATEMENT_IF) {
-      semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.condition_expression, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.if_statement.condition_expression, variable_table);
 
       if (stmt_or_decl->data.if_statement.then_statement->type == AST_BLOCK) {
-        semantic_variable_resolve_block(stmt_or_decl->data.if_statement.then_statement, variable_table);
+        sa_variable_resolve_block(stmt_or_decl->data.if_statement.then_statement, variable_table);
       } else {
-        semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.then_statement, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.if_statement.then_statement, variable_table);
       }
 
       if (stmt_or_decl->data.if_statement.else_statement != NULL) {
-        semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.else_statement, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.if_statement.else_statement, variable_table);
       }
     }
     else if (stmt_or_decl->type == AST_STATEMENT_RETURN) {
-      semantic_variable_resolve_expression(stmt_or_decl->data.return_statement.expression, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.return_statement.expression, variable_table);
     }
     else if (stmt_or_decl->type == AST_STATEMENT_EXPRESSION) {
-      semantic_variable_resolve_expression(stmt_or_decl->data.expression_statement.expression, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.expression_statement.expression, variable_table);
     }
     else if (stmt_or_decl->type == AST_STATEMENT_FOR) {
       if (stmt_or_decl->data.for_statement.for_loop_init != NULL) {
-        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.for_loop_init, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.for_statement.for_loop_init, variable_table);
       }
 
       if (stmt_or_decl->data.for_statement.condition_expression != NULL) {
-        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.condition_expression, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.for_statement.condition_expression, variable_table);
       }
 
       if (stmt_or_decl->data.for_statement.post_expression != NULL) {
-        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.post_expression, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.for_statement.post_expression, variable_table);
       }
 
       if (stmt_or_decl->data.for_statement.statement_body->type == AST_BLOCK) {
-        semantic_variable_resolve_block(stmt_or_decl->data.for_statement.statement_body, variable_table);
+        sa_variable_resolve_block(stmt_or_decl->data.for_statement.statement_body, variable_table);
       } else {
-        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.statement_body, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.for_statement.statement_body, variable_table);
       }
     }
     else if (stmt_or_decl->type == AST_STATEMENT_WHILE) {
-      semantic_variable_resolve_expression(stmt_or_decl->data.while_statement.condition, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.while_statement.condition, variable_table);
 
       if (stmt_or_decl->data.while_statement.statement_body->type == AST_BLOCK) {
-        semantic_variable_resolve_block(stmt_or_decl->data.while_statement.statement_body, variable_table);
+        sa_variable_resolve_block(stmt_or_decl->data.while_statement.statement_body, variable_table);
       } else {
-        semantic_variable_resolve_expression(stmt_or_decl->data.while_statement.statement_body, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.while_statement.statement_body, variable_table);
       }
     } 
     else if (stmt_or_decl->type == AST_STATEMENT_DO_WHILE) {
-      semantic_variable_resolve_expression(stmt_or_decl->data.do_while_statement.condition, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.do_while_statement.condition, variable_table);
       if (stmt_or_decl->data.do_while_statement.statement_body->type == AST_BLOCK) {
-        semantic_variable_resolve_block(stmt_or_decl->data.do_while_statement.statement_body, variable_table);
+        sa_variable_resolve_block(stmt_or_decl->data.do_while_statement.statement_body, variable_table);
       } else {
-        semantic_variable_resolve_expression(stmt_or_decl->data.do_while_statement.statement_body, variable_table);
+        sa_variable_resolve_expression(stmt_or_decl->data.do_while_statement.statement_body, variable_table);
       }
     }
     else if (stmt_or_decl->type == AST_EXPRESSION_ASSIGNMENT) {
-      semantic_variable_resolve_expression(stmt_or_decl->data.assignement_expression.left_expression, variable_table);
-      semantic_variable_resolve_expression(stmt_or_decl->data.assignement_expression.right_expression, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.assignement_expression.left_expression, variable_table);
+      sa_variable_resolve_expression(stmt_or_decl->data.assignement_expression.right_expression, variable_table);
     } else if (stmt_or_decl->type == AST_BLOCK) {
-      semantic_variable_resolve_block(stmt_or_decl, variable_table); 
+      sa_variable_resolve_block(stmt_or_decl, variable_table); 
     }
   }
 
   free(local_declared_variables.entries);
 }
 
-void semantic_variable_resolve_expression(AstNode *expression, HashTable *variable_table) {
+void sa_variable_resolve_expression(AstNode *expression, HashTable *variable_table) {
   if (expression->type == AST_EXPRESSION_ASSIGNMENT) {
     if (expression->data.assignement_expression.left_expression->type != AST_EXPRESSION_VARIABLE && expression->data.assignement_expression.left_expression->type != AST_EXPRESSION_UNARY) {
       fprintf(stderr, "ERROR - Semantic Analysis: Invalid LValue for assignment expression\n");
       exit(1);
     }
 
-    semantic_variable_resolve_expression(expression->data.assignement_expression.left_expression, variable_table);
-    semantic_variable_resolve_expression(expression->data.assignement_expression.right_expression, variable_table);
+    sa_variable_resolve_expression(expression->data.assignement_expression.left_expression, variable_table);
+    sa_variable_resolve_expression(expression->data.assignement_expression.right_expression, variable_table);
   } else if (expression->type == AST_EXPRESSION_BINARY) {
-    semantic_variable_resolve_expression(expression->data.binary_expression.left_expression, variable_table);
-    semantic_variable_resolve_expression(expression->data.binary_expression.right_expression, variable_table);
+    sa_variable_resolve_expression(expression->data.binary_expression.left_expression, variable_table);
+    sa_variable_resolve_expression(expression->data.binary_expression.right_expression, variable_table);
   } else if (expression->type == AST_EXPRESSION_POSTFIX_INCREMENT || expression->type == AST_EXPRESSION_POSTFIX_DECREMENT || expression->type == AST_EXPRESSION_PREFIX_INCREMENT || expression->type == AST_EXPRESSION_PREFIX_DECREMENT ) {
-    semantic_variable_resolve_expression(expression->data.increment_decrement_expression.expression, variable_table);
+    sa_variable_resolve_expression(expression->data.increment_decrement_expression.expression, variable_table);
   } else if (expression->type == AST_EXPRESSION_VARIABLE) {
     HashTableEntry *entry = hash_table_get_entry(variable_table, expression->data.variable_expression.identifier);  
 
@@ -162,6 +157,6 @@ void semantic_variable_resolve_expression(AstNode *expression, HashTable *variab
     expression->data.variable_expression.identifier = converted_identifier;
   }
   else if (expression->type == AST_EXPRESSION_UNARY) {
-    semantic_variable_resolve_expression(expression->data.unary_expression.expression, variable_table);
+    sa_variable_resolve_expression(expression->data.unary_expression.expression, variable_table);
   }
 }

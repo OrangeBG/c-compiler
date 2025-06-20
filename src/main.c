@@ -7,7 +7,8 @@
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
 #include "../include/intermediate_rep.h"
-#include "../include/semantic_analysis.h"
+#include "../include/sa_variable_resolution.h"
+#include "../include/sa_loop_labeling.h"
 
 char* load_file(const char *file_path); 
 
@@ -66,7 +67,8 @@ int main(int argc, const char *argv[]) {
   }
 
   benchmarks[2] = clock();
-  run_semantic_analysis(ast);
+  sa_variable_resolution(ast);
+  sa_loop_labeling(ast);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
