@@ -38,22 +38,20 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
         exit(1);
       }
 
-      //TODO: Check if this is needed. When commented out, it looks like we're properly performing the variable resolution
-      char converted_identifier[256];
-
+      char *converted_identifier = malloc(256);
       HashTableEntry *parent_entry = hash_table_get_entry(parent_variable_table, identifier);
 
       if (parent_entry != NULL && parent_entry->key != NULL) {
         existing_variable = hash_table_get_entry(variable_table, identifier);
         existing_variable->value.integer = parent_entry->value.integer + 1;
-        snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", identifier, parent_entry->value.integer + 1);
+        snprintf(converted_identifier, sizeof(converted_identifier), "%s.%d", identifier, parent_entry->value.integer + 1);
         hash_table_add_entry(&local_declared_variables, existing_variable);
       } else {  
         HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
         new_variable_entry->key = identifier;
         new_variable_entry->value.type = HASH_INT;
         new_variable_entry->value.integer = 0;
-        snprintf(converted_identifier, sizeof(converted_identifier), "%s%d", identifier, 0);
+        snprintf(converted_identifier, sizeof(converted_identifier), "%s.%d", identifier, 0);
         hash_table_add_entry(variable_table, new_variable_entry);
         hash_table_add_entry(&local_declared_variables, new_variable_entry);
       }    
@@ -84,6 +82,34 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
     else if (stmt_or_decl->type == AST_STATEMENT_EXPRESSION) {
       semantic_variable_resolve_expression(stmt_or_decl->data.expression_statement.expression, variable_table);
     }
+    else if (stmt_or_decl->type == AST_STATEMENT_FOR) {
+      if (stmt_or_decl->data.for_statement.for_loop_init != NULL) {
+        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.for_loop_init, variable_table);
+      }
+
+      if (stmt_or_decl->data.for_statement.condition_expression != NULL) {
+        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.condition_expression, variable_table);
+      }
+
+      if (stmt_or_decl->data.for_statement.post_expression != NULL) {
+        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.post_expression, variable_table);
+      }
+
+      if (stmt_or_decl->data.for_statement.statement_body->type == AST_BLOCK) {
+        semantic_variable_resolve_block(stmt_or_decl->data.for_statement.statement_body, variable_table);
+      } else {
+        semantic_variable_resolve_expression(stmt_or_decl->data.for_statement.statement_body, variable_table);
+      }
+    }
+    else if (stmt_or_decl->type == AST_STATEMENT_WHILE) {
+      semantic_variable_resolve_expression(stmt_or_decl->data.while_statement.condition, variable_table);
+
+      if (stmt_or_decl->data.while_statement.statement_body->type == AST_BLOCK) {
+        semantic_variable_resolve_block(stmt_or_decl->data.while_statement.statement_body, variable_table);
+      } else {
+        semantic_variable_resolve_expression(stmt_or_decl->data.while_statement.statement_body, variable_table);
+      }
+    } 
     else if (stmt_or_decl->type == AST_EXPRESSION_ASSIGNMENT) {
       semantic_variable_resolve_expression(stmt_or_decl->data.assignement_expression.left_expression, variable_table);
       semantic_variable_resolve_expression(stmt_or_decl->data.assignement_expression.right_expression, variable_table);

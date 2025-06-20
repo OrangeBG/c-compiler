@@ -1,5 +1,4 @@
 # Bugs
-	- For loop init is not loading 
     - This declaration doesn't work: int result = j == -1 && i == 11;
 
 # Incomplete

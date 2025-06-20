@@ -69,6 +69,11 @@ int main(int argc, const char *argv[]) {
   run_semantic_analysis(ast);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
+  if (print_debug) {
+    printf("\n>> SEMANTIC PRINT <<\n\n");
+    print_ast(ast, 0);
+  }
+
   benchmarks[3] = clock();
   IRNode *ir = generate_intermediate_rep(ast);
   benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
