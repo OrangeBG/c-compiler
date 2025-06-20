@@ -66,7 +66,6 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
       semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.condition_expression, variable_table);
 
       if (stmt_or_decl->data.if_statement.then_statement->type == AST_BLOCK) {
-        HashTableEntry *entry = hash_table_get_entry(variable_table, "x");
         semantic_variable_resolve_block(stmt_or_decl->data.if_statement.then_statement, variable_table);
       } else {
         semantic_variable_resolve_expression(stmt_or_decl->data.if_statement.then_statement, variable_table);
@@ -110,6 +109,14 @@ void semantic_variable_resolve_block(AstNode *block, HashTable *parent_variable_
         semantic_variable_resolve_expression(stmt_or_decl->data.while_statement.statement_body, variable_table);
       }
     } 
+    else if (stmt_or_decl->type == AST_STATEMENT_DO_WHILE) {
+      semantic_variable_resolve_expression(stmt_or_decl->data.do_while_statement.condition, variable_table);
+      if (stmt_or_decl->data.do_while_statement.statement_body->type == AST_BLOCK) {
+        semantic_variable_resolve_block(stmt_or_decl->data.do_while_statement.statement_body, variable_table);
+      } else {
+        semantic_variable_resolve_expression(stmt_or_decl->data.do_while_statement.statement_body, variable_table);
+      }
+    }
     else if (stmt_or_decl->type == AST_EXPRESSION_ASSIGNMENT) {
       semantic_variable_resolve_expression(stmt_or_decl->data.assignement_expression.left_expression, variable_table);
       semantic_variable_resolve_expression(stmt_or_decl->data.assignement_expression.right_expression, variable_table);
