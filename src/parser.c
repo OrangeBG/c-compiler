@@ -159,7 +159,7 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(ADD_WHITESPACE);
       printf("Condition =\n");
       print_ast(node->data.while_statement.condition, ADD_WHITESPACE + 5);
-      print_whitespace(whitespace);
+      print_whitespace(ADD_WHITESPACE);
       printf("Statements =\n");
       print_ast(node->data.while_statement.statement_body, ADD_WHITESPACE + 5);
       print_whitespace(whitespace);
