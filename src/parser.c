@@ -310,12 +310,10 @@ void print_ast(AstNode *node, int whitespace) {
         print_whitespace(ADD_WHITESPACE);
         printf("Left = \n");
         print_ast(node->data.assignement_expression.left_expression, ADD_WHITESPACE + 5);
-        printf("\n");
 
         print_whitespace(ADD_WHITESPACE);
         printf("Right = \n");
         print_ast(node->data.assignement_expression.right_expression, ADD_WHITESPACE + 5);
-        printf("\n");
         print_whitespace(whitespace);
         printf(")\n");
         break;
