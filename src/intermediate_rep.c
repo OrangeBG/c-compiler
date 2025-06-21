@@ -6,7 +6,6 @@
 
 #define INSTRUCTION_CAPACITY 8
 
-
 typedef struct {
   Arena postfix_arena;
   int temp_register_id;
@@ -189,43 +188,15 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
     }
 
     //If not a declaration, then it's a statement
-    if (block_item->type == AST_STATEMENT_NULL) {
-      continue;
-    }
-
-    if (block_item->type == AST_STATEMENT_IF) {
-      ir_emit_if(block_item, function, emit_status);
-      continue;
-    }
-
-    if (block_item->type == AST_STATEMENT_RETURN) {
-      ir_emit_return(block_item, function, emit_status);
-      continue;
-    }
-
-    if (block_item->type == AST_BLOCK) {
-      ir_block(block_item, function, emit_status);
-      continue;
-    }
-
-    if (block_item->type == AST_STATEMENT_GOTO) {
-      ir_emit_goto(block_item, function);
-      continue;
-    }
-
-    if (block_item->type == AST_STATEMENT_GOTO_LABEL) {
-      ir_emit_goto_label(block_item, function);
-      continue;
-    }
-
-    if (block_item->type == AST_STATEMENT_WHILE) {
-      ir_emit_while(block_item, function, emit_status);
-      continue;
-    }
-
-    if (block_item->type == AST_STATEMENT_DO_WHILE) {
-      ir_emit_do_while(block_item, function, emit_status);
-      continue;
+    switch (block_item->type) {
+      case AST_STATEMENT_NULL:       { continue; } 
+      case AST_STATEMENT_IF:         { ir_emit_if(block_item, function, emit_status); continue; }
+      case AST_STATEMENT_RETURN:     { ir_emit_return(block_item, function, emit_status); continue; }
+      case AST_BLOCK:                { ir_block(block_item, function, emit_status); continue; }
+      case AST_STATEMENT_GOTO:       { ir_emit_goto(block_item, function); continue; }
+      case AST_STATEMENT_GOTO_LABEL: { ir_emit_goto_label(block_item, function); continue; }
+      case AST_STATEMENT_WHILE:      { ir_emit_while(block_item, function, emit_status); continue; }
+      case AST_STATEMENT_DO_WHILE:   { ir_emit_do_while(block_item, function, emit_status); continue; }
     }
 
     ir_value(block_item, function, emit_status);
