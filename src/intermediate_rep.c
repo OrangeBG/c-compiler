@@ -32,6 +32,7 @@ void    ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function);
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
+char*   ir_create_concat_identifier(char *string, int integer); 
 IRNode* ir_create_constant(int value);
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
@@ -280,11 +281,9 @@ void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
 }
 
 void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status) {
-  char *continue_label_identifier = malloc(64);
-  snprintf(continue_label_identifier, 64, "%s.%d", "while_continue", while_node->data.do_while_statement.label_id);
+  char *continue_label_identifier = ir_create_concat_identifier("while_continue", while_node->data.do_while_statement.label_id); 
 
-  char *break_label_identifier = malloc(64);
-  snprintf(break_label_identifier, 64, "%s.%d", "while_break", while_node->data.do_while_statement.label_id);
+  char *break_label_identifier = ir_create_concat_identifier("while_break", while_node->data.do_while_statement.label_id); 
 
   ir_emit_label(continue_label_identifier, function);
 
@@ -297,17 +296,13 @@ void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_sta
 }
 
 void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
-  char *start_label_identifier = malloc(64);
-
-  snprintf(start_label_identifier, 64, "%s.%d", "do_start", do_node->data.do_while_statement.label_id);
+  char *start_label_identifier = ir_create_concat_identifier("do_start", do_node->data.do_while_statement.label_id);
 
   ir_emit_label(start_label_identifier, function);
 
   ir_block(do_node->data.do_while_statement.statement_body, function, emit_status);
 
-  char *continue_label_identifier = malloc(64);
-
-  snprintf(continue_label_identifier, 64, "%s.%d", "do_continue", do_node->data.do_while_statement.label_id);
+  char *continue_label_identifier = ir_create_concat_identifier("do_continue", do_node->data.do_while_statement.label_id); 
 
   ir_emit_label(continue_label_identifier, function);
 
@@ -315,9 +310,8 @@ void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_sta
 
   ir_emit_jump_if_not_zero(start_label_identifier, condition, function);
 
-  char *break_label_identifier = malloc(64);
+  char *break_label_identifier = ir_create_concat_identifier("do_break", do_node->data.do_while_statement.label_id);
 
-  snprintf(break_label_identifier, 64, "%s.%d", "do_break", do_node->data.do_while_statement.label_id);
   ir_emit_label(break_label_identifier, function);
 }
 
@@ -643,4 +637,11 @@ IRNode* ir_create_constant(int value) {
   constant->data.value_constant.value = value;
 
   return constant;
+}
+
+char* ir_create_concat_identifier(char *string, int integer) {
+  char *identifier = malloc(64);
+  snprintf(identifier, 64, "%s.%d", string, integer);
+
+  return identifier;
 }
