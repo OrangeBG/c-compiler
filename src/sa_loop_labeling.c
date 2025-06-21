@@ -76,7 +76,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
         StackValue *current_loop_label = stack_top(label_stack);
 
         if (current_loop_label == NULL) {
-          fprintf(stderr, "ERROR: SA LOOP LABELING - Null loop label value for 'break'");
+          fprintf(stderr, "ERROR: SA LOOP LABELING - Null loop label value for 'break'\n");
           exit(1);
         }
 
@@ -87,7 +87,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
         StackValue *current_loop_label = stack_top(label_stack);
 
         if (current_loop_label == NULL) {
-          fprintf(stderr, "ERROR: SA LOOP LABELING - Null loop label value for 'continue'");
+          fprintf(stderr, "ERROR: SA LOOP LABELING - Null loop label value for 'continue'\n");
           exit(1);
         }
 
