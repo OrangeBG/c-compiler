@@ -175,18 +175,6 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
     
     AstNode *block_item = &block->data.block.block_items[i];
 
-    if (block_item->type == AST_DECLARATION) {
-      if (!block_item->data.declaration.has_expression) {
-        continue;
-      }
-
-      //TODO: Probably should rename to something like generate ir
-      ir_value(block_item->data.declaration.expression, function, emit_status);    
-      ir_add_postfix_operations(function, emit_status);
-      
-      continue;
-    }
-
     //If not a declaration, then it's a statement
     switch (block_item->type) {
       case AST_STATEMENT_NULL:       { continue; } 
@@ -197,6 +185,17 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       case AST_STATEMENT_GOTO_LABEL: { ir_emit_goto_label(block_item, function); continue; }
       case AST_STATEMENT_WHILE:      { ir_emit_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_DO_WHILE:   { ir_emit_do_while(block_item, function, emit_status); continue; }
+      case AST_DECLARATION: {
+        if (!block_item->data.declaration.has_expression) {
+          continue;
+        }
+
+        //TODO: Probably should rename to something like generate ir
+        ir_value(block_item->data.declaration.expression, function, emit_status);    
+        ir_add_postfix_operations(function, emit_status);
+      
+        continue;
+      }
     }
 
     ir_value(block_item, function, emit_status);
