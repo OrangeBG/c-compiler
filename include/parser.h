@@ -14,7 +14,6 @@ typedef enum {
   AST_STATEMENT_EXPRESSION,
   AST_STATEMENT_NULL,
   AST_STATEMENT_IF,
-  AST_STATEMENT_COMPOUND,
   AST_STATEMENT_GOTO,
   AST_STATEMENT_GOTO_LABEL,
   AST_STATEMENT_BREAK,
@@ -23,7 +22,6 @@ typedef enum {
   AST_STATEMENT_DO_WHILE,
   AST_STATEMENT_FOR,
   AST_DECLARATION,
-  AST_FOR_LOOP_INIT,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
   AST_EXPRESSION_UNARY,
@@ -75,7 +73,7 @@ typedef struct AstNode {
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
-    struct CompoundStatement { AstNode *block; } compound_statement;
+    // struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
     struct GotoLabelStatement { char *label; } goto_label_statement;
     struct WhileStatement { AstNode *condition; AstNode *statement_body; int label_id; } while_statement;
