@@ -22,6 +22,7 @@ void    ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit
 void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_goto(AstNode *goto_node, IRNode *function); 
 void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
+void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
@@ -213,6 +214,11 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       continue;
     }
 
+    if (block_item->type == AST_STATEMENT_WHILE) {
+      ir_emit_while(block_item, function, emit_status);
+      continue;
+    }
+
     if (block_item->type == AST_STATEMENT_DO_WHILE) {
       ir_emit_do_while(block_item, function, emit_status);
       continue;
@@ -285,6 +291,43 @@ void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
   label->data.instruction_label.identifier = goto_label_node->data.goto_statement.label;
 
   ir_add_instruction_to_function(function, label);
+}
+
+void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status) {
+  char *continue_label_identifier = malloc(64);
+  snprintf(continue_label_identifier, 64, "%s.%d", "while_continue", while_node->data.do_while_statement.label_id);
+
+  char *break_label_identifier = malloc(64);
+  snprintf(break_label_identifier, 64, "%s.%d", "while_break", while_node->data.do_while_statement.label_id);
+
+  IRNode *continue_label = malloc(sizeof(IRNode));
+  continue_label->type = IR_INSTRUCTION_LABEL;
+  continue_label->data.instruction_label.identifier = continue_label_identifier;
+
+  ir_add_instruction_to_function(function, continue_label);
+
+  IRNode *condition = ir_value(while_node->data.while_statement.condition, function, emit_status);
+
+  IRNode *jmp_if_zero = malloc(sizeof(IRNode));
+  jmp_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
+  jmp_if_zero->data.instruction_jump_if_zero.condition = condition;
+  jmp_if_zero->data.instruction_jump_if_zero.target = break_label_identifier;
+
+  ir_add_instruction_to_function(function, jmp_if_zero);
+
+  ir_block(while_node->data.while_statement.statement_body, function, emit_status);
+
+  IRNode *jmp_continue = malloc(sizeof(IRNode));
+  jmp_continue->type = IR_INSTRUCTION_JUMP;
+  jmp_continue->data.instruction_jump.target = continue_label_identifier;
+
+  ir_add_instruction_to_function(function, jmp_continue);
+
+  IRNode *break_label = malloc(sizeof(IRNode));
+  break_label->type = IR_INSTRUCTION_LABEL;
+  break_label->data.instruction_label.identifier = break_label_identifier;
+
+  ir_add_instruction_to_function(function, break_label);
 }
 
 void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
