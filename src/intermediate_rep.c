@@ -24,9 +24,15 @@ void    ir_emit_goto(AstNode *goto_node, IRNode *function);
 void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
 void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_jump(char *label, IRNode *function);
+void    ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function); 
+void    ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function); 
+void    ir_emit_label(char* label, IRNode *function);
+void    ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
+IRNode* ir_create_constant(int value);
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
@@ -153,10 +159,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   ir_block(ast_function->data.function.block, function, emit_status);
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
-  IRNode *zero_value = malloc(sizeof(IRNode));
-  zero_value->type = IR_VALUE_CONSTANT;
-  zero_value->data.value_constant.value = 0;
-
+  IRNode *zero_value = ir_create_constant(0);
   IRNode *return_instruction = malloc(sizeof(IRNode));
   return_instruction->type = IR_INSTRUCTION_RET;
   return_instruction->data.instruction_ret.value = zero_value;
@@ -244,12 +247,7 @@ void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
   IRNode *condition = ir_value(if_node->data.if_statement.condition_expression, function, emit_status);
   char *label_name = ir_create_temp_label(emit_status);
 
-  IRNode *jump_if_zero = malloc(sizeof(IRNode));
-  jump_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
-  jump_if_zero->data.instruction_jump_if_zero.condition = condition;
-  jump_if_zero->data.instruction_jump_if_zero.target = label_name;
-
-  ir_add_instruction_to_function(function, jump_if_zero);
+  ir_emit_jump_if_zero(label_name, condition, function);
 
   // //TODO: This will need to be expanded. We should match across various types and redirect (like ir_emit_return).
   AstNode *then_statement = if_node->data.if_statement.then_statement;
@@ -270,27 +268,15 @@ void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
     ir_value(then_statement, function, emit_status);
   }
 
-  IRNode *if_label = malloc(sizeof(IRNode));
-  if_label->type = IR_INSTRUCTION_LABEL;
-  if_label->data.instruction_label.identifier = label_name;
-
-  ir_add_instruction_to_function(function, if_label);
+  ir_emit_label(label_name, function);
 }
 
 void ir_emit_goto(AstNode *goto_node, IRNode *function) {
-  IRNode *jmp_instruction = malloc(sizeof(IRNode));
-  jmp_instruction->type = IR_INSTRUCTION_JUMP;
-  jmp_instruction->data.instruction_jump.target = goto_node->data.goto_statement.label;
-
-  ir_add_instruction_to_function(function, jmp_instruction);
+  ir_emit_jump(goto_node->data.goto_label_statement.label, function);
 }
 
 void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
-  IRNode *label = malloc(sizeof(IRNode));
-  label->type = IR_INSTRUCTION_LABEL;
-  label->data.instruction_label.identifier = goto_label_node->data.goto_statement.label;
-
-  ir_add_instruction_to_function(function, label);
+  ir_emit_label(goto_label_node->data.goto_statement.label, function);
 }
 
 void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status) {
@@ -300,34 +286,14 @@ void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_sta
   char *break_label_identifier = malloc(64);
   snprintf(break_label_identifier, 64, "%s.%d", "while_break", while_node->data.do_while_statement.label_id);
 
-  IRNode *continue_label = malloc(sizeof(IRNode));
-  continue_label->type = IR_INSTRUCTION_LABEL;
-  continue_label->data.instruction_label.identifier = continue_label_identifier;
-
-  ir_add_instruction_to_function(function, continue_label);
+  ir_emit_label(continue_label_identifier, function);
 
   IRNode *condition = ir_value(while_node->data.while_statement.condition, function, emit_status);
 
-  IRNode *jmp_if_zero = malloc(sizeof(IRNode));
-  jmp_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
-  jmp_if_zero->data.instruction_jump_if_zero.condition = condition;
-  jmp_if_zero->data.instruction_jump_if_zero.target = break_label_identifier;
-
-  ir_add_instruction_to_function(function, jmp_if_zero);
-
+  ir_emit_jump_if_zero(break_label_identifier, condition, function);
   ir_block(while_node->data.while_statement.statement_body, function, emit_status);
-
-  IRNode *jmp_continue = malloc(sizeof(IRNode));
-  jmp_continue->type = IR_INSTRUCTION_JUMP;
-  jmp_continue->data.instruction_jump.target = continue_label_identifier;
-
-  ir_add_instruction_to_function(function, jmp_continue);
-
-  IRNode *break_label = malloc(sizeof(IRNode));
-  break_label->type = IR_INSTRUCTION_LABEL;
-  break_label->data.instruction_label.identifier = break_label_identifier;
-
-  ir_add_instruction_to_function(function, break_label);
+  ir_emit_jump(continue_label_identifier, function);
+  ir_emit_label(break_label_identifier, function);
 }
 
 void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
@@ -335,11 +301,7 @@ void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_sta
 
   snprintf(start_label_identifier, 64, "%s.%d", "do_start", do_node->data.do_while_statement.label_id);
 
-  IRNode *start_label = malloc(sizeof(IRNode));
-  start_label->type = IR_INSTRUCTION_LABEL;
-  start_label->data.instruction_label.identifier = start_label_identifier;
-
-  ir_add_instruction_to_function(function, start_label);
+  ir_emit_label(start_label_identifier, function);
 
   ir_block(do_node->data.do_while_statement.statement_body, function, emit_status);
 
@@ -347,30 +309,16 @@ void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_sta
 
   snprintf(continue_label_identifier, 64, "%s.%d", "do_continue", do_node->data.do_while_statement.label_id);
 
-  IRNode *continue_label = malloc(sizeof(IRNode));
-  continue_label->type = IR_INSTRUCTION_LABEL;
-  continue_label->data.instruction_label.identifier = continue_label_identifier;
-
-  ir_add_instruction_to_function(function, continue_label);
+  ir_emit_label(continue_label_identifier, function);
 
   IRNode *condition = ir_value(do_node->data.do_while_statement.condition, function, emit_status);
 
-  IRNode *jmp_if_not_zero = malloc(sizeof(IRNode));
-  jmp_if_not_zero->type = IR_INSTRUCTION_JUMP_IF_NOT_ZERO;
-  jmp_if_not_zero->data.instruction_jump_if_not_zero.condition = condition;
-  jmp_if_not_zero->data.instruction_jump_if_not_zero.target = start_label_identifier;
-
-  ir_add_instruction_to_function(function, jmp_if_not_zero);
+  ir_emit_jump_if_not_zero(start_label_identifier, condition, function);
 
   char *break_label_identifier = malloc(64);
 
   snprintf(break_label_identifier, 64, "%s.%d", "do_break", do_node->data.do_while_statement.label_id);
-
-  IRNode *break_label = malloc(sizeof(IRNode));
-  break_label->type = IR_INSTRUCTION_LABEL;
-  break_label->data.instruction_label.identifier = break_label_identifier;
-
-  ir_add_instruction_to_function(function, break_label);
+  ir_emit_label(break_label_identifier, function);
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emit_status) {
@@ -388,63 +336,26 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
         char *end_label_name = ir_create_temp_label(emit_status);
         char *false_label_name = ir_create_temp_label(emit_status);
 
-        IRNode *false_jump = malloc(sizeof(IRNode));
-        false_jump->type = IR_INSTRUCTION_JUMP_IF_ZERO;
-        false_jump->data.instruction_jump_if_zero.condition = condition;
-        false_jump->data.instruction_jump_if_zero.target = false_label_name;
-
-        ir_add_instruction_to_function(ir_function, false_jump);
+        ir_emit_jump_if_zero(false_label_name, condition, ir_function);
         
         IRNode *true_value = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.true_expression, ir_function, emit_status);
-
-        IRNode *copy_instruction = malloc(sizeof(IRNode));
-        copy_instruction->type = IR_INSTRUCTION_COPY;
-        copy_instruction->data.instruction_copy.source = true_value;
-
         IRNode *variable = malloc(sizeof(IRNode));
         variable->type = IR_VALUE_VAR;
         variable->data.value_var.identifier = ast_expression->data.assignement_expression.left_expression->data.variable_expression.identifier;
 
-        copy_instruction->data.instruction_copy.destination = variable;      
-
-        ir_add_instruction_to_function(ir_function, copy_instruction);
-        
-        IRNode *end_jump = malloc(sizeof(IRNode));
-        end_jump->type = IR_INSTRUCTION_JUMP;
-        end_jump->data.instruction_jump.target = end_label_name;
-
-        ir_add_instruction_to_function(ir_function, end_jump);
-
-        IRNode *false_label = malloc(sizeof(IRNode));
-        false_label->type = IR_INSTRUCTION_LABEL;
-        false_label->data.instruction_label.identifier = false_label_name;
-
-        ir_add_instruction_to_function(ir_function, false_label);
+        ir_emit_copy(true_value, variable, ir_function);
+        ir_emit_jump(end_label_name, ir_function);
+        ir_emit_label(false_label_name, ir_function);
       
         IRNode *false_value = ir_value(ast_expression->data.assignement_expression.right_expression->data.conditional_expression.false_expression, ir_function, emit_status);
 
-        IRNode *copy_false_instruction = malloc(sizeof(IRNode));
-        copy_false_instruction->type = IR_INSTRUCTION_COPY;
-        copy_false_instruction->data.instruction_copy.source = false_value;
-        copy_false_instruction->data.instruction_copy.destination = variable;      
-
-        ir_add_instruction_to_function(ir_function, copy_false_instruction);
-        
-        IRNode *end_label = malloc(sizeof(IRNode));
-        end_label->type = IR_INSTRUCTION_LABEL;
-        end_label->data.instruction_label.identifier = end_label_name;     
-
-        ir_add_instruction_to_function(ir_function, end_label);
+        ir_emit_copy(false_value, variable, ir_function);
+        ir_emit_label(end_label_name, ir_function);
 
         return NULL;
       }
         
       IRNode *result = ir_value(ast_expression->data.assignement_expression.right_expression, ir_function, emit_status);
-
-      IRNode *copy_instruction = malloc(sizeof(IRNode));
-      copy_instruction->type = IR_INSTRUCTION_COPY;
-      copy_instruction->data.instruction_copy.source = result;
-
       IRNode *variable = malloc(sizeof(IRNode));
       variable->type = IR_VALUE_VAR;
 
@@ -456,10 +367,8 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
         fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Expression Assignment\n");
         exit(1);
       }
-      
-      copy_instruction->data.instruction_copy.destination = variable;      
 
-      ir_add_instruction_to_function(ir_function, copy_instruction);
+      ir_emit_copy(result, variable, ir_function);
       
       return result;
     }
@@ -469,43 +378,21 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
         char *end_label_name = ir_create_temp_label(emit_status);
         char *false_label_name = ir_create_temp_label(emit_status);
 
-        IRNode *false_jump = malloc(sizeof(IRNode));
-        false_jump->type = IR_INSTRUCTION_JUMP_IF_ZERO;
-        false_jump->data.instruction_jump_if_zero.condition = condition;
-        false_jump->data.instruction_jump_if_zero.target = false_label_name;
-
-        ir_add_instruction_to_function(ir_function, false_jump);
+        ir_emit_jump_if_zero(false_label_name, condition, ir_function);
         
         IRNode *true_value = ir_value(ast_expression->data.conditional_expression.true_expression, ir_function, emit_status);
 
-        IRNode *end_jump = malloc(sizeof(IRNode));
-        end_jump->type = IR_INSTRUCTION_JUMP;
-        end_jump->data.instruction_jump.target = end_label_name;
-
-        ir_add_instruction_to_function(ir_function, end_jump);
-
-        IRNode *false_label = malloc(sizeof(IRNode));
-        false_label->type = IR_INSTRUCTION_LABEL;
-        false_label->data.instruction_label.identifier = false_label_name;
-
-        ir_add_instruction_to_function(ir_function, false_label);
+        ir_emit_jump(end_label_name, ir_function);
+        ir_emit_label(false_label_name, ir_function);
       
-        IRNode *false_value = ir_value(ast_expression->data.conditional_expression.false_expression, ir_function, emit_status);
-        
-        IRNode *end_label = malloc(sizeof(IRNode));
-        end_label->type = IR_INSTRUCTION_LABEL;
-        end_label->data.instruction_label.identifier = end_label_name;     
+        IRNode *false_value = ir_value(ast_expression->data.conditional_expression.false_expression, ir_function, emit_status);      
 
-        ir_add_instruction_to_function(ir_function, end_label);
+        ir_emit_label(end_label_name, ir_function);
 
         return condition;
     }
     case AST_EXPRESSION_CONSTANT: {
-      IRNode *constant = malloc(sizeof(IRNode));
-      constant->type = IR_VALUE_CONSTANT;
-      constant->data.value_constant.value = ast_expression->data.constant_expression.value;
-
-      return constant;
+      return ir_create_constant(ast_expression->data.constant_expression.value);
     }
     break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
@@ -606,45 +493,16 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
 
           ir_add_instruction_to_function(ir_function, jmp_instruction_v2);
 
-          IRNode *result_1 = malloc(sizeof(IRNode));
-          result_1->type = IR_VALUE_CONSTANT;
-          result_1->data.value_constant.value = 1;
+          IRNode *result_1 = ir_create_constant(1);
 
-          IRNode *copy_1 = malloc(sizeof(IRNode));
-          copy_1->type = IR_INSTRUCTION_COPY;
-          copy_1->data.instruction_copy.destination = destination;
-          copy_1->data.instruction_copy.source = result_1;        
+          ir_emit_copy(result_1, destination, ir_function);
+          ir_emit_jump("end", ir_function);
+          ir_emit_label(label_name, ir_function);
 
-          ir_add_instruction_to_function(ir_function, copy_1);
+          IRNode *result_0 = ir_create_constant(0);
 
-          IRNode *jmp_instruction = malloc(sizeof(IRNode));
-          jmp_instruction->type = IR_INSTRUCTION_JUMP;
-          jmp_instruction->data.instruction_jump.target = "end";
-
-          ir_add_instruction_to_function(ir_function, jmp_instruction);
-          
-          IRNode *label = malloc(sizeof(IRNode));
-          label->type = IR_INSTRUCTION_LABEL;
-          label->data.instruction_label.identifier = label_name;
-
-          ir_add_instruction_to_function(ir_function, label);
-
-          IRNode *result_0 = malloc(sizeof(IRNode));
-          result_0->type = IR_VALUE_CONSTANT;
-          result_0->data.value_constant.value = 0;
-
-          IRNode *copy_2 = malloc(sizeof(IRNode));
-          copy_2->type = IR_INSTRUCTION_COPY;
-          copy_2->data.instruction_copy.destination = destination;
-          copy_2->data.instruction_copy.source = result_0;        
-
-          ir_add_instruction_to_function(ir_function, copy_2);
-
-          IRNode *label_end = malloc(sizeof(IRNode));
-          label_end->type = IR_INSTRUCTION_LABEL;
-          label_end->data.instruction_label.identifier = "end";
-
-          ir_add_instruction_to_function(ir_function, label_end);
+          ir_emit_copy(result_0, destination, ir_function);
+          ir_emit_label("end", ir_function);
 
           return destination;
         }
@@ -691,6 +549,31 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
   exit(1);    
 }
 
+void ir_emit_jump(char *label, IRNode *function) {
+  IRNode *jmp_instruction = malloc(sizeof(IRNode));
+  jmp_instruction->type = IR_INSTRUCTION_JUMP;
+  jmp_instruction->data.instruction_jump.target = label;
+
+  ir_add_instruction_to_function(function, jmp_instruction);
+}
+
+void ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function) {
+  IRNode *jump_if_zero = malloc(sizeof(IRNode));
+  jump_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
+  jump_if_zero->data.instruction_jump_if_zero.condition = condition;
+  jump_if_zero->data.instruction_jump_if_zero.target = label;
+
+  ir_add_instruction_to_function(function, jump_if_zero);
+}
+
+void ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function) {
+  IRNode *jmp_if_not_zero = malloc(sizeof(IRNode));
+  jmp_if_not_zero->type = IR_INSTRUCTION_JUMP_IF_NOT_ZERO;
+  jmp_if_not_zero->data.instruction_jump_if_not_zero.condition = condition;
+  jmp_if_not_zero->data.instruction_jump_if_not_zero.target = label;
+
+  ir_add_instruction_to_function(function, jmp_if_not_zero);
+}
 void check_ir_function_instruction_size(IRNode *ir_function) {
   int current_count = ir_function->data.function.instruction_count;
   int current_capacity = ir_function->data.function.instruction_capacity;
@@ -704,6 +587,24 @@ void check_ir_function_instruction_size(IRNode *ir_function) {
     ir_function->data.function.instructions = instructions;
   } 
 } 
+
+void ir_emit_label(char *label, IRNode *function) {
+  IRNode *label_instruction = malloc(sizeof(IRNode));
+  label_instruction->type = IR_INSTRUCTION_LABEL;
+  label_instruction->data.instruction_label.identifier = label;
+
+  ir_add_instruction_to_function(function, label_instruction);
+}
+
+void ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function) {
+  IRNode *copy_instruction = malloc(sizeof(IRNode));
+  copy_instruction->type = IR_INSTRUCTION_COPY;
+  copy_instruction->data.instruction_copy.source = source;
+  copy_instruction->data.instruction_copy.destination = destination;      
+
+  ir_add_instruction_to_function(function, copy_instruction);
+
+}
 
 void ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status) {
   if (emit_status->postfix_arena.offset == 0) {
@@ -734,4 +635,12 @@ char* ir_create_temp_register(IREmitStatus *emit_status) {
   snprintf(register_name, 10, "tmp.%d", emit_status->temp_register_id++); 
 
   return register_name;
+}
+
+IRNode* ir_create_constant(int value) {
+  IRNode *constant = malloc(sizeof(IRNode));
+  constant->type = IR_VALUE_CONSTANT;
+  constant->data.value_constant.value = value;
+
+  return constant;
 }

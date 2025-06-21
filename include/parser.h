@@ -73,6 +73,7 @@ typedef struct AstNode {
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
+    //TODO: Investigate if needed
     // struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
     struct GotoLabelStatement { char *label; } goto_label_statement;
