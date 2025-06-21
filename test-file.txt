@@ -1,10 +1,8 @@
 int main(void) {
-    int a = 0;
-
-    while (a < 5) {
-        a = a + 2;
-        int b = 1;
-     }
+    int a = 1;
+    do {
+        a = a * 2;
+    } while(a < 11);
 
     return a;
 }

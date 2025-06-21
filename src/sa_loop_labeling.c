@@ -100,6 +100,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       for (int i = 0; i < ast_node->data.block.block_count; i++) {
         sa_label_loop(&ast_node->data.block.block_items[i], label_stack, current_loop_id);
       }   
+      break;
     }
     case AST_DECLARATION:
       if (!ast_node->data.declaration.has_expression) return;
