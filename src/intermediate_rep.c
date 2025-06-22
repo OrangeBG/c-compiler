@@ -23,6 +23,7 @@ void    ir_emit_goto(AstNode *goto_node, IRNode *function);
 void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
 void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_jump(char *label, IRNode *function);
 void    ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function); 
 void    ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function); 
@@ -175,7 +176,6 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
     
     AstNode *block_item = &block->data.block.block_items[i];
 
-    //If not a declaration, then it's a statement
     switch (block_item->type) {
       case AST_STATEMENT_NULL:       { continue; } 
       case AST_STATEMENT_IF:         { ir_emit_if(block_item, function, emit_status); continue; }
@@ -185,6 +185,7 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       case AST_STATEMENT_GOTO_LABEL: { ir_emit_goto_label(block_item, function); continue; }
       case AST_STATEMENT_WHILE:      { ir_emit_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_DO_WHILE:   { ir_emit_do_while(block_item, function, emit_status); continue; }
+      case AST_STATEMENT_FOR:        { ir_emit_for(block_item, function, emit_status); continue; }
       case AST_DECLARATION: {
         if (!block_item->data.declaration.has_expression) {
           continue;
@@ -252,7 +253,6 @@ void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
 
 void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status) {
   char *continue_label_identifier = ir_create_concat_identifier("while_continue", while_node->data.do_while_statement.label_id); 
-
   char *break_label_identifier = ir_create_concat_identifier("while_break", while_node->data.do_while_statement.label_id); 
 
   ir_emit_label(continue_label_identifier, function);
@@ -267,21 +267,44 @@ void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_sta
 
 void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
   char *start_label_identifier = ir_create_concat_identifier("do_start", do_node->data.do_while_statement.label_id);
-
   ir_emit_label(start_label_identifier, function);
 
   ir_block(do_node->data.do_while_statement.statement_body, function, emit_status);
 
   char *continue_label_identifier = ir_create_concat_identifier("do_continue", do_node->data.do_while_statement.label_id); 
-
   ir_emit_label(continue_label_identifier, function);
 
   IRNode *condition = ir_value(do_node->data.do_while_statement.condition, function, emit_status);
-
   ir_emit_jump_if_not_zero(start_label_identifier, condition, function);
 
   char *break_label_identifier = ir_create_concat_identifier("do_break", do_node->data.do_while_statement.label_id);
+  ir_emit_label(break_label_identifier, function);
+}
 
+void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status) {
+  if (for_node->data.for_statement.for_loop_init != NULL) {
+    ir_value(for_node->data.for_statement.for_loop_init, function, emit_status);
+  }  
+
+  char *start_label_identifier = ir_create_concat_identifier("for_start", for_node->data.for_statement.label_id);
+  ir_emit_label(start_label_identifier, function);
+
+  char *break_label_identifier = ir_create_concat_identifier("for_break", for_node->data.for_statement.label_id);
+  if (for_node->data.for_statement.condition_expression != NULL) {
+    IRNode *condition = ir_value(for_node->data.for_statement.condition_expression, function, emit_status);
+    ir_emit_jump_if_zero(break_label_identifier, condition, function);
+  }
+
+  ir_value(for_node->data.for_statement.statement_body, function, emit_status);
+
+  char *continue_label_identifier = ir_create_concat_identifier("for_continue", for_node->data.for_statement.label_id);
+  ir_emit_label(continue_label_identifier, function);
+
+  if (for_node->data.for_statement.post_expression != NULL) {
+    ir_value(for_node->data.for_statement.post_expression, function, emit_status);
+  }
+
+  ir_emit_jump(start_label_identifier, function);
   ir_emit_label(break_label_identifier, function);
 }
 
