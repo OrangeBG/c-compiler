@@ -7,19 +7,21 @@
 #include "../include/parser.h"
 
 #define BLOCK_STARTING_ALLOCATION 8
+#define ADD_WHITESPACE whitespace + 5
 
 typedef struct Parser {
   int token_count;
   int current_token_index;
   Token *tokens;
   char* file;
+  int current_loop_label_id;
 } Parser;
  
 AstNode*   ast_program(Parser *parser);
 AstNode*   ast_function(Parser *parser);
 AstNode*   ast_block(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
-void       ast_declaration(Parser *parser, AstNode *function);
+AstNode*   ast_declaration(Parser *parser);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
@@ -38,7 +40,8 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
     .token_count = token_count,
     .current_token_index = 0,
     .tokens = tokens,
-    .file = file
+    .file = file,
+    .current_loop_label_id = 0,
   };
   
   AstNode *ret_program = ast_program(&parser);
@@ -57,47 +60,60 @@ void print_ast(AstNode *node, int whitespace) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      print_ast(node->data.program.function, ++whitespace);
+      print_ast(node->data.program.function, ADD_WHITESPACE);
       printf(")\n");
       break;
     case AST_FUNCTION:
       print_whitespace(whitespace);
       printf("Function (name=\"%s\", body =\n", node->data.function.name);
 
-      print_ast(node->data.function.block, ++whitespace);
+      print_ast(node->data.function.block, ADD_WHITESPACE);
 
       print_whitespace(whitespace);
       printf(")\n");      
       break;
     case AST_BLOCK:
       print_whitespace(whitespace);
-      printf("START BLOCK\n");
+      printf("Block (\n");
       for (int i = 0; i < node->data.block.block_count; i++) {
-        print_ast(&node->data.block.block_items[i], ++whitespace);
-        printf("\n");
+        print_ast(&node->data.block.block_items[i], ADD_WHITESPACE);
       }   
       print_whitespace(whitespace);
-      printf("END BLOCK\n");
+      printf(")\n");
       break;
     case AST_DECLARATION:
       print_whitespace(whitespace);
-      printf("Declaration(%s,\n", node->data.declaration.identifier);
+      printf("Declaration (id = \"%s\"\n", node->data.declaration.identifier);
 
       if (node->data.declaration.has_expression) {
-        print_ast(node->data.declaration.expression, ++whitespace);
+        print_ast(node->data.declaration.expression, ADD_WHITESPACE);
       }
 
       print_whitespace(whitespace);
-      printf(")\n");
-      
+      printf(")\n");      
+      break;
+    case AST_STATEMENT_GOTO:
+      print_whitespace(whitespace);
+      printf("Goto (%s)\n", node->data.goto_statement.label);
+      break;      
+    case AST_STATEMENT_GOTO_LABEL:
+      print_whitespace(whitespace);
+      printf("Goto Label(%s)\n", node->data.goto_label_statement.label);
+      break;      
+    case AST_STATEMENT_BREAK:
+      print_whitespace(whitespace);
+      printf("Break(id = %d)\n", node->data.break_statement.label_id);
+      break;
+    case AST_STATEMENT_CONTINUE:
+      print_whitespace(whitespace);
+      printf("Continue(id = %d)\n", node->data.continue_statement.label_id);
       break;
     case AST_STATEMENT_RETURN:
       print_whitespace(whitespace);
       printf("Return(\n");
-      print_ast(node->data.return_statement.expression, ++whitespace);
-      printf("\n");
+      print_ast(node->data.return_statement.expression, ADD_WHITESPACE);
       print_whitespace(whitespace);
-      printf(")");
+      printf(")\n");
       break;
     case AST_STATEMENT_NULL:
       print_whitespace(whitespace);
@@ -105,136 +121,206 @@ void print_ast(AstNode *node, int whitespace) {
       break;
      case AST_STATEMENT_EXPRESSION:
       print_whitespace(whitespace);
-      printf("Expression Statement(");
-      print_ast(node->data.expression_statement.expression, 0);
+      printf("Expression Statement(\n");
+      print_ast(node->data.expression_statement.expression, ADD_WHITESPACE);
       printf(")\n");
       break;
     case AST_STATEMENT_IF:      
       print_whitespace(whitespace);
-      printf("If( Condition( ");
-      print_ast(node->data.if_statement.condition_expression, 0);
-      printf(") Then( ");
-      print_ast(node->data.if_statement.then_statement, 0);
-      printf(")");
+      printf("If (\n");
+      print_ast(node->data.if_statement.condition_expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n ");
+      print_whitespace(whitespace);
+      printf("Then(\n");
+      print_ast(node->data.if_statement.then_statement, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
 
       if (node->data.if_statement.else_statement != NULL) {
-        printf(" Else( ");
-        print_ast(node->data.if_statement.else_statement, 0);
-        printf(")");
+        print_whitespace(whitespace);
+        printf("Else(\n");
+        print_ast(node->data.if_statement.else_statement, ADD_WHITESPACE);
+        print_whitespace(whitespace);
+        printf(")\n");
       }
+      break;
+    case AST_STATEMENT_WHILE:
+      print_whitespace(whitespace);
+      printf("While (\n");
+      print_whitespace(ADD_WHITESPACE);
+      printf("Id = %d\n", node->data.while_statement.label_id);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Condition =\n");
+      print_ast(node->data.while_statement.condition, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Statements =\n");
+      print_ast(node->data.while_statement.statement_body, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
       printf(")\n");
+      break;
+    case AST_STATEMENT_DO_WHILE:
+      print_whitespace(whitespace);
+      printf("Do (\n");
+      print_whitespace(ADD_WHITESPACE);
+      printf("Id = %d\n", node->data.do_while_statement.label_id);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Statements = \n");
+      print_ast(node->data.do_while_statement.statement_body, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Condition = \n");
+      print_ast(node->data.do_while_statement.condition, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
+      printf(")\n");
+      break;
+    case AST_STATEMENT_FOR:
+      print_whitespace(whitespace);
+      printf("For (\n");
+      print_whitespace(ADD_WHITESPACE);
+      printf("Id = %d\n", node->data.for_statement.label_id);
+
+      if (node->data.for_statement.for_loop_init != NULL) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Init = \n");
+        print_ast(node->data.for_statement.for_loop_init, ADD_WHITESPACE + 5);
+      }
+
+      if (node->data.for_statement.condition_expression != NULL) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Condition = \n");
+        print_ast(node->data.for_statement.condition_expression, ADD_WHITESPACE + 5);
+      }
+
+      if (node->data.for_statement.post_expression != NULL) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Post = \n");
+        print_ast(node->data.for_statement.post_expression, ADD_WHITESPACE + 5);
+      }
+
+      print_whitespace(whitespace);
+      printf(")\n");      
       break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
-      printf("Constant(%d)", node->data.constant_expression.value);
+      printf("Constant(%d)\n", node->data.constant_expression.value);
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
       print_whitespace(whitespace);
-      printf("Postfix Increment(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Postfix Increment(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_POSTFIX_DECREMENT:
       print_whitespace(whitespace);
-      printf("Postfix Decrement(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Postfix Decrement(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_PREFIX_INCREMENT:
       print_whitespace(whitespace);
-      printf("Prefix Increment(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Prefix Increment(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_PREFIX_DECREMENT:
       print_whitespace(whitespace);
-      printf("Prefix Decrement(");
-      print_ast(node->data.increment_decrement_expression.expression, 0);
-      printf(")");
+      printf("Prefix Decrement(\n");
+      print_ast(node->data.increment_decrement_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_CONDITIONAL:
       print_whitespace(whitespace);
-
       printf("Conditional(\n");
-      int indent = whitespace++;
-      print_whitespace(indent);
-      printf("Condition(\n");
-      print_ast(node->data.conditional_expression.condition, 0);
-      printf(") True Exp(");
-      print_ast(node->data.conditional_expression.true_expression, 0);
-      printf(") False Exp(");
-      print_ast(node->data.conditional_expression.false_expression, 0);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Condition = \n");
+      print_ast(node->data.conditional_expression.condition, ADD_WHITESPACE + 5);
+      printf("True Expression = \n");
+      print_ast(node->data.conditional_expression.true_expression, ADD_WHITESPACE + 5);
+      printf("False Expression = \n");
+      print_ast(node->data.conditional_expression.false_expression, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
       printf(")\n");      
       break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
-      printf("Unary(");
-      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT) {
-        printf("Complement(\n");
-      } else {
-        printf("Negate(\n");
+      printf("Unary (type = ");
+
+      switch (node->data.unary_expression.op_type) {
+        case AST_UNARY_COMPLEMENT: printf("Complement"); break;
+        case AST_UNARY_NEGATE: printf("Negate"); break;
+        case AST_UNARY_NOT: printf("Not"); break;
+        case AST_UNARY_PREFIX_INCREMENT: printf("Prefix Increment"); break;
+        case AST_UNARY_PREFIX_DECREMENT: printf("Prefix Decrement"); break;
       }
-      print_ast(node->data.unary_expression.expression, ++whitespace);
-      printf("))");
+      printf("\n");      
+      print_ast(node->data.unary_expression.expression, ADD_WHITESPACE);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
     case AST_EXPRESSION_BINARY:
       print_whitespace(whitespace);
-      printf("Binary(\n");
-      print_ast(node->data.binary_expression.left_expression, ++whitespace);
-  
+      printf("Binary( op type = ");
       switch (node->data.binary_expression.op_type) {
-        case AST_BINARY_ADD:                  printf(" + "); break;
-        case AST_BINARY_SUBTRACT:             printf(" - "); break;
-        case AST_BINARY_DIVIDE:               printf(" / "); break;
-        case AST_BINARY_MULTIPLY:             printf(" * "); break;
-        case AST_BINARY_REMAINDER:            printf(" %% "); break;
-        case AST_BINARY_BITWISE_AND:          printf(" & "); break; 
-        case AST_BINARY_BITWISE_OR:           printf(" | "); break; 
-        case AST_BINARY_BITWISE_XOR:          printf(" ^ "); break; 
-        case AST_BINARY_BITWISE_LEFT_SHIFT:   printf(" << "); break;
-        case AST_BINARY_BITWISE_RIGHT_SHIFT:  printf(" >> "); break;
-        case AST_BINARY_AND:                  printf(" && "); break;
-        case AST_BINARY_OR:                   printf(" || "); break;
-        case AST_BINARY_GREATER_THAN:         printf(" > "); break;
-        case AST_BINARY_GREATER_OR_EQUAL:     printf(" >= "); break;
-        case AST_BINARY_LESS_THAN:            printf(" < "); break;
-        case AST_BINARY_LESS_OR_EQUAL:        printf(" <= "); break;
-        case AST_BINARY_EQUAL:                printf(" == "); break;
-        case AST_BINARY_NOT_EQUAL:            printf(" != "); break;
+        case AST_BINARY_ADD:                  printf("\"+\""); break;
+        case AST_BINARY_SUBTRACT:             printf("\"-\""); break;
+        case AST_BINARY_DIVIDE:               printf("\"/\""); break;
+        case AST_BINARY_MULTIPLY:             printf("\"*\""); break;
+        case AST_BINARY_REMAINDER:            printf("\"%%\""); break;
+        case AST_BINARY_BITWISE_AND:          printf("\"&\""); break; 
+        case AST_BINARY_BITWISE_OR:           printf("\"|\""); break; 
+        case AST_BINARY_BITWISE_XOR:          printf("\"^\""); break; 
+        case AST_BINARY_BITWISE_LEFT_SHIFT:   printf("\"<<\""); break;
+        case AST_BINARY_BITWISE_RIGHT_SHIFT:  printf("\">>\""); break;
+        case AST_BINARY_AND:                  printf("\"&&\""); break;
+        case AST_BINARY_OR:                   printf("\"||\""); break;
+        case AST_BINARY_GREATER_THAN:         printf("\">\""); break;
+        case AST_BINARY_GREATER_OR_EQUAL:     printf("\">=\""); break;
+        case AST_BINARY_LESS_THAN:            printf("\"<\""); break;
+        case AST_BINARY_LESS_OR_EQUAL:        printf("\"<=\""); break;
+        case AST_BINARY_EQUAL:                printf("\"==\""); break;
+        case AST_BINARY_NOT_EQUAL:            printf("\"!=\""); break;
       }
-    
-      print_ast(node->data.binary_expression.right_expression, 0);
-      printf(")");
+      printf("\n");    
+      print_whitespace(ADD_WHITESPACE);
+      printf("Left = \n");
+      print_ast(node->data.binary_expression.left_expression, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
+      printf("Right = \n");    
+      print_ast(node->data.binary_expression.right_expression, ADD_WHITESPACE + 5);
+      print_whitespace(whitespace);
+      printf(")\n");
       break;
       case AST_EXPRESSION_VARIABLE:
         print_whitespace(whitespace);
-        printf("Variable(%s)", node->data.variable_expression.identifier);
+        printf("Variable(%s)\n", node->data.variable_expression.identifier);
         break;
       case AST_EXPRESSION_ASSIGNMENT: {
-        int indentation = whitespace += 1;
         print_whitespace(whitespace);
         printf("Assignment(\n");
-        print_whitespace(indentation);
-        printf("Left(\n");
-        print_ast(node->data.assignement_expression.left_expression, ++indentation);
-        printf(")\n");
+        print_whitespace(ADD_WHITESPACE);
+        printf("Left = \n");
+        print_ast(node->data.assignement_expression.left_expression, ADD_WHITESPACE + 5);
 
-        print_whitespace(indentation);
-        printf("Right(\n");
-        print_ast(node->data.assignement_expression.right_expression, ++indentation);
-        printf(")\n");
-        print_whitespace(indentation);
+        print_whitespace(ADD_WHITESPACE);
+        printf("Right = \n");
+        print_ast(node->data.assignement_expression.right_expression, ADD_WHITESPACE + 5);
+        print_whitespace(whitespace);
         printf(")\n");
         break;
       }
+      default: {
+        printf("ERROR - Parser: Missing ast node type for printing: %d", node->type);
+        exit(1);
+    }
   }    
-
 }
 
 void print_whitespace(int count) {
-  for (int i = 0; i < count;i++) {
-    printf(" ");
-  }
+  printf("%*s", count, "");
 }
 
 Token* current_token(Parser *parser) {
@@ -333,7 +419,8 @@ AstNode* ast_block(Parser *parser) {
     }
 
     if (current_token(parser)->type == TOKEN_INT) {
-      ast_declaration(parser, block);
+      AstNode *declaration = ast_declaration(parser);
+      add_to_block(block, declaration);
     } else {
       AstNode *statement = ast_statement(parser);
       add_to_block(block, statement);
@@ -368,7 +455,7 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-void ast_declaration(Parser *parser, AstNode *block) {
+AstNode* ast_declaration(Parser *parser) {
   ast_expect(parser, TOKEN_INT);
 
   char *identifier = ast_identifier(parser);
@@ -387,7 +474,8 @@ void ast_declaration(Parser *parser, AstNode *block) {
   }
 
   ast_expect(parser, TOKEN_SEMICOLON);
-  add_to_block(block, declaration);
+
+  return declaration;
 }
 
 AstNode *ast_statement(Parser *parser) { 
@@ -462,6 +550,111 @@ AstNode *ast_statement(Parser *parser) {
     return goto_statement;
   }
 
+  if (current_token(parser)->type == TOKEN_BREAK) {
+    ast_expect(parser, TOKEN_BREAK);
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    AstNode *break_statement = malloc(sizeof(AstNode));
+    break_statement->type = AST_STATEMENT_BREAK;
+    // break_statement->data.break_statement.label_id = current_loop_label->data.integer;
+
+    return break_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_CONTINUE) {
+    ast_expect(parser, TOKEN_CONTINUE);
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    AstNode *continue_statement = malloc(sizeof(AstNode));
+    continue_statement->type = AST_STATEMENT_CONTINUE;
+    // continue_statement->data.continue_statement.label_id = current_loop_label->data.integer;
+
+    return continue_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_WHILE) {
+    ast_expect(parser, TOKEN_WHILE);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    AstNode *condition_expression = ast_expression(parser, 0);
+    
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+    AstNode *statements = ast_statement(parser);
+
+    AstNode *while_statement = malloc(sizeof(AstNode));
+    while_statement->type = AST_STATEMENT_WHILE;
+    while_statement->data.while_statement.condition = condition_expression;
+    while_statement->data.while_statement.statement_body = statements;
+
+    return while_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_DO) {
+    ast_expect(parser, TOKEN_DO);
+
+    AstNode *statements = ast_statement(parser);
+    
+    ast_expect(parser, TOKEN_WHILE);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    AstNode *condition_expression = ast_expression(parser, 0);
+    
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    AstNode *do_statement = malloc(sizeof(AstNode));
+    do_statement->type = AST_STATEMENT_DO_WHILE;
+    do_statement->data.do_while_statement.condition = condition_expression;
+    do_statement->data.do_while_statement.statement_body = statements;
+
+    return do_statement;
+  }
+
+  if (current_token(parser)->type == TOKEN_FOR) {
+    ast_expect(parser, TOKEN_FOR);
+    ast_expect(parser, TOKEN_OPEN_PAREN);
+
+    AstNode *for_loop_statement = malloc(sizeof(AstNode));
+    for_loop_statement->type = AST_STATEMENT_FOR;
+
+    AstNode *dec_or_exp;
+
+    //TODO: This will not work when we introduce declaration types other than 'int'
+    if (current_token(parser)->type == TOKEN_SEMICOLON) {
+      ast_expect(parser, TOKEN_SEMICOLON);    
+      dec_or_exp = NULL;
+    } else if (current_token(parser)->type == TOKEN_INT) {
+      dec_or_exp = ast_declaration(parser);
+    } else {
+      dec_or_exp= ast_expression(parser, 0);
+      //TODO: Weird we do this for expressions but are handled in ast_declaration()
+      ast_expect(parser, TOKEN_SEMICOLON);
+    }
+
+    for_loop_statement->data.for_statement.for_loop_init = dec_or_exp;
+
+    if (current_token(parser)->type != TOKEN_SEMICOLON) {
+      AstNode *for_condition = ast_expression(parser, 0);
+      for_loop_statement->data.for_statement.condition_expression = for_condition;
+    }
+
+    ast_expect(parser, TOKEN_SEMICOLON);
+
+    if (current_token(parser)->type != TOKEN_SEMICOLON && current_token(parser)->type != TOKEN_CLOSE_PAREN) {
+      AstNode *post_expression = ast_expression(parser, 0);
+      for_loop_statement->data.for_statement.post_expression = post_expression;
+    }
+
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+    AstNode *for_statements = ast_statement(parser);
+
+    for_loop_statement->data.for_statement.statement_body = for_statements;    
+
+    return for_loop_statement;
+  }
+  
   AstNode *expression = ast_expression(parser, 0);  
 
   //TODO: See if we add this in ast_expression() instead of doing this goto label check

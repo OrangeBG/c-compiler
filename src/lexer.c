@@ -20,13 +20,17 @@ const char* TokenTypeStr[] = {
   "TOKEN_BITWISE_LEFT_SHIFT_EQUAL",
   "TOKEN_BITWISE_RIGHT_SHIFT",
   "TOKEN_BITWISE_RIGHT_SHIFT_EQUAL",
+  "TOKEN_BREAK",
   "TOKEN_CLOSE_BRACE",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_COLON",
   "TOKEN_CONSTANT_INT",
+  "TOKEN_CONTINUE",
   "TOKEN_DECREMENT",
+  "TOKEN_DO",
   "TOKEN_ELSE",
   "TOKEN_EQUAL",
+  "TOKEN_FOR",
   "TOKEN_FORWARD_SLASH",
   "TOKEN_FORWARD_SLASH_EQUAL",
   "TOKEN_GOTO",
@@ -55,6 +59,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_RETURN",
   "TOKEN_SEMICOLON",
   "TOKEN_VOID", 
+  "TOKEN_WHILE",
   "TOKEN_EOF"
 };
 
@@ -319,60 +324,12 @@ void load_tokens(Lexer *lexer, char *file) {
 
 void print_tokens(Lexer *lexer, char *file) {
   for (int i = 0; i < lexer->token_count; i++) {
-    printf("line %d     ", lexer->tokens[i].line);
-    switch (lexer->tokens[i].type) {       
-      case TOKEN_ASTERISK: printf("Asterisk   "); break;
-      case TOKEN_ASTERISK_EQUAL: printf("Asterisk   "); break;
-      case TOKEN_BITWISE_AND: printf("Ampersand  "); break;
-      case TOKEN_BITWISE_AND_EQUAL: printf("Ampersand Equal"); break;
-      case TOKEN_BITWISE_NOT: printf("Tilde      "); break;
-      case TOKEN_BITWISE_OR: printf("Pipe       "); break;
-      case TOKEN_BITWISE_OR_EQUAL: printf("Pipe Equal "); break;
-      case TOKEN_BITWISE_XOR: printf("Caret      "); break;
-      case TOKEN_BITWISE_XOR_EQUAL: printf("Caret Equal"); break;
-      case TOKEN_BITWISE_RIGHT_SHIFT: printf("R. Shift   "); break;
-      case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL: printf("R. Shift Equal"); break;
-      case TOKEN_BITWISE_LEFT_SHIFT: printf("L. Shift   "); break;
-      case TOKEN_BITWISE_LEFT_SHIFT_EQUAL: printf("L. Shift Equal"); break;
-      case TOKEN_CLOSE_BRACE: printf("Close Brace"); break;
-      case TOKEN_CLOSE_PAREN: printf("Close Paren"); break;
-      case TOKEN_COLON: printf("Colon      "); break;
-      case TOKEN_CONSTANT_INT: printf("Constant   "); break;
-      case TOKEN_DECREMENT: printf("Decrement  "); break;
-      case TOKEN_ELSE: printf("Else       "); break;
-      case TOKEN_EQUAL: printf("Equal      "); break;
-      case TOKEN_FORWARD_SLASH: printf("Forward Slash"); break;
-      case TOKEN_FORWARD_SLASH_EQUAL: printf("Forward Slash Equal"); break;
-      case TOKEN_GOTO: printf("Goto       "); break;
-      case TOKEN_IDENTIFIER: printf("Identifier ");  break;
-      case TOKEN_IF: printf("If         "); break;
-      case TOKEN_INCREMENT: printf("Increment  "); break;
-      case TOKEN_INT: printf("Int        ");  break;
-      case TOKEN_NEGATION: printf("Negation   "); break;
-      case TOKEN_NEGATION_EQUAL: printf("Negation Equal"); break;
-      case TOKEN_OPEN_PAREN: printf("Open Paren "); break;
-      case TOKEN_OPEN_BRACE: printf("Open Brace "); break;
-      case TOKEN_PERCENT: printf("Percent    "); break;
-      case TOKEN_PERCENT_EQUAL: printf("Percent Equal"); break;
-      case TOKEN_PLUS: printf("Plus       "); break;
-      case TOKEN_PLUS_EQUAL: printf("Plus Equal "); break;
-      case TOKEN_QUESTION_MARK: printf("Question Mark"); break;
-      case TOKEN_LOGICAL_AND: printf("And        "); break;
-      case TOKEN_LOGICAL_OR: printf("Or         "); break;
-      case TOKEN_LOGICAL_NOT: printf("Not        "); break;
-      case TOKEN_RELATIONAL_EQUAL: printf("Rel. Equal "); break;
-      case TOKEN_RELATIONAL_NOT_EQUAL: printf("Not Equal  "); break;
-      case TOKEN_RELATIONAL_LESS_THAN: printf("Less Than  "); break;
-      case TOKEN_RELATIONAL_LESS_OR_EQUAL: printf("Less or Equal"); break;
-      case TOKEN_RELATIONAL_GREATER_THAN: printf("Greater Than"); break;
-      case TOKEN_RELATIONAL_GREATER_OR_EQUAL: printf("Greater or Equal"); break;
-      case TOKEN_RETURN: printf("Return     "); break;
-      case TOKEN_SEMICOLON: printf("Semicolon  "); break;
-      case TOKEN_VOID: printf("Void       "); break;
-      case TOKEN_EOF: printf("\n"); return;
-      default: fprintf(stderr, "ERROR - Lexer: No print for type %d\n", lexer->tokens[i].type);
-    }
+    printf("line %d", lexer->tokens[i].line);
+    printf("%*s", 6, "");
 
+    long whitespace = 30 - strlen(TokenTypeStr[lexer->tokens[i].type]);
+    printf("%s", TokenTypeStr[lexer->tokens[i].type]);
+    printf("%*s", (int)whitespace, "");
     printf(" -> ");
 
     for (int j = lexer->tokens[i].start_index; j <= lexer->tokens[i].end_index; j++) {
@@ -452,7 +409,11 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
   //TODO: Need to support the rest of the keywords
   //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
+    case 'b': return check_keyword(0, 4, "reak", TOKEN_BREAK, lexer, file);
+    case 'c': return check_keyword(0, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
+    case 'd': return check_keyword(0, 1, "o", TOKEN_DO, lexer, file);
     case 'e': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
+    case 'f': return check_keyword(0, 2, "or", TOKEN_FOR, lexer, file);
     case 'g': return check_keyword(0, 3, "oto", TOKEN_GOTO, lexer, file);
     case 'i': {
       if (lexer->current_index - lexer->start_index > 0) {
@@ -465,6 +426,7 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
      }
     case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
     case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
+    case 'w': return check_keyword(0, 4, "hile", TOKEN_WHILE, lexer, file);
   }
 
   return TOKEN_IDENTIFIER;

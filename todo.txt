@@ -1,4 +1,5 @@
 # Bugs
+    - This declaration doesn't work: int result = j == -1 && i == 11;
 
 # Incomplete
 	- IR 'If' statement does not support else statements
@@ -6,7 +7,6 @@
 # Tech Debt
 	- Intermediate Rep: AST_EXPRESSION_CONDITIONAL logic in two places. One is for assigning to a var while the other is for nested conditional expressions.
 	- Intermediate Rep: Confirm that nested conditionals are working correctly. It builds, but not sure if it's completely correct. Test with something like: int a = 1 ? 2 ? 3 : 4 : 5;
-	- Parser print is ugly
 	- Implement memory arena to parser, ir and asm
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
 	- Check CQL parser for revision to lexing where I'm not incrementing the start_index when doing peek token checks.

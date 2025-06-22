@@ -14,9 +14,13 @@ typedef enum {
   AST_STATEMENT_EXPRESSION,
   AST_STATEMENT_NULL,
   AST_STATEMENT_IF,
-  AST_STATEMENT_COMPOUND,
   AST_STATEMENT_GOTO,
   AST_STATEMENT_GOTO_LABEL,
+  AST_STATEMENT_BREAK,
+  AST_STATEMENT_CONTINUE,
+  AST_STATEMENT_WHILE,
+  AST_STATEMENT_DO_WHILE,
+  AST_STATEMENT_FOR,
   AST_DECLARATION,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
@@ -62,20 +66,26 @@ typedef enum {
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { struct AstNode *function; } program;
-    struct Function { char* name; AstNode *block;} function;
-    struct Declaration { char* identifier; bool has_expression; AstNode *expression; } declaration;
+    struct Program { AstNode *function; } program;
+    struct Function { char *name; AstNode *block;} function;
+    struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
-    struct ReturnStatement { struct AstNode *expression; } return_statement;
-    struct ExpressionStatement { struct AstNode *expression; } expression_statement;
-    struct IfStatement { struct AstNode *condition_expression; struct AstNode *then_statement; AstNode *else_statement;  } if_statement;
-    struct CompoundStatement { AstNode *block; } compound_statement;
+    struct ReturnStatement { AstNode *expression; } return_statement;
+    struct ExpressionStatement { AstNode *expression; } expression_statement;
+    struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
+    //TODO: Investigate if needed
+    // struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
-    struct GotoLableStatement { char *label; } goto_label_statement;
+    struct GotoLabelStatement { char *label; } goto_label_statement;
+    struct WhileStatement { AstNode *condition; AstNode *statement_body; int label_id; } while_statement;
+    struct DoWhileStatement { AstNode *statement_body; AstNode *condition; int label_id; } do_while_statement;
+    struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
+    struct BreakStatement { int label_id; } break_statement;
+    struct ContinueStatement { int label_id; } continue_statement;
     struct ConstantExpression { int value; } constant_expression;
-    struct VariableExpression { char* identifier; } variable_expression;
-    struct UnaryExpression { UnaryOpType op_type; struct AstNode *expression; } unary_expression;
-    struct BinaryExpression { BinaryOpType op_type; struct AstNode *left_expression; struct AstNode *right_expression; } binary_expression;
+    struct VariableExpression { char *identifier; } variable_expression;
+    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; } unary_expression;
+    struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; } binary_expression;
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;

@@ -7,7 +7,8 @@
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
 #include "../include/intermediate_rep.h"
-#include "../include/semantic_analysis.h"
+#include "../include/sa_variable_resolution.h"
+#include "../include/sa_loop_labeling.h"
 
 char* load_file(const char *file_path); 
 
@@ -17,11 +18,9 @@ int main(int argc, const char *argv[]) {
    
   if (argc == 1) {
     file = load_file("../test-file.txt");
-  }
-  else if (argc == 2) {
+  } else if (argc == 2) {
     file = load_file(argv[1]);
-  }
-  else if (argc == 3) {
+  } else if (argc == 3) {
     //To disable printing when running the tester
     if (*argv[1] == 't') {
       print_debug = false;
@@ -30,8 +29,7 @@ int main(int argc, const char *argv[]) {
       fprintf(stderr, "Invalid command '%s'\n", argv[1]);
       exit(1);
     }
-  }
-  else {
+  } else {
     fprintf(stderr, "Too many arguments\n");
     exit(1);
   }
@@ -69,8 +67,14 @@ int main(int argc, const char *argv[]) {
   }
 
   benchmarks[2] = clock();
-  run_semantic_analysis(ast);
+  sa_variable_resolution(ast);
+  sa_loop_labeling(ast);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
+
+  if (print_debug) {
+    printf("\n>> SEMANTIC PRINT <<\n\n");
+    print_ast(ast, 0);
+  }
 
   benchmarks[3] = clock();
   IRNode *ir = generate_intermediate_rep(ast);
