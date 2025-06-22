@@ -186,6 +186,13 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       case AST_STATEMENT_WHILE:      { ir_emit_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_DO_WHILE:   { ir_emit_do_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_FOR:        { ir_emit_for(block_item, function, emit_status); continue; }
+      case AST_STATEMENT_CONTINUE: {
+        //TODO: Need to scrape through and adjust continue and break labeling. Omit the 'while', 'for', 'do' prefixes
+        char *continue_label_identifier = ir_create_concat_identifier("while_continue", while_node->data.do_while_statement.label_id); 
+          ir_emit_jump();
+          continue;
+      }
+      case AST_STATEMENT_BREAK:      { }
       case AST_DECLARATION: {
         if (!block_item->data.declaration.has_expression) {
           continue;
@@ -236,6 +243,10 @@ void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
     ir_emit_goto(then_statement, function);
   } else if (then_statement->type == AST_STATEMENT_GOTO_LABEL) {
     ir_emit_goto_label(then_statement, function);
+  } else if (then_statement->type == AST_STATEMENT_CONTINUE) {
+    //TODO: Implement
+  } else if (then_statement->type == AST_STATEMENT_BREAK) {
+    //TODO: Implement
   } else {
     ir_value(then_statement, function, emit_status);
   }
