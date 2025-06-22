@@ -5,6 +5,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+    - To handle multiple source files, should convert each file to assembly separately, then use gcc or clang to assemble them and link them together.
 	- Intermediate Rep: AST_EXPRESSION_CONDITIONAL logic in two places. One is for assigning to a var while the other is for nested conditional expressions.
 	- Intermediate Rep: Confirm that nested conditionals are working correctly. It builds, but not sure if it's completely correct. Test with something like: int a = 1 ? 2 ? 3 : 4 : 5;
 	- Implement memory arena to parser, ir and asm
@@ -24,4 +25,4 @@
 	- Add generic dynamic array grow function
 	- Add generic malloc / error check function
 	- Add Typedef support: Refer to pg 108 - Sandler Nora.
-	- Add goto support: Refer to pg 128 - Sandler Nora.
+	- Add switch statements support: Refer to pg 159 - Sandler Nora.
