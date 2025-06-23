@@ -5,6 +5,7 @@
 #include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
 
+void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table); 
 void sa_variable_resolve_expression(AstNode *expression, HashTable *variable_table); 
 void sa_variable_resolve_block(AstNode *block, HashTable *parent_variable_table); 
 
@@ -13,6 +14,68 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   hash_table_init(&variable_table); 
 
   sa_variable_resolve_block(ast_nodes->data.program.function->data.function.block, &variable_table);
+}
+
+void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table) { switch (node->type) {
+    case AST_DECLARATION: {
+    }
+    case AST_BLOCK: {
+      HashTable *variable_table = hash_table_clone(parent_variable_table);
+      HashTable local_declared_variables;
+      hash_table_init(&local_declared_variables);
+
+      for (int i = 0; i < node->data.block.block_count; i++) {   
+        sa_variable_resolve_node(node, variable_table, parent_variable_table); 
+      }
+      break;
+    }
+    case AST_STATEMENT_IF: {
+      sa_variable_resolve_node(node->data.if_statement.condition_expression, variable_table, parent_variable_table);
+      sa_variable_resolve_node(node->data.if_statement.then_statement, variable_table, parent_variable_table);
+
+      if (node->data.if_statement.else_statement != NULL) {
+        sa_variable_resolve_node(node->data.if_statement.else_statement, variable_table, parent_variable_table);
+      }
+      break;
+    }
+    case AST_STATEMENT_RETURN: {
+      sa_variable_resolve_node(node->data.return_statement.expression, variable_table, parent_variable_table);
+      break;
+    }
+    case AST_STATEMENT_EXPRESSION: {
+      sa_variable_resolve_node(node->data.expression_statement.expression, variable_table, parent_variable_table);
+      break;
+    }
+    case AST_STATEMENT_FOR: {
+      if (node->data.for_statement.for_loop_init != NULL) {
+        sa_variable_resolve_node(node->data.for_statement.for_loop_init, variable_table, parent_variable_table);
+      }
+
+      if (node->data.for_statement.condition_expression != NULL) {
+        sa_variable_resolve_node(node->data.for_statement.condition_expression, variable_table, parent_variable_table);
+      }
+
+      if (node->data.for_statement.post_expression != NULL) {
+        sa_variable_resolve_node(node->data.for_statement.post_expression, variable_table, parent_variable_table);
+      }
+
+      sa_variable_resolve_node(node->data.for_statement.statement_body, variable_table, parent_variable_table);
+    }
+    case AST_STATEMENT_WHILE: {
+      sa_variable_resolve_node(node->data.while_statement.condition, variable_table, parent_variable_table);
+      sa_variable_resolve_node(node->data.while_statement.statement_body, variable_table, parent_variable_table);
+    }
+    case AST_STATEMENT_DO_WHILE: {
+      sa_variable_resolve_node(node->data.do_while_statement.condition, variable_table, parent_variable_table);
+      sa_variable_resolve_node(node->data.do_while_statement.statement_body, variable_table, parent_variable_table);
+    }
+    case AST_EXPRESSION_ASSIGNMENT: {
+      sa_variable_resolve_node(node->data.assignement_expression.left_expression, variable_table, parent_variable_table);
+      sa_variable_resolve_node(node->data.assignement_expression.right_expression, variable_table, parent_variable_table);
+    }
+
+    //TODO: DECLARATION
+  }
 }
 
 void sa_variable_resolve_block(AstNode *block, HashTable *parent_variable_table) {
@@ -126,7 +189,7 @@ void sa_variable_resolve_block(AstNode *block, HashTable *parent_variable_table)
 void sa_variable_resolve_expression(AstNode *expression, HashTable *variable_table) {
   if (expression->type == AST_EXPRESSION_ASSIGNMENT) {
     if (expression->data.assignement_expression.left_expression->type != AST_EXPRESSION_VARIABLE && expression->data.assignement_expression.left_expression->type != AST_EXPRESSION_UNARY) {
-      fprintf(stderr, "ERROR - Semantic Analysis: Invalid LValue for assignment expression\n");
+      fprintf(stderr, "ERROR - SA Variable Resolution: Invalid LValue for assignment expression\n");
       exit(1);
     }
 
@@ -145,7 +208,7 @@ void sa_variable_resolve_expression(AstNode *expression, HashTable *variable_tab
       char *found_period = (char*)memchr(expression->data.variable_expression.identifier, '.', strlen(expression->data.variable_expression.identifier));
 
       if (found_period == NULL) {      
-        fprintf(stderr, "Undeclared variable hash table entry for '%s'\n", expression->data.variable_expression.identifier);
+        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", expression->data.variable_expression.identifier);
         exit(1);
       }
 
