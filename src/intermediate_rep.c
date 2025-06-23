@@ -32,6 +32,8 @@ void    ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function);
 void    ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function); 
 void    ir_emit_label(char* label, IRNode *function);
 void    ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function); 
+void    ir_emit_continue(int label_id, IRNode *function);
+void    ir_emit_break(int label_id, IRNode *function);
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
@@ -189,16 +191,8 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       case AST_STATEMENT_WHILE:      { ir_emit_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_DO_WHILE:   { ir_emit_do_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_FOR:        { ir_emit_for(block_item, function, emit_status); continue; }
-      case AST_STATEMENT_CONTINUE: {
-        char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, block_item->data.continue_statement.label_id); 
-          ir_emit_jump(continue_label_identifier, function);
-          continue;
-      }
-      case AST_STATEMENT_BREAK: {
-        char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, block_item->data.break_statement.label_id); 
-          ir_emit_jump(break_label_identifier, function);
-          continue;
-      }
+      case AST_STATEMENT_CONTINUE:   { ir_emit_continue(block_item->data.continue_statement.label_id, function); continue; }
+      case AST_STATEMENT_BREAK:      { ir_emit_break(block_item->data.break_statement.label_id, function); continue; }
       case AST_DECLARATION: {
         if (!block_item->data.declaration.has_expression) {
           continue;
@@ -324,6 +318,16 @@ void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status)
 
   ir_emit_jump(start_label_identifier, function);
   ir_emit_label(break_label_identifier, function);
+}
+
+void ir_emit_continue(int label_id, IRNode *function) {
+  char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, label_id); 
+  ir_emit_jump(continue_label_identifier, function);
+}
+
+void ir_emit_break(int label_id, IRNode *function) {
+  char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, label_id); 
+  ir_emit_jump(break_label_identifier, function);
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emit_status) {
