@@ -235,9 +235,9 @@ void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
   } else if (then_statement->type == AST_STATEMENT_GOTO_LABEL) {
     ir_emit_goto_label(then_statement, function);
   } else if (then_statement->type == AST_STATEMENT_CONTINUE) {
-    //TODO: Implement
+    ir_emit_continue(then_statement->data.continue_statement.label_id, function);
   } else if (then_statement->type == AST_STATEMENT_BREAK) {
-    //TODO: Implement
+    ir_emit_break(then_statement->data.break_statement.label_id, function);
   } else {
     ir_value(then_statement, function, emit_status);
   }
@@ -335,6 +335,7 @@ void ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStat
   ir_add_postfix_operations(function, emit_status);
 }
 
+//TODO: Function contains both expressions and declarations. Re-work should be done to IR_value and how it is incorporated with the other 'emit' functions
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emit_status) {
   switch (ast_expression->type) {
     case AST_EXPRESSION_VARIABLE: {
@@ -555,6 +556,12 @@ IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emi
         return destination;
       }
       break;
+    case AST_STATEMENT_FOR:
+      ir_emit_for(ast_expression, ir_function, emit_status);
+      return NULL;
+    case AST_STATEMENT_IF:
+      ir_emit_if(ast_expression, ir_function, emit_status);
+      return NULL;
     default:
       break;
   }
