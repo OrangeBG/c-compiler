@@ -5,6 +5,9 @@
 #include "../include/arena.h"
 
 #define INSTRUCTION_CAPACITY 8
+#define BREAK_LABEL "break"
+#define CONTINUE_LABEL "continue"
+#define START_LABEL "start"
 
 typedef struct {
   Arena postfix_arena;
@@ -187,12 +190,15 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       case AST_STATEMENT_DO_WHILE:   { ir_emit_do_while(block_item, function, emit_status); continue; }
       case AST_STATEMENT_FOR:        { ir_emit_for(block_item, function, emit_status); continue; }
       case AST_STATEMENT_CONTINUE: {
-        //TODO: Need to scrape through and adjust continue and break labeling. Omit the 'while', 'for', 'do' prefixes
-        char *continue_label_identifier = ir_create_concat_identifier("while_continue", while_node->data.do_while_statement.label_id); 
-          ir_emit_jump();
+        char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, block_item->data.continue_statement.label_id); 
+          ir_emit_jump(continue_label_identifier, function);
           continue;
       }
-      case AST_STATEMENT_BREAK:      { }
+      case AST_STATEMENT_BREAK: {
+        char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, block_item->data.break_statement.label_id); 
+          ir_emit_jump(break_label_identifier, function);
+          continue;
+      }
       case AST_DECLARATION: {
         if (!block_item->data.declaration.has_expression) {
           continue;
@@ -263,8 +269,8 @@ void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
 }
 
 void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status) {
-  char *continue_label_identifier = ir_create_concat_identifier("while_continue", while_node->data.do_while_statement.label_id); 
-  char *break_label_identifier = ir_create_concat_identifier("while_break", while_node->data.do_while_statement.label_id); 
+  char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, while_node->data.do_while_statement.label_id); 
+  char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, while_node->data.do_while_statement.label_id); 
 
   ir_emit_label(continue_label_identifier, function);
 
@@ -277,18 +283,18 @@ void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_sta
 }
 
 void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
-  char *start_label_identifier = ir_create_concat_identifier("do_start", do_node->data.do_while_statement.label_id);
+  char *start_label_identifier = ir_create_concat_identifier(START_LABEL, do_node->data.do_while_statement.label_id);
   ir_emit_label(start_label_identifier, function);
 
   ir_block(do_node->data.do_while_statement.statement_body, function, emit_status);
 
-  char *continue_label_identifier = ir_create_concat_identifier("do_continue", do_node->data.do_while_statement.label_id); 
+  char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, do_node->data.do_while_statement.label_id); 
   ir_emit_label(continue_label_identifier, function);
 
   IRNode *condition = ir_value(do_node->data.do_while_statement.condition, function, emit_status);
   ir_emit_jump_if_not_zero(start_label_identifier, condition, function);
 
-  char *break_label_identifier = ir_create_concat_identifier("do_break", do_node->data.do_while_statement.label_id);
+  char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, do_node->data.do_while_statement.label_id);
   ir_emit_label(break_label_identifier, function);
 }
 
@@ -297,10 +303,11 @@ void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status)
     ir_value(for_node->data.for_statement.for_loop_init, function, emit_status);
   }  
 
-  char *start_label_identifier = ir_create_concat_identifier("for_start", for_node->data.for_statement.label_id);
+  char *start_label_identifier = ir_create_concat_identifier(START_LABEL, for_node->data.for_statement.label_id);
   ir_emit_label(start_label_identifier, function);
 
-  char *break_label_identifier = ir_create_concat_identifier("for_break", for_node->data.for_statement.label_id);
+  char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, for_node->data.for_statement.label_id);
+
   if (for_node->data.for_statement.condition_expression != NULL) {
     IRNode *condition = ir_value(for_node->data.for_statement.condition_expression, function, emit_status);
     ir_emit_jump_if_zero(break_label_identifier, condition, function);
@@ -308,7 +315,7 @@ void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status)
 
   ir_value(for_node->data.for_statement.statement_body, function, emit_status);
 
-  char *continue_label_identifier = ir_create_concat_identifier("for_continue", for_node->data.for_statement.label_id);
+  char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, for_node->data.for_statement.label_id);
   ir_emit_label(continue_label_identifier, function);
 
   if (for_node->data.for_statement.post_expression != NULL) {
