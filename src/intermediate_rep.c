@@ -34,6 +34,7 @@ void    ir_emit_label(char* label, IRNode *function);
 void    ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function); 
 void    ir_emit_continue(int label_id, IRNode *function);
 void    ir_emit_break(int label_id, IRNode *function);
+void    ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
@@ -193,17 +194,7 @@ void ir_block(AstNode *block, IRNode *function, IREmitStatus *emit_status) {
       case AST_STATEMENT_FOR:        { ir_emit_for(block_item, function, emit_status); continue; }
       case AST_STATEMENT_CONTINUE:   { ir_emit_continue(block_item->data.continue_statement.label_id, function); continue; }
       case AST_STATEMENT_BREAK:      { ir_emit_break(block_item->data.break_statement.label_id, function); continue; }
-      case AST_DECLARATION: {
-        if (!block_item->data.declaration.has_expression) {
-          continue;
-        }
-
-        //TODO: Probably should rename to something like generate ir
-        ir_value(block_item->data.declaration.expression, function, emit_status);    
-        ir_add_postfix_operations(function, emit_status);
-      
-        continue;
-      }
+      case AST_DECLARATION: { ir_emit_declaration(block_item, function, emit_status); continue; }
     }
 
     ir_value(block_item, function, emit_status);
@@ -294,7 +285,11 @@ void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_sta
 
 void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status) {
   if (for_node->data.for_statement.for_loop_init != NULL) {
-    ir_value(for_node->data.for_statement.for_loop_init, function, emit_status);
+    if (for_node->data.for_statement.for_loop_init->type == AST_DECLARATION) {
+      ir_emit_declaration(for_node->data.for_statement.for_loop_init, function, emit_status);
+    } else {
+      ir_value(for_node->data.for_statement.for_loop_init, function, emit_status);
+    }
   }  
 
   char *start_label_identifier = ir_create_concat_identifier(START_LABEL, for_node->data.for_statement.label_id);
@@ -328,6 +323,16 @@ void ir_emit_continue(int label_id, IRNode *function) {
 void ir_emit_break(int label_id, IRNode *function) {
   char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, label_id); 
   ir_emit_jump(break_label_identifier, function);
+}
+
+void ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status) {
+  if (!declaration_node->data.declaration.has_expression) {
+    return;
+  }
+
+  //TODO: Probably should rename to something like generate ir
+  ir_value(declaration_node->data.declaration.expression, function, emit_status);    
+  ir_add_postfix_operations(function, emit_status);
 }
 
 IRNode* ir_value(AstNode *ast_expression, IRNode *ir_function, IREmitStatus *emit_status) {
