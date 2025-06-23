@@ -8,6 +8,7 @@
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
+#define END_LABEL "end"
 
 typedef struct {
   Arena postfix_arena;
@@ -450,13 +451,13 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
     IRNode *result_1 = ir_create_constant(1);
 
     ir_emit_copy(result_1, destination, function);
-    ir_emit_jump("end", function);
+    ir_emit_jump(END_LABEL, function);
     ir_emit_label(label_name, function);
 
     IRNode *result_0 = ir_create_constant(0);
 
     ir_emit_copy(result_0, destination, function);
-    ir_emit_label("end", function);
+    ir_emit_label(END_LABEL, function);
 
     return destination;
   }
