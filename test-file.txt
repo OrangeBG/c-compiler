@@ -1,9 +1,15 @@
 int main(void) {
-    int a = 12345;
-    int i;
-
-    for (i = 5; i >= 0; i = i - 1)
-        a = a / 3;
-
-    return a;
+    int x = 5;
+    int acc = 0;
+    while (x >= 0) {
+        int i = x;
+        while (i <= 10) {
+            i = i + 1;
+            if (i % 2)
+                continue;
+            acc = acc + 1;
+        }
+        x = x - 1;
+    }
+    return acc;
 }
