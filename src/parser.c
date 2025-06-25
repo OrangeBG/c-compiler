@@ -7,6 +7,7 @@
 #include "../include/parser.h"
 
 #define BLOCK_STARTING_ALLOCATION 8
+#define FUNCTION_PARAM_STARTING_ALLOCATION 8
 #define ADD_WHITESPACE whitespace + 5
 
 typedef struct Parser {
@@ -31,6 +32,7 @@ char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
 void       add_to_block(AstNode *function, AstNode *expr_or_stmt);
+void       add_to_function_params(AstNode *function_declaration, AstNode *parameter); 
 bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
@@ -360,6 +362,23 @@ void add_to_block(AstNode *block, AstNode *expr_or_stmt) {
   block->data.block.block_count++;
 }
 
+void add_to_function_params(AstNode *function_declaration, AstNode *parameter) { 
+  int current_count = function_declaration->data.function_declaration.parameter_count;
+  int current_capacity = function_declaration->data.function_declaration.parameter_capacity;
+
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? FUNCTION_PARAM_STARTING_ALLOCATION: current_capacity * 2;
+
+    AstNode *parameters = realloc(function_declaration->data.function_declaration.parameters, new_size * sizeof(AstNode));
+
+    function_declaration->data.function_declaration.parameter_capacity = new_size;
+    function_declaration->data.function_declaration.parameters = parameters;
+  } 
+
+  function_declaration->data.function_declaration.parameters[function_declaration->data.function_declaration.parameter_count] = *parameter;
+  function_declaration->data.function_declaration.parameter_count++;
+}
+
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
     fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], previous_token(parser)->line);
@@ -386,18 +405,44 @@ AstNode* ast_program(Parser *parser) {
 }
 
 AstNode* ast_function(Parser *parser) {
+  AstNode *function = malloc(sizeof(AstNode)); 
+  function->data.function_declaration.parameter_count = 0;
+  function->data.function_declaration.parameter_capacity = 0;
+  
   ast_expect(parser, TOKEN_INT);
 
   char *id_name = ast_identifier(parser);  
 
   ast_expect(parser, TOKEN_OPEN_PAREN);
-  ast_expect(parser, TOKEN_VOID);
+
+  ParameterType parameter_type;
+  AstNode *parameter = malloc(sizeof(AstNode));
+  parameter->type = AST_FUNCTION_PARAMETER;
+
+  switch (current_token(parser)->type) {
+    case TOKEN_VOID:
+      parameter_type = AST_PARAMETER_VOID;
+      break;
+    case TOKEN_INT: {
+      parameter_type = AST_PARAMETER_INT;
+      parameter->data.function_parameters.name = ast_identifier(parser); 
+      break;
+    }
+    default: {
+      fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d", current_token(parser)->type);
+      exit(1);
+    }
+  }
+
+  parameter->data.function_parameters.type = parameter_type;
+
+  add_to_function_params(function, parameter);
+  
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 
-  AstNode *function = malloc(sizeof(AstNode)); 
-  function->type = AST_FUNCTION;
-  function->data.function.name = id_name;
-  function->data.function.block = ast_block(parser);
+  function->type = AST_FUNCTION_DECLARATION;
+  function->data.function_declaration.name = id_name;
+  function->data.function_declaration.body_block = ast_block(parser);
 
   return function;
 }

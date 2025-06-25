@@ -11,6 +11,7 @@ typedef enum {
   AST_DECLARATION,
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
+  AST_FUNCTION_PARAMETER,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
   AST_STATEMENT_EXPRESSION,
@@ -33,6 +34,7 @@ typedef enum {
   AST_EXPRESSION_POSTFIX_DECREMENT,
   AST_EXPRESSION_PREFIX_INCREMENT,
   AST_EXPRESSION_PREFIX_DECREMENT,
+  AST_EXPRESSION_FUNCTION_CALL
 } NodeType;
 
 typedef enum {
@@ -69,6 +71,11 @@ typedef enum {
   AST_DECLARATION_VARIABLE
 } DeclarationType;
 
+typedef enum {
+  AST_PARAMETER_VOID,
+  AST_PARAMETER_INT
+} ParameterType;
+
 typedef struct AstNode {
   NodeType type;
   union {
@@ -76,7 +83,8 @@ typedef struct AstNode {
     // struct Function { char *name; AstNode *block;} function;
     // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
     struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
-    struct FunctionDeclaration { char *name; char *identifiers; int identifier_count; AstNode *body_block; } function_declaration;
+    struct FunctionDeclaration { char *name; AstNode *parameters; int parameter_count; int parameter_capacity; AstNode *body_block; } function_declaration;
+    struct FunctionParameter { char *name; ParameterType type; } function_parameters;
     struct VariableDeclaration { char *name; AstNode *init_expression; } variable_declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
