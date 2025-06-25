@@ -8,7 +8,9 @@ typedef struct AstNode AstNode;
 
 typedef enum {
   AST_PROGRAM,
-  AST_FUNCTION,
+  AST_DECLARATION,
+  AST_VARIABLE_DECLARATION,
+  AST_FUNCTION_DECLARATION,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
   AST_STATEMENT_EXPRESSION,
@@ -21,7 +23,6 @@ typedef enum {
   AST_STATEMENT_WHILE,
   AST_STATEMENT_DO_WHILE,
   AST_STATEMENT_FOR,
-  AST_DECLARATION,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
   AST_EXPRESSION_UNARY,
@@ -63,12 +64,20 @@ typedef enum {
   AST_BINARY_BITWISE_RIGHT_SHIFT
 } BinaryOpType;
 
+typedef enum {
+  AST_DECLARATION_FUNCTION,
+  AST_DECLARATION_VARIABLE
+} DeclarationType;
+
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { AstNode *function; } program;
-    struct Function { char *name; AstNode *block;} function;
-    struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
+    struct Program { AstNode *function_declaration; } program;
+    // struct Function { char *name; AstNode *block;} function;
+    // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
+    struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
+    struct FunctionDeclaration { char *name; char *identifiers; int identifier_count; AstNode *body_block; } function_declaration;
+    struct VariableDeclaration { char *name; AstNode *init_expression; } variable_declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
