@@ -17,13 +17,13 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   HashTable local_variable_table;
   hash_table_init(&local_variable_table); 
 
-  sa_variable_resolve_node(ast_nodes->data.program.function->data.function.block, &variable_table, &parent_variable_table, &local_variable_table);
+  sa_variable_resolve_node(ast_nodes->data.program.function_declaration->data.function_declaration.body_block, &variable_table, &parent_variable_table, &local_variable_table);
 }
 
 void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table, HashTable *local_declared_variables) {
   switch (node->type) {
-    case AST_DECLARATION: {
-      char* identifier = node->data.declaration.identifier;
+    case AST_VARIABLE_DECLARATION: {
+      char* identifier = node->data.variable_declaration.name;
       HashTableEntry *existing_variable = hash_table_get_entry(local_declared_variables, identifier);
 
       if (existing_variable != NULL && existing_variable->key != NULL) {
@@ -49,11 +49,11 @@ void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTabl
         hash_table_add_entry(local_declared_variables, new_variable_entry);
       }    
 
-      if (node->data.declaration.has_expression == true) {
-        sa_variable_resolve_node(node->data.declaration.expression, variable_table, parent_variable_table, local_declared_variables);
+      if (node->data.variable_declaration.has_expression == true) {
+        sa_variable_resolve_node(node->data.variable_declaration.init_expression, variable_table, parent_variable_table, local_declared_variables);
       }
 
-      node->data.declaration.identifier = converted_identifier;
+      node->data.variable_declaration.name = converted_identifier;
       break;
     }
     case AST_BLOCK: {

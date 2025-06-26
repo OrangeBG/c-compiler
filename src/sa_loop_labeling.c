@@ -94,17 +94,21 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
         ast_node->data.continue_statement.label_id = current_loop_label->data.integer;
       }
       break;    
-    case AST_PROGRAM:    sa_label_loop(ast_node->data.program.function, label_stack, current_loop_id); break;
-    case AST_FUNCTION:   sa_label_loop(ast_node->data.function.block, label_stack, current_loop_id); break;
+    case AST_PROGRAM:
+      sa_label_loop(ast_node->data.program.function_declaration, label_stack, current_loop_id);
+      break;
+    case AST_FUNCTION_DECLARATION:
+      sa_label_loop(ast_node->data.function_declaration.body_block, label_stack, current_loop_id);
+      break;
     case AST_BLOCK: {
       for (int i = 0; i < ast_node->data.block.block_count; i++) {
         sa_label_loop(&ast_node->data.block.block_items[i], label_stack, current_loop_id);
       }   
       break;
     }
-    case AST_DECLARATION:
-      if (!ast_node->data.declaration.has_expression) return;
-      sa_label_loop(ast_node->data.declaration.expression, label_stack, current_loop_id);
+    case AST_VARIABLE_DECLARATION:
+      if (!ast_node->data.variable_declaration.has_expression) return;
+      sa_label_loop(ast_node->data.variable_declaration.init_expression, label_stack, current_loop_id);
       break;
     case AST_STATEMENT_RETURN: sa_label_loop(ast_node->data.return_statement.expression, label_stack, current_loop_id); break;
     case AST_STATEMENT_EXPRESSION: sa_label_loop(ast_node->data.expression_statement.expression, label_stack, current_loop_id);

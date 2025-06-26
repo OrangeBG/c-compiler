@@ -8,7 +8,7 @@ typedef struct AstNode AstNode;
 
 typedef enum {
   AST_PROGRAM,
-  AST_DECLARATION,
+  // AST_DECLARATION,
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
   AST_FUNCTION_PARAMETER,
@@ -82,10 +82,10 @@ typedef struct AstNode {
     struct Program { AstNode *function_declaration; } program;
     // struct Function { char *name; AstNode *block;} function;
     // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
-    struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
+    // struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
     struct FunctionDeclaration { char *name; AstNode *parameters; int parameter_count; int parameter_capacity; AstNode *body_block; } function_declaration;
     struct FunctionParameter { char *name; ParameterType type; } function_parameters;
-    struct VariableDeclaration { char *name; AstNode *init_expression; } variable_declaration;
+    struct VariableDeclaration { char *name; bool has_expression; AstNode *init_expression; } variable_declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;

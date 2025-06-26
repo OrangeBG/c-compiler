@@ -59,7 +59,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
     .temp_label_id = 0
   };
 
-  program->data.program.function = ir_function(ast_node->data.program.function, &emit_status); 
+  program->data.program.function = ir_function(ast_node->data.program.function_declaration, &emit_status); 
 
   return program;
 }
@@ -160,7 +160,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   IRNode *function = malloc(sizeof(IRNode));
   IRNode *instructions = malloc(sizeof(IRNode));
   function->type = IR_FUNCTION;
-  function->data.function.identifier = ast_function->data.function.name;
+  function->data.function.identifier = ast_function->data.function_declaration.name;
   function->data.function.instruction_count = 0;
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
@@ -171,7 +171,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50);
   emit_status->postfix_arena = postfix_arena;
 
-  ir_emit_ast_node(ast_function->data.function.block, function, emit_status);
+  ir_emit_ast_node(ast_function->data.function_declaration.body_block, function, emit_status);
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
   IRNode *zero_value = ir_create_constant(0);
@@ -197,7 +197,8 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_STATEMENT_BREAK:              { ir_emit_break(node->data.break_statement.label_id, function); break; }
       case AST_STATEMENT_NULL:               { break; } 
       case AST_STATEMENT_RETURN:             { return ir_emit_return(node, function, emit_status); }
-      case AST_DECLARATION:                  { return ir_emit_declaration(node, function, emit_status); }
+      // case AST_DECLARATION:                  { return ir_emit_declaration(node, function, emit_status); }
+      case AST_VARIABLE_DECLARATION:         { return ir_emit_declaration(node, function, emit_status); }
       case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier); }
       case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.value); }
       case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status); }
@@ -326,11 +327,11 @@ void ir_emit_break(int label_id, IRNode *function) {
 }
 
 IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status) {
-  if (!declaration_node->data.declaration.has_expression) {
+  if (!declaration_node->data.variable_declaration.has_expression) {
     return NULL;
   }
 
-  IRNode *node = ir_emit_ast_node(declaration_node->data.declaration.expression, function, emit_status);    
+  IRNode *node = ir_emit_ast_node(declaration_node->data.variable_declaration.init_expression, function, emit_status);    
   ir_add_postfix_operations(function, emit_status);
 
   return node;

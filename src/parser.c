@@ -19,10 +19,10 @@ typedef struct Parser {
 } Parser;
  
 AstNode*   ast_program(Parser *parser);
-AstNode*   ast_function(Parser *parser);
+AstNode*   ast_function_declaration(Parser *parser);
+AstNode*   ast_variable_declaration(Parser *parser);
 AstNode*   ast_block(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
-AstNode*   ast_declaration(Parser *parser);
 AstNode*   ast_expression(Parser *parser, int min_precedence);
 AstNode*   ast_factor(Parser *parser);
 Token*     current_token(Parser *parser);
@@ -62,14 +62,25 @@ void print_ast(AstNode *node, int whitespace) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      print_ast(node->data.program.function, ADD_WHITESPACE);
+      print_ast(node->data.program.function_declaration, ADD_WHITESPACE);
       printf(")\n");
       break;
-    case AST_FUNCTION:
+    case AST_VARIABLE_DECLARATION:
       print_whitespace(whitespace);
-      printf("Function (name=\"%s\", body =\n", node->data.function.name);
+      printf("Variable Declaration (id = \"%s\"\n", node->data.variable_declaration.name);
 
-      print_ast(node->data.function.block, ADD_WHITESPACE);
+      if (node->data.variable_declaration.has_expression) {
+        print_ast(node->data.variable_declaration.init_expression, ADD_WHITESPACE);
+      }
+
+      print_whitespace(whitespace);
+      printf(")\n");      
+      break;
+    case AST_FUNCTION_DECLARATION:
+      print_whitespace(whitespace);
+      printf("Function Declaration (name=\"%s\", body =\n", node->data.function_declaration.name);
+
+      print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
 
       print_whitespace(whitespace);
       printf(")\n");      
@@ -82,17 +93,6 @@ void print_ast(AstNode *node, int whitespace) {
       }   
       print_whitespace(whitespace);
       printf(")\n");
-      break;
-    case AST_DECLARATION:
-      print_whitespace(whitespace);
-      printf("Declaration (id = \"%s\"\n", node->data.declaration.identifier);
-
-      if (node->data.declaration.has_expression) {
-        print_ast(node->data.declaration.expression, ADD_WHITESPACE);
-      }
-
-      print_whitespace(whitespace);
-      printf(")\n");      
       break;
     case AST_STATEMENT_GOTO:
       print_whitespace(whitespace);
@@ -396,15 +396,24 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 
 AstNode* ast_program(Parser *parser) {
   AstNode *program = malloc(sizeof(AstNode));
-  AstNode *function = ast_function(parser);
+  AstNode *function = ast_function_declaration(parser);
 
   program->type = AST_PROGRAM;
-  program->data.program.function = function;
+  program->data.program.function_declaration = function;
   
   return program;
 }
 
-AstNode* ast_function(Parser *parser) {
+AstNode* ast_declaration(Parser *parser) {
+  //Variable Declaration -> int c; or int c = 0; 
+  if (parser->tokens[parser->current_token_index + 2].type == TOKEN_EQUAL || parser->tokens[parser->current_token_index + 2].type == TOKEN_SEMICOLON) {
+    return ast_variable_declaration(parser);
+  }
+
+  return ast_function_declaration(parser);
+}
+
+AstNode* ast_function_declaration(Parser *parser) {
   AstNode *function = malloc(sizeof(AstNode)); 
   function->data.function_declaration.parameter_count = 0;
   function->data.function_declaration.parameter_capacity = 0;
@@ -415,17 +424,18 @@ AstNode* ast_function(Parser *parser) {
 
   ast_expect(parser, TOKEN_OPEN_PAREN);
 
-  ParameterType parameter_type;
   AstNode *parameter = malloc(sizeof(AstNode));
   parameter->type = AST_FUNCTION_PARAMETER;
 
   switch (current_token(parser)->type) {
     case TOKEN_VOID:
-      parameter_type = AST_PARAMETER_VOID;
+      parameter->data.function_parameters.type = AST_PARAMETER_VOID;
+      ast_expect(parser, TOKEN_VOID);
       break;
     case TOKEN_INT: {
-      parameter_type = AST_PARAMETER_INT;
+      parameter->data.function_parameters.type = AST_PARAMETER_INT;
       parameter->data.function_parameters.name = ast_identifier(parser); 
+      ast_expect(parser, TOKEN_INT);
       break;
     }
     default: {
@@ -434,17 +444,69 @@ AstNode* ast_function(Parser *parser) {
     }
   }
 
-  parameter->data.function_parameters.type = parameter_type;
-
   add_to_function_params(function, parameter);
+
+  while(current_token(parser)->type == TOKEN_COMMA) {
+    ast_expect(parser, TOKEN_COMMA);
+
+    AstNode *next_parameter = malloc(sizeof(AstNode));
+    next_parameter->type = AST_FUNCTION_PARAMETER;
+    
+    switch (current_token(parser)->type) {
+      case TOKEN_VOID:
+        next_parameter->data.function_parameters.type = AST_PARAMETER_VOID;
+        break;
+      case TOKEN_INT: {
+        next_parameter->data.function_parameters.type = AST_PARAMETER_INT;
+        next_parameter->data.function_parameters.name = ast_identifier(parser); 
+        break;
+      }
+      default: {
+        fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d", current_token(parser)->type);
+        exit(1);
+      }    
+    }
+
+    add_to_function_params(function, next_parameter);
+  }
   
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 
   function->type = AST_FUNCTION_DECLARATION;
   function->data.function_declaration.name = id_name;
+
+  //If semi-colon is found, then it is considered a function definition
+  if (current_token(parser)->type == TOKEN_SEMICOLON) {
+    ast_expect(parser, TOKEN_SEMICOLON);
+    return function;
+  }
+  
   function->data.function_declaration.body_block = ast_block(parser);
 
   return function;
+}
+
+AstNode* ast_variable_declaration(Parser *parser) {
+  ast_expect(parser, TOKEN_INT);
+
+  char *identifier = ast_identifier(parser);
+
+  AstNode *declaration = malloc(sizeof(AstNode));
+  declaration->type = AST_VARIABLE_DECLARATION;
+  declaration->data.variable_declaration.name = identifier;
+
+  if (current_token(parser)->type == TOKEN_EQUAL) {
+    //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
+    parser->current_token_index--;
+    AstNode *expression = ast_expression(parser, 0);
+
+    declaration->data.variable_declaration.has_expression = true;
+    declaration->data.variable_declaration.init_expression = expression;
+  }
+
+  ast_expect(parser, TOKEN_SEMICOLON);
+
+  return declaration;
 }
 
 AstNode* ast_block(Parser *parser) {
@@ -498,29 +560,6 @@ char* ast_identifier(Parser *parser) {
   parser->current_token_index++;
 
   return ret_val;
-}
-
-AstNode* ast_declaration(Parser *parser) {
-  ast_expect(parser, TOKEN_INT);
-
-  char *identifier = ast_identifier(parser);
-
-  AstNode *declaration = malloc(sizeof(AstNode));
-  declaration->type = AST_DECLARATION;
-  declaration->data.declaration.identifier = identifier;
-
-  if (current_token(parser)->type == TOKEN_EQUAL) {
-    //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
-    parser->current_token_index--;
-    AstNode *expression = ast_expression(parser, 0);
-
-    declaration->data.declaration.has_expression = true;
-    declaration->data.declaration.expression = expression;
-  }
-
-  ast_expect(parser, TOKEN_SEMICOLON);
-
-  return declaration;
 }
 
 AstNode *ast_statement(Parser *parser) { 
@@ -670,7 +709,7 @@ AstNode *ast_statement(Parser *parser) {
       ast_expect(parser, TOKEN_SEMICOLON);    
       dec_or_exp = NULL;
     } else if (current_token(parser)->type == TOKEN_INT) {
-      dec_or_exp = ast_declaration(parser);
+      dec_or_exp = ast_variable_declaration(parser);
     } else {
       dec_or_exp= ast_expression(parser, 0);
       //TODO: Weird we do this for expressions but are handled in ast_declaration()
