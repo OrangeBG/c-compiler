@@ -1,5 +1,6 @@
 # Bugs
     - This declaration doesn't work: int result = j == -1 && i == 11;
+	- Parser print not printing Function Params
 
 # Incomplete
 	- IR 'If' statement does not support else statements

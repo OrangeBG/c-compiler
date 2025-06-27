@@ -107,6 +107,10 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")\n");      
       break;
+    case AST_FUNCTION_PARAMETER:
+      print_whitespace(whitespace);
+      printf("Function Param (type=%d id =%s\n)", node->data.function_parameters.type, node->data.function_parameters.name);
+      break;      
     case AST_BLOCK:
       print_whitespace(whitespace);
       printf("Block (\n");
