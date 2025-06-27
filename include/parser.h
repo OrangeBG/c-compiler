@@ -106,7 +106,7 @@ typedef struct AstNode {
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;
-    struct FunctionCallExpression { char *identfier; AstNode *arguments; int argument_count; } function_call_expression;
+    struct FunctionCallExpression { char *identfier; AstNode *arguments; int argument_count; int argument_capacity; } function_call_expression;
   } data;
 } AstNode;
 

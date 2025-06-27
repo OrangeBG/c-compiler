@@ -8,6 +8,7 @@
 
 #define BLOCK_STARTING_ALLOCATION 8
 #define FUNCTION_PARAM_STARTING_ALLOCATION 8
+#define FUNCTION_CALL_STARTING_ALLOCATION 8
 #define ADD_WHITESPACE whitespace + 5
 
 typedef struct Parser {
@@ -44,6 +45,7 @@ AstNode*   ast_parse_factor_prefix_expression(Parser *parser);
 AstNode*   ast_parse_factor_parenthetical_expression(Parser *parser); 
 AstNode*   ast_parse_factor_goto_label(Parser *parser, char *label_identifier); 
 AstNode*   ast_parse_factor_variable_expression(Parser *parser, char *label_identifier);
+AstNode*   ast_parse_factor_function_call(Parser *parser, char *identifier); 
 Token*     current_token(Parser *parser);
 Token*     previous_token(Parser *parser);
 TokenType  peek_next_token(Parser *parser); 
@@ -52,6 +54,7 @@ void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
 void       add_to_block(AstNode *function, AstNode *expr_or_stmt);
 void       add_to_function_params(AstNode *function_declaration, AstNode *parameter); 
+void       add_to_function_call(AstNode *function_call, AstNode *expression); 
 bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
@@ -333,8 +336,20 @@ void print_ast(AstNode *node, int whitespace) {
         printf(")\n");
         break;
       }
+      case AST_EXPRESSION_FUNCTION_CALL: {
+        print_whitespace(whitespace);
+        printf("Function Call(args=\n");
+
+        for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
+          print_ast(&node->data.function_call_expression.arguments[i], ADD_WHITESPACE);
+        }
+
+        print_whitespace(whitespace);
+        printf(")\n");
+        break;
+      }
       default: {
-        printf("ERROR - Parser: Missing ast node type for printing: %d", node->type);
+        printf("ERROR - Parser: Missing ast node type for printing: %d\n", node->type);
         exit(1);
     }
   }    
@@ -397,6 +412,23 @@ void add_to_function_params(AstNode *function_declaration, AstNode *parameter) {
   function_declaration->data.function_declaration.parameters[function_declaration->data.function_declaration.parameter_count] = *parameter;
   function_declaration->data.function_declaration.parameter_count++;
 }
+
+void add_to_function_call(AstNode *function_call, AstNode *expression) {
+  int current_count = function_call->data.function_call_expression.argument_count;
+  int current_capacity = function_call->data.function_call_expression.argument_count;
+
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? FUNCTION_CALL_STARTING_ALLOCATION: current_capacity * 2;
+
+    AstNode *arguments = realloc(function_call->data.function_call_expression.arguments, new_size * sizeof(AstNode));
+
+    function_call->data.function_call_expression.argument_capacity = new_size;
+    function_call->data.function_call_expression.arguments = arguments;
+  } 
+
+  function_call->data.function_call_expression.arguments[function_call->data.function_call_expression.argument_count] = *expression;
+  function_call->data.function_call_expression.argument_count++;
+} 
 
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
@@ -962,10 +994,11 @@ AstNode* ast_parse_factor(Parser *parser) {
     case TOKEN_IDENTIFIER: {    
       char *identifier = ast_identifier(parser);
 
-      //TODO: Add argument list here
       switch(current_token(parser)->type) {
         case TOKEN_COLON:
           return ast_parse_factor_goto_label(parser, identifier);
+        case TOKEN_OPEN_PAREN:
+          return ast_parse_factor_function_call(parser, identifier);   
         default:
           return ast_parse_factor_variable_expression(parser, identifier);
       }      
@@ -1087,6 +1120,35 @@ AstNode* ast_parse_factor_variable_expression(Parser *parser, char *label_identi
 
   return identifier_node;
 }
+
+AstNode* ast_parse_factor_function_call(Parser *parser, char *identifier) {
+  ast_expect(parser, TOKEN_OPEN_PAREN);
+
+  AstNode *function_call_node = malloc(sizeof(AstNode));
+  function_call_node->type = AST_EXPRESSION_FUNCTION_CALL;
+  function_call_node->data.function_call_expression.identfier = identifier;
+  function_call_node->data.function_call_expression.argument_count = 0;
+  function_call_node->data.function_call_expression.argument_capacity = 0;
+  function_call_node->data.function_call_expression.arguments = NULL;
+
+  if (current_token(parser)->type == TOKEN_CLOSE_PAREN) {
+    ast_expect(parser, TOKEN_CLOSE_PAREN);
+    return function_call_node;
+  }  
+
+  AstNode *expression = ast_parse_expression(parser, 0);
+  add_to_function_call(function_call_node, expression);
+
+  while (current_token(parser)->type == TOKEN_COMMA) {
+    ast_expect(parser, TOKEN_COMMA);
+    expression = ast_parse_expression(parser, 0);
+    add_to_function_call(function_call_node, expression);
+  }
+
+  ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+  return function_call_node;
+} 
 
 int get_precedence(TokenType token_type) {
   switch (token_type) {
