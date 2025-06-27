@@ -595,7 +595,7 @@ AstNode *ast_parse_statement(Parser *parser) {
     case TOKEN_GOTO:       return ast_parse_statement_goto(parser);
     case TOKEN_BREAK:      return ast_parse_statement_break(parser);
     case TOKEN_CONTINUE:   return ast_parse_statement_continue(parser); 
-    case TOKEN_WHILE:      return ast_parse_statement_continue(parser);
+    case TOKEN_WHILE:      return ast_parse_statement_while(parser);
     case TOKEN_DO:         return ast_parse_statement_do(parser);
     case TOKEN_FOR:        return ast_parse_statement_for(parser);
     default: {
