@@ -23,8 +23,18 @@ AstNode*   ast_function_declaration(Parser *parser);
 AstNode*   ast_variable_declaration(Parser *parser);
 AstNode*   ast_block(Parser *parser);
 AstNode*   ast_statement(Parser *parser);
-AstNode*   ast_expression(Parser *parser, int min_precedence);
-AstNode*   ast_factor(Parser *parser);
+AstNode*   ast_parse_expression(Parser *parser, int min_precedence);
+AstNode*   ast_parse_expression_postfix(Parser *parser, AstNode *left_expression,  TokenType postfix_token);
+AstNode*   ast_parse_expression_assignment(Parser *parser, AstNode *left_factor, TokenType assignment_token); 
+AstNode*   ast_parse_expression_conditional(Parser *parser, AstNode *left_expression, TokenType conditional_token); 
+AstNode*   ast_parse_expression_binary(Parser *parser, AstNode *left_expression, TokenType op_type);
+AstNode*   ast_parse_factor(Parser *parser);
+AstNode*   ast_parse_factor_constant(Parser *parser);
+AstNode*   ast_parse_factor_unary(Parser *parser); 
+AstNode*   ast_parse_factor_prefix_expression(Parser *parser); 
+AstNode*   ast_parse_factor_parenthetical_expression(Parser *parser); 
+AstNode*   ast_parse_factor_goto_label(Parser *parser, char *label_identifier); 
+AstNode*   ast_parse_factor_variable_expression(Parser *parser, char *label_identifier);
 Token*     current_token(Parser *parser);
 Token*     previous_token(Parser *parser);
 TokenType  peek_next_token(Parser *parser); 
@@ -498,7 +508,7 @@ AstNode* ast_variable_declaration(Parser *parser) {
   if (current_token(parser)->type == TOKEN_EQUAL) {
     //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
     parser->current_token_index--;
-    AstNode *expression = ast_expression(parser, 0);
+    AstNode *expression = ast_parse_expression(parser, 0);
 
     declaration->data.variable_declaration.has_expression = true;
     declaration->data.variable_declaration.init_expression = expression;
@@ -578,7 +588,7 @@ AstNode *ast_statement(Parser *parser) {
   if (current_token(parser)->type == TOKEN_RETURN) {
     ast_expect(parser, TOKEN_RETURN);
   
-    AstNode *expression = ast_expression(parser, 0);
+    AstNode *expression = ast_parse_expression(parser, 0);
     AstNode *return_node = malloc(sizeof(AstNode));
     
     return_node->type = AST_STATEMENT_RETURN;
@@ -592,7 +602,7 @@ AstNode *ast_statement(Parser *parser) {
     ast_expect(parser, TOKEN_IF);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
-    AstNode *condition_expression = ast_expression(parser, 0);
+    AstNode *condition_expression = ast_parse_expression(parser, 0);
 
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
@@ -660,7 +670,7 @@ AstNode *ast_statement(Parser *parser) {
     ast_expect(parser, TOKEN_WHILE);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
-    AstNode *condition_expression = ast_expression(parser, 0);
+    AstNode *condition_expression = ast_parse_expression(parser, 0);
     
     ast_expect(parser, TOKEN_CLOSE_PAREN);
 
@@ -682,7 +692,7 @@ AstNode *ast_statement(Parser *parser) {
     ast_expect(parser, TOKEN_WHILE);
     ast_expect(parser, TOKEN_OPEN_PAREN);
 
-    AstNode *condition_expression = ast_expression(parser, 0);
+    AstNode *condition_expression = ast_parse_expression(parser, 0);
     
     ast_expect(parser, TOKEN_CLOSE_PAREN);
     ast_expect(parser, TOKEN_SEMICOLON);
@@ -711,7 +721,7 @@ AstNode *ast_statement(Parser *parser) {
     } else if (current_token(parser)->type == TOKEN_INT) {
       dec_or_exp = ast_variable_declaration(parser);
     } else {
-      dec_or_exp= ast_expression(parser, 0);
+      dec_or_exp= ast_parse_expression(parser, 0);
       //TODO: Weird we do this for expressions but are handled in ast_declaration()
       ast_expect(parser, TOKEN_SEMICOLON);
     }
@@ -719,14 +729,14 @@ AstNode *ast_statement(Parser *parser) {
     for_loop_statement->data.for_statement.for_loop_init = dec_or_exp;
 
     if (current_token(parser)->type != TOKEN_SEMICOLON) {
-      AstNode *for_condition = ast_expression(parser, 0);
+      AstNode *for_condition = ast_parse_expression(parser, 0);
       for_loop_statement->data.for_statement.condition_expression = for_condition;
     }
 
     ast_expect(parser, TOKEN_SEMICOLON);
 
     if (current_token(parser)->type != TOKEN_SEMICOLON && current_token(parser)->type != TOKEN_CLOSE_PAREN) {
-      AstNode *post_expression = ast_expression(parser, 0);
+      AstNode *post_expression = ast_parse_expression(parser, 0);
       for_loop_statement->data.for_statement.post_expression = post_expression;
     }
 
@@ -739,7 +749,7 @@ AstNode *ast_statement(Parser *parser) {
     return for_loop_statement;
   }
   
-  AstNode *expression = ast_expression(parser, 0);  
+  AstNode *expression = ast_parse_expression(parser, 0);  
 
   //TODO: See if we add this in ast_expression() instead of doing this goto label check
   if (expression->type != AST_STATEMENT_GOTO_LABEL) {
@@ -748,206 +758,226 @@ AstNode *ast_statement(Parser *parser) {
   return expression;
 }
 
-AstNode* ast_expression(Parser *parser, int min_precedence) {
-  AstNode *left = ast_factor(parser);
+AstNode* ast_parse_expression(Parser *parser, int min_precedence) {
+  AstNode *left = ast_parse_factor(parser);
 
   TokenType next_token = current_token(parser)->type;
 
   //TODO: May be easier to check outliers rather than what is being done here
   while ((next_token == TOKEN_PLUS || next_token == TOKEN_NEGATION || next_token == TOKEN_PERCENT || next_token == TOKEN_ASTERISK || next_token == TOKEN_FORWARD_SLASH || next_token == TOKEN_BITWISE_AND || next_token == TOKEN_BITWISE_XOR || next_token == TOKEN_BITWISE_OR || next_token == TOKEN_BITWISE_LEFT_SHIFT || next_token == TOKEN_BITWISE_RIGHT_SHIFT || next_token == TOKEN_RELATIONAL_LESS_THAN || next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL || next_token == TOKEN_RELATIONAL_GREATER_THAN || next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL || next_token == TOKEN_RELATIONAL_EQUAL || next_token == TOKEN_RELATIONAL_NOT_EQUAL || next_token == TOKEN_LOGICAL_AND || next_token == TOKEN_LOGICAL_OR || next_token == TOKEN_EQUAL || next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token == TOKEN_PERCENT_EQUAL || next_token == TOKEN_BITWISE_AND_EQUAL || next_token == TOKEN_BITWISE_OR_EQUAL || next_token == TOKEN_BITWISE_XOR_EQUAL || next_token == TOKEN_BITWISE_LEFT_SHIFT_EQUAL || next_token == TOKEN_BITWISE_RIGHT_SHIFT_EQUAL || next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT || next_token == TOKEN_QUESTION_MARK) && get_precedence(next_token) >= min_precedence) {
 
-    if (next_token == TOKEN_INCREMENT || next_token == TOKEN_DECREMENT) {
-      parser-> current_token_index++;
-
-      AstNode *postfix_expression = malloc(sizeof(AstNode));
-
-      if (next_token == TOKEN_INCREMENT) {
-        postfix_expression->type = AST_EXPRESSION_POSTFIX_INCREMENT;
-      } else {
-        postfix_expression->type = AST_EXPRESSION_POSTFIX_DECREMENT;
+    switch(next_token) {
+      case TOKEN_INCREMENT:
+      case TOKEN_DECREMENT:
+        return ast_parse_expression_postfix(parser, left, next_token);        
+      case TOKEN_EQUAL:
+        return ast_parse_expression_assignment(parser, left, next_token);        
+      case TOKEN_QUESTION_MARK:
+        return ast_parse_expression_conditional(parser, left, next_token);
+      default: {
+        AstNode *binary = ast_parse_expression_binary(parser, left, next_token);
+        next_token = current_token(parser)->type;
+        return binary;
       }
-
-      //TODO: We should validate that 'left' is an identifier. May do in semantic analysis
-
-      AstNode *postfix_assignment = malloc(sizeof(AstNode));
-      postfix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
-      postfix_assignment->data.assignement_expression.left_expression = left;
-
-      AstNode *postfix_constant = malloc(sizeof(AstNode));
-      postfix_constant->type = AST_EXPRESSION_CONSTANT;
-      postfix_constant->data.constant_expression.value = 1;
-      
-      AstNode *postfix_binary = malloc(sizeof(AstNode));
-      postfix_binary->type = AST_EXPRESSION_BINARY;
-      
-      if (next_token == TOKEN_INCREMENT) {
-        postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
-      } else {
-        postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
-      }
-
-      postfix_binary->data.binary_expression.left_expression = left;
-      postfix_binary->data.binary_expression.right_expression = postfix_constant;
-
-      postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
-
-      postfix_expression->data.increment_decrement_expression.expression = postfix_assignment;
-      
-      return postfix_expression;
     }
-    
-    if (next_token == TOKEN_EQUAL) {
-      //right-associative assignment
-      ast_expect(parser, TOKEN_EQUAL);
-
-      // AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
-      AstNode *right = ast_expression(parser, get_precedence(peek_next_token(parser)));
-      AstNode *assignment_expression= malloc(sizeof(AstNode));
-
-      assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
-      assignment_expression->data.assignement_expression.left_expression = left;
-      assignment_expression->data.assignement_expression.right_expression = right;
-
-      left = assignment_expression;
-
-      return left;
-    } 
-
-    if (next_token == TOKEN_QUESTION_MARK) {
-      ast_expect(parser, TOKEN_QUESTION_MARK);
-
-      AstNode *middle = ast_expression(parser, 0);
-
-      ast_expect(parser, TOKEN_COLON);
-
-      AstNode *right = ast_expression(parser, get_precedence(next_token));
-
-      AstNode *conditional = malloc(sizeof(AstNode));
-      conditional->type = AST_EXPRESSION_CONDITIONAL;
-      conditional->data.conditional_expression.condition = left;
-      conditional->data.conditional_expression.true_expression = middle;
-      conditional->data.conditional_expression.false_expression = right;
-
-      return conditional;
-    }
-
-    if (next_token == TOKEN_PLUS_EQUAL || next_token == TOKEN_NEGATION_EQUAL || next_token == TOKEN_ASTERISK_EQUAL || next_token == TOKEN_FORWARD_SLASH_EQUAL || next_token  == TOKEN_PERCENT_EQUAL || next_token == TOKEN_BITWISE_AND_EQUAL || next_token == TOKEN_BITWISE_OR_EQUAL || next_token == TOKEN_BITWISE_XOR_EQUAL || next_token == TOKEN_BITWISE_LEFT_SHIFT_EQUAL || next_token == TOKEN_BITWISE_RIGHT_SHIFT_EQUAL) {
-
-      parser->current_token_index++;
-
-      AstNode *right = ast_expression(parser, get_precedence(next_token));
-
-      AstNode *binary = malloc(sizeof(AstNode));
-      binary->type = AST_EXPRESSION_BINARY;
-
-      switch(next_token) {
-        case TOKEN_PLUS_EQUAL:          binary->data.binary_expression.op_type = AST_BINARY_ADD; break;
-        case TOKEN_NEGATION_EQUAL:      binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
-        case TOKEN_ASTERISK_EQUAL:      binary->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
-        case TOKEN_FORWARD_SLASH_EQUAL: binary->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
-        case TOKEN_PERCENT_EQUAL:       binary->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
-        case TOKEN_BITWISE_AND_EQUAL:   binary->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
-        case TOKEN_BITWISE_OR_EQUAL:   binary->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
-        case TOKEN_BITWISE_XOR_EQUAL:   binary->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
-        case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   binary->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
-        case TOKEN_BITWISE_LEFT_SHIFT_EQUAL:   binary->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
-        default:
-          fprintf(stderr, "ERROR - Parser: Compound assignment type not found '%d'\n", next_token);
-          exit(1);
-          break;
-      }
-      
-      binary->data.binary_expression.left_expression = left;
-      binary->data.binary_expression.right_expression = right;
-      
-      AstNode *assignment_expression= malloc(sizeof(AstNode));
-
-      assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
-      assignment_expression->data.assignement_expression.left_expression = left;
-      assignment_expression->data.assignement_expression.right_expression = binary;
-
-      left = assignment_expression;
-
-      return left;
-    }
-
-    parser-> current_token_index++;
-
-    AstNode *right = ast_expression(parser, get_precedence(next_token) + 1);
-
-    AstNode *binary_expression = malloc(sizeof(AstNode));
-    binary_expression->type = AST_EXPRESSION_BINARY;
-
-    binary_expression->data.binary_expression.left_expression = left;
-    binary_expression->data.binary_expression.right_expression = right;
-
-    if (next_token == TOKEN_PLUS) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_ADD;
-    } else if (next_token == TOKEN_NEGATION) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
-    } else if (next_token == TOKEN_ASTERISK) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY;
-    } else if (next_token == TOKEN_FORWARD_SLASH) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE;
-    } else if (next_token == TOKEN_PERCENT) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER;
-    } else if (next_token == TOKEN_BITWISE_AND) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_AND;
-    } else if (next_token == TOKEN_BITWISE_OR) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_OR;
-    } else if (next_token == TOKEN_BITWISE_XOR) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR;
-    } else if (next_token == TOKEN_BITWISE_LEFT_SHIFT) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT;
-    } else if (next_token == TOKEN_BITWISE_RIGHT_SHIFT) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT;
-    } else if (next_token == TOKEN_RELATIONAL_LESS_THAN) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_THAN;
-    } else if (next_token == TOKEN_RELATIONAL_LESS_OR_EQUAL) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_OR_EQUAL;
-    } else if (next_token == TOKEN_RELATIONAL_GREATER_THAN) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_THAN;
-    } else if (next_token == TOKEN_RELATIONAL_GREATER_OR_EQUAL) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_OR_EQUAL;
-    } else if (next_token == TOKEN_RELATIONAL_EQUAL) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_EQUAL;
-    } else if (next_token == TOKEN_RELATIONAL_NOT_EQUAL) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_NOT_EQUAL;
-    } else if (next_token == TOKEN_LOGICAL_AND) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_AND;
-    } else if (next_token == TOKEN_LOGICAL_OR) {
-      binary_expression->data.binary_expression.op_type = AST_BINARY_OR;
-    }
-
-    left = binary_expression;
-    next_token = current_token(parser)->type;
   } 
 
   return left;
 }
 
-//TODO: Function is hard to read
-AstNode* ast_factor(Parser *parser) {
+AstNode* ast_parse_expression_postfix(Parser *parser, AstNode *left_expression,  TokenType postfix_token) {
+  parser-> current_token_index++;
+
+  AstNode *postfix_expression = malloc(sizeof(AstNode));
+
+  if (postfix_token == TOKEN_INCREMENT) {
+    postfix_expression->type = AST_EXPRESSION_POSTFIX_INCREMENT;
+  } else {
+    postfix_expression->type = AST_EXPRESSION_POSTFIX_DECREMENT;
+  }
+
+  //TODO: We should validate that 'left' is an identifier. May do in semantic analysis
+
+  AstNode *postfix_assignment = malloc(sizeof(AstNode));
+  postfix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
+  postfix_assignment->data.assignement_expression.left_expression = left_expression;
+
+  AstNode *postfix_constant = malloc(sizeof(AstNode));
+  postfix_constant->type = AST_EXPRESSION_CONSTANT;
+  postfix_constant->data.constant_expression.value = 1;
+  
+  AstNode *postfix_binary = malloc(sizeof(AstNode));
+  postfix_binary->type = AST_EXPRESSION_BINARY;
+  
+  if (postfix_token == TOKEN_INCREMENT) {
+    postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
+  } else {
+    postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+  }
+
+  postfix_binary->data.binary_expression.left_expression = left_expression;
+  postfix_binary->data.binary_expression.right_expression = postfix_constant;
+  postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
+  postfix_expression->data.increment_decrement_expression.expression = postfix_assignment;
+  
+  return postfix_expression;
+}
+
+AstNode* ast_parse_expression_assignment(Parser *parser, AstNode *left_factor, TokenType assignment_token) {
+  //right-associative assignment
+  ast_expect(parser, TOKEN_EQUAL);
+
+  //TODO: @Test - This was previously:
+  // AstNode *right = ast_expression(parser, get_precedence(peek_next_token(parser)));
+  // That doesn't make sense since we consume the '=' token and not use the precedence of the next token
+  AstNode *right = ast_parse_expression(parser, get_precedence(assignment_token));
+  AstNode *assignment_expression= malloc(sizeof(AstNode));
+
+  assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
+  assignment_expression->data.assignement_expression.left_expression = left_factor;
+  assignment_expression->data.assignement_expression.right_expression = right;
+
+  return assignment_expression;
+}
+
+// TODO: conditional_token may always be question mark. If so, remove param and assign get_precedence in the function
+// to TOKEN_QUESTION_MARK
+AstNode* ast_parse_expression_conditional(Parser *parser, AstNode *left_expression, TokenType conditional_token) {
+  ast_expect(parser, TOKEN_QUESTION_MARK);
+
+  AstNode *middle = ast_parse_expression(parser, 0);
+
+  ast_expect(parser, TOKEN_COLON);
+
+  AstNode *right = ast_parse_expression(parser, get_precedence(conditional_token));
+
+  AstNode *conditional = malloc(sizeof(AstNode));
+  conditional->type = AST_EXPRESSION_CONDITIONAL;
+  conditional->data.conditional_expression.condition = left_expression;
+  conditional->data.conditional_expression.true_expression = middle;
+  conditional->data.conditional_expression.false_expression = right;
+
+  return conditional;
+}
+
+AstNode* ast_parse_expression_binary(Parser *parser, AstNode *left_expression, TokenType op_type) {
+  parser-> current_token_index++;
+
+  AstNode *right = ast_parse_expression(parser, get_precedence(op_type) + 1);
+
+  AstNode *binary_expression = malloc(sizeof(AstNode));
+  binary_expression->type = AST_EXPRESSION_BINARY;
+
+  binary_expression->data.binary_expression.left_expression = left_expression;
+  binary_expression->data.binary_expression.right_expression = right;
+ 
+  switch (op_type) {
+    case TOKEN_PLUS:                        binary_expression->data.binary_expression.op_type = AST_BINARY_ADD; break;
+    case TOKEN_NEGATION:                    binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
+    case TOKEN_ASTERISK:                    binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
+    case TOKEN_FORWARD_SLASH:               binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
+    case TOKEN_PERCENT:                     binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
+    case TOKEN_BITWISE_AND:                 binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
+    case TOKEN_BITWISE_OR:                  binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
+    case TOKEN_BITWISE_XOR:                 binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
+    case TOKEN_BITWISE_LEFT_SHIFT:          binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
+    case TOKEN_BITWISE_RIGHT_SHIFT:         binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
+    case TOKEN_RELATIONAL_LESS_THAN:        binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_THAN; break;
+    case TOKEN_RELATIONAL_LESS_OR_EQUAL:    binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_OR_EQUAL; break;
+    case TOKEN_RELATIONAL_GREATER_THAN:     binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_THAN; break;
+    case TOKEN_RELATIONAL_GREATER_OR_EQUAL: binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_OR_EQUAL; break;
+    case TOKEN_RELATIONAL_EQUAL:            binary_expression->data.binary_expression.op_type = AST_BINARY_EQUAL; break;
+    case TOKEN_RELATIONAL_NOT_EQUAL:        binary_expression->data.binary_expression.op_type = AST_BINARY_NOT_EQUAL; break;
+    case TOKEN_LOGICAL_AND:                 binary_expression->data.binary_expression.op_type = AST_BINARY_AND; break;
+    case TOKEN_LOGICAL_OR:                  binary_expression->data.binary_expression.op_type = AST_BINARY_OR; break;
+    case TOKEN_PLUS_EQUAL:                  binary_expression->data.binary_expression.op_type = AST_BINARY_ADD; break;
+    case TOKEN_NEGATION_EQUAL:              binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
+    case TOKEN_ASTERISK_EQUAL:              binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
+    case TOKEN_FORWARD_SLASH_EQUAL:         binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
+    case TOKEN_PERCENT_EQUAL:               binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
+    case TOKEN_BITWISE_AND_EQUAL:           binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
+    case TOKEN_BITWISE_OR_EQUAL:            binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
+    case TOKEN_BITWISE_XOR_EQUAL:           binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
+    case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
+    case TOKEN_BITWISE_LEFT_SHIFT_EQUAL:    binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
+    default:
+      fprintf(stderr, "ERROR - Parser: Expected Binary op token, found %d", op_type);
+      exit(1);
+  }
+
+  switch (op_type) {
+    case TOKEN_PLUS_EQUAL:          
+    case TOKEN_NEGATION_EQUAL:      
+    case TOKEN_ASTERISK_EQUAL:      
+    case TOKEN_FORWARD_SLASH_EQUAL: 
+    case TOKEN_PERCENT_EQUAL:       
+    case TOKEN_BITWISE_AND_EQUAL:   
+    case TOKEN_BITWISE_OR_EQUAL:   
+    case TOKEN_BITWISE_XOR_EQUAL:   
+    case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   
+    case TOKEN_BITWISE_LEFT_SHIFT_EQUAL: {  
+      AstNode *assignment_expression = malloc(sizeof(AstNode));
+      assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
+      assignment_expression->data.assignement_expression.left_expression = left_expression;
+      assignment_expression->data.assignement_expression.right_expression = binary_expression;
+      return assignment_expression;
+    }
+    default:
+     return binary_expression;
+  }
+}
+
+AstNode* ast_parse_factor(Parser *parser) {
  if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
     exit(1);
   }
+
+  switch(current_token(parser)->type) {
+    case TOKEN_CONSTANT_INT:
+      return ast_parse_factor_constant(parser);
+    case TOKEN_NEGATION:
+    case TOKEN_BITWISE_NOT:
+    case TOKEN_LOGICAL_NOT:
+      return ast_parse_factor_unary(parser);
+    case TOKEN_INCREMENT:
+    case TOKEN_DECREMENT:
+      return ast_parse_factor_prefix_expression(parser);
+    case TOKEN_OPEN_PAREN:
+      return ast_parse_factor_parenthetical_expression(parser);
+    case TOKEN_IDENTIFIER: {    
+      char *identifier = ast_identifier(parser);
+
+      //TODO: Add argument list here
+      switch(current_token(parser)->type) {
+        case TOKEN_COLON:
+          return ast_parse_factor_goto_label(parser, identifier);
+        default:
+          return ast_parse_factor_variable_expression(parser, identifier);
+      }      
+    }
+    default:
+      fprintf(stderr, "ERROR - Parser: Failed to parse factor for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
+      exit(1);    
+  }
+}
+
+AstNode* ast_parse_factor_constant(Parser *parser) {
+  ast_expect(parser, TOKEN_CONSTANT_INT); 
+
+  AstNode *constant = malloc(sizeof(AstNode));
+  constant->type = AST_EXPRESSION_CONSTANT;
+
+  char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
+  strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
   
-  if (current_token(parser)->type == TOKEN_CONSTANT_INT) {
-    ast_expect(parser, TOKEN_CONSTANT_INT); 
+  int constant_value = atoi(slice);
+  constant->data.constant_expression.value = constant_value;
 
-    AstNode *constant = malloc(sizeof(AstNode));
-    constant->type = AST_EXPRESSION_CONSTANT;
+  return constant;
+}
 
-    char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
-    strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
-    
-    int constant_value = atoi(slice);
-    constant->data.constant_expression.value = constant_value;
-
-    return constant;
-  } else if (current_token(parser)->type == TOKEN_NEGATION || current_token(parser)->type == TOKEN_BITWISE_NOT || current_token(parser)->type == TOKEN_LOGICAL_NOT) {
-
+AstNode* ast_parse_factor_unary(Parser *parser) {
     UnaryOpType op_type; 
     switch(current_token(parser)->type) {
       case TOKEN_NEGATION:
@@ -967,7 +997,7 @@ AstNode* ast_factor(Parser *parser) {
     
     parser->current_token_index++;
 
-    AstNode *unary_value_expression = ast_factor(parser);
+    AstNode *unary_value_expression = ast_parse_factor(parser);
 
     AstNode *unary = malloc(sizeof(AstNode));    
     unary->type = AST_EXPRESSION_UNARY;
@@ -975,74 +1005,73 @@ AstNode* ast_factor(Parser *parser) {
     unary->data.unary_expression.expression = unary_value_expression;
 
     return unary;
-  } else if (current_token(parser)->type == TOKEN_INCREMENT || current_token(parser)->type == TOKEN_DECREMENT) {
-      AstNode *prefix_expression = malloc(sizeof(AstNode));
+}
 
-      if (current_token(parser)->type == TOKEN_INCREMENT) {
-        ast_expect(parser, TOKEN_INCREMENT);
-        prefix_expression->type = AST_EXPRESSION_PREFIX_INCREMENT;
-      } else {
-        ast_expect(parser, TOKEN_DECREMENT);
-        prefix_expression->type = AST_EXPRESSION_PREFIX_DECREMENT;
-      }
+AstNode* ast_parse_factor_prefix_expression(Parser *parser) {
+  AstNode *prefix_expression = malloc(sizeof(AstNode));
 
-      AstNode *left = ast_expression(parser, 0);
-      
-      AstNode *prefix_assignment = malloc(sizeof(AstNode));
-      prefix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
-      prefix_assignment->data.assignement_expression.left_expression = left;
+  if (current_token(parser)->type == TOKEN_INCREMENT) {
+    ast_expect(parser, TOKEN_INCREMENT);
+    prefix_expression->type = AST_EXPRESSION_PREFIX_INCREMENT;
+  } else {
+    ast_expect(parser, TOKEN_DECREMENT);
+    prefix_expression->type = AST_EXPRESSION_PREFIX_DECREMENT;
+  }
 
-      AstNode *postfix_constant = malloc(sizeof(AstNode));
-      postfix_constant->type = AST_EXPRESSION_CONSTANT;
-      postfix_constant->data.constant_expression.value = 1;
-      
-      AstNode *postfix_binary = malloc(sizeof(AstNode));
-      postfix_binary->type = AST_EXPRESSION_BINARY;
-      
-      if (prefix_expression->type == AST_EXPRESSION_PREFIX_INCREMENT) {
-        postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
-      } else {
-        postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
-      }
+  AstNode *left = ast_parse_expression(parser, 0);
 
-      postfix_binary->data.binary_expression.left_expression = left;
-      postfix_binary->data.binary_expression.right_expression = postfix_constant;
+  AstNode *prefix_assignment = malloc(sizeof(AstNode));
+  prefix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
+  prefix_assignment->data.assignement_expression.left_expression = left;
 
-      prefix_assignment->data.assignement_expression.right_expression = postfix_binary;
+  AstNode *postfix_constant = malloc(sizeof(AstNode));
+  postfix_constant->type = AST_EXPRESSION_CONSTANT;
+  postfix_constant->data.constant_expression.value = 1;
 
-      prefix_expression->data.increment_decrement_expression.expression = prefix_assignment;
-      
-      return prefix_assignment;
+  AstNode *postfix_binary = malloc(sizeof(AstNode));
+  postfix_binary->type = AST_EXPRESSION_BINARY;
 
-  } else if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
-    parser->current_token_index++;
+  if (prefix_expression->type == AST_EXPRESSION_PREFIX_INCREMENT) {
+    postfix_binary->data.binary_expression.op_type = AST_BINARY_ADD;
+  } else {
+    postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
+  }
 
-    AstNode *expression = ast_expression(parser, 0);
-        
-    ast_expect(parser, TOKEN_CLOSE_PAREN);
+  postfix_binary->data.binary_expression.left_expression = left;
+  postfix_binary->data.binary_expression.right_expression = postfix_constant;
 
-    return expression;
-  } else if (current_token(parser)->type == TOKEN_IDENTIFIER) {
-    char *identifier = ast_identifier(parser);
+  prefix_assignment->data.assignement_expression.right_expression = postfix_binary;
 
-    if (current_token(parser)->type == TOKEN_COLON) {
-      ast_expect(parser, TOKEN_COLON);
-      AstNode *goto_label_node = malloc(sizeof(AstNode));
-      goto_label_node->type = AST_STATEMENT_GOTO_LABEL;
-      goto_label_node->data.goto_label_statement.label = identifier;
+  prefix_expression->data.increment_decrement_expression.expression = prefix_assignment;
 
-      return goto_label_node;
-    }
+  return prefix_assignment;
+}
 
-    AstNode *identifier_node = malloc(sizeof(AstNode));
-    identifier_node->type = AST_EXPRESSION_VARIABLE;
-    identifier_node->data.variable_expression.identifier = identifier;
+AstNode* ast_parse_factor_parenthetical_expression(Parser *parser) {
+  parser->current_token_index++;
 
-    return identifier_node;
-  } 
+  AstNode *expression = ast_parse_expression(parser, 0);
+    
+  ast_expect(parser, TOKEN_CLOSE_PAREN);
 
-  fprintf(stderr, "ERROR - Parser: Failed to parse factor for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
-  exit(1);
+  return expression;
+}
+ 
+AstNode* ast_parse_factor_goto_label(Parser *parser, char *label_identifier) {
+  ast_expect(parser, TOKEN_COLON);
+  AstNode *goto_label_node = malloc(sizeof(AstNode));
+  goto_label_node->type = AST_STATEMENT_GOTO_LABEL;
+  goto_label_node->data.goto_label_statement.label = label_identifier;
+
+  return goto_label_node;
+}
+
+AstNode* ast_parse_factor_variable_expression(Parser *parser, char *label_identifier) {
+  AstNode *identifier_node = malloc(sizeof(AstNode));
+  identifier_node->type = AST_EXPRESSION_VARIABLE;
+  identifier_node->data.variable_expression.identifier = label_identifier;
+
+  return identifier_node;
 }
 
 int get_precedence(TokenType token_type) {

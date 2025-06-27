@@ -1,9 +1,7 @@
 int main(void) {
-    int a = 0;
-    int b = 2;
-    int c;
-
-    c = a + b;
+    //int result = j == -1 && i == 11;    
+    int result = 1;
+    result += 2;
     
-    return c;
+    return result;
 }
