@@ -37,14 +37,14 @@ void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTabl
       if (parent_entry != NULL && parent_entry->key != NULL) {
         existing_variable = hash_table_get_entry(variable_table, identifier);
         existing_variable->value.integer = parent_entry->value.integer + 1;
-        snprintf(converted_identifier, sizeof(converted_identifier), "%s.%d", identifier, parent_entry->value.integer + 1);
+        snprintf(converted_identifier, 256, "%s.%d", identifier, parent_entry->value.integer + 1);
         hash_table_add_entry(local_declared_variables, existing_variable);
       } else {  
         HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
         new_variable_entry->key = identifier;
         new_variable_entry->value.type = HASH_INT;
         new_variable_entry->value.integer = 0;
-        snprintf(converted_identifier, sizeof(converted_identifier), "%s.%d", identifier, 0);
+        snprintf(converted_identifier, 256, "%s.%d", identifier, 0);
         hash_table_add_entry(variable_table, new_variable_entry);
         hash_table_add_entry(local_declared_variables, new_variable_entry);
       }    
