@@ -20,8 +20,9 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   HashTable function_identifier_table;
   hash_table_init(&function_identifier_table); 
 
-  //TODO: Need to iterate through the function declarations
-  sa_variable_resolve_node(ast_nodes->data.program.function_declarations->data.function_declaration.body_block, &variable_table, &parent_variable_table, &local_variable_table, &function_identifier_table);
+  for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
+    sa_variable_resolve_node(ast_nodes->data.program.function_declarations[i].data.function_declaration.body_block, &variable_table, &parent_variable_table, &local_variable_table, &function_identifier_table);
+  }
 }
 
 void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table, HashTable *local_declared_variables, HashTable *function_identifier_table) {

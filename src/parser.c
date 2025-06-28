@@ -848,12 +848,16 @@ AstNode* ast_parse_expression(Parser *parser, int min_precedence) {
       case TOKEN_INCREMENT:
       case TOKEN_DECREMENT:
         left = ast_parse_expression_postfix(parser, left, next_token);        
+        break;
       case TOKEN_EQUAL:
         left = ast_parse_expression_assignment(parser, left, next_token);        
+        break;
       case TOKEN_QUESTION_MARK:
         left = ast_parse_expression_conditional(parser, left, next_token);
+        break;
       default: {
         left = ast_parse_expression_binary(parser, left, next_token);
+        break;
       }
     }
     next_token = current_token(parser)->type;
