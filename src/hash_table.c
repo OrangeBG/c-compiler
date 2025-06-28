@@ -29,6 +29,9 @@ void hash_table_print(HashTable *table) {
     printf("index: %d\tkey: %s \t", i, table->entries[i].key);    
     
     switch(table->entries[i].value.type) {
+      case HASH_STRUCT:
+        printf("value: struct");
+        break;
       case HASH_STRING:
         printf("value: %s\n", table->entries[i].value.string);
         break;
