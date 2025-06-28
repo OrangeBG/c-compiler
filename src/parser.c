@@ -9,6 +9,7 @@
 #define BLOCK_STARTING_ALLOCATION 8
 #define FUNCTION_PARAM_STARTING_ALLOCATION 8
 #define FUNCTION_CALL_STARTING_ALLOCATION 8
+#define PROGRAM_FUNCTION_ALLOCATION 8
 #define ADD_WHITESPACE whitespace + 5
 
 typedef struct Parser {
@@ -55,6 +56,7 @@ void       print_whitespace(int count);
 void       add_to_block(AstNode *function, AstNode *expr_or_stmt);
 void       add_to_function_params(AstNode *function_declaration, AstNode *parameter); 
 void       add_to_function_call(AstNode *function_call, AstNode *expression); 
+void       add_to_function_to_program(AstNode *program, AstNode *function_declaration); 
 bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
@@ -84,7 +86,9 @@ void print_ast(AstNode *node, int whitespace) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      print_ast(node->data.program.function_declaration, ADD_WHITESPACE);
+      for (int i = 0; i < node->data.program.function_count; i++) {
+        print_ast(&node->data.program.function_declarations[i], ADD_WHITESPACE);
+      }
       printf(")\n");
       break;
     case AST_VARIABLE_DECLARATION:
@@ -419,7 +423,7 @@ void add_to_function_params(AstNode *function_declaration, AstNode *parameter) {
 
 void add_to_function_call(AstNode *function_call, AstNode *expression) {
   int current_count = function_call->data.function_call_expression.argument_count;
-  int current_capacity = function_call->data.function_call_expression.argument_count;
+  int current_capacity = function_call->data.function_call_expression.argument_capacity;
 
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? FUNCTION_CALL_STARTING_ALLOCATION: current_capacity * 2;
@@ -432,6 +436,23 @@ void add_to_function_call(AstNode *function_call, AstNode *expression) {
 
   function_call->data.function_call_expression.arguments[function_call->data.function_call_expression.argument_count] = *expression;
   function_call->data.function_call_expression.argument_count++;
+} 
+
+void add_to_function_to_program(AstNode *program, AstNode *function_declaration) {
+  int current_count = program->data.program.function_count;
+  int current_capacity = program->data.program.function_capacity;
+
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? PROGRAM_FUNCTION_ALLOCATION : current_capacity * 2;
+
+    AstNode *arguments = realloc(program->data.program.function_declarations, new_size * sizeof(AstNode));
+
+    program->data.program.function_capacity = new_size;
+    program->data.program.function_declarations = arguments;
+  } 
+
+  program->data.program.function_declarations[program->data.program.function_count] = *function_declaration;
+  program->data.program.function_count++;
 } 
 
 void ast_expect(Parser *parser, TokenType expected_type) {
@@ -451,11 +472,16 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 
 AstNode* ast_program(Parser *parser) {
   AstNode *program = malloc(sizeof(AstNode));
-  AstNode *function = ast_function_declaration(parser);
-
   program->type = AST_PROGRAM;
-  program->data.program.function_declaration = function;
+  program->data.program.function_capacity = 0;
+  program->data.program.function_count = 0;
+  program->data.program.function_declarations = NULL;
   
+  while (current_token(parser)->type != TOKEN_EOF) {
+    AstNode *function = ast_function_declaration(parser);
+    add_to_function_to_program(program, function);
+  }
+ 
   return program;
 }
 
@@ -484,13 +510,13 @@ AstNode* ast_function_declaration(Parser *parser) {
 
   switch (current_token(parser)->type) {
     case TOKEN_VOID:
-      parameter->data.function_parameters.type = AST_PARAMETER_VOID;
       ast_expect(parser, TOKEN_VOID);
+      parameter->data.function_parameters.type = AST_PARAMETER_VOID;
       break;
     case TOKEN_INT: {
+      ast_expect(parser, TOKEN_INT);
       parameter->data.function_parameters.type = AST_PARAMETER_INT;
       parameter->data.function_parameters.name = ast_identifier(parser); 
-      ast_expect(parser, TOKEN_INT);
       break;
     }
     default: {
@@ -509,9 +535,11 @@ AstNode* ast_function_declaration(Parser *parser) {
     
     switch (current_token(parser)->type) {
       case TOKEN_VOID:
+        ast_expect(parser, TOKEN_VOID);
         next_parameter->data.function_parameters.type = AST_PARAMETER_VOID;
         break;
       case TOKEN_INT: {
+        ast_expect(parser, TOKEN_INT);
         next_parameter->data.function_parameters.type = AST_PARAMETER_INT;
         next_parameter->data.function_parameters.name = ast_identifier(parser); 
         break;
@@ -819,17 +847,16 @@ AstNode* ast_parse_expression(Parser *parser, int min_precedence) {
     switch(next_token) {
       case TOKEN_INCREMENT:
       case TOKEN_DECREMENT:
-        return ast_parse_expression_postfix(parser, left, next_token);        
+        left = ast_parse_expression_postfix(parser, left, next_token);        
       case TOKEN_EQUAL:
-        return ast_parse_expression_assignment(parser, left, next_token);        
+        left = ast_parse_expression_assignment(parser, left, next_token);        
       case TOKEN_QUESTION_MARK:
-        return ast_parse_expression_conditional(parser, left, next_token);
+        left = ast_parse_expression_conditional(parser, left, next_token);
       default: {
-        AstNode *binary = ast_parse_expression_binary(parser, left, next_token);
-        next_token = current_token(parser)->type;
-        return binary;
+        left = ast_parse_expression_binary(parser, left, next_token);
       }
     }
+    next_token = current_token(parser)->type;
   } 
 
   return left;

@@ -79,7 +79,7 @@ typedef enum {
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { AstNode *function_declaration; } program;
+    struct Program { AstNode *function_declarations; int function_count; int function_capacity; } program;
     // struct Function { char *name; AstNode *block;} function;
     // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
     // struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
