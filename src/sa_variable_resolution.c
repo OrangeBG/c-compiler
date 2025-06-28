@@ -5,7 +5,7 @@
 #include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
 
-void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table, HashTable *local_declared_variables); 
+void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table, HashTable *local_declared_variables, HashTable *function_identifier_table); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
   HashTable variable_table;
@@ -17,17 +17,21 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   HashTable local_variable_table;
   hash_table_init(&local_variable_table); 
 
-  sa_variable_resolve_node(ast_nodes->data.program.function_declaration->data.function_declaration.body_block, &variable_table, &parent_variable_table, &local_variable_table);
+  HashTable function_identifier_table;
+  hash_table_init(&function_identifier_table); 
+
+  //TODO: Need to iterate through the function declarations
+  sa_variable_resolve_node(ast_nodes->data.program.function_declarations->data.function_declaration.body_block, &variable_table, &parent_variable_table, &local_variable_table, &function_identifier_table);
 }
 
-void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table, HashTable *local_declared_variables) {
+void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTable *parent_variable_table, HashTable *local_declared_variables, HashTable *function_identifier_table) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
       char* identifier = node->data.variable_declaration.name;
       HashTableEntry *existing_variable = hash_table_get_entry(local_declared_variables, identifier);
 
       if (existing_variable != NULL && existing_variable->key != NULL) {
-        fprintf(stderr, "Duplicate '%s' variable found in block\n", identifier);
+        fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' variable found in block\n", identifier);
         exit(1);
       }
 
@@ -50,11 +54,27 @@ void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTabl
       }    
 
       if (node->data.variable_declaration.has_expression == true) {
-        sa_variable_resolve_node(node->data.variable_declaration.init_expression, variable_table, parent_variable_table, local_declared_variables);
+        sa_variable_resolve_node(node->data.variable_declaration.init_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       }
 
       node->data.variable_declaration.name = converted_identifier;
       break;
+    }
+    case AST_FUNCTION_DECLARATION: {
+
+    }
+    case AST_EXPRESSION_FUNCTION_CALL: {
+      char *function_identifier = node->data.function_call_expression.identfier;
+      HashTableEntry *existing_entry = hash_table_get_entry(function_identifier_table, function_identifier);
+
+      if (existing_entry == NULL || existing_entry->key == NULL) {
+        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared function '%s'\n", function_identifier);
+        exit(1);
+      }
+
+      for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
+        sa_variable_resolve_node(&node->data.function_call_expression.arguments[i], variable_table, parent_variable_table, local_declared_variables, function_identifier_table); 
+      }      
     }
     case AST_BLOCK: {
       HashTable *block_variable_table = hash_table_clone(variable_table);
@@ -62,53 +82,53 @@ void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTabl
       hash_table_init(&local_declared_variables);
 
       for (int i = 0; i < node->data.block.block_count; i++) {   
-        sa_variable_resolve_node(&node->data.block.block_items[i], block_variable_table, variable_table, &local_declared_variables); 
+        sa_variable_resolve_node(&node->data.block.block_items[i], block_variable_table, variable_table, &local_declared_variables, function_identifier_table); 
       }
 
       free(local_declared_variables.entries);
       break;
     }
     case AST_STATEMENT_IF: {
-      sa_variable_resolve_node(node->data.if_statement.condition_expression, variable_table, parent_variable_table, local_declared_variables);
-      sa_variable_resolve_node(node->data.if_statement.then_statement, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.if_statement.condition_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
+      sa_variable_resolve_node(node->data.if_statement.then_statement, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
 
       if (node->data.if_statement.else_statement != NULL) {
-        sa_variable_resolve_node(node->data.if_statement.else_statement, variable_table, parent_variable_table, local_declared_variables);
+        sa_variable_resolve_node(node->data.if_statement.else_statement, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       }
       break;
     }
     case AST_STATEMENT_RETURN: {
-      sa_variable_resolve_node(node->data.return_statement.expression, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.return_statement.expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_STATEMENT_EXPRESSION: {
-      sa_variable_resolve_node(node->data.expression_statement.expression, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.expression_statement.expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_STATEMENT_FOR: {
       if (node->data.for_statement.for_loop_init != NULL) {
-        sa_variable_resolve_node(node->data.for_statement.for_loop_init, variable_table, parent_variable_table, local_declared_variables);
+        sa_variable_resolve_node(node->data.for_statement.for_loop_init, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       }
 
       if (node->data.for_statement.condition_expression != NULL) {
-        sa_variable_resolve_node(node->data.for_statement.condition_expression, variable_table, parent_variable_table, local_declared_variables);
+        sa_variable_resolve_node(node->data.for_statement.condition_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       }
 
       if (node->data.for_statement.post_expression != NULL) {
-        sa_variable_resolve_node(node->data.for_statement.post_expression, variable_table, parent_variable_table, local_declared_variables);
+        sa_variable_resolve_node(node->data.for_statement.post_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       }
 
-      sa_variable_resolve_node(node->data.for_statement.statement_body, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.for_statement.statement_body, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_STATEMENT_WHILE: {
-      sa_variable_resolve_node(node->data.while_statement.condition, variable_table, parent_variable_table, local_declared_variables);
-      sa_variable_resolve_node(node->data.while_statement.statement_body, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.while_statement.condition, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
+      sa_variable_resolve_node(node->data.while_statement.statement_body, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_STATEMENT_DO_WHILE: {
-      sa_variable_resolve_node(node->data.do_while_statement.condition, variable_table, parent_variable_table, local_declared_variables);
-      sa_variable_resolve_node(node->data.do_while_statement.statement_body, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.do_while_statement.condition, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
+      sa_variable_resolve_node(node->data.do_while_statement.statement_body, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
@@ -117,23 +137,23 @@ void sa_variable_resolve_node(AstNode *node, HashTable *variable_table, HashTabl
         exit(1);
       }
 
-      sa_variable_resolve_node(node->data.assignement_expression.left_expression, variable_table, parent_variable_table, local_declared_variables);
-      sa_variable_resolve_node(node->data.assignement_expression.right_expression, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.assignement_expression.left_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
+      sa_variable_resolve_node(node->data.assignement_expression.right_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_EXPRESSION_BINARY: {
-      sa_variable_resolve_node(node->data.binary_expression.left_expression, variable_table, parent_variable_table, local_declared_variables);
-      sa_variable_resolve_node(node->data.binary_expression.right_expression, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.binary_expression.left_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
+      sa_variable_resolve_node(node->data.binary_expression.right_expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     }
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT:
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT: 
-      sa_variable_resolve_node(node->data.increment_decrement_expression.expression, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.increment_decrement_expression.expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     case AST_EXPRESSION_UNARY:
-      sa_variable_resolve_node(node->data.unary_expression.expression, variable_table, parent_variable_table, local_declared_variables);
+      sa_variable_resolve_node(node->data.unary_expression.expression, variable_table, parent_variable_table, local_declared_variables, function_identifier_table);
       break;
     case AST_EXPRESSION_VARIABLE: {
       HashTableEntry *entry = hash_table_get_entry(variable_table, node->data.variable_expression.identifier);  

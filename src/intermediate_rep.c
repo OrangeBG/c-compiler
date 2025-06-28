@@ -59,7 +59,8 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
     .temp_label_id = 0
   };
 
-  program->data.program.function = ir_function(ast_node->data.program.function_declaration, &emit_status); 
+  //TODO: Need to iterate through all function declarations
+  program->data.program.function = ir_function(ast_node->data.program.function_declarations, &emit_status); 
 
   return program;
 }
