@@ -11,6 +11,12 @@ typedef struct {
   HashTable local_variable_table;  
 } VariableResolution;
 
+typedef struct {
+  char *name;
+  bool from_current_scope;
+  bool has_linkage;
+} FunctionDeclaration;
+
 void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, HashTable *function_identifier_table); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
@@ -33,7 +39,7 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   hash_table_init(&function_identifier_table); 
 
   for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    sa_variable_resolve_node(ast_nodes->data.program.function_declarations[i].data.function_declaration.body_block, &variables, &function_identifier_table);
+    sa_variable_resolve_node(&ast_nodes->data.program.function_declarations[i], &variables, &function_identifier_table);
   }
 }
 
@@ -74,7 +80,46 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
       break;
     }
     case AST_FUNCTION_DECLARATION: {
+        char *function_identifier = node->data.function_declaration.name;
+        HashTableEntry *existing_entry = hash_table_get_entry(function_identifier_table, function_identifier);
+        
+        if (existing_entry != NULL && existing_entry->key != NULL) {
+          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate function declaration '%s'\n", function_identifier);
+          exit(1);
+        }
 
+        FunctionDeclaration *declaration = malloc(sizeof(FunctionDeclaration));
+        declaration->name = function_identifier;
+        declaration->from_current_scope = true;
+        declaration->has_linkage = true;
+
+        HashValue *value = malloc(sizeof(HashValue));
+        value->type = HASH_STRUCT;
+        value->structure = declaration;
+
+        HashTableEntry *entry = malloc(sizeof(HashTableEntry));
+        entry->key = function_identifier;
+        entry->value = *value;
+        
+        hash_table_add_entry(function_identifier_table, entry);
+
+        HashTable *block_variable_table = hash_table_clone(&variables->stack_variable_table);
+        HashTable local_declared_variables;
+        hash_table_init(&local_declared_variables);
+        VariableResolution new_variables = {
+          .stack_variable_table = *block_variable_table,
+          .local_variable_table = local_declared_variables,
+          .parent_variable_table = variables->stack_variable_table
+        };
+
+        for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
+          sa_variable_resolve_node(&node->data.function_declaration.parameters[i], &new_variables, function_identifier_table);
+        }
+        
+        if (node->data.function_declaration.body_block != NULL) {
+          sa_variable_resolve_node(node->data.function_declaration.body_block, &new_variables, function_identifier_table);
+        }
+        break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
       char *function_identifier = node->data.function_call_expression.identfier;
@@ -88,6 +133,41 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
         sa_variable_resolve_node(&node->data.function_call_expression.arguments[i], variables, function_identifier_table); 
       }      
+      break;
+    }
+    case AST_FUNCTION_PARAMETER: {
+      if (node->data.function_parameters.type == AST_PARAMETER_VOID) {
+        return;
+      }
+      
+      char* identifier = node->data.function_parameters.name;
+      HashTableEntry *existing_variable = hash_table_get_entry(&variables->local_variable_table, identifier);
+
+      if (existing_variable != NULL && existing_variable->key != NULL) {
+        fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' function variable found\n", identifier);
+        exit(1);
+      }
+
+      char *converted_identifier = malloc(256);
+      HashTableEntry *parent_entry = hash_table_get_entry(&variables->parent_variable_table, identifier);
+
+      if (parent_entry != NULL && parent_entry->key != NULL) {
+        existing_variable = hash_table_get_entry(&variables->stack_variable_table, identifier);
+        existing_variable->value.integer = parent_entry->value.integer + 1;
+        snprintf(converted_identifier, 256, "%s.%d", identifier, parent_entry->value.integer + 1);
+        hash_table_add_entry(&variables->local_variable_table, existing_variable);
+      } else {  
+        HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
+        new_variable_entry->key = identifier;
+        new_variable_entry->value.type = HASH_INT;
+        new_variable_entry->value.integer = 0;
+        snprintf(converted_identifier, 256, "%s.%d", identifier, 0);
+        hash_table_add_entry(&variables->stack_variable_table, new_variable_entry);
+        hash_table_add_entry(&variables->local_variable_table, new_variable_entry);
+      }    
+
+      node->data.function_parameters.name = converted_identifier;
+      break;
     }
     case AST_BLOCK: {
       HashTable *block_variable_table = hash_table_clone(&variables->stack_variable_table);
