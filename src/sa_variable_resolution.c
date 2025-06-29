@@ -117,7 +117,9 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         }
         
         if (node->data.function_declaration.body_block != NULL) {
-          sa_variable_resolve_node(node->data.function_declaration.body_block, &new_variables, function_identifier_table);
+          for (int i = 0; i < node->data.function_declaration.body_block->data.block.block_count; i++) {
+            sa_variable_resolve_node(&node->data.function_declaration.body_block->data.block.block_items[i], &new_variables, function_identifier_table); 
+          }
         }
         break;
     }
