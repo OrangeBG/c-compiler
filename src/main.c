@@ -9,6 +9,7 @@
 #include "../include/intermediate_rep.h"
 #include "../include/sa_variable_resolution.h"
 #include "../include/sa_loop_labeling.h"
+#include "../include/sa_type_check.h"
 
 char* load_file(const char *file_path); 
 
@@ -68,6 +69,7 @@ int main(int argc, const char *argv[]) {
 
   benchmarks[2] = clock();
   sa_variable_resolution(ast);
+  sa_type_check(ast);
   sa_loop_labeling(ast);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
