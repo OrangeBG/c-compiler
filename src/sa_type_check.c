@@ -12,8 +12,13 @@ typedef enum {
   TYPE_INT
 } Type;
 
-void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_sumbols);
-void sa_type_check_function_declaration(AstNode *node, TypeCheckSymbol *symbols);
+typedef struct {
+  bool from_current_scope;
+  bool has_linkage;
+} FunctionSymbol;
+
+void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_symbols);
+void sa_type_check_function_declaration(AstNode *node, HashTable *function_symbols);
 
 void sa_type_check(AstNode *ast_nodes) {
   TypeCheckSymbol symbols;
@@ -25,7 +30,7 @@ void sa_type_check(AstNode *ast_nodes) {
   }
   
   for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    sa_type_check_function_declaration(ast_nodes, &symbols);
+    sa_type_check_function_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.function_symbols);
   }
 }
 
@@ -141,6 +146,35 @@ void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_symbo
   }  
 }
 
-void sa_type_check_function_declaration(AstNode *node, TypeCheckSymbol *symbols) {
+void sa_type_check_function_declaration(AstNode *node, HashTable *function_symbols) {
+  switch (node->type) {
+    case AST_FUNCTION_DECLARATION: {
+      HashTableEntry *entry = hash_table_get_entry(function_symbols, node->data.function_declaration.name);
 
+      if (entry != NULL && entry->key != NULL) {
+        FunctionSymbol *symbol = (FunctionSymbol*)entry->value.structure;
+        if (symbol->from_current_scope && !symbol->has_linkage) {
+          fprintf(stderr, "ERROR - SA Type Check: Duplicate declaration '%s'", entry->key);
+          exit(1);
+        }
+      }  
+
+      FunctionSymbol *symbol = malloc(sizeof(FunctionSymbol));
+      symbol->from_current_scope = true;
+      symbol->has_linkage = true;
+
+      HashTableEntry *new_entry = malloc(sizeof(FunctionSymbol));
+      new_entry->key = node->data.function_declaration.name;
+      new_entry->value.type = HASH_STRUCT;
+      new_entry->value.structure = symbol;
+
+      //TODO: I don't think this will work if we find and existing entry that wasn't a duplicate entry
+      hash_table_add_entry(function_symbols, new_entry);
+    }
+    case AST_BLOCK: {
+      for (int i = 0; i < node->data.block.block_count; i++) {
+        sa_type_check_function_declaration(&node->data.block.block_items[i], function_symbols);
+      }
+    }
+  }
 }

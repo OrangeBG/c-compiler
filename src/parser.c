@@ -112,7 +112,10 @@ void print_ast(AstNode *node, int whitespace) {
 
       print_whitespace(whitespace);
       printf("body=\n");
-      print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
+
+      if (node->data.function_declaration.body_block != NULL) {
+        print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
+      }
 
       print_whitespace(whitespace);
       printf(")\n");      
