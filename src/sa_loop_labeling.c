@@ -99,6 +99,10 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       sa_label_loop(ast_node->data.program.function_declarations, label_stack, current_loop_id);
       break;
     case AST_FUNCTION_DECLARATION:
+      if (ast_node->data.function_declaration.body_block == NULL) {
+        break;
+      }
+      
       sa_label_loop(ast_node->data.function_declaration.body_block, label_stack, current_loop_id);
       break;
     case AST_BLOCK: {

@@ -83,9 +83,24 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         char *function_identifier = node->data.function_declaration.name;
         HashTableEntry *existing_entry = hash_table_get_entry(function_identifier_table, function_identifier);
         
-        if (existing_entry != NULL && existing_entry->key != NULL) {
-          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate function declaration '%s'\n", function_identifier);
-          exit(1);
+        if (existing_entry != NULL && existing_entry->key != NULL) {         
+          FunctionDeclaration *declaration = existing_entry->value.structure;
+          if (declaration->from_current_scope && !declaration->has_linkage) { 
+            fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate function declaration '%s'\n", function_identifier);
+            exit(1);
+          }
+
+          //TODO: Will need to look at a better way of doing this. Duplicate code used when there is and isn't an existing entry
+          for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
+            sa_variable_resolve_node(&node->data.function_declaration.parameters[i], variables, function_identifier_table);
+          }
+        
+          if (node->data.function_declaration.body_block != NULL) {
+            for (int i = 0; i < node->data.function_declaration.body_block->data.block.block_count; i++) {
+              sa_variable_resolve_node(&node->data.function_declaration.body_block->data.block.block_items[i], variables, function_identifier_table); 
+            }
+          }
+          break;
         }
 
         FunctionDeclaration *declaration = malloc(sizeof(FunctionDeclaration));

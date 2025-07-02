@@ -29,9 +29,9 @@ void sa_type_check(AstNode *ast_nodes) {
     sa_type_check_variable_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.variable_symbols);
   }
   
-  for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    sa_type_check_function_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.function_symbols);
-  }
+  // for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
+  //   sa_type_check_function_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.function_symbols);
+  // }
 }
 
 void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_symbols) {
@@ -64,6 +64,10 @@ void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_symbo
       break;
     }
     case AST_FUNCTION_PARAMETER: {
+      if (node->data.function_parameters.type == AST_PARAMETER_VOID) {
+        break;
+      }
+      
       char *identifier = node->data.function_parameters.name;
 
       //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
