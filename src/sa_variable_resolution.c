@@ -5,6 +5,8 @@
 #include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
 
+#define IDENTIFIER_BUFFER 256
+
 typedef struct {
   HashTable stack_variable_table;
   HashTable parent_variable_table;
@@ -54,20 +56,20 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         exit(1);
       }
 
-      char *converted_identifier = malloc(256);
+      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
       HashTableEntry *parent_entry = hash_table_get_entry(&variables->parent_variable_table, identifier);
 
       if (parent_entry != NULL && parent_entry->key != NULL) {
         existing_variable = hash_table_get_entry(&variables->stack_variable_table, identifier);
         existing_variable->value.integer = parent_entry->value.integer + 1;
-        snprintf(converted_identifier, 256, "%s.%d", identifier, parent_entry->value.integer + 1);
+        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, parent_entry->value.integer + 1);
         hash_table_add_entry(&variables->local_variable_table, existing_variable);
       } else {  
         HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
         new_variable_entry->key = identifier;
         new_variable_entry->value.type = HASH_INT;
         new_variable_entry->value.integer = 0;
-        snprintf(converted_identifier, 256, "%s.%d", identifier, 0);
+        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, 0);
         hash_table_add_entry(&variables->stack_variable_table, new_variable_entry);
         hash_table_add_entry(&variables->local_variable_table, new_variable_entry);
       }    
@@ -165,20 +167,20 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         exit(1);
       }
 
-      char *converted_identifier = malloc(256);
+      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
       HashTableEntry *parent_entry = hash_table_get_entry(&variables->parent_variable_table, identifier);
 
       if (parent_entry != NULL && parent_entry->key != NULL) {
         existing_variable = hash_table_get_entry(&variables->stack_variable_table, identifier);
         existing_variable->value.integer = parent_entry->value.integer + 1;
-        snprintf(converted_identifier, 256, "%s.%d", identifier, parent_entry->value.integer + 1);
+        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, parent_entry->value.integer + 1);
         hash_table_add_entry(&variables->local_variable_table, existing_variable);
       } else {  
         HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
         new_variable_entry->key = identifier;
         new_variable_entry->value.type = HASH_INT;
         new_variable_entry->value.integer = 0;
-        snprintf(converted_identifier, 256, "%s.%d", identifier, 0);
+        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, 0);
         hash_table_add_entry(&variables->stack_variable_table, new_variable_entry);
         hash_table_add_entry(&variables->local_variable_table, new_variable_entry);
       }    
@@ -286,8 +288,8 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         return;
       } 
     
-      char *converted_identifier = malloc(256);
-      snprintf(converted_identifier, 256, "%s.%d", entry->key, entry->value.integer);
+      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
+      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", entry->key, entry->value.integer);
       node->data.variable_expression.identifier = converted_identifier;
       break;
     }

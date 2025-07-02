@@ -13,8 +13,8 @@ typedef enum {
 } Type;
 
 typedef struct {
-  bool from_current_scope;
-  bool has_linkage;
+  bool defined;
+  Type type;
 } FunctionSymbol;
 
 void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_symbols);
@@ -29,9 +29,9 @@ void sa_type_check(AstNode *ast_nodes) {
     sa_type_check_variable_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.variable_symbols);
   }
   
-  // for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-  //   sa_type_check_function_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.function_symbols);
-  // }
+  for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
+    sa_type_check_function_declaration(&ast_nodes->data.program.function_declarations[i], &symbols.function_symbols);
+  }
 }
 
 void sa_type_check_variable_declaration(AstNode *node, HashTable *variable_symbols) {
@@ -154,26 +154,39 @@ void sa_type_check_function_declaration(AstNode *node, HashTable *function_symbo
   switch (node->type) {
     case AST_FUNCTION_DECLARATION: {
       HashTableEntry *entry = hash_table_get_entry(function_symbols, node->data.function_declaration.name);
+      bool is_defined = false;
 
-      if (entry != NULL && entry->key != NULL) {
-        FunctionSymbol *symbol = (FunctionSymbol*)entry->value.structure;
-        if (symbol->from_current_scope && !symbol->has_linkage) {
-          fprintf(stderr, "ERROR - SA Type Check: Duplicate declaration '%s'", entry->key);
+      if (entry != NULL || entry->key != NULL) {
+        FunctionSymbol *existing_symbol = entry->value.structure;
+
+        if (existing_symbol->type != TYPE_INT) {
+          fprintf(stderr, "Incompatible function declarations for '%s'", entry->key);
           exit(1);
         }
-      }  
 
-      FunctionSymbol *symbol = malloc(sizeof(FunctionSymbol));
-      symbol->from_current_scope = true;
-      symbol->has_linkage = true;
+        is_defined = existing_symbol->defined;
 
-      HashTableEntry *new_entry = malloc(sizeof(FunctionSymbol));
+        if (existing_symbol->defined && node->data.function_declaration.body_block != NULL) {
+          fprintf(stderr, "Function defined more than once '%s'", entry->key);
+          exit(1);
+        }
+      }
+
+      FunctionSymbol *new_symbol = malloc(sizeof(FunctionSymbol));
+      new_symbol->defined = is_defined;
+      new_symbol->type = TYPE_INT;
+
+      HashValue *new_value = malloc(sizeof(HashValue));
+      new_value->type = HASH_STRUCT;
+      new_value->structure = new_symbol;
+
+      HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
       new_entry->key = node->data.function_declaration.name;
-      new_entry->value.type = HASH_STRUCT;
-      new_entry->value.structure = symbol;
+      new_value->type = HASH_STRUCT;
+      new_entry->value.structure = new_value;
 
-      //TODO: I don't think this will work if we find and existing entry that wasn't a duplicate entry
       hash_table_add_entry(function_symbols, new_entry);
+      break;
     }
     case AST_BLOCK: {
       for (int i = 0; i < node->data.block.block_count; i++) {
