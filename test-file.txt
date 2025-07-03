@@ -1,6 +1,6 @@
 int main(void) {
-    int foo(void);
-    int foo(void);
+    int foo(int help);
+    int foo(int help);
 
-    return foo();
+    return foo(45);
 }

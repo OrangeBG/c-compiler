@@ -156,7 +156,7 @@ void sa_type_check_function_declaration(AstNode *node, HashTable *function_symbo
       HashTableEntry *entry = hash_table_get_entry(function_symbols, node->data.function_declaration.name);
       bool is_defined = false;
 
-      if (entry != NULL || entry->key != NULL) {
+      if (entry != NULL && entry->key != NULL) {
         FunctionSymbol *existing_symbol = entry->value.structure;
 
         if (existing_symbol->type != TYPE_INT) {
