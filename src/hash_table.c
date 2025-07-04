@@ -30,7 +30,7 @@ void hash_table_print(HashTable *table) {
     
     switch(table->entries[i].value.type) {
       case HASH_STRUCT:
-        printf("value: struct");
+        printf("value: struct\n");
         break;
       case HASH_STRING:
         printf("value: %s\n", table->entries[i].value.string);

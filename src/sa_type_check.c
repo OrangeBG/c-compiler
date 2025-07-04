@@ -12,11 +12,20 @@ typedef enum {
   SYMBOL_FUNCTION
 } SymbolType;
 
+typedef struct FunctionSymbol {
+  bool defined;
+  ValueType value_type;
+} FunctionSymbol;
+
+typedef struct VariableSymbol {
+  ValueType value_type;
+} VariableSymbol;
+
 typedef struct {
   SymbolType type;
   union {
-    struct FunctionSymbol { bool defined; ValueType value_type; } function_symbol;
-    struct VariableSymbol { ValueType value_type; } variable_symbol;
+    FunctionSymbol *function_symbol;
+    VariableSymbol *variable_symbol_type;
   } data;
 } TypeCheckSymbol;
 
@@ -39,7 +48,11 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
       TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
       symbol->type = SYMBOL_VARIABLE;
-      symbol->data.variable_symbol.value_type = TYPE_INT;
+
+      VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+      variable_symbol->value_type = TYPE_INT;
+
+      symbol->data.variable_symbol_type = variable_symbol;
 
       HashTableEntry *entry = malloc(sizeof(HashTableEntry));
       entry->key = identifier;
@@ -58,25 +71,31 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       bool is_defined = false;
 
       if (entry != NULL && entry->key != NULL) {
-        TypeCheckSymbol *existing_function_symbol = entry->value.structure;
+        TypeCheckSymbol *existing_function_symbol = (TypeCheckSymbol*)entry->value.structure;
 
-        if (existing_function_symbol->data.function_symbol.value_type != TYPE_INT) {
+        if (existing_function_symbol->data.function_symbol->value_type != TYPE_INT) {
           fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
           exit(1);
         }
 
-        is_defined = existing_function_symbol->data.function_symbol.defined;
+        is_defined = existing_function_symbol->data.function_symbol->defined;
 
-        if (existing_function_symbol->data.function_symbol.defined && node->data.function_declaration.body_block != NULL) {
+        if (existing_function_symbol->data.function_symbol->defined && node->data.function_declaration.body_block != NULL) {
           fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
         }
+
+        break;
       }
 
       TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
       new_symbol->type = SYMBOL_FUNCTION;
-      new_symbol->data.function_symbol.defined = is_defined;
-      new_symbol->data.function_symbol.value_type = TYPE_INT;
+
+      FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
+      function_symbol->defined = is_defined;
+      function_symbol->value_type = TYPE_INT;
+
+      new_symbol->data.function_symbol = function_symbol;
 
       HashValue *new_value = malloc(sizeof(HashValue));
       new_value->type = HASH_STRUCT;
@@ -108,7 +127,11 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
       TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
       symbol->type = SYMBOL_VARIABLE;
-      symbol->data.variable_symbol.value_type = TYPE_INT;
+
+      VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+      variable_symbol->value_type = TYPE_INT;
+
+      symbol->data.variable_symbol_type = variable_symbol;
 
       HashTableEntry *entry = malloc(sizeof(HashTableEntry));
       entry->key = identifier;
