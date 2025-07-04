@@ -61,14 +61,14 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
         TypeCheckSymbol *existing_function_symbol = entry->value.structure;
 
         if (existing_function_symbol->data.function_symbol.value_type != TYPE_INT) {
-          fprintf(stderr, "Incompatible function declarations for '%s'", entry->key);
+          fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
           exit(1);
         }
 
         is_defined = existing_function_symbol->data.function_symbol.defined;
 
         if (existing_function_symbol->data.function_symbol.defined && node->data.function_declaration.body_block != NULL) {
-          fprintf(stderr, "Function defined more than once '%s'", entry->key);
+          fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
         }
       }
