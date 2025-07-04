@@ -15,6 +15,7 @@ typedef enum {
 typedef struct FunctionSymbol {
   bool defined;
   ValueType value_type;
+  int param_count;
 } FunctionSymbol;
 
 typedef struct VariableSymbol {
@@ -139,6 +140,22 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       entry->value.structure = symbol;
 
       hash_table_add_entry(symbols, entry); 
+      break;
+    }
+    case AST_EXPRESSION_FUNCTION_CALL: {
+      HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_call_expression.identfier);
+
+      if (entry != NULL && entry->key != NULL) {
+        TypeCheckSymbol *existing_symbol = entry->value.structure;
+
+        if (existing_symbol->type == SYMBOL_VARIABLE) {
+          fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name", node->data.function_call_expression.identfier);
+          exit(1);
+        } 
+
+        
+      }
+
       break;
     }
     case AST_BLOCK: {
