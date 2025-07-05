@@ -61,14 +61,18 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
 
       if (parent_entry != NULL && parent_entry->key != NULL) {
         existing_variable = hash_table_get_entry(&variables->stack_variable_table, identifier);
-        existing_variable->value.integer = parent_entry->value.integer + 1;
-        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, parent_entry->value.integer + 1);
+        existing_variable->value->integer = parent_entry->value->integer + 1;
+        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, parent_entry->value->integer + 1);
         hash_table_add_entry(&variables->local_variable_table, existing_variable);
       } else {  
         HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
         new_variable_entry->key = identifier;
-        new_variable_entry->value.type = HASH_INT;
-        new_variable_entry->value.integer = 0;
+        HashValue *new_value = malloc(sizeof(HashValue));
+        new_value->type = HASH_INT;
+        new_value->integer = 0;
+
+        new_variable_entry->value = new_value;
+
         snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, 0);
         hash_table_add_entry(&variables->stack_variable_table, new_variable_entry);
         hash_table_add_entry(&variables->local_variable_table, new_variable_entry);
@@ -86,7 +90,7 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         HashTableEntry *existing_entry = hash_table_get_entry(function_identifier_table, function_identifier);
         
         if (existing_entry != NULL && existing_entry->key != NULL) {         
-          FunctionDeclaration *declaration = existing_entry->value.structure;
+          FunctionDeclaration *declaration = existing_entry->value->structure;
           if (declaration->from_current_scope && !declaration->has_linkage) { 
             fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate function declaration '%s'\n", function_identifier);
             exit(1);
@@ -116,7 +120,7 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
 
         HashTableEntry *entry = malloc(sizeof(HashTableEntry));
         entry->key = function_identifier;
-        entry->value = *value;
+        entry->value = value;
         
         hash_table_add_entry(function_identifier_table, entry);
 
@@ -172,14 +176,16 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
 
       if (parent_entry != NULL && parent_entry->key != NULL) {
         existing_variable = hash_table_get_entry(&variables->stack_variable_table, identifier);
-        existing_variable->value.integer = parent_entry->value.integer + 1;
-        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, parent_entry->value.integer + 1);
+        existing_variable->value->integer = parent_entry->value->integer + 1;
+        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, parent_entry->value->integer + 1);
         hash_table_add_entry(&variables->local_variable_table, existing_variable);
       } else {  
         HashTableEntry *new_variable_entry = malloc(sizeof(HashTableEntry));
         new_variable_entry->key = identifier;
-        new_variable_entry->value.type = HASH_INT;
-        new_variable_entry->value.integer = 0;
+        HashValue *new_value = malloc(sizeof(HashValue));
+        new_value->type = HASH_INT;
+        new_value->integer = 0;
+        new_variable_entry->value = new_value;
         snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, 0);
         hash_table_add_entry(&variables->stack_variable_table, new_variable_entry);
         hash_table_add_entry(&variables->local_variable_table, new_variable_entry);
@@ -289,7 +295,7 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
       } 
     
       char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", entry->key, entry->value.integer);
+      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", entry->key, entry->value->integer);
       node->data.variable_expression.identifier = converted_identifier;
       break;
     }

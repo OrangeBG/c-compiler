@@ -57,8 +57,12 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
 
       HashTableEntry *entry = malloc(sizeof(HashTableEntry));
       entry->key = identifier;
-      entry->value.type = HASH_STRUCT;
-      entry->value.structure = symbol;
+
+      HashValue *value = malloc(sizeof(HashValue));
+      value->type = HASH_STRUCT;
+      value->structure = symbol;
+
+      entry->value = value;
 
       hash_table_add_entry(symbols, entry); 
 
@@ -72,7 +76,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       bool is_defined = false;
 
       if (entry != NULL && entry->key != NULL) {
-        TypeCheckSymbol *existing_function_symbol = (TypeCheckSymbol*)entry->value.structure;
+        TypeCheckSymbol *existing_function_symbol = entry->value->structure;
 
         if (existing_function_symbol->data.function_symbol->value_type != TYPE_INT) {
           fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
@@ -89,13 +93,13 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
         break;
       }
 
-      TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
-      new_symbol->type = SYMBOL_FUNCTION;
-
       FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
       function_symbol->defined = is_defined;
       function_symbol->value_type = TYPE_INT;
+      //TODO: Add function param count (and maybe param definitions)
 
+      TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
+      new_symbol->type = SYMBOL_FUNCTION;
       new_symbol->data.function_symbol = function_symbol;
 
       HashValue *new_value = malloc(sizeof(HashValue));
@@ -104,7 +108,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
 
       HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
       new_entry->key = node->data.function_declaration.name;
-      new_entry->value.structure = new_value;
+      new_entry->value = new_value;
 
       hash_table_add_entry(symbols, new_entry);
 
@@ -136,17 +140,22 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
 
       HashTableEntry *entry = malloc(sizeof(HashTableEntry));
       entry->key = identifier;
-      entry->value.type = HASH_STRUCT;
-      entry->value.structure = symbol;
+      HashValue *value = malloc(sizeof(HashValue));
+      value->type = HASH_STRUCT;
+      value->structure = symbol;
+
+      entry->value = value;
 
       hash_table_add_entry(symbols, entry); 
       break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
+      hash_table_print(symbols);
+
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_call_expression.identfier);
 
       if (entry != NULL && entry->key != NULL) {
-        TypeCheckSymbol *existing_symbol = entry->value.structure;
+        TypeCheckSymbol *existing_symbol = entry->value->structure;
 
         if (existing_symbol->type == SYMBOL_VARIABLE) {
           fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name", node->data.function_call_expression.identfier);

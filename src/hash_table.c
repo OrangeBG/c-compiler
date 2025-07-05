@@ -28,15 +28,15 @@ void hash_table_print(HashTable *table) {
     
     printf("index: %d\tkey: %s \t", i, table->entries[i].key);    
     
-    switch(table->entries[i].value.type) {
+    switch(table->entries[i].value->type) {
       case HASH_STRUCT:
         printf("value: struct\n");
         break;
       case HASH_STRING:
-        printf("value: %s\n", table->entries[i].value.string);
+        printf("value: %s\n", table->entries[i].value->string);
         break;
       case HASH_INT:
-        printf("value: %d\n", table->entries[i].value.integer);
+        printf("value: %d\n", table->entries[i].value->integer);
         break;
       case HASH_TOMBSTONE:
         printf("value: Tombstone\n");
@@ -53,7 +53,7 @@ void hash_table_delete_entry(HashTable *table, char *key) {
   }
 
   entry->key = NULL;
-  entry->value.type = HASH_TOMBSTONE;
+  entry->value->type = HASH_TOMBSTONE;
 }
 
 void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
@@ -89,7 +89,7 @@ void hash_table_expand(HashTable *table, int new_capacity) {
   for (int i = 0; i < table->capacity; i++) {
     HashTableEntry old_entry = table->entries[i];
 
-    if (old_entry.value.type == HASH_TOMBSTONE || old_entry.key == NULL) {
+    if (old_entry.value->type == HASH_TOMBSTONE || old_entry.key == NULL) {
       continue;
     }
 
@@ -136,7 +136,7 @@ HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacit
   while (true) {
     HashTableEntry *entry = &entries[index]; 
 
-    if (entry->key == NULL && entry->value.type != HASH_TOMBSTONE) {
+    if (entry->key == NULL && (entry->value == NULL || entry->value->type != HASH_TOMBSTONE)) {
       return entry;
     }
     

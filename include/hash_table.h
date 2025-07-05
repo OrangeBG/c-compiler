@@ -18,8 +18,8 @@ typedef struct HashValue {
 } HashValue;
 
 typedef struct HashTableEntry {
-  char* key;
-  HashValue value;
+  char *key;
+  HashValue *value;
 } HashTableEntry;
 
 typedef struct HashTable {

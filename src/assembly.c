@@ -302,12 +302,14 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
 
   //TODO: Shouldn't need to do table_entry->key == NULL, but is currently needed here. Need to investigate
   if (table_entry == NULL || table_entry->key == NULL) {
+    HashValue value = {
+      .integer = *stack_offset += 4,
+      .type = HASH_INT
+    };
+    
     HashTableEntry new_entry = {
       .key = pseudo_register->data.operand_pseudo_register.identifier,
-      .value = {
-        .integer = *stack_offset += 4,
-        .type = HASH_INT
-      }
+      .value = &value
     };
 
     hash_table_add_entry(stack_location_table, &new_entry);    
@@ -321,7 +323,7 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
   
   pseudo_register->type = ASM_OPERAND_STACK;
   pseudo_register->data.operand_pseudo_register.identifier = NULL;
-  pseudo_register->data.operand_stack.address = table_entry->value.integer;
+  pseudo_register->data.operand_stack.address = table_entry->value->integer;
 }
 
 AsmNode* asm_function(IRNode *ir_function) {
