@@ -36,7 +36,11 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   AsmNode *program = malloc(sizeof(AsmNode));
 
   program->type = ASM_PROGRAM;
-  program->data.program.function = asm_function(ir_nodes->data.program.function); 
+
+  for (int i = 0; i < ir_nodes->data.program.function_count; i++) {
+    //TODO: Need to expand 
+    program->data.program.function = asm_function(&ir_nodes->data.program.functions[i]); 
+  }
 
   int stack_offset = 0;
 

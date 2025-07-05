@@ -5,6 +5,7 @@
 #include "../include/arena.h"
 
 #define INSTRUCTION_CAPACITY 8
+#define FUNCTION_CAPACITY 8
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
@@ -43,6 +44,7 @@ IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitSt
 IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status);
 IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status);
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
+void    ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function);
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
 char*   ir_create_concat_identifier(char *string, int integer); 
@@ -59,8 +61,9 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
     .temp_label_id = 0
   };
 
-  //TODO: Need to iterate through all function declarations
-  program->data.program.function = ir_function(ast_node->data.program.function_declarations, &emit_status); 
+  for (int i = 0; i < ast_node->data.program.function_count; i++) {
+    ir_function(&ast_node->data.program.function_declarations[i], &emit_status);
+  }
 
   return program;
 }
@@ -69,7 +72,11 @@ void print_intermediate_ret(IRNode *ir_node) {
   switch (ir_node->type) {
     case IR_PROGRAM:
       printf("Program \n");
-      print_intermediate_ret(ir_node->data.program.function);
+
+      for (int i = 0; i < ir_node->data.program.function_count; i++) {
+        print_intermediate_ret(&ir_node->data.program.functions[i]);
+      }
+
       printf("\n");
       break;
     case IR_FUNCTION: {
@@ -624,6 +631,23 @@ void ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction)
   check_ir_function_instruction_size(ir_function);
   ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *ir_instruction; 
   ir_function->data.function.instruction_count++;
+}
+
+void ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function) {
+  int current_count = ir_function->data.program.function_count;
+  int current_capacity = ir_function->data.program.function_capacity;
+  
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? FUNCTION_CAPACITY : current_capacity * FUNCTION_CAPACITY;
+
+    IRNode *functions = realloc(ir_function->data.program.functions, new_size * sizeof(IRNode));
+
+    ir_function->data.program.function_capacity = new_size;
+    ir_function->data.program.functions = functions;
+  } 
+
+  ir_function->data.program.functions[ir_function->data.program.function_count] = *ir_function; 
+  ir_function->data.program.function_count++;
 }
 
 char* ir_create_temp_label(IREmitStatus *emit_status) {

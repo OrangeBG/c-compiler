@@ -49,7 +49,7 @@ typedef enum {
 typedef struct IRNode {
  IRNodeType type;
  union {
-  struct IRProgram { struct IRNode *functions; int funtion_count; } program;
+  struct IRProgram { struct IRNode *functions; int function_count; int function_capacity; } program;
   struct IRFunction { char *identifier; char *params; int param_count; int instruction_count; int instruction_capacity; IRNode *instructions; } function;
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;
