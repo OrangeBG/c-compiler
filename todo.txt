@@ -19,6 +19,7 @@
 
 		    return foo(45);
 		}
+	- The following test is not producing an error when it should. Foo is declared twice with different parameters.
 
 # Incomplete
 	- IR 'If' statement does not support else statements

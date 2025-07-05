@@ -1,6 +1,6 @@
 int main(void) {
     int foo(int help);
-    int foo(int help);
+    int foo(void);
 
     int a = 3;
     int b = 2;
