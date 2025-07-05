@@ -150,8 +150,6 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      hash_table_print(symbols);
-
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_call_expression.identfier);
 
       if (entry != NULL && entry->key != NULL) {
