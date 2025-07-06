@@ -61,7 +61,7 @@ typedef struct IRNode {
   struct IRInstructionLabel { char *identifier; } instruction_label;
   struct IRValueConstant { int value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
-  struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; IRNode *destination; } instruction_function_call;
+  struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
  } data; 
 } IRNode;
 
