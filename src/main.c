@@ -82,11 +82,14 @@ int main(int argc, const char *argv[]) {
   benchmarks[3] = clock();
   IRNode *ir = generate_intermediate_rep(ast);
   benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
-
+  
   if (print_debug) {
     printf("\n>> IR PRINT <<\n\n");
     print_intermediate_ret(ir);
   }
+
+  //@Temporary until asm and code gen is fixed
+  return 0;
 
   //TODO: Can we free the lexer tokens after this?
 

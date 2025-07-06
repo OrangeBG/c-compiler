@@ -83,7 +83,7 @@ typedef struct AstNode {
     // struct Function { char *name; AstNode *block;} function;
     // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
     // struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
-    struct FunctionDeclaration { char *name; AstNode *parameters; int parameter_count; int parameter_capacity; AstNode *body_block; } function_declaration;
+    struct FunctionDeclaration { char *name; AstNode *parameters; int parameter_count; AstNode *body_block; } function_declaration;
     struct FunctionParameter { char *name; ParameterType type; } function_parameters;
     struct VariableDeclaration { char *name; bool has_expression; AstNode *init_expression; } variable_declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;

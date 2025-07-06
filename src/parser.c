@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include "../include/parser.h"
+#include "../include/arena.h"
 
 #define BLOCK_STARTING_ALLOCATION 8
 #define FUNCTION_PARAM_STARTING_ALLOCATION 8
@@ -15,12 +16,13 @@
 typedef struct Parser {
   int token_count;
   int current_token_index;
+  int current_loop_label_id;
   Token *tokens;
   char* file;
-  int current_loop_label_id;
+  Arena* node_arena;
 } Parser;
  
-AstNode*   ast_program(Parser *parser);
+void       ast_program(Parser *parser, AstNode *program_node);
 AstNode*   ast_function_declaration(Parser *parser);
 AstNode*   ast_variable_declaration(Parser *parser);
 AstNode*   ast_block(Parser *parser);
@@ -62,15 +64,21 @@ bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
 
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
+  Arena *parser_arena = malloc(sizeof(Arena));
+  //TODO: Hardcoded capacity
+  arena_init(parser_arena, sizeof(AstNode), 1000);
+  
   Parser parser = {
     .token_count = token_count,
     .current_token_index = 0,
     .tokens = tokens,
     .file = file,
     .current_loop_label_id = 0,
+    .node_arena = parser_arena
   };
   
-  AstNode *ret_program = ast_program(&parser);
+  AstNode *program_node = arena_alloc(parser.node_arena);
+  ast_program(&parser, program_node);
 
   ast_expect(&parser, TOKEN_EOF);
 
@@ -79,7 +87,7 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
     exit(1);
   }
 
-  return ret_program;
+  return program_node;
 }
 
 void print_ast(AstNode *node, int whitespace) {
@@ -494,19 +502,16 @@ void ast_expect(Parser *parser, TokenType expected_type) {
   exit(1);
 }
 
-AstNode* ast_program(Parser *parser) {
-  AstNode *program = malloc(sizeof(AstNode));
-  program->type = AST_PROGRAM;
-  program->data.program.function_capacity = 0;
-  program->data.program.function_count = 0;
-  program->data.program.function_declarations = NULL;
+void ast_program(Parser *parser, AstNode *program_node) {
+  program_node->type = AST_PROGRAM;
+  program_node->data.program.function_capacity = 0;
+  program_node->data.program.function_count = 0;
+  program_node->data.program.function_declarations = NULL;
   
   while (current_token(parser)->type != TOKEN_EOF) {
     AstNode *function = ast_function_declaration(parser);
-    add_to_function_to_program(program, function);
-  }
- 
-  return program;
+    add_to_function_to_program(program_node, function);
+  } 
 }
 
 AstNode* ast_declaration(Parser *parser) {
@@ -519,9 +524,8 @@ AstNode* ast_declaration(Parser *parser) {
 }
 
 AstNode* ast_function_declaration(Parser *parser) {
-  AstNode *function = malloc(sizeof(AstNode)); 
+  AstNode *function = arena_alloc(parser->node_arena); 
   function->data.function_declaration.parameter_count = 0;
-  function->data.function_declaration.parameter_capacity = 0;
   
   ast_expect(parser, TOKEN_INT);
 
@@ -529,7 +533,7 @@ AstNode* ast_function_declaration(Parser *parser) {
 
   ast_expect(parser, TOKEN_OPEN_PAREN);
 
-  AstNode *parameter = malloc(sizeof(AstNode));
+  AstNode *parameter = arena_alloc(parser->node_arena);
   parameter->type = AST_FUNCTION_PARAMETER;
 
   switch (current_token(parser)->type) {
