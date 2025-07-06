@@ -16,6 +16,7 @@ typedef enum {
   IR_INSTRUCTION_JUMP_IF_ZERO,
   IR_INSTRUCTION_JUMP_IF_NOT_ZERO,
   IR_INSTRUCTION_LABEL,
+  IR_INSTRUCTION_FUNCTION_CALL,
   IR_VALUE_CONSTANT,
   IR_VALUE_VAR
 } IRNodeType;
@@ -48,8 +49,8 @@ typedef enum {
 typedef struct IRNode {
  IRNodeType type;
  union {
-  struct IRProgram { struct IRNode *function; } program;
-  struct IRFunction { char *identifier; int instruction_count; int instruction_capacity; IRNode *instructions; } function;
+  struct IRProgram { struct IRNode *functions; int function_count; int function_capacity; } program;
+  struct IRFunction { char *identifier; char *params; int param_count; int instruction_count; int instruction_capacity; IRNode *instructions; } function;
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;
   struct IRInstructionBinary { IRBinaryOpType op_type; IRNode *source_1; IRNode *source_2; IRNode *destination; } instruction_binary;
@@ -60,6 +61,7 @@ typedef struct IRNode {
   struct IRInstructionLabel { char *identifier; } instruction_label;
   struct IRValueConstant { int value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
+  struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
  } data; 
 } IRNode;
 

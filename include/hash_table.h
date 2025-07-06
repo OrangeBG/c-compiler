@@ -2,6 +2,7 @@
 #define HASH_TABLE
 
 typedef enum {
+  HASH_STRUCT,
   HASH_STRING,
   HASH_INT,
   HASH_TOMBSTONE
@@ -10,14 +11,15 @@ typedef enum {
 typedef struct HashValue {
   HashType type;
   union {
-    char* string;
+    void *structure;
+    char *string;
     int integer;
   };
 } HashValue;
 
 typedef struct HashTableEntry {
-  char* key;
-  HashValue value;
+  char *key;
+  HashValue *value;
 } HashTableEntry;
 
 typedef struct HashTable {

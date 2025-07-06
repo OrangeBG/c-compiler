@@ -1,9 +1,6 @@
 int main(void) {
-    int a = 0;
-    int b = 2;
-    int c;
+    int foo(int help);
+    int foo(int help);
 
-    c = a + b;
-    
-    return c;
+    return foo(45);
 }

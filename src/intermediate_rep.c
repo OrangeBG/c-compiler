@@ -5,6 +5,8 @@
 #include "../include/arena.h"
 
 #define INSTRUCTION_CAPACITY 8
+#define FUNCTION_CAPACITY 8
+#define FUNCTION_CALL_CAPACITY 8
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
@@ -21,7 +23,7 @@ void    ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status);
 IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status); 
 IRNode* ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status);
-void ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_goto(AstNode *goto_node, IRNode *function); 
 void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
 void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status); 
@@ -42,7 +44,10 @@ IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_sta
 IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitStatus *emit_status);
 IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status);
 IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status);
+IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
+void    ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function);
+void    ir_add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument);
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
 char*   ir_create_concat_identifier(char *string, int integer); 
@@ -53,13 +58,23 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
 
   program->type = IR_PROGRAM;
+  program->data.program.function_capacity = 0;
+  program->data.program.function_count = 0;
 
   IREmitStatus emit_status = {
     .temp_register_id = 0,
     .temp_label_id = 0
   };
 
-  program->data.program.function = ir_function(ast_node->data.program.function, &emit_status); 
+  for (int i = 0; i < ast_node->data.program.function_count; i++) {
+    //We only need to process function definitions, not function declarations
+    if (ast_node->data.program.function_declarations[i].data.function_declaration.body_block == NULL) {
+      continue;
+    }
+    
+    IRNode *function = ir_function(&ast_node->data.program.function_declarations[i], &emit_status);
+    ir_add_function_to_program(program, function);
+  }
 
   return program;
 }
@@ -68,7 +83,11 @@ void print_intermediate_ret(IRNode *ir_node) {
   switch (ir_node->type) {
     case IR_PROGRAM:
       printf("Program \n");
-      print_intermediate_ret(ir_node->data.program.function);
+
+      for (int i = 0; i < ir_node->data.program.function_count; i++) {
+        print_intermediate_ret(&ir_node->data.program.functions[i]);
+      }
+
       printf("\n");
       break;
     case IR_FUNCTION: {
@@ -153,14 +172,27 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_VAR:
       printf("Var(\"%s\")", ir_node->data.value_var.identifier);
       break;
-    default: fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type); }
+    case IR_INSTRUCTION_FUNCTION_CALL:
+      printf("Function Call(name=%s ", ir_node->data.instruction_function_call.identifier);
+
+      for (int i = 0; i < ir_node->data.instruction_function_call.arg_count; i++) {
+        printf("Argument(");
+        print_intermediate_ret(&ir_node->data.instruction_function_call.args[i]);
+        printf(")");
+      }
+      printf(")");
+      break;
+    default:
+      fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type);
+      exit(1);
+  }
 }
 
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   IRNode *function = malloc(sizeof(IRNode));
   IRNode *instructions = malloc(sizeof(IRNode));
   function->type = IR_FUNCTION;
-  function->data.function.identifier = ast_function->data.function.name;
+  function->data.function.identifier = ast_function->data.function_declaration.name;
   function->data.function.instruction_count = 0;
   function->data.function.instruction_capacity = 0;
   function->data.function.instructions = instructions;
@@ -171,7 +203,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50);
   emit_status->postfix_arena = postfix_arena;
 
-  ir_emit_ast_node(ast_function->data.function.block, function, emit_status);
+  ir_emit_ast_node(ast_function->data.function_declaration.body_block, function, emit_status);
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
   IRNode *zero_value = ir_create_constant(0);
@@ -197,7 +229,7 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_STATEMENT_BREAK:              { ir_emit_break(node->data.break_statement.label_id, function); break; }
       case AST_STATEMENT_NULL:               { break; } 
       case AST_STATEMENT_RETURN:             { return ir_emit_return(node, function, emit_status); }
-      case AST_DECLARATION:                  { return ir_emit_declaration(node, function, emit_status); }
+      // case AST_DECLARATION:                  { return ir_emit_declaration(node, function, emit_status); }
       case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier); }
       case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.value); }
       case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status); }
@@ -208,6 +240,12 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_EXPRESSION_UNARY:             { return ir_emit_unary_expression(node, function, emit_status); }
       case AST_EXPRESSION_BINARY:            { return ir_emit_binary_expression(node, function, emit_status); }
       case AST_EXPRESSION_ASSIGNMENT:        { return ir_emit_assignment_expression(node, function, emit_status); }
+      case AST_EXPRESSION_FUNCTION_CALL:     { return ir_emit_function_call_expression(node, function, emit_status); }
+      case AST_VARIABLE_DECLARATION:         { return ir_emit_declaration(node, function, emit_status); }
+      case AST_FUNCTION_DECLARATION:         {
+          if (node->data.function_declaration.body_block == NULL) break;
+          return ir_function(node, emit_status);
+      }
       default:
         fprintf(stderr, "ERROR - IR: ASTNode type %d not found for node emit\n", node->type);
         exit(1);
@@ -326,11 +364,11 @@ void ir_emit_break(int label_id, IRNode *function) {
 }
 
 IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status) {
-  if (!declaration_node->data.declaration.has_expression) {
+  if (!declaration_node->data.variable_declaration.has_expression) {
     return NULL;
   }
 
-  IRNode *node = ir_emit_ast_node(declaration_node->data.declaration.expression, function, emit_status);    
+  IRNode *node = ir_emit_ast_node(declaration_node->data.variable_declaration.init_expression, function, emit_status);    
   ir_add_postfix_operations(function, emit_status);
 
   return node;
@@ -541,6 +579,23 @@ IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function
   return result;
 }
 
+IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status) {
+  IRNode *ir_function_call = malloc(sizeof(IRNode));
+  ir_function_call->type = IR_INSTRUCTION_FUNCTION_CALL;
+  ir_function_call->data.instruction_function_call.identifier = function_call_node->data.function_call_expression.identfier;
+  ir_function_call->data.instruction_function_call.arg_capacity = 0;
+  ir_function_call->data.instruction_function_call.arg_count = 0;
+  ir_function_call->data.instruction_function_call.args = NULL;
+
+  for (int i = 0; i < function_call_node->data.function_call_expression.argument_count; i++) {
+    IRNode *argument = ir_emit_ast_node(&function_call_node->data.function_call_expression.arguments[i], function, emit_status);
+
+    ir_add_argument_to_function_call(ir_function_call, argument);    
+  }
+
+  return ir_function_call;
+} 
+
 IRNode* ir_emit_jump(char *label, IRNode *function) {
   IRNode *jmp_instruction = malloc(sizeof(IRNode));
   jmp_instruction->type = IR_INSTRUCTION_JUMP;
@@ -622,6 +677,40 @@ void ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction)
   check_ir_function_instruction_size(ir_function);
   ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *ir_instruction; 
   ir_function->data.function.instruction_count++;
+}
+
+void ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function) {
+  int current_count = ir_program->data.program.function_count;
+  int current_capacity = ir_program->data.program.function_capacity;
+  
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? FUNCTION_CAPACITY : current_capacity * FUNCTION_CAPACITY;
+
+    IRNode *functions = realloc(ir_program->data.program.functions, new_size * sizeof(IRNode));
+
+    ir_program->data.program.function_capacity = new_size;
+    ir_program->data.program.functions = functions;
+  } 
+
+  ir_program->data.program.functions[ir_function->data.program.function_count] = *ir_function; 
+  ir_program->data.program.function_count++;
+}
+
+void ir_add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument) {
+  int current_count = ir_function_call_node->data.instruction_function_call.arg_count;
+  int current_capacity = ir_function_call_node->data.instruction_function_call.arg_capacity;
+  
+  if (current_count == current_capacity) {
+    int new_size = current_capacity == 0 ? FUNCTION_CALL_CAPACITY : current_capacity * FUNCTION_CALL_CAPACITY;
+
+    IRNode *functions = realloc(ir_function_call_node->data.instruction_function_call.args, new_size * sizeof(IRNode));
+
+    ir_function_call_node->data.instruction_function_call.arg_capacity = new_size;
+    ir_function_call_node->data.instruction_function_call.args = functions;
+  } 
+
+  ir_function_call_node->data.instruction_function_call.args[ir_function_call_node->data.instruction_function_call.arg_count] = *argument; 
+  ir_function_call_node->data.instruction_function_call.arg_count++;
 }
 
 char* ir_create_temp_label(IREmitStatus *emit_status) {

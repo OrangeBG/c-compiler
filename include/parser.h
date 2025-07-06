@@ -8,7 +8,10 @@ typedef struct AstNode AstNode;
 
 typedef enum {
   AST_PROGRAM,
-  AST_FUNCTION,
+  // AST_DECLARATION,
+  AST_VARIABLE_DECLARATION,
+  AST_FUNCTION_DECLARATION,
+  AST_FUNCTION_PARAMETER,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
   AST_STATEMENT_EXPRESSION,
@@ -21,7 +24,6 @@ typedef enum {
   AST_STATEMENT_WHILE,
   AST_STATEMENT_DO_WHILE,
   AST_STATEMENT_FOR,
-  AST_DECLARATION,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
   AST_EXPRESSION_UNARY,
@@ -32,6 +34,7 @@ typedef enum {
   AST_EXPRESSION_POSTFIX_DECREMENT,
   AST_EXPRESSION_PREFIX_INCREMENT,
   AST_EXPRESSION_PREFIX_DECREMENT,
+  AST_EXPRESSION_FUNCTION_CALL
 } NodeType;
 
 typedef enum {
@@ -63,12 +66,26 @@ typedef enum {
   AST_BINARY_BITWISE_RIGHT_SHIFT
 } BinaryOpType;
 
+typedef enum {
+  AST_DECLARATION_FUNCTION,
+  AST_DECLARATION_VARIABLE
+} DeclarationType;
+
+typedef enum {
+  AST_PARAMETER_VOID,
+  AST_PARAMETER_INT
+} ParameterType;
+
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { AstNode *function; } program;
-    struct Function { char *name; AstNode *block;} function;
-    struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
+    struct Program { AstNode *function_declarations; int function_count; int function_capacity; } program;
+    // struct Function { char *name; AstNode *block;} function;
+    // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
+    // struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
+    struct FunctionDeclaration { char *name; AstNode *parameters; int parameter_count; int parameter_capacity; AstNode *body_block; } function_declaration;
+    struct FunctionParameter { char *name; ParameterType type; } function_parameters;
+    struct VariableDeclaration { char *name; bool has_expression; AstNode *init_expression; } variable_declaration;
     struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
@@ -89,6 +106,7 @@ typedef struct AstNode {
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;
+    struct FunctionCallExpression { char *identfier; AstNode *arguments; int argument_count; int argument_capacity; } function_call_expression;
   } data;
 } AstNode;
 

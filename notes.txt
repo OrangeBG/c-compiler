@@ -1,0 +1,6 @@
+
+
+>> IR <<
+- Three Address Code (TAC) intermediate representation: The operands of each instruction are constants or variables, not nested instructions. It's called 'three address code' because most of the instructions use at most three values: two source operands and a destination. 
+
+- Doesn't need to worry about function declarations without bodies. Only definitions with a body are generate IR after AST parsing/semantic analysis.
