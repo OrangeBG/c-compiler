@@ -58,6 +58,8 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = malloc(sizeof(IRNode));
 
   program->type = IR_PROGRAM;
+  program->data.program.function_capacity = 0;
+  program->data.program.function_count = 0;
 
   IREmitStatus emit_status = {
     .temp_register_id = 0,
@@ -170,7 +172,20 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_VAR:
       printf("Var(\"%s\")", ir_node->data.value_var.identifier);
       break;
-    default: fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type); }
+    case IR_INSTRUCTION_FUNCTION_CALL:
+      printf("Function Call(name=%s ", ir_node->data.instruction_function_call.identifier);
+
+      for (int i = 0; i < ir_node->data.instruction_function_call.arg_count; i++) {
+        printf("Argument(");
+        print_intermediate_ret(&ir_node->data.instruction_function_call.args[i]);
+        printf(")");
+      }
+      printf(")");
+      break;
+    default:
+      fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type);
+      exit(1);
+  }
 }
 
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
@@ -566,6 +581,7 @@ IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function
 
 IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status) {
   IRNode *ir_function_call = malloc(sizeof(IRNode));
+  ir_function_call->type = IR_INSTRUCTION_FUNCTION_CALL;
   ir_function_call->data.instruction_function_call.identifier = function_call_node->data.function_call_expression.identfier;
   ir_function_call->data.instruction_function_call.arg_capacity = 0;
   ir_function_call->data.instruction_function_call.arg_count = 0;
@@ -664,20 +680,20 @@ void ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction)
 }
 
 void ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function) {
-  int current_count = ir_function->data.program.function_count;
-  int current_capacity = ir_function->data.program.function_capacity;
+  int current_count = ir_program->data.program.function_count;
+  int current_capacity = ir_program->data.program.function_capacity;
   
   if (current_count == current_capacity) {
     int new_size = current_capacity == 0 ? FUNCTION_CAPACITY : current_capacity * FUNCTION_CAPACITY;
 
-    IRNode *functions = realloc(ir_function->data.program.functions, new_size * sizeof(IRNode));
+    IRNode *functions = realloc(ir_program->data.program.functions, new_size * sizeof(IRNode));
 
-    ir_function->data.program.function_capacity = new_size;
-    ir_function->data.program.functions = functions;
+    ir_program->data.program.function_capacity = new_size;
+    ir_program->data.program.functions = functions;
   } 
 
-  ir_function->data.program.functions[ir_function->data.program.function_count] = *ir_function; 
-  ir_function->data.program.function_count++;
+  ir_program->data.program.functions[ir_function->data.program.function_count] = *ir_function; 
+  ir_program->data.program.function_count++;
 }
 
 void ir_add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument) {
