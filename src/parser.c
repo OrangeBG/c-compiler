@@ -40,8 +40,8 @@ void       ast_parse_statement_for(Parser *parser, AstNode *for_statement_node);
 void       ast_parse_expression(Parser *parser, AstNode *expression_node, int min_precedence);
 void       ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, AstNode *left_expression,  TokenType postfix_token);
 void       ast_parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
-AstNode*   ast_parse_expression_conditional(Parser *parser, AstNode *left_expression, TokenType conditional_token); 
-AstNode*   ast_parse_expression_binary(Parser *parser, AstNode *left_expression, TokenType op_type);
+void       ast_parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
+void       ast_parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
 void       ast_parse_factor(Parser *parser, AstNode *factor_node);
 void       ast_parse_factor_constant(Parser *parser, AstNode *factor_node);
 void       ast_parse_factor_unary(Parser *parser, AstNode *factor_node); 
@@ -67,7 +67,7 @@ int        get_precedence(TokenType token_type);
 AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
-  arena_init(parser_arena, sizeof(AstNode), 1000);
+  arena_init(parser_arena, sizeof(AstNode), sizeof(AstNode) * 1000);
   
   Parser parser = {
     .token_count = token_count,
@@ -520,13 +520,12 @@ void ast_program(Parser *parser, AstNode *program_node) {
 void ast_declaration(Parser *parser, AstNode *declaration_node) {
   //Variable Declaration -> int c; or int c = 0; 
   if (parser->tokens[parser->current_token_index + 2].type == TOKEN_EQUAL || parser->tokens[parser->current_token_index + 2].type == TOKEN_SEMICOLON) {
-    ast_variable_declaration(parser);
+    ast_variable_declaration(parser, declaration_node);
+    return;
   }
-
 
   AstNode *function_node = arena_alloc(parser->node_arena);
   ast_function_declaration(parser, function_node);
-  return;
 }
 
 void ast_function_declaration(Parser *parser, AstNode *function_node) {
@@ -688,16 +687,16 @@ void ast_parse_statement(Parser *parser, AstNode *statement_node) {
   }
 
   switch (current_token(parser)->type) {
-    case TOKEN_OPEN_BRACE: ast_block(parser, statement_node);
-    case TOKEN_SEMICOLON:  ast_parse_statement_null(parser, statement_node);
-    case TOKEN_RETURN:     ast_parse_statement_return(parser, statement_node);
-    case TOKEN_IF:         ast_parse_statement_if(parser, statement_node);
-    case TOKEN_GOTO:       ast_parse_statement_goto(parser, statement_node);
-    case TOKEN_BREAK:      ast_parse_statement_break(parser, statement_node);
-    case TOKEN_CONTINUE:   ast_parse_statement_continue(parser, statement_node); 
-    case TOKEN_WHILE:      ast_parse_statement_while(parser, statement_node);
-    case TOKEN_DO:         ast_parse_statement_do(parser, statement_node);
-    case TOKEN_FOR:        ast_parse_statement_for(parser, statement_node);
+    case TOKEN_OPEN_BRACE: ast_block(parser, statement_node); break;
+    case TOKEN_SEMICOLON:  ast_parse_statement_null(parser, statement_node); break;
+    case TOKEN_RETURN:     ast_parse_statement_return(parser, statement_node); break;
+    case TOKEN_IF:         ast_parse_statement_if(parser, statement_node); break;
+    case TOKEN_GOTO:       ast_parse_statement_goto(parser, statement_node); break;
+    case TOKEN_BREAK:      ast_parse_statement_break(parser, statement_node); break;
+    case TOKEN_CONTINUE:   ast_parse_statement_continue(parser, statement_node); break;
+    case TOKEN_WHILE:      ast_parse_statement_while(parser, statement_node); break;
+    case TOKEN_DO:         ast_parse_statement_do(parser, statement_node); break;
+    case TOKEN_FOR:        ast_parse_statement_for(parser, statement_node); break;
     default: {
       ast_parse_expression(parser, statement_node, 0);  
 
@@ -705,6 +704,7 @@ void ast_parse_statement(Parser *parser, AstNode *statement_node) {
       if (statement_node->type != AST_STATEMENT_GOTO_LABEL) {
         ast_expect(parser, TOKEN_SEMICOLON);
       }
+      break;
     }
   }
 }
@@ -878,13 +878,14 @@ void ast_parse_expression(Parser *parser, AstNode *expression_node, int min_prec
         ast_parse_expression_assignment(parser, assignment_expression, expression_node, next_token);        
         break;
       }
-      case TOKEN_QUESTION_MARK:
-        //TODO: Implement Arena
-        ast_parse_expression_conditional(parser, expression_node, next_token);
+      case TOKEN_QUESTION_MARK: {
+        AstNode *conditional_expression = arena_alloc(parser->node_arena);
+        ast_parse_expression_conditional(parser, conditional_expression, expression_node, next_token);
         break;
+      }
       default: {
-        //TODO: Implement Arena
-        ast_parse_expression_binary(parser, expression_node, next_token);
+        AstNode *binary_expression = arena_alloc(parser->node_arena);
+        ast_parse_expression_binary(parser, &binary_expression, expression_node, next_token);
         break;
       }
     }
@@ -943,64 +944,65 @@ void ast_parse_expression_assignment(Parser *parser, AstNode *assignment_express
 
 // TODO: conditional_token may always be question mark. If so, remove param and assign get_precedence in the function
 // to TOKEN_QUESTION_MARK
-AstNode* ast_parse_expression_conditional(Parser *parser, AstNode *left_expression, TokenType conditional_token) {
+void ast_parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token) {
   ast_expect(parser, TOKEN_QUESTION_MARK);
 
-  AstNode *middle = ast_parse_expression(parser, 0);
+  AstNode *middle = arena_alloc(parser->node_arena);
+  ast_parse_expression(parser, middle, 0);
 
   ast_expect(parser, TOKEN_COLON);
 
-  AstNode *right = ast_parse_expression(parser, get_precedence(conditional_token));
+  AstNode *right = arena_alloc(parser->node_arena);
+  ast_parse_expression(parser, right, get_precedence(conditional_token));
 
-  AstNode *conditional = malloc(sizeof(AstNode));
-  conditional->type = AST_EXPRESSION_CONDITIONAL;
-  conditional->data.conditional_expression.condition = left_expression;
-  conditional->data.conditional_expression.true_expression = middle;
-  conditional->data.conditional_expression.false_expression = right;
-
-  return conditional;
+  conditional_expression_node->type = AST_EXPRESSION_CONDITIONAL;
+  conditional_expression_node->data.conditional_expression.condition = left_expression;
+  conditional_expression_node->data.conditional_expression.true_expression = middle;
+  conditional_expression_node->data.conditional_expression.false_expression = right;
 }
 
-AstNode* ast_parse_expression_binary(Parser *parser, AstNode *left_expression, TokenType op_type) {
+void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, AstNode *left_expression, TokenType op_type) {
   parser-> current_token_index++;
 
-  AstNode *right = ast_parse_expression(parser, get_precedence(op_type) + 1);
+  AstNode *right = arena_alloc(parser->node_arena);
+  ast_parse_expression(parser, right, get_precedence(op_type) + 1);
 
-  AstNode *binary_expression = malloc(sizeof(AstNode));
-  binary_expression->type = AST_EXPRESSION_BINARY;
+  AstNode *binary_expression_pointer = *binary_expression;
 
-  binary_expression->data.binary_expression.left_expression = left_expression;
-  binary_expression->data.binary_expression.right_expression = right;
+  // AstNode *binary_expression = arena_alloc(parser->node_arena);
+  binary_expression_pointer->type = AST_EXPRESSION_BINARY;
+  binary_expression_pointer->data.binary_expression.left_expression = left_expression;
+  binary_expression_pointer->data.binary_expression.right_expression = right;
  
   switch (op_type) {
-    case TOKEN_PLUS:                        binary_expression->data.binary_expression.op_type = AST_BINARY_ADD; break;
-    case TOKEN_NEGATION:                    binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
-    case TOKEN_ASTERISK:                    binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
-    case TOKEN_FORWARD_SLASH:               binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
-    case TOKEN_PERCENT:                     binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
-    case TOKEN_BITWISE_AND:                 binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
-    case TOKEN_BITWISE_OR:                  binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
-    case TOKEN_BITWISE_XOR:                 binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
-    case TOKEN_BITWISE_LEFT_SHIFT:          binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
-    case TOKEN_BITWISE_RIGHT_SHIFT:         binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
-    case TOKEN_RELATIONAL_LESS_THAN:        binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_THAN; break;
-    case TOKEN_RELATIONAL_LESS_OR_EQUAL:    binary_expression->data.binary_expression.op_type = AST_BINARY_LESS_OR_EQUAL; break;
-    case TOKEN_RELATIONAL_GREATER_THAN:     binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_THAN; break;
-    case TOKEN_RELATIONAL_GREATER_OR_EQUAL: binary_expression->data.binary_expression.op_type = AST_BINARY_GREATER_OR_EQUAL; break;
-    case TOKEN_RELATIONAL_EQUAL:            binary_expression->data.binary_expression.op_type = AST_BINARY_EQUAL; break;
-    case TOKEN_RELATIONAL_NOT_EQUAL:        binary_expression->data.binary_expression.op_type = AST_BINARY_NOT_EQUAL; break;
-    case TOKEN_LOGICAL_AND:                 binary_expression->data.binary_expression.op_type = AST_BINARY_AND; break;
-    case TOKEN_LOGICAL_OR:                  binary_expression->data.binary_expression.op_type = AST_BINARY_OR; break;
-    case TOKEN_PLUS_EQUAL:                  binary_expression->data.binary_expression.op_type = AST_BINARY_ADD; break;
-    case TOKEN_NEGATION_EQUAL:              binary_expression->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
-    case TOKEN_ASTERISK_EQUAL:              binary_expression->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
-    case TOKEN_FORWARD_SLASH_EQUAL:         binary_expression->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
-    case TOKEN_PERCENT_EQUAL:               binary_expression->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
-    case TOKEN_BITWISE_AND_EQUAL:           binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
-    case TOKEN_BITWISE_OR_EQUAL:            binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
-    case TOKEN_BITWISE_XOR_EQUAL:           binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
-    case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
-    case TOKEN_BITWISE_LEFT_SHIFT_EQUAL:    binary_expression->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
+    case TOKEN_PLUS:                        binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_ADD; break;
+    case TOKEN_NEGATION:                    binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
+    case TOKEN_ASTERISK:                    binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
+    case TOKEN_FORWARD_SLASH:               binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
+    case TOKEN_PERCENT:                     binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
+    case TOKEN_BITWISE_AND:                 binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
+    case TOKEN_BITWISE_OR:                  binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
+    case TOKEN_BITWISE_XOR:                 binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
+    case TOKEN_BITWISE_LEFT_SHIFT:          binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
+    case TOKEN_BITWISE_RIGHT_SHIFT:         binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
+    case TOKEN_RELATIONAL_LESS_THAN:        binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_LESS_THAN; break;
+    case TOKEN_RELATIONAL_LESS_OR_EQUAL:    binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_LESS_OR_EQUAL; break;
+    case TOKEN_RELATIONAL_GREATER_THAN:     binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_GREATER_THAN; break;
+    case TOKEN_RELATIONAL_GREATER_OR_EQUAL: binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_GREATER_OR_EQUAL; break;
+    case TOKEN_RELATIONAL_EQUAL:            binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_EQUAL; break;
+    case TOKEN_RELATIONAL_NOT_EQUAL:        binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_NOT_EQUAL; break;
+    case TOKEN_LOGICAL_AND:                 binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_AND; break;
+    case TOKEN_LOGICAL_OR:                  binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_OR; break;
+    case TOKEN_PLUS_EQUAL:                  binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_ADD; break;
+    case TOKEN_NEGATION_EQUAL:              binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_SUBTRACT; break;
+    case TOKEN_ASTERISK_EQUAL:              binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_MULTIPLY; break;
+    case TOKEN_FORWARD_SLASH_EQUAL:         binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_DIVIDE; break;
+    case TOKEN_PERCENT_EQUAL:               binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_REMAINDER; break;
+    case TOKEN_BITWISE_AND_EQUAL:           binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_AND; break;
+    case TOKEN_BITWISE_OR_EQUAL:            binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_OR; break;
+    case TOKEN_BITWISE_XOR_EQUAL:           binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_XOR; break;
+    case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
+    case TOKEN_BITWISE_LEFT_SHIFT_EQUAL:    binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
     default:
       fprintf(stderr, "ERROR - Parser: Expected Binary op token, found %d", op_type);
       exit(1);
@@ -1017,14 +1019,16 @@ AstNode* ast_parse_expression_binary(Parser *parser, AstNode *left_expression, T
     case TOKEN_BITWISE_XOR_EQUAL:   
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   
     case TOKEN_BITWISE_LEFT_SHIFT_EQUAL: {  
-      AstNode *assignment_expression = malloc(sizeof(AstNode));
+      //TODO: Arena Alloc restructure: This needs to be tested to make sure it works
+      AstNode *assignment_expression = arena_alloc(parser->node_arena);
       assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
       assignment_expression->data.assignement_expression.left_expression = left_expression;
-      assignment_expression->data.assignement_expression.right_expression = binary_expression;
-      return assignment_expression;
+      assignment_expression->data.assignement_expression.right_expression = binary_expression_pointer;
+      binary_expression = &assignment_expression;
+      return;
     }
     default:
-     return binary_expression;
+     return;
   }
 }
 
@@ -1036,24 +1040,25 @@ void ast_parse_factor(Parser *parser, AstNode *factor_node) {
 
   switch(current_token(parser)->type) {
     case TOKEN_CONSTANT_INT:
-      ast_parse_factor_constant(parser, factor_node);
+      ast_parse_factor_constant(parser, factor_node); break;
     case TOKEN_NEGATION:
     case TOKEN_BITWISE_NOT:
     case TOKEN_LOGICAL_NOT:
-      ast_parse_factor_unary(parser, factor_node);
+      ast_parse_factor_unary(parser, factor_node); break;
     case TOKEN_INCREMENT:
     case TOKEN_DECREMENT:
-      ast_parse_factor_prefix_expression(parser, factor_node);
+      ast_parse_factor_prefix_expression(parser, factor_node); break;
     case TOKEN_OPEN_PAREN:
-      ast_parse_factor_parenthetical_expression(parser, factor_node);
+      ast_parse_factor_parenthetical_expression(parser, factor_node); break;
     case TOKEN_IDENTIFIER: {    
       char *identifier = ast_identifier(parser);
 
       switch(current_token(parser)->type) {
-        case TOKEN_COLON:      ast_parse_factor_goto_label(parser, factor_node, identifier);
-        case TOKEN_OPEN_PAREN: ast_parse_factor_function_call(parser, factor_node, identifier);   
-        default:               ast_parse_factor_variable_expression(parser, identifier);
+        case TOKEN_COLON:      ast_parse_factor_goto_label(parser, factor_node, identifier); break;
+        case TOKEN_OPEN_PAREN: ast_parse_factor_function_call(parser, factor_node, identifier);   break;
+        default:               ast_parse_factor_variable_expression(parser, factor_node, identifier); break;
       }      
+      break;
     }
     default:
       fprintf(stderr, "ERROR - Parser: Failed to parse factor for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
