@@ -96,7 +96,6 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_PROGRAM:  
       printf("Program (\n");
       for (int i = 0; i < node->data.program.function_count; i++) {
-        // AstNode *function = arena_get_by_index(node->data.program.function_ptrs, i);
         AstNode *function = node->data.program.function_ptrs->node_pointers[i];
         print_ast(function, ADD_WHITESPACE);
       }
@@ -118,7 +117,6 @@ void print_ast(AstNode *node, int whitespace) {
       printf("Function Declaration (name = \"%s\"\n", node->data.function_declaration.name);
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        // AstNode *parameter = arena_get_by_index(node->data.function_declaration.parameter_ptrs, i);
         AstNode *parameter = node->data.function_declaration.parameter_ptrs->node_pointers[i];
         print_ast(parameter, ADD_WHITESPACE);
       }
@@ -134,7 +132,6 @@ void print_ast(AstNode *node, int whitespace) {
       break;
     case AST_FUNCTION_PARAMETER:
       print_whitespace(whitespace);
-      // printf("Function Param (type = %d id = %s)\n", node->data.function_parameters.type, node->data.function_parameters.name);
       printf("Function Param (type = ");
 
       switch (node->data.function_parameters.type) {
@@ -156,7 +153,6 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Block (\n");
       for (int i = 0; i < node->data.block.block_count; i++) {
-        // AstNode *block_item = arena_get_by_index(node->data.block.block_ptrs, i);
         AstNode *block_item = node->data.block.block_ptrs->node_pointers[i];
         print_ast(block_item, ADD_WHITESPACE);
       }   
@@ -388,7 +384,6 @@ void print_ast(AstNode *node, int whitespace) {
         printf("Function Call(args=\n");
 
         for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
-          // AstNode *argument = arena_get_by_index(node->data.function_call_expression.argument_ptrs, i);
           AstNode *argument = node->data.function_call_expression.argument_ptrs->node_pointers[i];
           print_ast(argument, ADD_WHITESPACE);
         }
@@ -447,74 +442,6 @@ void init_node_pointer(NodePointer *node_pointer) {
   node_pointer->count = 0;
   node_pointer->node_pointers = NULL;
 } 
-
-// void add_to_block(AstNode *block, AstNode *expr_or_stmt) {
-//   int current_count = block->data.block.block_count;
-//   int current_capacity = block->data.block.block_capacity;
-
-//   if (current_count == current_capacity) {
-//     int new_size = current_capacity == 0 ? BLOCK_STARTING_ALLOCATION : current_capacity * 2;
-
-//     AstNode *blocks = realloc(block->data.block.block_items, new_size * sizeof(AstNode));
-
-//     block->data.block.block_capacity = new_size;
-//     block->data.block.block_items = blocks;
-//   } 
-
-//   block->data.block.block_items[block->data.block.block_count] = *expr_or_stmt;
-//   block->data.block.block_count++;
-// }
-
-// void add_to_function_params(AstNode *function_declaration, AstNode *parameter) { 
-//   int current_count = function_declaration->data.function_declaration.parameter_count;
-//   int current_capacity = function_declaration->data.function_declaration.parameter_capacity;
-
-//   if (current_count == current_capacity) {
-//     int new_size = current_capacity == 0 ? FUNCTION_PARAM_STARTING_ALLOCATION: current_capacity * 2;
-
-//     AstNode *parameters = realloc(function_declaration->data.function_declaration.parameters, new_size * sizeof(AstNode));
-
-//     function_declaration->data.function_declaration.parameter_capacity = new_size;
-//     function_declaration->data.function_declaration.parameters = parameters;
-//   } 
-
-//   function_declaration->data.function_declaration.parameters[function_declaration->data.function_declaration.parameter_count] = *parameter;
-//   function_declaration->data.function_declaration.parameter_count++;
-// }
-
-// void add_to_function_call(AstNode *function_call, AstNode *expression) {
-//   int current_count = function_call->data.function_call_expression.argument_count;
-//   int current_capacity = function_call->data.function_call_expression.argument_capacity;
-
-//   if (current_count == current_capacity) {
-//     int new_size = current_capacity == 0 ? FUNCTION_CALL_STARTING_ALLOCATION: current_capacity * 2;
-
-//     AstNode *arguments = realloc(function_call->data.function_call_expression.arguments, new_size * sizeof(AstNode));
-
-//     function_call->data.function_call_expression.argument_capacity = new_size;
-//     function_call->data.function_call_expression.arguments = arguments;
-//   } 
-
-//   function_call->data.function_call_expression.arguments[function_call->data.function_call_expression.argument_count] = *expression;
-//   function_call->data.function_call_expression.argument_count++;
-// } 
-
-// void add_to_function_to_program(AstNode *program, AstNode *function_declaration) {
-//   int current_count = program->data.program.function_count;
-//   int current_capacity = program->data.program.function_capacity;
-
-//   if (current_count == current_capacity) {
-//     int new_size = current_capacity == 0 ? PROGRAM_FUNCTION_ALLOCATION : current_capacity * 2;
-
-//     AstNode *arguments = realloc(program->data.program.function_declarations, new_size * sizeof(AstNode));
-
-//     program->data.program.function_capacity = new_size;
-//     program->data.program.function_declarations = arguments;
-//   } 
-
-//   program->data.program.function_declarations[program->data.program.function_count] = *function_declaration;
-//   program->data.program.function_count++;
-// } 
 
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
@@ -590,14 +517,6 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
   }
 
   function_node->data.function_declaration.parameter_count++;
-  // add_to_function_params(function_node, parameter);
-  // Arena *parameter_arena = malloc(sizeof(Arena));
-  // arena_init(parameter_arena, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
-
-  // function_node->data.function_declaration.parameter_ptrs = parameter_arena;
-
-  // AstNode *parameter_arena_ptr = arena_alloc(parameter_arena);
-  // parameter_arena_ptr = parameter;
 
   NodePointer *parameter_pointers = malloc(sizeof(NodePointer));
   init_node_pointer(parameter_pointers);
@@ -627,9 +546,6 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
       }    
     }
 
-    // add_to_function_params(function_node, next_parameter);
-    // AstNode *parameter_arena_ptr = arena_alloc(parameter_arena);
-    // parameter_arena_ptr = next_parameter;
     add_to_node_pointer(next_parameter, parameter_pointers);
 
     function_node->data.function_declaration.parameter_count++;
@@ -680,10 +596,6 @@ void ast_block(Parser *parser, AstNode *block_node) {
   block_node->data.block.block_count = 0;
   block_node->data.block.block_capacity = 0;
 
-  // Arena *block_item_ptr_arena = malloc(sizeof(Arena));
-  // arena_init(block_item_ptr_arena, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
-  // block_node->data.block.block_ptrs = block_item_ptr_arena;
-
   NodePointer *block_item_pointers = malloc(sizeof(NodePointer));
   init_node_pointer(block_item_pointers);
   block_node->data.block.block_ptrs = block_item_pointers;
@@ -699,17 +611,11 @@ void ast_block(Parser *parser, AstNode *block_node) {
       AstNode *declaration_node = arena_alloc(parser->node_arena);
       ast_declaration(parser, declaration_node);
       block_node->data.block.block_count++;
-      // add_to_block(block, declaration);
-      // AstNode *block_item_ptr = arena_alloc(block_item_ptr_arena);
-      // block_item_ptr = declaration_node;
       add_to_node_pointer(declaration_node, block_item_pointers);
     } else {
       AstNode *statement_node = arena_alloc(parser->node_arena);
       ast_parse_statement(parser, statement_node);
       block_node->data.block.block_count++;
-      // add_to_block(block, statement);
-      // AstNode *block_item_ptr = arena_alloc(block_item_ptr_arena);
-      // block_item_ptr = statement_node;
       add_to_node_pointer(statement_node, block_item_pointers);
     }
   }
@@ -1031,7 +937,6 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
 
   AstNode *binary_expression_pointer = *binary_expression;
 
-  // AstNode *binary_expression = arena_alloc(parser->node_arena);
   binary_expression_pointer->type = AST_EXPRESSION_BINARY;
   binary_expression_pointer->data.binary_expression.left_expression = left_expression;
   binary_expression_pointer->data.binary_expression.right_expression = right;
@@ -1232,11 +1137,6 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   factor_node->data.function_call_expression.identfier = identifier;
   factor_node->data.function_call_expression.argument_count = 0;
   factor_node->data.function_call_expression.argument_capacity = 0;
-
-  // Arena *argument_ptrs = malloc(sizeof(Arena));
-  // arena_init(argument_ptrs, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
-
-  // factor_node->data.function_call_expression.argument_ptrs = argument_ptrs;
   
   NodePointer *argument_pointers = malloc(sizeof(NodePointer));
   init_node_pointer(argument_pointers);
@@ -1249,18 +1149,12 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
 
   AstNode *expression_node = arena_alloc(parser->node_arena);
   ast_parse_expression(parser, expression_node, 0);
-  // add_to_function_call(function_call_node, expression);
-  // AstNode *arena_argument_ptr = arena_alloc(argument_ptrs);
-  // arena_argument_ptr = expression_node;
   add_to_node_pointer(expression_node, argument_pointers);
 
   while (current_token(parser)->type == TOKEN_COMMA) {
     ast_expect(parser, TOKEN_COMMA);
     AstNode *next_expression_node = arena_alloc(parser->node_arena);
     ast_parse_expression(parser, next_expression_node, 0);
-    // add_to_function_call(function_call_node, expression);
-    // AstNode *arena_argument_ptr = arena_alloc(argument_ptrs);
-    // arena_argument_ptr = next_expression_node;
     add_to_node_pointer(next_expression_node, argument_pointers);
   }
 
