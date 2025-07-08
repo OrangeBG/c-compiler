@@ -67,12 +67,13 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   };
 
   for (int i = 0; i < ast_node->data.program.function_count; i++) {
+    AstNode *function_node = arena_get_by_index(&ast_node->data.program.function_ptrs[i], i);
     //We only need to process function definitions, not function declarations
-    if (ast_node->data.program.function_declarations[i].data.function_declaration.body_block == NULL) {
+    if (function_node->data.function_declaration.body_block == NULL) {
       continue;
     }
     
-    IRNode *function = ir_function(&ast_node->data.program.function_declarations[i], &emit_status);
+    IRNode *function = ir_function(function_node, &emit_status);
     ir_add_function_to_program(program, function);
   }
 
@@ -257,7 +258,8 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
 void ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status) {
   for (int i = 0; i < block_node->data.block.block_count; i++) {
     arena_reset(&emit_status->postfix_arena);
-    ir_emit_ast_node(&block_node->data.block.block_items[i], function, emit_status);
+    AstNode *block_item_node = arena_get_by_index(&block_node->data.block.block_ptrs[i], i);
+    ir_emit_ast_node(block_item_node, function, emit_status);
     ir_add_postfix_operations(function, emit_status);
   }
 }
@@ -588,7 +590,9 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   ir_function_call->data.instruction_function_call.args = NULL;
 
   for (int i = 0; i < function_call_node->data.function_call_expression.argument_count; i++) {
-    IRNode *argument = ir_emit_ast_node(&function_call_node->data.function_call_expression.arguments[i], function, emit_status);
+    AstNode *argument_node = arena_get_by_index(&function_call_node->data.function_call_expression.argument_ptrs[i], i);
+
+    IRNode *argument = ir_emit_ast_node(argument_node, function, emit_status);
 
     ir_add_argument_to_function_call(ir_function_call, argument);    
   }

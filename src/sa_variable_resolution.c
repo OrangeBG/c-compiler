@@ -41,7 +41,8 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   hash_table_init(&function_identifier_table); 
 
   for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    sa_variable_resolve_node(&ast_nodes->data.program.function_declarations[i], &variables, &function_identifier_table);
+    AstNode *function_node = arena_get_by_index(&ast_nodes->data.program.function_ptrs[i], i);
+    sa_variable_resolve_node(function_node, &variables, &function_identifier_table);
   }
 }
 
@@ -98,12 +99,14 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
 
           //TODO: Will need to look at a better way of doing this. Duplicate code used when there is and isn't an existing entry
           for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-            sa_variable_resolve_node(&node->data.function_declaration.parameters[i], variables, function_identifier_table);
+            AstNode *parameter_node = arena_get_by_index(&node->data.function_declaration.parameter_ptrs[i], i);
+            sa_variable_resolve_node(parameter_node, variables, function_identifier_table);
           }
         
           if (node->data.function_declaration.body_block != NULL) {
             for (int i = 0; i < node->data.function_declaration.body_block->data.block.block_count; i++) {
-              sa_variable_resolve_node(&node->data.function_declaration.body_block->data.block.block_items[i], variables, function_identifier_table); 
+              AstNode *block_item_node = arena_get_by_index(&node->data.function_declaration.body_block->data.block.block_ptrs[i], i);
+              sa_variable_resolve_node(block_item_node, variables, function_identifier_table); 
             }
           }
           break;
@@ -134,12 +137,14 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
         };
 
         for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-          sa_variable_resolve_node(&node->data.function_declaration.parameters[i], &new_variables, function_identifier_table);
+          AstNode *parameter_node = arena_get_by_index(&node->data.function_declaration.parameter_ptrs[i], i);
+          sa_variable_resolve_node(parameter_node, &new_variables, function_identifier_table);
         }
         
         if (node->data.function_declaration.body_block != NULL) {
           for (int i = 0; i < node->data.function_declaration.body_block->data.block.block_count; i++) {
-            sa_variable_resolve_node(&node->data.function_declaration.body_block->data.block.block_items[i], &new_variables, function_identifier_table); 
+            AstNode *block_item_node = arena_get_by_index(&node->data.function_declaration.body_block->data.block.block_ptrs[i], i);
+            sa_variable_resolve_node(block_item_node, &new_variables, function_identifier_table); 
           }
         }
         break;
@@ -154,7 +159,8 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
       }
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
-        sa_variable_resolve_node(&node->data.function_call_expression.arguments[i], variables, function_identifier_table); 
+        AstNode *argument_node = arena_get_by_index(&node->data.function_call_expression.argument_ptrs[i], i);
+        sa_variable_resolve_node(argument_node, variables, function_identifier_table); 
       }      
       break;
     }
@@ -206,7 +212,8 @@ void sa_variable_resolve_node(AstNode *node, VariableResolution *variables, Hash
       };
 
       for (int i = 0; i < node->data.block.block_count; i++) {   
-        sa_variable_resolve_node(&node->data.block.block_items[i], &new_variables, function_identifier_table); 
+        AstNode *block_item_node = arena_get_by_index(&node->data.block.block_ptrs[i], i);
+        sa_variable_resolve_node(block_item_node, &new_variables, function_identifier_table); 
       }
 
       free(local_declared_variables.entries);

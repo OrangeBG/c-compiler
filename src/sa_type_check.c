@@ -37,7 +37,8 @@ void sa_type_check(AstNode *ast_nodes) {
   hash_table_init(&symbols);
 
   for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    sa_function_and_variable_type_check(&ast_nodes->data.program.function_declarations[i], &symbols);
+    AstNode *function_node = arena_get_by_index(&ast_nodes->data.program.function_ptrs[i], i);
+    sa_function_and_variable_type_check(function_node, &symbols);
   } 
 }
 
@@ -114,7 +115,8 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
 
         
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        sa_function_and_variable_type_check(&node->data.function_declaration.parameters[i], symbols);
+        AstNode *parameter_node = arena_get_by_index(&node->data.function_declaration.parameter_ptrs[i], i);
+        sa_function_and_variable_type_check(parameter_node, symbols);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
@@ -167,7 +169,8 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       }
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
-        sa_function_and_variable_type_check(&node->data.function_call_expression.arguments[i], symbols);
+        AstNode *argument_node = arena_get_by_index(&node->data.function_call_expression.argument_ptrs[i], i);
+        sa_function_and_variable_type_check(argument_node, symbols);
       }
       break;
     }
@@ -189,7 +192,8 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
     }
     case AST_BLOCK: {
       for (int i = 0; i < node->data.block.block_count; i++) {   
-        sa_function_and_variable_type_check(&node->data.block.block_items[i], symbols);
+        AstNode *block_item_node = arena_get_by_index(&node->data.block.block_ptrs[i], i);
+        sa_function_and_variable_type_check(block_item_node, symbols);
       }
       break;
     }

@@ -6,10 +6,10 @@
 #include "../include/parser.h"
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
-#include "../include/intermediate_rep.h"
-#include "../include/sa_variable_resolution.h"
-#include "../include/sa_loop_labeling.h"
-#include "../include/sa_type_check.h"
+// #include "../include/intermediate_rep.h"
+// #include "../include/sa_variable_resolution.h"
+// #include "../include/sa_loop_labeling.h"
+// #include "../include/sa_type_check.h"
 
 char* load_file(const char *file_path); 
 
