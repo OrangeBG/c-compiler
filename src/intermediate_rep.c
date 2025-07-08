@@ -200,7 +200,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   Arena postfix_arena;
   //@WARNING: Hardcoded postfix arena size
   //TODO: May be better to initialize outside of this function and instead reset the allocated arena
-  arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50);
+  arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50, true);
   emit_status->postfix_arena = postfix_arena;
 
   ir_emit_ast_node(ast_function->data.function_declaration.body_block, function, emit_status);

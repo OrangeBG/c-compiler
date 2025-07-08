@@ -7,11 +7,12 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 
-#define BLOCK_STARTING_ALLOCATION 8
-#define FUNCTION_PARAM_STARTING_ALLOCATION 8
-#define FUNCTION_CALL_STARTING_ALLOCATION 8
-#define PROGRAM_FUNCTION_ALLOCATION 8
+// #define BLOCK_STARTING_ALLOCATION 8
+// #define FUNCTION_PARAM_STARTING_ALLOCATION 8
+// #define FUNCTION_CALL_STARTING_ALLOCATION 8
+// #define PROGRAM_FUNCTION_ALLOCATION 8
 #define ADD_WHITESPACE whitespace + 5
+#define POINTER_ARENA_INIT_CAPACITY 8
 
 typedef struct Parser {
   int token_count;
@@ -64,10 +65,10 @@ bool       end_of_file(Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
 
-AstNode* parse_ast(Token *tokens, int token_count, char *file) {  
+Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
-  arena_init(parser_arena, sizeof(AstNode), sizeof(AstNode) * 1000);
+  arena_init(parser_arena, sizeof(AstNode), sizeof(AstNode) * 1000, false);
   
   Parser parser = {
     .token_count = token_count,
@@ -88,7 +89,7 @@ AstNode* parse_ast(Token *tokens, int token_count, char *file) {
     exit(1);
   }
 
-  return program_node;
+  return parser_arena;
 }
 
 void print_ast(AstNode *node, int whitespace) {
@@ -96,7 +97,8 @@ void print_ast(AstNode *node, int whitespace) {
     case AST_PROGRAM:  
       printf("Program (\n");
       for (int i = 0; i < node->data.program.function_count; i++) {
-        print_ast(&node->data.program.function_declarations[i], ADD_WHITESPACE);
+        AstNode *function = arena_get_by_index(node->data.program.function_ptrs, i);
+        print_ast(function, ADD_WHITESPACE);
       }
       printf(")\n");
       break;
@@ -116,7 +118,8 @@ void print_ast(AstNode *node, int whitespace) {
       printf("Function Declaration (name = \"%s\"\n", node->data.function_declaration.name);
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        print_ast(&node->data.function_declaration.parameters[i], ADD_WHITESPACE);
+        AstNode *parameter = arena_get_by_index(node->data.function_declaration.parameter_ptrs, i);
+        print_ast(parameter, ADD_WHITESPACE);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
@@ -152,7 +155,8 @@ void print_ast(AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Block (\n");
       for (int i = 0; i < node->data.block.block_count; i++) {
-        print_ast(&node->data.block.block_items[i], ADD_WHITESPACE);
+        AstNode *block_item = arena_get_by_index(node->data.block.block_ptrs, i);
+        print_ast(block_item, ADD_WHITESPACE);
       }   
       print_whitespace(whitespace);
       printf(")\n");
@@ -382,7 +386,8 @@ void print_ast(AstNode *node, int whitespace) {
         printf("Function Call(args=\n");
 
         for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
-          print_ast(&node->data.function_call_expression.arguments[i], ADD_WHITESPACE);
+          AstNode *argument = arena_get_by_index(node->data.function_call_expression.argument_ptrs, i);
+          print_ast(argument, ADD_WHITESPACE);
         }
 
         print_whitespace(whitespace);
@@ -454,39 +459,39 @@ bool end_of_file(Parser *parser) {
 //   function_declaration->data.function_declaration.parameter_count++;
 // }
 
-void add_to_function_call(AstNode *function_call, AstNode *expression) {
-  int current_count = function_call->data.function_call_expression.argument_count;
-  int current_capacity = function_call->data.function_call_expression.argument_capacity;
+// void add_to_function_call(AstNode *function_call, AstNode *expression) {
+//   int current_count = function_call->data.function_call_expression.argument_count;
+//   int current_capacity = function_call->data.function_call_expression.argument_capacity;
 
-  if (current_count == current_capacity) {
-    int new_size = current_capacity == 0 ? FUNCTION_CALL_STARTING_ALLOCATION: current_capacity * 2;
+//   if (current_count == current_capacity) {
+//     int new_size = current_capacity == 0 ? FUNCTION_CALL_STARTING_ALLOCATION: current_capacity * 2;
 
-    AstNode *arguments = realloc(function_call->data.function_call_expression.arguments, new_size * sizeof(AstNode));
+//     AstNode *arguments = realloc(function_call->data.function_call_expression.arguments, new_size * sizeof(AstNode));
 
-    function_call->data.function_call_expression.argument_capacity = new_size;
-    function_call->data.function_call_expression.arguments = arguments;
-  } 
+//     function_call->data.function_call_expression.argument_capacity = new_size;
+//     function_call->data.function_call_expression.arguments = arguments;
+//   } 
 
-  function_call->data.function_call_expression.arguments[function_call->data.function_call_expression.argument_count] = *expression;
-  function_call->data.function_call_expression.argument_count++;
-} 
+//   function_call->data.function_call_expression.arguments[function_call->data.function_call_expression.argument_count] = *expression;
+//   function_call->data.function_call_expression.argument_count++;
+// } 
 
-void add_to_function_to_program(AstNode *program, AstNode *function_declaration) {
-  int current_count = program->data.program.function_count;
-  int current_capacity = program->data.program.function_capacity;
+// void add_to_function_to_program(AstNode *program, AstNode *function_declaration) {
+//   int current_count = program->data.program.function_count;
+//   int current_capacity = program->data.program.function_capacity;
 
-  if (current_count == current_capacity) {
-    int new_size = current_capacity == 0 ? PROGRAM_FUNCTION_ALLOCATION : current_capacity * 2;
+//   if (current_count == current_capacity) {
+//     int new_size = current_capacity == 0 ? PROGRAM_FUNCTION_ALLOCATION : current_capacity * 2;
 
-    AstNode *arguments = realloc(program->data.program.function_declarations, new_size * sizeof(AstNode));
+//     AstNode *arguments = realloc(program->data.program.function_declarations, new_size * sizeof(AstNode));
 
-    program->data.program.function_capacity = new_size;
-    program->data.program.function_declarations = arguments;
-  } 
+//     program->data.program.function_capacity = new_size;
+//     program->data.program.function_declarations = arguments;
+//   } 
 
-  program->data.program.function_declarations[program->data.program.function_count] = *function_declaration;
-  program->data.program.function_count++;
-} 
+//   program->data.program.function_declarations[program->data.program.function_count] = *function_declaration;
+//   program->data.program.function_count++;
+// } 
 
 void ast_expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
@@ -507,13 +512,19 @@ void ast_program(Parser *parser, AstNode *program_node) {
   program_node->type = AST_PROGRAM;
   program_node->data.program.function_capacity = 0;
   program_node->data.program.function_count = 0;
-  program_node->data.program.function_declarations = NULL;
+
+  Arena *function_ptrs = malloc(sizeof(Arena));
+  arena_init(function_ptrs, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
+
+  program_node->data.program.function_ptrs = function_ptrs;
   
   while (current_token(parser)->type != TOKEN_EOF) {
     AstNode *function_node = arena_alloc(parser->node_arena);
     ast_function_declaration(parser, function_node);
-    //TODO: Check if necessary
-    // add_to_function_to_program(program_node, function);
+    program_node->data.program.function_count++;
+
+    AstNode *arena_function_ptr = arena_alloc(function_ptrs);
+    arena_function_ptr = function_node;
   } 
 }
 
@@ -559,6 +570,13 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
 
   function_node->data.function_declaration.parameter_count++;
   // add_to_function_params(function_node, parameter);
+  Arena *parameter_arena = malloc(sizeof(Arena));
+  arena_init(parameter_arena, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
+
+  function_node->data.function_declaration.parameter_ptrs = parameter_arena;
+
+  AstNode *parameter_arena_ptr = arena_alloc(parameter_arena);
+  parameter_arena_ptr = parameter;
 
   while(current_token(parser)->type == TOKEN_COMMA) {
     ast_expect(parser, TOKEN_COMMA);
@@ -584,6 +602,9 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
     }
 
     // add_to_function_params(function_node, next_parameter);
+    AstNode *parameter_arena_ptr = arena_alloc(parameter_arena);
+    parameter_arena_ptr = next_parameter;
+
     function_node->data.function_declaration.parameter_count++;
   }
   
@@ -630,7 +651,10 @@ void ast_block(Parser *parser, AstNode *block_node) {
   block_node->type = AST_BLOCK;
   block_node->data.block.block_count = 0;
   block_node->data.block.block_capacity = 0;
-  block_node->data.block.block_items = NULL;
+
+  Arena *block_item_ptr_arena = malloc(sizeof(Arena));
+  arena_init(block_item_ptr_arena, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
+  block_node->data.block.block_ptrs = block_item_ptr_arena;
 
   //TODO: While(true) loop seems dangerous if no close brace is supplied
   while(true) {
@@ -644,11 +668,15 @@ void ast_block(Parser *parser, AstNode *block_node) {
       ast_declaration(parser, declaration_node);
       block_node->data.block.block_count++;
       // add_to_block(block, declaration);
+      AstNode *block_item_ptr = arena_alloc(block_item_ptr_arena);
+      block_item_ptr = declaration_node;
     } else {
       AstNode *statement_node = arena_alloc(parser->node_arena);
       ast_parse_statement(parser, statement_node);
       block_node->data.block.block_count++;
       // add_to_block(block, statement);
+      AstNode *block_item_ptr = arena_alloc(block_item_ptr_arena);
+      block_item_ptr = statement_node;
     }
   }
 
@@ -1170,7 +1198,11 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   factor_node->data.function_call_expression.identfier = identifier;
   factor_node->data.function_call_expression.argument_count = 0;
   factor_node->data.function_call_expression.argument_capacity = 0;
-  factor_node->data.function_call_expression.arguments = NULL;
+
+  Arena *argument_ptrs = malloc(sizeof(Arena));
+  arena_init(argument_ptrs, sizeof(AstNode*), sizeof(AstNode*) * POINTER_ARENA_INIT_CAPACITY, true);
+
+  factor_node->data.function_call_expression.argument_ptrs = argument_ptrs;
 
   if (current_token(parser)->type == TOKEN_CLOSE_PAREN) {
     ast_expect(parser, TOKEN_CLOSE_PAREN);
@@ -1180,12 +1212,16 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   AstNode *expression_node = arena_alloc(parser->node_arena);
   ast_parse_expression(parser, expression_node, 0);
   // add_to_function_call(function_call_node, expression);
+  AstNode *arena_argument_ptr = arena_alloc(argument_ptrs);
+  arena_argument_ptr = expression_node;
 
   while (current_token(parser)->type == TOKEN_COMMA) {
     ast_expect(parser, TOKEN_COMMA);
     AstNode *next_expression_node = arena_alloc(parser->node_arena);
     ast_parse_expression(parser, next_expression_node, 0);
     // add_to_function_call(function_call_node, expression);
+    AstNode *arena_argument_ptr = arena_alloc(argument_ptrs);
+    arena_argument_ptr = next_expression_node;
   }
 
   ast_expect(parser, TOKEN_CLOSE_PAREN);

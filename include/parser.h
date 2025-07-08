@@ -2,6 +2,7 @@
 #define PARSER
 
 #include "../include/lexer.h"
+#include "../include/arena.h"
 #include <stdbool.h>
 
 typedef struct AstNode AstNode;
@@ -79,14 +80,11 @@ typedef enum {
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { AstNode *function_declarations; int function_count; int function_capacity; } program;
-    // struct Function { char *name; AstNode *block;} function;
-    // struct Declaration { char *identifier; bool has_expression; AstNode *expression; } declaration;
-    // struct Declaration { DeclarationType type; AstNode *declaration; } declaration;
-    struct FunctionDeclaration { char *name; AstNode *parameters; int parameter_count; AstNode *body_block; } function_declaration;
+    struct Program { Arena *function_ptrs; int function_count; int function_capacity; } program;
+    struct FunctionDeclaration { char *name; Arena *parameter_ptrs; int parameter_count; AstNode *body_block; } function_declaration;
     struct FunctionParameter { char *name; ParameterType type; } function_parameters;
     struct VariableDeclaration { char *name; bool has_expression; AstNode *init_expression; } variable_declaration;
-    struct Block { AstNode *block_items; int block_count; int block_capacity; } block;
+    struct Block { Arena *block_ptrs; int block_count; int block_capacity; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
@@ -106,11 +104,12 @@ typedef struct AstNode {
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;
-    struct FunctionCallExpression { char *identfier; AstNode *arguments; int argument_count; int argument_capacity; } function_call_expression;
+    struct FunctionCallExpression { char *identfier; Arena *argument_ptrs; int argument_count; int argument_capacity; } function_call_expression;
   } data;
 } AstNode;
 
-AstNode* parse_ast(Token *tokens, int token_count, char *file);   
-void print_ast(AstNode *node, int level);
+Arena* parse_ast(Token *tokens, int token_count, char *file);   
+// void print_ast(AstNode *node, int level);
+void print_ast(AstNode *node, int whitespace);
 
 #endif
