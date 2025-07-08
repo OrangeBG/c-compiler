@@ -77,14 +77,20 @@ typedef enum {
   AST_PARAMETER_INT
 } ParameterType;
 
+typedef struct {
+  int capacity;
+  int count;
+  AstNode **node_pointers;
+} NodePointer;
+
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { Arena *function_ptrs; int function_count; int function_capacity; } program;
-    struct FunctionDeclaration { char *name; Arena *parameter_ptrs; int parameter_count; AstNode *body_block; } function_declaration;
+    struct Program { NodePointer *function_ptrs; int function_count; int function_capacity; } program;
+    struct FunctionDeclaration { char *name; NodePointer *parameter_ptrs; int parameter_count; AstNode *body_block; } function_declaration;
     struct FunctionParameter { char *name; ParameterType type; } function_parameters;
     struct VariableDeclaration { char *name; bool has_expression; AstNode *init_expression; } variable_declaration;
-    struct Block { Arena *block_ptrs; int block_count; int block_capacity; } block;
+    struct Block { NodePointer *block_ptrs; int block_count; int block_capacity; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
@@ -104,7 +110,7 @@ typedef struct AstNode {
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;
-    struct FunctionCallExpression { char *identfier; Arena *argument_ptrs; int argument_count; int argument_capacity; } function_call_expression;
+    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; int argument_count; int argument_capacity; } function_call_expression;
   } data;
 } AstNode;
 
