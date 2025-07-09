@@ -456,7 +456,6 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 
 void ast_program(Parser *parser, AstNode *program_node) {
   program_node->type = AST_PROGRAM;
-  program_node->data.program.function_capacity = 0;
   program_node->data.program.function_count = 0;
 
   NodePointer *function_pointers = malloc(sizeof(NodePointer));
@@ -590,7 +589,6 @@ void ast_block(Parser *parser, AstNode *block_node) {
 
   block_node->type = AST_BLOCK;
   block_node->data.block.block_count = 0;
-  block_node->data.block.block_capacity = 0;
 
   NodePointer *block_item_pointers = malloc(sizeof(NodePointer));
   init_node_pointer(block_item_pointers);
@@ -1130,7 +1128,6 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   factor_node->type = AST_EXPRESSION_FUNCTION_CALL;
   factor_node->data.function_call_expression.identfier = identifier;
   factor_node->data.function_call_expression.argument_count = 0;
-  factor_node->data.function_call_expression.argument_capacity = 0;
   
   NodePointer *argument_pointers = malloc(sizeof(NodePointer));
   init_node_pointer(argument_pointers);
