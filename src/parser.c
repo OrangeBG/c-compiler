@@ -991,7 +991,7 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
       assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
       assignment_expression->data.assignement_expression.left_expression = left_expression;
       assignment_expression->data.assignement_expression.right_expression = binary_expression_pointer;
-      binary_expression = &assignment_expression;
+      *binary_expression = assignment_expression;
       return;
     }
     default:
