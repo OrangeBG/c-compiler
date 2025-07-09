@@ -67,7 +67,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   };
 
   for (int i = 0; i < ast_node->data.program.function_count; i++) {
-    AstNode *function_node = arena_get_by_index(&ast_node->data.program.function_ptrs[i], i);
+    AstNode *function_node = ast_node->data.program.function_ptrs->node_pointers[i];
     //We only need to process function definitions, not function declarations
     if (function_node->data.function_declaration.body_block == NULL) {
       continue;
@@ -258,7 +258,7 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
 void ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status) {
   for (int i = 0; i < block_node->data.block.block_count; i++) {
     arena_reset(&emit_status->postfix_arena);
-    AstNode *block_item_node = arena_get_by_index(&block_node->data.block.block_ptrs[i], i);
+    AstNode *block_item_node = block_node->data.block.block_ptrs->node_pointers[i];
     ir_emit_ast_node(block_item_node, function, emit_status);
     ir_add_postfix_operations(function, emit_status);
   }
@@ -590,7 +590,7 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   ir_function_call->data.instruction_function_call.args = NULL;
 
   for (int i = 0; i < function_call_node->data.function_call_expression.argument_count; i++) {
-    AstNode *argument_node = arena_get_by_index(&function_call_node->data.function_call_expression.argument_ptrs[i], i);
+    AstNode *argument_node = function_call_node->data.function_call_expression.argument_ptrs->node_pointers[i];
 
     IRNode *argument = ir_emit_ast_node(argument_node, function, emit_status);
 

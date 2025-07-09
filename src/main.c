@@ -6,10 +6,10 @@
 #include "../include/parser.h"
 #include "../include/assembly.h"
 #include "../include/code_emit.h"
-// #include "../include/intermediate_rep.h"
-// #include "../include/sa_variable_resolution.h"
-// #include "../include/sa_loop_labeling.h"
-// #include "../include/sa_type_check.h"
+#include "../include/intermediate_rep.h"
+#include "../include/sa_variable_resolution.h"
+#include "../include/sa_loop_labeling.h"
+#include "../include/sa_type_check.h"
 
 char* load_file(const char *file_path); 
 
@@ -69,65 +69,71 @@ int main(int argc, const char *argv[]) {
     print_ast(program_node, 0);
   }
 
-  // benchmarks[2] = clock();
-  // sa_variable_resolution(ast);
-  // sa_type_check(ast);
-  // sa_loop_labeling(ast);
-  // benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
+  benchmarks[2] = clock();
+  AstNode *program_node = arena_get_by_index(ast_arena, 0);
+  printf("\n>> START SA VARIABLE RESOLUTION <<\n");
+  sa_variable_resolution(program_node);
+  printf(">> END SA VARIABLE RESOLUTION <<\n");
+  printf(">> START SA TYPE CHECK <<\n");
+  sa_type_check(program_node);
+  printf(">> END SA TYPE CHECK <<\n");
+  printf(">> START SA LOOP LABELING <<\n");
+  sa_loop_labeling(program_node);
+  printf(">> END SA LOOP LABELING <<\n");
+  benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
-  // if (print_debug) {
-  //   printf("\n>> SEMANTIC PRINT <<\n\n");
-  //   print_ast(ast, 0);
-  // }
+  if (print_debug) {
+    printf("\n>> SEMANTIC PRINT <<\n\n");
+    AstNode *program_node = arena_get_by_index(ast_arena, 0);
+    print_ast(program_node, 0);
+  }
 
-  // benchmarks[3] = clock();
-  // IRNode *ir = generate_intermediate_rep(ast);
-  // benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
+  benchmarks[3] = clock();
+  IRNode *ir = generate_intermediate_rep(program_node);
+  benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
   
-  // if (print_debug) {
-  //   printf("\n>> IR PRINT <<\n\n");
-  //   print_intermediate_ret(ir);
-  // }
-
-  //@Temporary until asm and code gen is fixed
-  return 0;
+  if (print_debug) {
+    printf("\n>> IR PRINT <<\n\n");
+    print_intermediate_ret(ir);
+  }
 
   //TODO: Can we free the lexer tokens after this?
+  arena_free(ast_arena);
 
-  // benchmarks[4] = clock();
-  // AsmNode *asm_nodes = generate_assembly(ir);
-  // benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
+  benchmarks[4] = clock();
+  AsmNode *asm_nodes = generate_assembly(ir);
+  benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
 
-  // if (print_debug) {
-  //   printf("\n>> ASSEMBLY PRINT <<\n\n");
-  //   print_assembly(asm_nodes);
+  if (print_debug) {
+    printf("\n>> ASSEMBLY PRINT <<\n\n");
+    print_assembly(asm_nodes);
 
-  //   FILE *assembly_file;
-  //   assembly_file = fopen("assembly.asm", "w+");
+    FILE *assembly_file;
+    assembly_file = fopen("assembly.asm", "w+");
 
-  //   save_assembly_file(asm_nodes, assembly_file);
+    save_assembly_file(asm_nodes, assembly_file);
 
-  //   system("clang -arch x86_64 -c assembly.asm -o assembly.o");
+    system("clang -arch x86_64 -c assembly.asm -o assembly.o");
     
-  //   printf("\n>> CODE EMIT PRINT <<\n\n");
-  //   rewind(assembly_file);
-  //   print_code_emit(assembly_file);
+    printf("\n>> CODE EMIT PRINT <<\n\n");
+    rewind(assembly_file);
+    print_code_emit(assembly_file);
     
-  //   fclose(assembly_file);
-  // }
+    fclose(assembly_file);
+  }
 
-  // if (print_debug) {
-  //   double total_benchmark_end = (double)clock();
+  if (print_debug) {
+    double total_benchmark_end = (double)clock();
 
-  //   printf("\n>> BENCHMARKS <<\n");
-  //   printf("Lexer    : %f seconds\n", benchmarks[0]);
-  //   printf("Parser   : %f seconds\n", benchmarks[1]);
-  //   printf("Semantic : %f seconds\n", benchmarks[2]);
-  //   printf("Int. Rep.: %f seconds\n", benchmarks[3]);
-  //   printf("Assembly : %f seconds\n", benchmarks[4]);
-  //   printf("Total Compile Time: %f seconds\n", ((double) (total_benchmark_end - total_benchmark_start)) / CLOCKS_PER_SEC);
-  // }             
-  // return 0;
+    printf("\n>> BENCHMARKS <<\n");
+    printf("Lexer    : %f seconds\n", benchmarks[0]);
+    printf("Parser   : %f seconds\n", benchmarks[1]);
+    printf("Semantic : %f seconds\n", benchmarks[2]);
+    printf("Int. Rep.: %f seconds\n", benchmarks[3]);
+    printf("Assembly : %f seconds\n", benchmarks[4]);
+    printf("Total Compile Time: %f seconds\n", ((double) (total_benchmark_end - total_benchmark_start)) / CLOCKS_PER_SEC);
+  }             
+  return 0;
 }
 
 char* load_file(const char *file_path) {

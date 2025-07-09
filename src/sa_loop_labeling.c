@@ -96,7 +96,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       break;    
     case AST_PROGRAM:
       for (int i = 0; i < ast_node->data.program.function_count; i++) {
-        AstNode *function_node = arena_get_by_index(&ast_node->data.function_declaration.parameter_ptrs[i], i);
+        AstNode *function_node = ast_node->data.program.function_ptrs->node_pointers[i];
         sa_label_loop(function_node, label_stack, current_loop_id);
       }
       break;
@@ -109,7 +109,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       break;
     case AST_BLOCK: {
       for (int i = 0; i < ast_node->data.block.block_count; i++) {
-        AstNode *block_item_node = arena_get_by_index(&ast_node->data.block.block_ptrs[i], i);
+        AstNode *block_item_node = ast_node->data.block.block_ptrs->node_pointers[i];
         sa_label_loop(block_item_node, label_stack, current_loop_id);
       }   
       break;

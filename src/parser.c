@@ -7,10 +7,6 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 
-// #define BLOCK_STARTING_ALLOCATION 8
-// #define FUNCTION_PARAM_STARTING_ALLOCATION 8
-// #define FUNCTION_CALL_STARTING_ALLOCATION 8
-// #define PROGRAM_FUNCTION_ALLOCATION 8
 #define ADD_WHITESPACE whitespace + 5
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define NODE_POINTER_CAPACITY 8
