@@ -60,35 +60,39 @@ int main(int argc, const char *argv[]) {
   }
 
   benchmarks[1] = clock();
-  AstNode *ast = parse_ast(lexer.tokens, lexer.token_count, file);
+  Arena *ast_arena = parse_ast(lexer.tokens, lexer.token_count, file);
   benchmarks[1] = ((double) (clock() - benchmarks[1])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> AST PRINT <<\n\n");
-    print_ast(ast, 0);
+    AstNode *program_node = arena_get_by_index(ast_arena, 0);
+    print_ast(program_node, 0);
   }
 
   benchmarks[2] = clock();
-  sa_variable_resolution(ast);
-  sa_type_check(ast);
-  sa_loop_labeling(ast);
+  AstNode *program_node = arena_get_by_index(ast_arena, 0);
+  sa_variable_resolution(program_node);
+  sa_type_check(program_node);
+  sa_loop_labeling(program_node);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> SEMANTIC PRINT <<\n\n");
-    print_ast(ast, 0);
+    AstNode *program_node = arena_get_by_index(ast_arena, 0);
+    print_ast(program_node, 0);
   }
 
   benchmarks[3] = clock();
-  IRNode *ir = generate_intermediate_rep(ast);
+  IRNode *ir = generate_intermediate_rep(program_node);
   benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
-
+  
   if (print_debug) {
     printf("\n>> IR PRINT <<\n\n");
     print_intermediate_ret(ir);
   }
 
   //TODO: Can we free the lexer tokens after this?
+  arena_free(ast_arena);
 
   benchmarks[4] = clock();
   AsmNode *asm_nodes = generate_assembly(ir);

@@ -95,8 +95,10 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       }
       break;    
     case AST_PROGRAM:
-      //TODO: Need to iterate through the function declarations
-      sa_label_loop(ast_node->data.program.function_declarations, label_stack, current_loop_id);
+      for (int i = 0; i < ast_node->data.program.function_count; i++) {
+        AstNode *function_node = ast_node->data.program.function_ptrs->node_pointers[i];
+        sa_label_loop(function_node, label_stack, current_loop_id);
+      }
       break;
     case AST_FUNCTION_DECLARATION:
       if (ast_node->data.function_declaration.body_block == NULL) {
@@ -107,7 +109,8 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       break;
     case AST_BLOCK: {
       for (int i = 0; i < ast_node->data.block.block_count; i++) {
-        sa_label_loop(&ast_node->data.block.block_items[i], label_stack, current_loop_id);
+        AstNode *block_item_node = ast_node->data.block.block_ptrs->node_pointers[i];
+        sa_label_loop(block_item_node, label_stack, current_loop_id);
       }   
       break;
     }

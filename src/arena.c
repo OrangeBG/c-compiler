@@ -2,18 +2,29 @@
 #include <stdlib.h>
 #include "../include/arena.h"
 
-void arena_init(Arena *arena, int base_size, int capacity) {
+void arena_expand(Arena *arena);
+
+void arena_init(Arena *arena, int base_size, int capacity, bool allow_expand) {
   arena->allocation = malloc(capacity);  
   arena->capacity = capacity;
   arena->base_size = base_size;
   arena->offset = 0;
+  arena->max_index = 0;
+  arena->allow_expand = allow_expand;
 }
 
 void* arena_alloc(Arena *arena) {
   //TODO: Check to see if we ever want to expand the arena
   if (arena->offset + arena->base_size > arena->capacity) {
-    fprintf(stderr, "Ran out memory in arena");
-    exit(1);
+    if (!arena->allow_expand) {
+      fprintf(stderr, "Ran out memory in arena");
+      exit(1);
+    }    
+
+    printf("Expanding Arena capacity from %zd to %zd\n", arena->capacity, arena->capacity * 2);
+    arena->capacity *= 2;
+    void* new_allocation = realloc(arena->allocation, arena->capacity);
+    arena->allocation = new_allocation;
   }
 
   //Notes on char* cast:
@@ -21,6 +32,7 @@ void* arena_alloc(Arena *arena) {
   void *current_offset = (void*)((char *)arena->allocation + arena->offset);
 
   arena->offset += arena->base_size;
+  arena->max_index = arena->offset / arena->base_size;
 
   return current_offset;
 }
@@ -34,4 +46,13 @@ void arena_free(Arena *arena) {
 
 void arena_reset(Arena *arena) {
   arena->offset = 0;
+}
+
+void* arena_get_by_index(Arena *arena, int index) {
+  int offset = arena->base_size * index;
+  void *current_offset = (void*)((char *)arena->allocation + offset);
+  return current_offset;
+}
+
+void arena_expand(Arena *arena) {
 }

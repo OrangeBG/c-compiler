@@ -54,6 +54,7 @@
 	- There are a lot dependencies that need both Token* and the char* file. Maybe combine them into a struct  
 
 # Testing Needed
+	- Arena Alloc parser testing. ast_parse_expression_binary(). The switch statement that creates an assignment expression. It is maked inline with a TODO tag.
 
 # Research
 
