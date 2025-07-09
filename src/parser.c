@@ -29,7 +29,7 @@ void       ast_function_declaration(Parser *parser, AstNode *function_node);
 void       ast_variable_declaration(Parser *parser, AstNode *variable_node);
 void       ast_block(Parser *parser, AstNode *block_node);
 void       ast_declaration(Parser *parser, AstNode *declaration_node); 
-void       ast_parse_statement(Parser *parser, AstNode *statement_node);
+void       ast_parse_statement(Parser *parser, AstNode **statement_node);
 void       ast_parse_statement_null(Parser *parser, AstNode *statement_node);
 void       ast_parse_statement_return(Parser *parser, AstNode *statement_node); 
 void       ast_parse_statement_if(Parser *parser, AstNode *statement_node); 
@@ -37,9 +37,9 @@ void       ast_parse_statement_goto(Parser *parser, AstNode *statement_node);
 void       ast_parse_statement_break(Parser *parser, AstNode *break_statement_node); 
 void       ast_parse_statement_continue(Parser *parser, AstNode *continue_statement_node); 
 void       ast_parse_statement_while(Parser *parser, AstNode *while_statement_node); 
-void       ast_parse_statement_do(Parser *parser, AstNode *do_statment_node); 
+void       ast_parse_statement_do(Parser *parser, AstNode *do_statement_node); 
 void       ast_parse_statement_for(Parser *parser, AstNode *for_statement_node); 
-void       ast_parse_expression(Parser *parser, AstNode *expression_node, int min_precedence);
+void       ast_parse_expression(Parser *parser, AstNode **expression_node, int min_precedence);
 void       ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, AstNode *left_expression,  TokenType postfix_token);
 void       ast_parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
 void       ast_parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
@@ -580,7 +580,7 @@ void ast_variable_declaration(Parser *parser, AstNode *variable_node) {
     parser->current_token_index--;
 
     AstNode *expression_node = arena_alloc(parser->node_arena);
-    ast_parse_expression(parser, expression_node, 0);
+    ast_parse_expression(parser, &expression_node, 0);
 
     variable_node->data.variable_declaration.has_expression = true;
     variable_node->data.variable_declaration.init_expression = expression_node;
@@ -614,7 +614,7 @@ void ast_block(Parser *parser, AstNode *block_node) {
       add_to_node_pointer(declaration_node, block_item_pointers);
     } else {
       AstNode *statement_node = arena_alloc(parser->node_arena);
-      ast_parse_statement(parser, statement_node);
+      ast_parse_statement(parser, &statement_node);
       block_node->data.block.block_count++;
       add_to_node_pointer(statement_node, block_item_pointers);
     }
@@ -648,28 +648,28 @@ char* ast_identifier(Parser *parser) {
   return ret_val;
 }
 
-void ast_parse_statement(Parser *parser, AstNode *statement_node) { 
+void ast_parse_statement(Parser *parser, AstNode **statement_node) { 
   if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
     exit(1);
   }
 
   switch (current_token(parser)->type) {
-    case TOKEN_OPEN_BRACE: ast_block(parser, statement_node); break;
-    case TOKEN_SEMICOLON:  ast_parse_statement_null(parser, statement_node); break;
-    case TOKEN_RETURN:     ast_parse_statement_return(parser, statement_node); break;
-    case TOKEN_IF:         ast_parse_statement_if(parser, statement_node); break;
-    case TOKEN_GOTO:       ast_parse_statement_goto(parser, statement_node); break;
-    case TOKEN_BREAK:      ast_parse_statement_break(parser, statement_node); break;
-    case TOKEN_CONTINUE:   ast_parse_statement_continue(parser, statement_node); break;
-    case TOKEN_WHILE:      ast_parse_statement_while(parser, statement_node); break;
-    case TOKEN_DO:         ast_parse_statement_do(parser, statement_node); break;
-    case TOKEN_FOR:        ast_parse_statement_for(parser, statement_node); break;
+    case TOKEN_OPEN_BRACE: ast_block(parser, *statement_node); break;
+    case TOKEN_SEMICOLON:  ast_parse_statement_null(parser, *statement_node); break;
+    case TOKEN_RETURN:     ast_parse_statement_return(parser, *statement_node); break;
+    case TOKEN_IF:         ast_parse_statement_if(parser, *statement_node); break;
+    case TOKEN_GOTO:       ast_parse_statement_goto(parser, *statement_node); break;
+    case TOKEN_BREAK:      ast_parse_statement_break(parser, *statement_node); break;
+    case TOKEN_CONTINUE:   ast_parse_statement_continue(parser, *statement_node); break;
+    case TOKEN_WHILE:      ast_parse_statement_while(parser, *statement_node); break;
+    case TOKEN_DO:         ast_parse_statement_do(parser, *statement_node); break;
+    case TOKEN_FOR:        ast_parse_statement_for(parser, *statement_node); break;
     default: {
       ast_parse_expression(parser, statement_node, 0);  
 
       //TODO: See if we add this in ast_expression() instead of doing this goto label check
-      if (statement_node->type != AST_STATEMENT_GOTO_LABEL) {
+      if ((*statement_node)->type != AST_STATEMENT_GOTO_LABEL) {
         ast_expect(parser, TOKEN_SEMICOLON);
       }
       break;
@@ -686,7 +686,7 @@ void ast_parse_statement_return(Parser *parser, AstNode *statement_node) {
   ast_expect(parser, TOKEN_RETURN);
 
   AstNode *expression = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, expression, 0);
+  ast_parse_expression(parser, &expression, 0);
   
   statement_node->type = AST_STATEMENT_RETURN;
   statement_node->data.return_statement.expression = expression;
@@ -699,13 +699,13 @@ void ast_parse_statement_if(Parser *parser, AstNode *if_statement_node) {
   ast_expect(parser, TOKEN_OPEN_PAREN);
 
   AstNode *condition_expression = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, condition_expression, 0);
+  ast_parse_expression(parser, &condition_expression, 0);
 
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 
 
   AstNode *statement = arena_alloc(parser->node_arena);
-  ast_parse_statement(parser, statement);
+  ast_parse_statement(parser, &statement);
 
   if_statement_node->type = AST_STATEMENT_IF;
   if_statement_node->data.if_statement.condition_expression = condition_expression;
@@ -717,7 +717,7 @@ void ast_parse_statement_if(Parser *parser, AstNode *if_statement_node) {
 
   ast_expect(parser, TOKEN_ELSE);
   AstNode *else_statement = arena_alloc(parser->node_arena);
-  ast_parse_statement(parser, else_statement);
+  ast_parse_statement(parser, &else_statement);
 
   if_statement_node->data.if_statement.else_statement = else_statement;
 }
@@ -752,12 +752,12 @@ void ast_parse_statement_while(Parser *parser, AstNode *while_statement_node) {
   ast_expect(parser, TOKEN_OPEN_PAREN);
 
   AstNode *condition_expression = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, condition_expression, 0);
+  ast_parse_expression(parser, &condition_expression, 0);
   
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 
   AstNode *statements = arena_alloc(parser->node_arena);
-  ast_parse_statement(parser, statements);
+  ast_parse_statement(parser, &statements);
 
   while_statement_node->type = AST_STATEMENT_WHILE;
   while_statement_node->data.while_statement.condition = condition_expression;
@@ -768,13 +768,13 @@ void ast_parse_statement_do(Parser *parser, AstNode *do_statement_node) {
   ast_expect(parser, TOKEN_DO);
 
   AstNode *statements = arena_alloc(parser->node_arena);
-  ast_parse_statement(parser, statements);
+  ast_parse_statement(parser, &statements);
   
   ast_expect(parser, TOKEN_WHILE);
   ast_expect(parser, TOKEN_OPEN_PAREN);
 
   AstNode *condition_expression = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, condition_expression, 0);
+  ast_parse_expression(parser, &condition_expression, 0);
   
   ast_expect(parser, TOKEN_CLOSE_PAREN);
   ast_expect(parser, TOKEN_SEMICOLON);
@@ -799,7 +799,7 @@ void ast_parse_statement_for(Parser *parser, AstNode *for_statement_node) {
   } else if (current_token(parser)->type == TOKEN_INT) {
     ast_variable_declaration(parser, dec_or_exp);
   } else {
-    ast_parse_expression(parser, dec_or_exp, 0);
+    ast_parse_expression(parser, &dec_or_exp, 0);
     //TODO: Weird we do this for expressions but are handled in ast_declaration()
     ast_expect(parser, TOKEN_SEMICOLON);
   }
@@ -808,7 +808,7 @@ void ast_parse_statement_for(Parser *parser, AstNode *for_statement_node) {
 
   if (current_token(parser)->type != TOKEN_SEMICOLON) {
     AstNode *for_condition = arena_alloc(parser->node_arena);
-    ast_parse_expression(parser, for_condition, 0);
+    ast_parse_expression(parser, &for_condition, 0);
     for_statement_node->data.for_statement.condition_expression = for_condition;
   }
 
@@ -816,20 +816,20 @@ void ast_parse_statement_for(Parser *parser, AstNode *for_statement_node) {
 
   if (current_token(parser)->type != TOKEN_SEMICOLON && current_token(parser)->type != TOKEN_CLOSE_PAREN) {
     AstNode *post_expression = arena_alloc(parser->node_arena);
-    ast_parse_expression(parser, post_expression, 0);
+    ast_parse_expression(parser, &post_expression, 0);
     for_statement_node->data.for_statement.post_expression = post_expression;
   }
 
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 
   AstNode *for_statements = arena_alloc(parser->node_arena);
-  ast_parse_statement(parser, for_statements);
+  ast_parse_statement(parser, &for_statements);
 
   for_statement_node->data.for_statement.statement_body = for_statements;    
 }
 
-void ast_parse_expression(Parser *parser, AstNode *expression_node, int min_precedence) {
-  ast_parse_factor(parser, expression_node);
+void ast_parse_expression(Parser *parser, AstNode **expression_node, int min_precedence) {
+  ast_parse_factor(parser, *expression_node);
 
   TokenType next_token = current_token(parser)->type;
 
@@ -838,22 +838,23 @@ void ast_parse_expression(Parser *parser, AstNode *expression_node, int min_prec
       case TOKEN_INCREMENT:
       case TOKEN_DECREMENT: {
         AstNode *postfix_expression = arena_alloc(parser->node_arena);
-        ast_parse_expression_postfix(parser, postfix_expression, expression_node, next_token);        
+        ast_parse_expression_postfix(parser, postfix_expression, *expression_node, next_token);        
         break;
       }
       case TOKEN_EQUAL: {
         AstNode *assignment_expression = arena_alloc(parser->node_arena);
-        ast_parse_expression_assignment(parser, assignment_expression, expression_node, next_token);        
+        ast_parse_expression_assignment(parser, assignment_expression, *expression_node, next_token);        
         break;
       }
       case TOKEN_QUESTION_MARK: {
         AstNode *conditional_expression = arena_alloc(parser->node_arena);
-        ast_parse_expression_conditional(parser, conditional_expression, expression_node, next_token);
+        ast_parse_expression_conditional(parser, conditional_expression, *expression_node, next_token);
         break;
       }
       default: {
         AstNode *binary_expression = arena_alloc(parser->node_arena);
-        ast_parse_expression_binary(parser, &binary_expression, expression_node, next_token);
+        ast_parse_expression_binary(parser, &binary_expression, *expression_node, next_token);
+        *expression_node = binary_expression;
         break;
       }
     }
@@ -903,7 +904,7 @@ void ast_parse_expression_assignment(Parser *parser, AstNode *assignment_express
   // AstNode *right = ast_expression(parser, get_precedence(peek_next_token(parser)));
   // That doesn't make sense since we consume the '=' token and not use the precedence of the next token
   AstNode *right = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, right, get_precedence(assignment_token));
+  ast_parse_expression(parser, &right, get_precedence(assignment_token));
 
   assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
   assignment_expression->data.assignement_expression.left_expression = left_factor;
@@ -916,12 +917,12 @@ void ast_parse_expression_conditional(Parser *parser, AstNode *conditional_expre
   ast_expect(parser, TOKEN_QUESTION_MARK);
 
   AstNode *middle = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, middle, 0);
+  ast_parse_expression(parser, &middle, 0);
 
   ast_expect(parser, TOKEN_COLON);
 
   AstNode *right = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, right, get_precedence(conditional_token));
+  ast_parse_expression(parser, &right, get_precedence(conditional_token));
 
   conditional_expression_node->type = AST_EXPRESSION_CONDITIONAL;
   conditional_expression_node->data.conditional_expression.condition = left_expression;
@@ -933,7 +934,7 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
   parser-> current_token_index++;
 
   AstNode *right = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, right, get_precedence(op_type) + 1);
+  ast_parse_expression(parser, &right, get_precedence(op_type) + 1);
 
   AstNode *binary_expression_pointer = *binary_expression;
 
@@ -1086,7 +1087,7 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 
   AstNode *left = arena_alloc(parser->node_arena);
 
-  ast_parse_expression(parser, left, 0);
+  ast_parse_expression(parser, &left, 0);
 
   // AstNode *prefix_assignment = malloc(sizeof(AstNode));
   factor_node->type = AST_EXPRESSION_ASSIGNMENT;
@@ -1115,7 +1116,7 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 
 void ast_parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node) {
   parser->current_token_index++;
-  ast_parse_expression(parser, factor_node, 0);    
+  ast_parse_expression(parser, &factor_node, 0);    
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 }
  
@@ -1148,13 +1149,13 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   }  
 
   AstNode *expression_node = arena_alloc(parser->node_arena);
-  ast_parse_expression(parser, expression_node, 0);
+  ast_parse_expression(parser, &expression_node, 0);
   add_to_node_pointer(expression_node, argument_pointers);
 
   while (current_token(parser)->type == TOKEN_COMMA) {
     ast_expect(parser, TOKEN_COMMA);
     AstNode *next_expression_node = arena_alloc(parser->node_arena);
-    ast_parse_expression(parser, next_expression_node, 0);
+    ast_parse_expression(parser, &next_expression_node, 0);
     add_to_node_pointer(next_expression_node, argument_pointers);
   }
 
