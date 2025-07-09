@@ -48,15 +48,15 @@ void       ast_parse_factor_parenthetical_expression(Parser *parser, AstNode *fa
 void       ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier); 
 void       ast_parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 void       ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
-Token*     current_token(Parser *parser);
-Token*     previous_token(Parser *parser);
+Token*     current_token(const Parser *parser);
+Token*     previous_token(const Parser *parser);
 TokenType  peek_next_token(Parser *parser); 
 char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
 void       add_to_node_pointer(AstNode *node, NodePointer *node_pointer); 
 void       init_node_pointer(NodePointer *node_pointer); 
-bool       end_of_file(Parser *parser);
+bool       end_of_file(const Parser *parser);
 bool       is_binary_operator_token(Parser *parser);
 int        get_precedence(TokenType token_type);
 
@@ -87,7 +87,7 @@ Arena* parse_ast(Token *tokens, int token_count, char *file) {
   return parser_arena;
 }
 
-void print_ast(AstNode *node, int whitespace) {
+void print_ast(const AstNode *node, int whitespace) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
@@ -399,11 +399,11 @@ void print_whitespace(int count) {
   printf("%*s", count, "");
 }
 
-Token* current_token(Parser *parser) {
+Token* current_token(const Parser *parser) {
   return &parser->tokens[parser->current_token_index];
 }
 
-Token* previous_token(Parser *parser) {
+Token* previous_token(const Parser *parser) {
   return &parser->tokens[parser->current_token_index - 1];
 }
 
@@ -415,7 +415,7 @@ TokenType peek_next_token(Parser *parser) {
   return parser->tokens[parser->current_token_index + 1].type;
 }
 
-bool end_of_file(Parser *parser) {
+bool end_of_file(const Parser *parser) {
   return parser->tokens[parser->current_token_index].type == TOKEN_EOF;
 }
 
@@ -552,7 +552,7 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
   function_node->type = AST_FUNCTION_DECLARATION;
   function_node->data.function_declaration.name = id_name;
 
-  //If semi-colon is found, then it is considered a function definition
+  //If semicolon is found, then it is considered a function definition
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
     ast_expect(parser, TOKEN_SEMICOLON);
     return;
@@ -615,8 +615,6 @@ void ast_block(Parser *parser, AstNode *block_node) {
       add_to_node_pointer(statement_node, block_item_pointers);
     }
   }
-
-  ast_expect(parser, TOKEN_CLOSE_BRACE);
 }
 
 char* ast_identifier(Parser *parser) {
@@ -1057,7 +1055,6 @@ void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
     default:
       fprintf(stderr, "ERROR - Parser: Unary token type not found for ast_factor()");
       exit(1);
-      break;
   }
   
   parser->current_token_index++;
@@ -1206,7 +1203,7 @@ int get_precedence(TokenType token_type) {
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:
       return 2;
     default: {
-      // fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precendence\n", TokenTypeStr[token_type]);
+      // fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precedence\n", TokenTypeStr[token_type]);
       // exit(1);
       return -1;
     }

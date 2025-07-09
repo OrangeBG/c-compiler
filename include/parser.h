@@ -116,6 +116,6 @@ typedef struct AstNode {
 
 Arena* parse_ast(Token *tokens, int token_count, char *file);   
 // void print_ast(AstNode *node, int level);
-void print_ast(AstNode *node, int whitespace);
+void print_ast(const AstNode *node, int whitespace);
 
 #endif

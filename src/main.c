@@ -71,15 +71,9 @@ int main(int argc, const char *argv[]) {
 
   benchmarks[2] = clock();
   AstNode *program_node = arena_get_by_index(ast_arena, 0);
-  printf("\n>> START SA VARIABLE RESOLUTION <<\n");
   sa_variable_resolution(program_node);
-  printf(">> END SA VARIABLE RESOLUTION <<\n");
-  printf(">> START SA TYPE CHECK <<\n");
   sa_type_check(program_node);
-  printf(">> END SA TYPE CHECK <<\n");
-  printf(">> START SA LOOP LABELING <<\n");
   sa_loop_labeling(program_node);
-  printf(">> END SA LOOP LABELING <<\n");
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
