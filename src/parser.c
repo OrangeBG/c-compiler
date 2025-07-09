@@ -1,13 +1,12 @@
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include "../include/parser.h"
 #include "../include/arena.h"
 
-#define ADD_WHITESPACE whitespace + 5
+#define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define NODE_POINTER_CAPACITY 8
 
@@ -50,7 +49,7 @@ void       ast_parse_factor_variable_expression(Parser *parser, AstNode *factor_
 void       ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
 Token*     current_token(const Parser *parser);
 Token*     previous_token(const Parser *parser);
-TokenType  peek_next_token(Parser *parser); 
+TokenType  peek_next_token(const Parser *parser); 
 char*      ast_identifier(Parser *parser);
 void       ast_expect(Parser *parser, TokenType expected_type);
 void       print_whitespace(int count); 
@@ -407,7 +406,7 @@ Token* previous_token(const Parser *parser) {
   return &parser->tokens[parser->current_token_index - 1];
 }
 
-TokenType peek_next_token(Parser *parser) {
+TokenType peek_next_token(const Parser *parser) {
   if (current_token(parser)->type == TOKEN_EOF) {
     return TOKEN_EOF;
   }
@@ -420,6 +419,10 @@ bool end_of_file(const Parser *parser) {
 }
 
 void add_to_node_pointer(AstNode *node, NodePointer *node_pointer) {
+  if (node_pointer == NULL) {
+    return;
+  }
+  
   if (node_pointer->count == node_pointer->capacity) {
     int new_size = node_pointer->capacity == 0 ? NODE_POINTER_CAPACITY : node_pointer->capacity * 2;
 
@@ -434,6 +437,10 @@ void add_to_node_pointer(AstNode *node, NodePointer *node_pointer) {
 }
 
 void init_node_pointer(NodePointer *node_pointer) {
+  if (node_pointer == NULL) {
+    return;
+  }
+  
   node_pointer->capacity = 0;
   node_pointer->count = 0;
   node_pointer->node_pointers = NULL;
@@ -1200,8 +1207,6 @@ int get_precedence(TokenType token_type) {
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:
       return 2;
     default: {
-      // fprintf(stderr, "ERROR - Parser: Token '%s 'does not have a supported operator precedence\n", TokenTypeStr[token_type]);
-      // exit(1);
       return -1;
     }
   }
