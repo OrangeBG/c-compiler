@@ -4,7 +4,9 @@
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
     case ASM_PROGRAM:
-      save_assembly_file(asm_node->data.program.function, file);
+      for (int i = 0; i < asm_node->data.program.function_count; i++) {
+        save_assembly_file(asm_node->data.program.function_pointers->asm_pointers[i], file);
+      }
       break;
     case ASM_FUNCTION:
       fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
@@ -15,7 +17,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tmovq\t%%rsp, %%rbp\n");
 
       for (int i = 0; i < asm_node->data.function.instruction_count; i++) {
-        save_assembly_file(&asm_node->data.function.instructions[i], file);
+        save_assembly_file(asm_node->data.function.instruction_pointers->asm_pointers[i], file);
       }
       break;
     case ASM_INSTRUCTION_MOV:
