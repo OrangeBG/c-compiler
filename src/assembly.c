@@ -66,7 +66,6 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
 
     AsmNode *new_function = asm_resolve_instructions(program->data.program.function_pointers->asm_pointers[i]);
 
-    free(program->data.program.function_pointers->asm_pointers[i]);
     program->data.program.function_pointers->asm_pointers[i] = new_function;
   }
   
@@ -348,7 +347,9 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
 
   // AsmNode *instructions = arena_alloc(asm_arena);
   
+  AsmNodePointers *asm_pointers = malloc(sizeof(AsmNodePointers));
   asm_function->data.function.instruction_count = 0;
+  asm_function->data.function.instruction_pointers = asm_pointers;
   // function->data.function.instruction_capacity = 0;
   // function->data.function.instructions = instructions;
 
