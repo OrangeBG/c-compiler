@@ -63,11 +63,17 @@ typedef enum {
   ASM_CONDITION_LESS_EQUAL
 } AsmConditionCode;
 
+typedef struct {
+  int capacity;
+  int count;
+  AsmNode **asm_pointers;
+} AsmNodePointers;
+
 typedef struct AsmNode {
   AsmNodeType type;
   union {
-    struct AsmProgram { struct AsmNode *function; } program;
-    struct AsmFunction { char* name; int instruction_count; int instruction_capacity; AsmNode *instructions; } function;
+    struct AsmProgram { AsmNodePointers *function_pointers; int function_count; } program;
+    struct AsmFunction { char* name; AsmNodePointers *instruction_pointers; int instruction_count; } function;
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionUnary { AsmUnaryOpType unary_op; AsmNode *operand;  } instruction_unary;
     struct AsmInstructionBinary { AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2;  } instruction_binary;
