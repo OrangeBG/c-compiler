@@ -3,12 +3,13 @@
 #include <stdbool.h>
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
+#include "../include/arena.h"
 
-#define INSTRUCTION_CAPACITY 8
+#define NODE_POINTER_CAPACITY 8
 
-AsmNode* asm_function(IRNode *ir_function); 
+void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena); 
 AsmNode* asm_resolve_instructions(AsmNode *function); 
-AsmNode* asm_operand(IRNode *ir_operand);
+AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction);
 void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction); 
@@ -17,94 +18,104 @@ void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
-void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction);
-void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction); 
-void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction); 
-void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction); 
-void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction); 
-void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction); 
-void     asm_instruction_allocate_stack(AsmNode *asm_function); 
-void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction); 
-void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction); 
-void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction); 
-void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction);
-void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction); 
+void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena);
+void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena); 
+void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena); 
+void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena); 
+void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena); 
+void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena); 
+void     asm_instruction_allocate_stack(AsmNode *asm_function, Arena *asm_arena); 
+void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
+void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena); 
+void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena); 
+void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena);
+void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
 void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
-void     check_function_instruction_size(AsmNode *asm_function); 
+void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
+void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 
 AsmNode* generate_assembly(IRNode *ir_nodes) {  
-  AsmNode *program = malloc(sizeof(AsmNode));
+  Arena *asm_arena = malloc(sizeof(AsmNode));
+  //TODO: Hardcoded capacity
+  arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
 
+  AsmNodePointers *node_pointer = malloc(sizeof(AsmNodePointers));
+  
+  AsmNode *program = arena_alloc(asm_arena);
   program->type = ASM_PROGRAM;
+  program->data.program.function_count = 0;
+  program->data.program.function_pointers = node_pointer;
 
   for (int i = 0; i < ir_nodes->data.program.function_count; i++) {
-    //TODO: Need to expand 
-    program->data.program.function = asm_function(&ir_nodes->data.program.functions[i]); 
+    AsmNode *function = arena_alloc(asm_arena);
+    asm_add_to_node_pointer(function, node_pointer);
+    asm_function(&ir_nodes->data.program.functions[i], function, asm_arena); 
+    program->data.program.function_count++;
   }
 
-  int stack_offset = 0;
+  for (int i = 0; i < program->data.program.function_count; i++) {
+    int stack_offset = 0;
+    asm_pseudo_register_pass(program->data.program.function_pointers->asm_pointers[i], &stack_offset);
 
-  asm_pseudo_register_pass(program->data.program.function, &stack_offset);
+    if (program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
+      fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.function_pointers->asm_pointers[i]->data.function.name);
+      exit(1);
+    } 
 
-  if (program->data.program.function->data.function.instructions[0].type != ASM_INSTRUCTION_ALLOCATE_STACK) {
-    fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.function->data.function.name);
-    exit(1);
-  } 
+    program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+
+    AsmNode *new_function = asm_resolve_instructions(program->data.program.function_pointers->asm_pointers[i]);
+
+    program->data.program.function_pointers->asm_pointers[i] = new_function;
+  }
   
-  program->data.program.function->data.function.instructions[0].data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
-
-  AsmNode *new_function = asm_resolve_instructions(program->data.program.function);
-
-  free(program->data.program.function);
-  program->data.program.function = new_function;
   return program;
 }
 
 AsmNode* asm_resolve_instructions(AsmNode *function) {
-  AsmNode *new_instructions = malloc(sizeof(AsmNode));
+  AsmNodePointers *new_instructions = malloc(sizeof(AsmNodePointers));
   AsmNode *new_function = malloc(sizeof(AsmNode));
   new_function->type = ASM_FUNCTION;
   new_function->data.function.name = function->data.function.name;
   new_function->data.function.instruction_count = 0;
-  new_function->data.function.instruction_capacity = 0;
-  new_function->data.function.instructions = new_instructions;
+  new_function->data.function.instruction_pointers = new_instructions;
   
-  AsmNode *instructions = function->data.function.instructions;
+  AsmNodePointers *instruction_ptr = function->data.function.instruction_pointers;
 
   for (int i = 0; i < function->data.function.instruction_count; i++) {
-    AsmNodeType instruction_type = instructions[i].type;
+    AsmNodeType instruction_type = instruction_ptr->asm_pointers[i]->type;
 
-    if (instruction_type == ASM_INSTRUCTION_MOV && instructions[i].data.instruction_mov.destination->type == ASM_OPERAND_STACK && instructions[i].data.instruction_mov.source->type == ASM_OPERAND_STACK) {
+    if (instruction_type == ASM_INSTRUCTION_MOV && instruction_ptr->asm_pointers[i]->data.instruction_mov.destination->type == ASM_OPERAND_STACK && instruction_ptr->asm_pointers[i]->data.instruction_mov.source->type == ASM_OPERAND_STACK) {
       //MOV instructions cannot have both a source and destination as memory addresses
-      asm_resolve_mov_memory_addresses(new_function, &instructions[i]);
+      asm_resolve_mov_memory_addresses(new_function, instruction_ptr->asm_pointers[i]);
       continue;
-    } else if (instruction_type == ASM_INSTRUCTION_CMP && instructions[i].data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
+    } else if (instruction_type == ASM_INSTRUCTION_CMP && instruction_ptr->asm_pointers[i]->data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instruction_ptr->asm_pointers[i]->data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
       //CMP instructions cannot have both a source and destination as memory addresses
-      asm_resolve_cmp_memory_addresses(new_function, &instructions[i]);
+      asm_resolve_cmp_memory_addresses(new_function, instruction_ptr->asm_pointers[i]);
       continue;      
-    } else if (instruction_type == ASM_INSTRUCTION_CMP && instructions[i].data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
+    } else if (instruction_type == ASM_INSTRUCTION_CMP && instruction_ptr->asm_pointers[i]->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
       //CMP instructions cannot have a constant as the second operand.
       //TODO: Investigate if this is also needed for sub, add, and imul instructions
-      asm_resolve_cmp_constant_in_operand_2(new_function, &instructions[i]);
+      asm_resolve_cmp_constant_in_operand_2(new_function, instruction_ptr->asm_pointers[i]);
       continue;
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.binary_op == ASM_BINARY_ADD || instructions[i].data.instruction_binary.binary_op == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instruction_ptr->asm_pointers[i]->data.instruction_binary.binary_op == ASM_BINARY_ADD || instruction_ptr->asm_pointers[i]->data.instruction_binary.binary_op == ASM_BINARY_SUB)  && (instruction_ptr->asm_pointers[i]->data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instruction_ptr->asm_pointers[i]->data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
       //ADD and SUB instructions cannot have both a source and destination as memory addresses
-      asm_resolve_binary_add_sub_memory_addresses(new_function, &instructions[i]);
+      asm_resolve_binary_add_sub_memory_addresses(new_function, instruction_ptr->asm_pointers[i]);
       continue;
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && instructions[i].data.instruction_binary.binary_op == ASM_BINARY_MULT && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && instruction_ptr->asm_pointers[i]->data.instruction_binary.binary_op == ASM_BINARY_MULT && instruction_ptr->asm_pointers[i]->data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
       //MUL instructions cannot use a memory address as its destination
-      asm_resolve_binary_mul_memory_addresses(new_function, &instructions[i]);
+      asm_resolve_binary_mul_memory_addresses(new_function, instruction_ptr->asm_pointers[i]);
       continue;
-    } else if (instructions[i].type == ASM_INSTRUCTION_IDIV && instructions[i].data.instruction_idiv.operand->type == ASM_OPERAND_IMM) {
+    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_IDIV && instruction_ptr->asm_pointers[i]->data.instruction_idiv.operand->type == ASM_OPERAND_IMM) {
       //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
-      asm_resolve_idiv_instructions(new_function, &instructions[i]);
+      asm_resolve_idiv_instructions(new_function, instruction_ptr->asm_pointers[i]);
       continue;
     }
 
     AsmNode *new_instruction = malloc(sizeof(AsmNode));
 
-    new_instruction->type = instructions[i].type;
-    new_instruction->data = instructions[i].data;
+    new_instruction->type = instruction_ptr->asm_pointers[i]->type;
+    new_instruction->data = instruction_ptr->asm_pointers[i]->data;
 
     asm_add_instruction_to_function(new_function, new_instruction);
   }
@@ -256,7 +267,7 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
   hash_table_init(&stack_location_table);
   
   for (int i = 0; i < asm_function->data.function.instruction_count; i++) {
-    AsmNode *instruction = &asm_function->data.function.instructions[i];
+    AsmNode *instruction = asm_function->data.function.instruction_pointers->asm_pointers[i];
 
     switch(instruction->type) {
       case ASM_INSTRUCTION_MOV:        
@@ -330,30 +341,31 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
   pseudo_register->data.operand_stack.address = table_entry->value->integer;
 }
 
-AsmNode* asm_function(IRNode *ir_function) {
-  AsmNode *function = malloc(sizeof(AsmNode));
-  function->type = ASM_FUNCTION;
-  function->data.function.name = ir_function->data.function.identifier;
+void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
+  asm_function->type = ASM_FUNCTION;
+  asm_function->data.function.name = ir_function->data.function.identifier;
 
-  AsmNode *instructions = malloc(sizeof(AsmNode));
+  // AsmNode *instructions = arena_alloc(asm_arena);
   
-  function->data.function.instruction_count = 0;
-  function->data.function.instruction_capacity = 0;
-  function->data.function.instructions = instructions;
+  AsmNodePointers *asm_pointers = malloc(sizeof(AsmNodePointers));
+  asm_function->data.function.instruction_count = 0;
+  asm_function->data.function.instruction_pointers = asm_pointers;
+  // function->data.function.instruction_capacity = 0;
+  // function->data.function.instructions = instructions;
 
   //Adds the Allocate Stack instruction, but will allocate the stack offset value of the instruction in another pass after building the assembly nodes
-  asm_instruction_allocate_stack(function);
+  asm_instruction_allocate_stack(asm_function, asm_arena);
 
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
     switch (ir_function->data.function.instructions[i].type) {
       case IR_INSTRUCTION_RET:
-        asm_instruction_return(function, &ir_function->data.function.instructions[i]);
+        asm_instruction_return(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         break;
       case IR_INSTRUCTION_UNARY:
         if (ir_function->data.function.instructions[i].data.unary.op_type == IR_UNARY_NOT) {
-          asm_instruction_unary_not(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_unary_not(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         } else {
-          asm_instruction_unary(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_unary(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         }
         break;
       case IR_INSTRUCTION_BINARY:        
@@ -366,7 +378,7 @@ AsmNode* asm_function(IRNode *ir_function) {
           case IR_BINARY_BITWISE_XOR:
           case IR_BINARY_BITWISE_LEFT_SHIFT:
           case IR_BINARY_BITWISE_RIGHT_SHIFT:
-            asm_instruction_binary(function, &ir_function->data.function.instructions[i]);
+            asm_instruction_binary(asm_function, &ir_function->data.function.instructions[i], asm_arena);
             break;
           case IR_BINARY_EQUAL:
           case IR_BINARY_NOT_EQUAL:
@@ -374,58 +386,56 @@ AsmNode* asm_function(IRNode *ir_function) {
           case IR_BINARY_GREATER_OR_EQUAL:
           case IR_BINARY_LESS_THAN:
           case IR_BINARY_LESS_OR_EQUAL:
-            asm_instruction_binary_relational(function, &ir_function->data.function.instructions[i]);
+            asm_instruction_binary_relational(asm_function, &ir_function->data.function.instructions[i], asm_arena);
             break;
           default:
-            asm_instruction_binary_division(function, &ir_function->data.function.instructions[i]);
+            asm_instruction_binary_division(asm_function, &ir_function->data.function.instructions[i], asm_arena);
             break;
         }
         break;
         case IR_INSTRUCTION_JUMP:
-          asm_instruction_jump(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_jump(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         break;
         case IR_INSTRUCTION_JUMP_IF_ZERO:
-          asm_instruction_jump_if_zero(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_jump_if_zero(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         break;
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:
-          asm_instruction_jump_if_not_zero(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_jump_if_not_zero(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         break;
         case IR_INSTRUCTION_COPY:
-          asm_instruction_copy(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_copy(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         break;
         case IR_INSTRUCTION_LABEL:
-          asm_instruction_label(function, &ir_function->data.function.instructions[i]);
+          asm_instruction_label(asm_function, &ir_function->data.function.instructions[i], asm_arena);
         break;
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
         exit(1);
     }
   }
-
-  return function;
 }
 
-void asm_instruction_allocate_stack(AsmNode *asm_function) {
-  AsmNode *allocate_stack_instruction = malloc(sizeof(AsmNode));
+void asm_instruction_allocate_stack(AsmNode *asm_function, Arena *asm_arena) {
+  AsmNode *allocate_stack_instruction = arena_alloc(asm_arena);
   allocate_stack_instruction->type = ASM_INSTRUCTION_ALLOCATE_STACK;
   allocate_stack_instruction->data.instruction_allocate_stack.bytes_to_subtract = 0;
 
   asm_add_instruction_to_function(asm_function, allocate_stack_instruction);
 }
 
-void asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction) {
-  AsmNode *label = malloc(sizeof(AsmNode));
+void asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena) {
+  AsmNode *label = arena_alloc(asm_arena);
   label->type = ASM_INSTRUCTION_LABEL;
   label->data.instruction_label.identifier = ir_label_instruction->data.instruction_label.identifier;
 
   asm_add_instruction_to_function(asm_function, label);
 }
 
-void asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction) {
-  AsmNode *source = asm_operand(ir_copy_instruction->data.instruction_copy.source);
-  AsmNode *destination = asm_operand(ir_copy_instruction->data.instruction_copy.destination);
+void asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena) {
+  AsmNode *source = asm_operand(ir_copy_instruction->data.instruction_copy.source, asm_arena);
+  AsmNode *destination = asm_operand(ir_copy_instruction->data.instruction_copy.destination, asm_arena);
 
-  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = source;
   mov_instruction->data.instruction_mov.destination = destination;
@@ -433,21 +443,21 @@ void asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction) {
   asm_add_instruction_to_function(asm_function, mov_instruction);
 }
 
-void asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction) {
-  AsmNode *jmp_instruction = malloc(sizeof(AsmNode));
+void asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena) {
+  AsmNode *jmp_instruction = arena_alloc(asm_arena);
   jmp_instruction->type = ASM_INSTRUCTION_JMP;
   jmp_instruction->data.instruction_jmp.identifier = ir_jump_instruction->data.instruction_jump.target;
 
   asm_add_instruction_to_function(asm_function, jmp_instruction); 
 }
 
-void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction) {
-  AsmNode *imm = malloc(sizeof(AsmNode));
+void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena) {
+  AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
   
-  AsmNode *condition = asm_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition);
-  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  AsmNode *condition = asm_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, asm_arena);
+  AsmNode *cmp_instruction = arena_alloc(asm_arena);
 
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
@@ -455,7 +465,7 @@ void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero
   
   asm_add_instruction_to_function(asm_function, cmp_instruction);
   
-  AsmNode *jmp_instruction = malloc(sizeof(AsmNode));
+  AsmNode *jmp_instruction = arena_alloc(asm_arena);
   jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
   jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_EQUAL;
   jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target;
@@ -463,13 +473,13 @@ void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero
   asm_add_instruction_to_function(asm_function, jmp_instruction);
 }
 
-void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction) {
-  AsmNode *imm = malloc(sizeof(AsmNode));
+void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena) {
+  AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
   
-  AsmNode *condition = asm_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition);;
-  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  AsmNode *condition = asm_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, asm_arena);
+  AsmNode *cmp_instruction = arena_alloc(asm_arena);
 
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
@@ -477,7 +487,7 @@ void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_
   
   asm_add_instruction_to_function(asm_function, cmp_instruction);
   
-  AsmNode *jmp_instruction = malloc(sizeof(AsmNode));
+  AsmNode *jmp_instruction = arena_alloc(asm_arena);
   jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
   jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_NOT_EQUAL;
   jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.target;
@@ -485,17 +495,17 @@ void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_
   asm_add_instruction_to_function(asm_function, jmp_instruction);
 }
 
-void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction) {
-  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1);
-  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2);
-  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination);
+void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena) {
+  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
+  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
+  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
 
-  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = source_1;
   mov_instruction->data.instruction_mov.destination = destination_node;
 
-  AsmNode *binary_instruction = malloc(sizeof(AsmNode));
+  AsmNode *binary_instruction = arena_alloc(asm_arena);
   binary_instruction->type = ASM_INSTRUCTION_BINARY;
   binary_instruction->data.instruction_binary.operand_1 = source_2;
   binary_instruction->data.instruction_binary.operand_2 = destination_node;
@@ -535,29 +545,30 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
   asm_add_instruction_to_function(asm_function, binary_instruction);
 }
 
-void asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction) {
-  AsmNode *source = asm_operand(ir_unary_not_instruction->data.unary.source);
-  AsmNode *destination_node = asm_operand(ir_unary_not_instruction->data.unary.destination);
+void asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena) {
+  AsmNode *source = asm_operand(ir_unary_not_instruction->data.unary.source, asm_arena);
+  AsmNode *destination_node = asm_operand(ir_unary_not_instruction->data.unary.destination, asm_arena);
 
-  AsmNode *imm_operand = malloc(sizeof(AsmNode));
+  AsmNode *imm_operand = arena_alloc(asm_arena);
   imm_operand->type = ASM_OPERAND_IMM;
   imm_operand->data.operand_imm.value = 0;
 
-  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  AsmNode *cmp_instruction = arena_alloc(asm_arena);
+
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = imm_operand;
   cmp_instruction->data.instruction_cmp.operand_2 = source;
 
   asm_add_instruction_to_function(asm_function, cmp_instruction);
 
-  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = imm_operand;
   mov_instruction->data.instruction_mov.destination = destination_node;
 
   asm_add_instruction_to_function(asm_function, mov_instruction);
 
-  AsmNode *set_cc_instruction = malloc(sizeof(AsmNode));  
+  AsmNode *set_cc_instruction = arena_alloc(asm_arena);  
   set_cc_instruction->type = ASM_INSTRUCTION_SETCC;
   set_cc_instruction->data.instruction_set_cc.condition_code = ASM_CONDITION_EQUAL;
   set_cc_instruction->data.instruction_set_cc.operand = destination_node;
@@ -565,23 +576,23 @@ void asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instr
   asm_add_instruction_to_function(asm_function, set_cc_instruction);
 }
 
-void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction) {
-  AsmNode *source_1 = asm_operand(ir_relational_instruction->data.instruction_binary.source_1);
-  AsmNode *source_2 = asm_operand(ir_relational_instruction->data.instruction_binary.source_2);
-  AsmNode *destination_node = asm_operand(ir_relational_instruction->data.instruction_binary.destination);
+void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena) {
+  AsmNode *source_1 = asm_operand(ir_relational_instruction->data.instruction_binary.source_1, asm_arena);
+  AsmNode *source_2 = asm_operand(ir_relational_instruction->data.instruction_binary.source_2, asm_arena);
+  AsmNode *destination_node = asm_operand(ir_relational_instruction->data.instruction_binary.destination, asm_arena);
 
-  AsmNode *cmp_instruction = malloc(sizeof(AsmNode));
+  AsmNode *cmp_instruction = arena_alloc(asm_arena);
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = source_2;
   cmp_instruction->data.instruction_cmp.operand_2 = source_1;
   
   asm_add_instruction_to_function(asm_function, cmp_instruction);
 
-  AsmNode *imm_operand = malloc(sizeof(AsmNode));
+  AsmNode *imm_operand = arena_alloc(asm_arena);
   imm_operand->type = ASM_OPERAND_IMM;
   imm_operand->data.operand_imm.value = 0;
 
-  AsmNode *mov_instruction = malloc(sizeof(AsmNode));
+  AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = imm_operand;
   mov_instruction->data.instruction_mov.destination = destination_node;
@@ -603,7 +614,7 @@ void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relatio
       break;
   }
 
-  AsmNode *set_cc_instruction = malloc(sizeof(AsmNode));
+  AsmNode *set_cc_instruction = arena_alloc(asm_arena);
   set_cc_instruction->type = ASM_INSTRUCTION_SETCC;  
   set_cc_instruction->data.instruction_set_cc.condition_code = relational_op;
   set_cc_instruction->data.instruction_set_cc.operand = destination_node;
@@ -611,16 +622,16 @@ void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relatio
   asm_add_instruction_to_function(asm_function, set_cc_instruction);
 }
 
-void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction) {
-  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1);
-  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2);
-  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination);
+void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena) {
+  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
+  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
+  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
 
-  AsmNode *mov_instruction_1 = malloc(sizeof(AsmNode));
+  AsmNode *mov_instruction_1 = arena_alloc(asm_arena);
   mov_instruction_1->type = ASM_INSTRUCTION_MOV;
   mov_instruction_1->data.instruction_mov.source = source_1;
 
-  AsmNode *mov_destination_1 = malloc(sizeof(AsmNode));
+  AsmNode *mov_destination_1 = arena_alloc(asm_arena);
   mov_destination_1->type = ASM_OPERAND_REGISTER;
   mov_destination_1->data.operand_register.op_register = ASM_REGISTER_AX;
   
@@ -628,22 +639,22 @@ void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_bin
 
   asm_add_instruction_to_function(asm_function, mov_instruction_1);
 
-  AsmNode *cdq_instruction = malloc(sizeof(AsmNode));
+  AsmNode *cdq_instruction = arena_alloc(asm_arena);
   cdq_instruction->type = ASM_INSTRUCTION_CDQ;
 
   asm_add_instruction_to_function(asm_function, cdq_instruction);
   
-  AsmNode *idiv_instruction = malloc(sizeof(AsmNode));
+  AsmNode *idiv_instruction = arena_alloc(asm_arena);
   idiv_instruction->type = ASM_INSTRUCTION_IDIV;
   idiv_instruction->data.instruction_idiv.operand = source_2;
 
   asm_add_instruction_to_function(asm_function, idiv_instruction);
 
-  AsmNode *mov_instruction_2 = malloc(sizeof(AsmNode));
+  AsmNode *mov_instruction_2 = arena_alloc(asm_arena);
   mov_instruction_2->type = ASM_INSTRUCTION_MOV;
   mov_instruction_2->data.instruction_mov.destination = destination_node;
 
-  AsmNode *mov_destination_2 = malloc(sizeof(AsmNode));
+  AsmNode *mov_destination_2 = arena_alloc(asm_arena);
   mov_destination_2->type = ASM_OPERAND_REGISTER;
   
   if (ir_binary_instruction->data.instruction_binary.op_type == IR_BINARY_DIVIDE) {
@@ -657,11 +668,11 @@ void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_bin
   asm_add_instruction_to_function(asm_function, mov_instruction_2);
 }
  
-void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) {
-  AsmNode *source_node = asm_operand(ir_unary_instruction->data.unary.source);
-  AsmNode *destination_node = asm_operand(ir_unary_instruction->data.unary.destination);
+void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena) {
+  AsmNode *source_node = asm_operand(ir_unary_instruction->data.unary.source, asm_arena);
+  AsmNode *destination_node = asm_operand(ir_unary_instruction->data.unary.destination, asm_arena);
 
-  AsmNode *mov_node = malloc(sizeof(AsmNode));
+  AsmNode *mov_node = arena_alloc(asm_arena);
 
   mov_node->type = ASM_INSTRUCTION_MOV;
   mov_node->data.instruction_mov.source = source_node;
@@ -669,7 +680,7 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
 
   asm_add_instruction_to_function(asm_function, mov_node);
   
-  AsmNode *ret_node = malloc(sizeof(AsmNode));
+  AsmNode *ret_node = arena_alloc(asm_arena);
   ret_node->type = ASM_INSTRUCTION_UNARY;
 
   if (ir_unary_instruction->data.unary.op_type == IR_UNARY_NEGATE) {
@@ -680,18 +691,17 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
   
   ret_node->data.instruction_unary.operand = destination_node;
 
-
   asm_add_instruction_to_function(asm_function, ret_node);
 }
 
-void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction) {
-  AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value);
+void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena) {
+  AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value, asm_arena);
 
-  AsmNode *destination_node = malloc(sizeof(AsmNode));
+  AsmNode *destination_node = arena_alloc(asm_arena);
   destination_node->type = ASM_OPERAND_REGISTER;
   destination_node->data.operand_register.op_register = ASM_REGISTER_AX;  
 
-  AsmNode *mov_node = malloc(sizeof(AsmNode));
+  AsmNode *mov_node = arena_alloc(asm_arena);
   mov_node->type = ASM_INSTRUCTION_MOV;
 
   mov_node->data.instruction_mov.source = source_node;
@@ -699,21 +709,19 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
 
   asm_add_instruction_to_function(asm_function, mov_node);
 
-  AsmNode *ret_node = malloc(sizeof(AsmNode));
+  AsmNode *ret_node = arena_alloc(asm_arena);
   ret_node->type = ASM_INSTRUCTION_RET;
 
   asm_add_instruction_to_function(asm_function, ret_node);
 }
 
 void asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction) {
-  check_function_instruction_size(function);
-
-  function->data.function.instructions[function->data.function.instruction_count] = *instruction;
+  asm_add_to_node_pointer(instruction, function->data.function.instruction_pointers);
   function->data.function.instruction_count++;
 }
 
-AsmNode* asm_operand(IRNode *ir_operand) {
-  AsmNode *asm_operand = malloc(sizeof(AsmNode));
+AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
+  AsmNode *asm_operand = arena_alloc(asm_arena);
 
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
@@ -732,32 +740,22 @@ AsmNode* asm_operand(IRNode *ir_operand) {
   return asm_operand;
 }
 
-void check_function_instruction_size(AsmNode *asm_function) {
-  int current_count = asm_function->data.function.instruction_count;
-  int current_capacity = asm_function->data.function.instruction_capacity;
-
-  if (current_count == current_capacity) {
-    int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * 2;
-
-    AsmNode *instructions = realloc(asm_function->data.function.instructions, new_size * sizeof(AsmNode));
-
-    asm_function->data.function.instruction_capacity = new_size;
-    asm_function->data.function.instructions = instructions;
-  } 
-} 
-
 void print_assembly(AsmNode *node) {
   switch(node->type) {    
     case ASM_PROGRAM:
       printf("Program \n");
-      print_assembly(node->data.program.function);
+
+      for (int i = 0; i < node->data.program.function_count; i++) {
+        print_assembly(node->data.program.function_pointers->asm_pointers[i]);
+      }
+
       printf("\n");
       break;
     case ASM_FUNCTION:
       printf("Function: %s -> Instruction count: %d\n", node->data.function.name, node->data.function.instruction_count);
 
       for (int i = 0; i < node->data.function.instruction_count; i++) {
-        print_assembly(&node->data.function.instructions[i]);
+        print_assembly(node->data.function.instruction_pointers->asm_pointers[i]);
       }      
       break;
     case ASM_INSTRUCTION_MOV:
@@ -866,4 +864,32 @@ void print_assembly(AsmNode *node) {
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
       break;
   }
+}
+
+void asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer) {
+  if (asm_node_pointer == NULL) {
+    return;
+  }
+  
+  if (asm_node_pointer->count == asm_node_pointer->capacity) {
+    int new_size = asm_node_pointer->capacity == 0 ? NODE_POINTER_CAPACITY : asm_node_pointer->capacity * 2;
+
+    AsmNode **realloc_pointers = realloc(asm_node_pointer->asm_pointers, new_size * sizeof(AsmNode**));
+
+    asm_node_pointer->capacity = new_size;
+    asm_node_pointer->asm_pointers = realloc_pointers;
+  } 
+
+  asm_node_pointer->asm_pointers[asm_node_pointer->count] = asm_node;
+  asm_node_pointer->count++;
+}
+
+void asm_init_node_pointer(AsmNodePointers *asm_node_pointer) {
+  if (asm_node_pointer == NULL) {
+    return;
+  }
+  
+  asm_node_pointer->capacity = 0;
+  asm_node_pointer->count = 0;
+  asm_node_pointer->asm_pointers = NULL;
 }
