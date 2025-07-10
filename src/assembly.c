@@ -87,11 +87,11 @@ AsmNode* asm_resolve_instructions(AsmNode *function) {
       //TODO: Investigate if this is also needed for sub, add, and imul instructions
       asm_resolve_cmp_constant_in_operand_2(new_function, &instructions[i]);
       continue;
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.operator == ASM_BINARY_ADD || instructions[i].data.instruction_binary.operator == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instructions[i].data.instruction_binary.binary_op == ASM_BINARY_ADD || instructions[i].data.instruction_binary.binary_op == ASM_BINARY_SUB)  && (instructions[i].data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
       //ADD and SUB instructions cannot have both a source and destination as memory addresses
       asm_resolve_binary_add_sub_memory_addresses(new_function, &instructions[i]);
       continue;
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && instructions[i].data.instruction_binary.operator == ASM_BINARY_MULT && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
+    } else if (instruction_type == ASM_INSTRUCTION_BINARY && instructions[i].data.instruction_binary.binary_op == ASM_BINARY_MULT && instructions[i].data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
       //MUL instructions cannot use a memory address as its destination
       asm_resolve_binary_mul_memory_addresses(new_function, &instructions[i]);
       continue;
@@ -147,7 +147,7 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
 
   AsmNode *mull_instruction = malloc(sizeof(AsmNode));
   mull_instruction->type = ASM_INSTRUCTION_BINARY;
-  mull_instruction->data.instruction_binary.operator = ASM_BINARY_MULT;
+  mull_instruction->data.instruction_binary.binary_op = ASM_BINARY_MULT;
   mull_instruction->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
   mull_instruction->data.instruction_binary.operand_2 = destination;
 
@@ -502,28 +502,28 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
 
   switch (ir_binary_instruction->data.instruction_binary.op_type) {
     case IR_BINARY_ADD:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_ADD;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_ADD;
       break;
     case IR_BINARY_SUBTRACT:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_SUB;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_SUB;
       break;
     case IR_BINARY_MULTIPLY:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_MULT;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_MULT;
       break;
     case IR_BINARY_BITWISE_AND:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_AND;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_AND;
       break;
     case IR_BINARY_BITWISE_OR:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_OR;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_OR;
       break;
     case IR_BINARY_BITWISE_XOR:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_XOR;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_XOR;
       break;
     case IR_BINARY_BITWISE_LEFT_SHIFT:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_LEFT_SHIFT;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_LEFT_SHIFT;
       break;
     case IR_BINARY_BITWISE_RIGHT_SHIFT:
-      binary_instruction->data.instruction_binary.operator = ASM_BINARY_BITWISE_RIGHT_SHIFT;
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_RIGHT_SHIFT;
       break;
     default:
       fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation");
@@ -673,9 +673,9 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction) 
   ret_node->type = ASM_INSTRUCTION_UNARY;
 
   if (ir_unary_instruction->data.unary.op_type == IR_UNARY_NEGATE) {
-    ret_node->data.instruction_unary.operator = ASM_UNARY_NEG;
+    ret_node->data.instruction_unary.unary_op = ASM_UNARY_NEG;
   } else {
-    ret_node->data.instruction_unary.operator = ASM_UNARY_NOT;
+    ret_node->data.instruction_unary.unary_op = ASM_UNARY_NOT;
   }
   
   ret_node->data.instruction_unary.operand = destination_node;
@@ -773,7 +773,7 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_INSTRUCTION_UNARY:
       printf("UNARY -> Operator( ");
-      switch (node->data.instruction_unary.operator) {
+      switch (node->data.instruction_unary.unary_op) {
         case ASM_UNARY_NEG: printf("NEG )"); break;
         case ASM_UNARY_NOT: printf("NOT )"); break;
       }
@@ -783,7 +783,7 @@ void print_assembly(AsmNode *node) {
       printf(")\n");
       break;
     case ASM_INSTRUCTION_BINARY:
-      switch (node->data.instruction_binary.operator) {
+      switch (node->data.instruction_binary.binary_op) {
         case ASM_BINARY_ADD:                  printf("ADD -> "); break;
         case ASM_BINARY_SUB:                  printf("SUB -> "); break;
         case ASM_BINARY_MULT:                 printf("MUL -> "); break;

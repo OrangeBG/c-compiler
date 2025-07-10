@@ -85,7 +85,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "L%s:\n", asm_node->data.instruction_label.identifier);
       break;
     case ASM_INSTRUCTION_UNARY:
-      if (asm_node->data.instruction_unary.operator == ASM_UNARY_NEG) {
+      if (asm_node->data.instruction_unary.unary_op == ASM_UNARY_NEG) {
         fprintf(file, "\tnegl\t");
       } else {
         fprintf(file, "\tnotl\t");
@@ -94,7 +94,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_BINARY:
-      switch (asm_node->data.instruction_binary.operator) {
+      switch (asm_node->data.instruction_binary.binary_op) {
         case ASM_BINARY_ADD:                  fprintf(file, "\taddl\t"); break;
         case ASM_BINARY_SUB:                  fprintf(file, "\tsubl\t"); break;
         case ASM_BINARY_MULT:                 fprintf(file, "\timull\t"); break;        

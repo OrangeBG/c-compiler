@@ -44,7 +44,12 @@ typedef enum {
 
 typedef enum {
   ASM_REGISTER_AX,
+  ASM_REGISTER_CX,
   ASM_REGISTER_DX,
+  ASM_REGISTER_DI,
+  ASM_REGISTER_SI,
+  ASM_REGISTER_R8,
+  ASM_REGISTER_R9,
   ASM_REGISTER_R10,
   ASM_REGISTER_R11
 } AsmRegisterType;
@@ -64,8 +69,8 @@ typedef struct AsmNode {
     struct AsmProgram { struct AsmNode *function; } program;
     struct AsmFunction { char* name; int instruction_count; int instruction_capacity; AsmNode *instructions; } function;
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
-    struct AsmInstructionUnary { AsmUnaryOpType operator; AsmNode *operand;  } instruction_unary;
-    struct AsmInstructionBinary { AsmBinaryOpType operator; AsmNode *operand_1; AsmNode *operand_2;  } instruction_binary;
+    struct AsmInstructionUnary { AsmUnaryOpType unary_op; AsmNode *operand;  } instruction_unary;
+    struct AsmInstructionBinary { AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2;  } instruction_binary;
     struct AsmInstructionIdiv { AsmNode *operand; } instruction_idiv;
     struct AsmInstructionCmp { AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
     struct AsmInstructionJmp { char *identifier; } instruction_jmp;
@@ -77,6 +82,9 @@ typedef struct AsmNode {
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier;  } operand_pseudo_register;
     struct AsmOperandStack { int address;  } operand_stack;
+    struct AsmDeallocateStack { int address; } deallocate_stack;
+    struct AsmPush { AsmNode *operand; } push;
+    struct AsmCall { char *identifier; } call;
   } data;
 } AsmNode;
 
