@@ -107,7 +107,11 @@ int main(int argc, const char *argv[]) {
 
     save_assembly_file(asm_nodes, assembly_file);
 
-    system("clang -arch x86_64 -c assembly.asm -o assembly.o");
+    #ifdef __x86_64__
+      system("clang -c assembly.asm -o assembly.o");
+    #else 
+      system("clang -arch x86_64 -c assembly.asm -o assembly.o");
+    #endif
     
     printf("\n>> CODE EMIT PRINT <<\n\n");
     rewind(assembly_file);
