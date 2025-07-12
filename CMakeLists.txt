@@ -9,4 +9,4 @@ add_executable(c-compiler src/main.c src/lexer.c include/lexer.h src/parser.c in
 add_custom_command(TARGET c-compiler POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
         $<TARGET_FILE:c-compiler>
-        ${CMAKE_BINARY_DIR}/../test/build-osx)
+        ${CMAKE_BINARY_DIR}/../test/build)
