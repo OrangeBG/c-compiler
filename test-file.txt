@@ -1,12 +1,13 @@
 int main(void) {
-    int a = 3;
-    int b = 7;
+    int foo(int a);
 
-    a += b;
+    foo(3);
 
-    {
-        int a = 0;
-    }
+    return 0;
+}
 
+int foo(int a) {
     return a;
 }
+
+
