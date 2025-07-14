@@ -36,7 +36,7 @@
 
 		    return foo(45);
 		}
-	- Assembler error with the following:
+	- Assembler error with the following. It comes from having a function call in the binary expression in caller():
 		int fun(int a, int b, int c, int d, int e, int f, int g, int h) {
 			return a + h;
 		}

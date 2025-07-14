@@ -730,7 +730,9 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   }
 
   for (int i = 0; i < arg_count; i++) {
+
     if (i < 6) {
+      AsmNode *arg = asm_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena);
 
 
       continue;
