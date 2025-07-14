@@ -89,7 +89,7 @@ void hash_table_expand(HashTable *table, int new_capacity) {
   for (int i = 0; i < table->capacity; i++) {
     HashTableEntry old_entry = table->entries[i];
 
-    if (old_entry.value->type == HASH_TOMBSTONE || old_entry.key == NULL) {
+    if (old_entry.key == NULL || old_entry.value->type == HASH_TOMBSTONE) {
       continue;
     }
 
