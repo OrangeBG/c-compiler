@@ -24,12 +24,13 @@ void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_i
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena); 
 void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena); 
 void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena); 
-void     asm_instruction_allocate_stack(AsmNode *asm_function, Arena *asm_arena); 
+void     asm_instruction_allocate_stack(AsmNode *asm_function, int padding, Arena *asm_arena); 
 void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
 void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena); 
 void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena); 
 void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena);
 void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
+void     asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena);
 void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
@@ -347,18 +348,14 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
 void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
   asm_function->type = ASM_FUNCTION;
   asm_function->data.function.name = ir_function->data.function.identifier;
-
-  // AsmNode *instructions = arena_alloc(asm_arena);
   
   AsmNodePointers *asm_pointers = malloc(sizeof(AsmNodePointers));
   asm_init_node_pointer(asm_pointers);
   asm_function->data.function.instruction_count = 0;
   asm_function->data.function.instruction_pointers = asm_pointers;
-  // function->data.function.instruction_capacity = 0;
-  // function->data.function.instructions = instructions;
 
   //Adds the Allocate Stack instruction, but will allocate the stack offset value of the instruction in another pass after building the assembly nodes
-  asm_instruction_allocate_stack(asm_function, asm_arena);
+  asm_instruction_allocate_stack(asm_function, 0, asm_arena);
 
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
     switch (ir_function->data.function.instructions[i].type) {
@@ -396,22 +393,25 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
             asm_instruction_binary_division(asm_function, &ir_function->data.function.instructions[i], asm_arena);
             break;
         }
-        break;
+          break;
         case IR_INSTRUCTION_JUMP:
           asm_instruction_jump(asm_function, &ir_function->data.function.instructions[i], asm_arena);
-        break;
+          break;
         case IR_INSTRUCTION_JUMP_IF_ZERO:
           asm_instruction_jump_if_zero(asm_function, &ir_function->data.function.instructions[i], asm_arena);
-        break;
+          break;
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:
           asm_instruction_jump_if_not_zero(asm_function, &ir_function->data.function.instructions[i], asm_arena);
-        break;
+          break;
         case IR_INSTRUCTION_COPY:
           asm_instruction_copy(asm_function, &ir_function->data.function.instructions[i], asm_arena);
-        break;
+          break;
         case IR_INSTRUCTION_LABEL:
           asm_instruction_label(asm_function, &ir_function->data.function.instructions[i], asm_arena);
-        break;
+          break;
+        case IR_INSTRUCTION_FUNCTION_CALL:
+          asm_instruction_function_call(asm_function, &ir_function->data.function.instructions[i], asm_arena);
+          break;
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
         exit(1);
@@ -419,7 +419,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
   }
 }
 
-void asm_instruction_allocate_stack(AsmNode *asm_function, Arena *asm_arena) {
+void asm_instruction_allocate_stack(AsmNode *asm_function, int padding, Arena *asm_arena) {
   AsmNode *allocate_stack_instruction = arena_alloc(asm_arena);
   allocate_stack_instruction->type = ASM_INSTRUCTION_ALLOCATE_STACK;
   allocate_stack_instruction->data.instruction_allocate_stack.bytes_to_subtract = 0;
@@ -717,6 +717,25 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
   ret_node->type = ASM_INSTRUCTION_RET;
 
   asm_add_instruction_to_function(asm_function, ret_node);
+}
+
+void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena) {
+  //As per the System V ABI (Application Binary Interface), the first 6 arguments of a function call will be loaded into the following 'arg_registers' as ordered in the array. After that, any additional arguments will be added to the stack in reverse order to be processed in the order of how they are called.
+  AsmRegisterType arg_registers[] = { ASM_REGISTER_DI, ASM_REGISTER_SI, ASM_REGISTER_DX, ASM_REGISTER_CX, ASM_REGISTER_R8, ASM_REGISTER_R9 };
+  int arg_count = ir_function_call_instruction->data.instruction_function_call.arg_count;
+   
+  //Adjust the stack alignment when there are stack allocated arguments and it's an odd alignment
+  if (arg_count > 6 && arg_count % 2 != 0) {
+    asm_instruction_allocate_stack(asm_function, 8, asm_arena);    
+  }
+
+  for (int i = 0; i < arg_count; i++) {
+    if (i < 6) {
+
+
+      continue;
+    }
+  }  
 }
 
 void asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction) {
