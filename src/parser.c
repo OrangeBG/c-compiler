@@ -485,8 +485,7 @@ void ast_declaration(Parser *parser, AstNode *declaration_node) {
     return;
   }
 
-  AstNode *function_node = arena_alloc(parser->node_arena);
-  ast_function_declaration(parser, function_node);
+  ast_function_declaration(parser, declaration_node);
 }
 
 void ast_function_declaration(Parser *parser, AstNode *function_node) {
