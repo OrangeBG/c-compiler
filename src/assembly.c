@@ -787,7 +787,8 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   }
 
   //retrieve return value 
-  AsmNode *assembly_destination = asm_operand(ir_function_call_instruction->data.instruction_function_call.destination, asm_arena);
+  //AsmNode *assembly_destination = asm_operand(ir_function_call_instruction->data.instruction_function_call.destination, asm_arena);
+
 
   AsmNode *dest_register = arena_alloc(asm_arena);
   dest_register->type = ASM_OPERAND_REGISTER;
@@ -796,7 +797,7 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;  
   mov_instruction->data.instruction_mov.source = dest_register;
-  mov_instruction->data.instruction_mov.destination = assembly_destination;
+  mov_instruction->data.instruction_mov.destination = asm_function; //assembly_destination;
 
   asm_add_instruction_to_function(asm_function, mov_instruction);  
 }
@@ -946,8 +947,18 @@ void print_assembly(AsmNode *node) {
     case ASM_INSTRUCTION_ALLOCATE_STACK:
       printf("RSP %d\n", node->data.instruction_allocate_stack.bytes_to_subtract);
       break;
+    case ASM_INSTRUCTION_DEALLOCATE_STACK:
+      //TODO: ADD
+      break;
+    case ASM_INSTRUCTION_PUSH:
+      //TODO: ADD
+      break;
+    case ASM_INSTRUCTION_CALL:
+      //TODO: ADD
+      break;
     default:
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
+      exit(1);
       break;
   }
 }
