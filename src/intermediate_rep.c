@@ -589,8 +589,6 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   ir_function_call->data.instruction_function_call.arg_count = 0;
   ir_function_call->data.instruction_function_call.args = NULL;
 
-  ir_add_instruction_to_function(function, ir_function_call);
-
   for (int i = 0; i < function_call_node->data.function_call_expression.argument_count; i++) {
     AstNode *argument_node = function_call_node->data.function_call_expression.argument_ptrs->node_pointers[i];
 
@@ -598,6 +596,8 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
     ir_add_argument_to_function_call(ir_function_call, argument);    
   }
+
+  ir_add_instruction_to_function(function, ir_function_call);
 
   return ir_function_call;
 } 

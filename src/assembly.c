@@ -723,21 +723,82 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   //As per the System V ABI (Application Binary Interface), the first 6 arguments of a function call will be loaded into the following 'arg_registers' as ordered in the array. After that, any additional arguments will be added to the stack in reverse order to be processed in the order of how they are called.
   AsmRegisterType arg_registers[] = { ASM_REGISTER_DI, ASM_REGISTER_SI, ASM_REGISTER_DX, ASM_REGISTER_CX, ASM_REGISTER_R8, ASM_REGISTER_R9 };
   int arg_count = ir_function_call_instruction->data.instruction_function_call.arg_count;
+  int stack_padding = 0;
    
   //Adjust the stack alignment when there are stack allocated arguments and it's an odd alignment
   if (arg_count > 6 && arg_count % 2 != 0) {
-    asm_instruction_allocate_stack(asm_function, 8, asm_arena);    
+    stack_padding = 8;
+    asm_instruction_allocate_stack(asm_function, stack_padding, asm_arena);    
   }
 
-  for (int i = 0; i < arg_count; i++) {
+  int stack_arg_count = 0;
 
+  for (int i = 0; i < arg_count; i++) {
     if (i < 6) {
       AsmNode *arg = asm_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena);
 
+      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM) {
+        AsmNode *push_instruction = arena_alloc(asm_arena);
+        push_instruction->type = ASM_INSTRUCTION_PUSH;  
+        push_instruction->data.push.operand = arg;
+
+        asm_add_instruction_to_function(asm_function, push_instruction);
+      } else {
+        stack_arg_count++;
+        
+        AsmNode *mov_instruction = arena_alloc(asm_arena);
+        mov_instruction->type = ASM_INSTRUCTION_MOV;  
+        mov_instruction->data.instruction_mov.source = arg;
+
+        asm_add_instruction_to_function(asm_function, mov_instruction);
+
+        AsmNode *dest_register = arena_alloc(asm_arena);
+        dest_register->type = ASM_OPERAND_REGISTER;
+        dest_register->data.operand_register.op_register = ASM_REGISTER_AX;
+
+        mov_instruction->data.instruction_mov.destination = dest_register;
+
+        AsmNode *push_instruction = arena_alloc(asm_arena);
+        push_instruction->type = ASM_INSTRUCTION_PUSH;
+        push_instruction->data.push.operand = dest_register;
+
+        asm_add_instruction_to_function(asm_function, push_instruction);        
+      }
 
       continue;
     }
   }  
+
+  AsmNode *call_instruction = arena_alloc(asm_arena);
+  call_instruction->type = ASM_INSTRUCTION_CALL;
+  call_instruction->data.call.identifier = asm_function->data.function.name;
+
+  asm_add_instruction_to_function(asm_function, call_instruction);        
+
+  //Adjust stack pointer
+  int bytes_to_remove = 8 * stack_arg_count + stack_padding;
+
+  if (bytes_to_remove != 0) {
+    AsmNode *deallocate_stack = arena_alloc(asm_arena);
+    deallocate_stack->type = ASM_INSTRUCTION_DEALLOCATE_STACK;
+    deallocate_stack->data.deallocate_stack.address = bytes_to_remove;
+
+    asm_add_instruction_to_function(asm_function, deallocate_stack);        
+  }
+
+  //retrieve return value 
+  AsmNode *assembly_destination = asm_operand(ir_function_call_instruction->data.instruction_function_call.destination, asm_arena);
+
+  AsmNode *dest_register = arena_alloc(asm_arena);
+  dest_register->type = ASM_OPERAND_REGISTER;
+  dest_register->data.operand_register.op_register = ASM_REGISTER_AX;
+  
+  AsmNode *mov_instruction = arena_alloc(asm_arena);
+  mov_instruction->type = ASM_INSTRUCTION_MOV;  
+  mov_instruction->data.instruction_mov.source = dest_register;
+  mov_instruction->data.instruction_mov.destination = assembly_destination;
+
+  asm_add_instruction_to_function(asm_function, mov_instruction);  
 }
 
 void asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction) {
