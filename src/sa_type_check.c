@@ -158,12 +158,12 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
         TypeCheckSymbol *existing_symbol = entry->value->structure;
 
         if (existing_symbol->type == SYMBOL_VARIABLE) {
-          fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name", node->data.function_call_expression.identfier);
+          fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
           exit(1);
         }               
 
         if (existing_symbol->data.function_symbol->param_count != node->data.function_call_expression.argument_count) {
-          fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments", node->data.function_call_expression.identfier);
+          fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.function_call_expression.identfier);
           exit(1);
         }
       }
@@ -184,7 +184,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       TypeCheckSymbol* symbol = entry->value->structure; 
 
       if (symbol->type == SYMBOL_FUNCTION) {
-        fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable", node->data.variable_expression.identifier);
+        fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable\n", node->data.variable_expression.identifier);
         exit(1);
       }
 

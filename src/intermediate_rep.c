@@ -589,6 +589,15 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   ir_function_call->data.instruction_function_call.arg_count = 0;
   ir_function_call->data.instruction_function_call.args = NULL;
 
+  char *destination_name = ir_create_temp_register(emit_status);
+
+  IRNode *destination = malloc(sizeof(IRNode));
+  destination->type = IR_VALUE_VAR;
+  destination->data.value_var.identifier = destination_name;
+
+  //TODO: Not sure of assigning this destination type is correct
+  ir_function_call->data.instruction_function_call.destination = destination;
+
   for (int i = 0; i < function_call_node->data.function_call_expression.argument_count; i++) {
     AstNode *argument_node = function_call_node->data.function_call_expression.argument_ptrs->node_pointers[i];
 
@@ -596,6 +605,8 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
     ir_add_argument_to_function_call(ir_function_call, argument);    
   }
+
+  ir_add_instruction_to_function(function, ir_function_call);
 
   return ir_function_call;
 } 
@@ -696,7 +707,7 @@ void ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function) {
     ir_program->data.program.functions = functions;
   } 
 
-  ir_program->data.program.functions[ir_function->data.program.function_count] = *ir_function; 
+  ir_program->data.program.functions[ir_program->data.program.function_count] = *ir_function;
   ir_program->data.program.function_count++;
 }
 

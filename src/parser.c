@@ -485,8 +485,7 @@ void ast_declaration(Parser *parser, AstNode *declaration_node) {
     return;
   }
 
-  AstNode *function_node = arena_alloc(parser->node_arena);
-  ast_function_declaration(parser, function_node);
+  ast_function_declaration(parser, declaration_node);
 }
 
 void ast_function_declaration(Parser *parser, AstNode *function_node) {
@@ -1148,12 +1147,14 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   AstNode *expression_node = arena_alloc(parser->node_arena);
   ast_parse_expression(parser, &expression_node, 0);
   add_to_node_pointer(expression_node, argument_pointers);
+  factor_node->data.function_call_expression.argument_count++;
 
   while (current_token(parser)->type == TOKEN_COMMA) {
     ast_expect(parser, TOKEN_COMMA);
     AstNode *next_expression_node = arena_alloc(parser->node_arena);
     ast_parse_expression(parser, &next_expression_node, 0);
     add_to_node_pointer(next_expression_node, argument_pointers);
+    factor_node->data.function_call_expression.argument_count++;
   }
 
   ast_expect(parser, TOKEN_CLOSE_PAREN);
