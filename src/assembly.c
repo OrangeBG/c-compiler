@@ -310,6 +310,12 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
         if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
           asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, stack_offset);
         }        
+        break;
+      case ASM_INSTRUCTION_PUSH:
+        if (instruction->data.push.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          asm_replace_pseudo_register(instruction->data.push.operand, &stack_location_table, stack_offset);
+        }
+        break;
       default:
         break;
     }
