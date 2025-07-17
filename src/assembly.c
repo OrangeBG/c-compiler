@@ -64,6 +64,9 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
       exit(1);
     } 
 
+    //Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls.
+    stack_offset = ((stack_offset + 15) / 16) * 16;
+
     program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
     AsmNode *new_function = asm_resolve_instructions(program->data.program.function_pointers->asm_pointers[i]);

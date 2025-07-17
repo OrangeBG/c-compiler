@@ -128,6 +128,14 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_ALLOCATE_STACK:
       fprintf(file, "\tsubq\t$%d, %%rsp\n", asm_node->data.instruction_allocate_stack.bytes_to_subtract);
       break;
+    case ASM_INSTRUCTION_CALL:
+      fprintf(file, "\tcall %s\n", asm_node->data.call.identifier);
+      break;
+    case ASM_INSTRUCTION_PUSH:
+      fprintf(file, "\tpush "); 
+      save_assembly_file(asm_node->data.push.operand, file);
+      fprintf(file, "\n");
+      break;
     case ASM_OPERAND_IMM:
       fprintf(file, "$%d", asm_node->data.operand_imm.value);
       break;
