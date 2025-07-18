@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
 
+char* get_8_byte_register(AsmRegisterType register_type); 
+char* get_4_byte_register(AsmRegisterType register_type); 
+char* get_1_byte_register(AsmRegisterType register_type); 
+
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
     case ASM_PROGRAM:
@@ -64,20 +68,8 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\t");
       //1 Byte name registers for set cc
       if (asm_node->data.instruction_set_cc.operand->type == ASM_OPERAND_REGISTER) {
-      switch (asm_node->data.instruction_set_cc.operand->data.operand_register.op_register) {
-        case ASM_REGISTER_R10:
-          printf("%%r10b");
-          break;
-        case ASM_REGISTER_R11:
-          printf("%%r11b");
-          break;
-        case ASM_REGISTER_AX:
-          printf("%%al");
-          break;
-        case ASM_REGISTER_DX:
-          printf("%%dl");
-          break;
-      }
+        char *operand_register = get_1_byte_register(asm_node->data.instruction_set_cc.operand->data.operand_register.op_register);
+        fprintf(file, "%s", operand_register);
       } else {
         save_assembly_file(asm_node->data.instruction_set_cc.operand, file);
       }
@@ -129,32 +121,27 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tsubq\t$%d, %%rsp\n", asm_node->data.instruction_allocate_stack.bytes_to_subtract);
       break;
     case ASM_INSTRUCTION_CALL:
-      fprintf(file, "\tcall %s\n", asm_node->data.call.identifier);
+      fprintf(file, "\tcall\t%s\n", asm_node->data.call.identifier);
       break;
     case ASM_INSTRUCTION_PUSH:
-      fprintf(file, "\tpush "); 
-      save_assembly_file(asm_node->data.push.operand, file);
+      fprintf(file, "\tpush\t"); 
+
+      if (asm_node->data.push.operand->type == ASM_OPERAND_REGISTER) {
+        char *operand_register = get_8_byte_register(asm_node->data.push.operand->data.operand_register.op_register);
+        fprintf(file, "%s", operand_register);
+      } else {
+        save_assembly_file(asm_node->data.push.operand, file);
+      }
       fprintf(file, "\n");
       break;
     case ASM_OPERAND_IMM:
       fprintf(file, "$%d", asm_node->data.operand_imm.value);
       break;
-    case ASM_OPERAND_REGISTER:
-      switch (asm_node->data.operand_register.op_register) {
-        case ASM_REGISTER_R10:
-          fprintf(file, "%%r10d");
-          break;
-        case ASM_REGISTER_R11:
-          fprintf(file, "%%r11d");
-          break;
-        case ASM_REGISTER_AX:
-          fprintf(file, "%%eax");
-          break;
-        case ASM_REGISTER_DX:
-          fprintf(file, "%%dx");
-          break;
-      }
+    case ASM_OPERAND_REGISTER: {
+      char *operand_register = get_4_byte_register(asm_node->data.operand_register.op_register);
+      fprintf(file, "%s", operand_register);
       break;
+    }
     case ASM_OPERAND_STACK:
       fprintf(file, "-%d(%%rbp)", asm_node->data.operand_stack.address);
       break;
@@ -168,5 +155,47 @@ void print_code_emit(FILE *file) {
 
   while((file_char = fgetc(file)) != EOF) {
     printf("%c", file_char);
+  }
+}
+
+char* get_8_byte_register(AsmRegisterType register_type) {
+  switch(register_type) {
+    case ASM_REGISTER_AX:  return "%rax";
+    case ASM_REGISTER_DX:  return "%rdx";
+    case ASM_REGISTER_CX:  return "%rcx";
+    case ASM_REGISTER_DI:  return "%rdi";
+    case ASM_REGISTER_SI:  return "%rsi";
+    case ASM_REGISTER_R8:  return "%r8";
+    case ASM_REGISTER_R9:  return "%r9";
+    case ASM_REGISTER_R10: return "%r10";
+    case ASM_REGISTER_R11: return "%r11";
+  }
+}
+
+char* get_4_byte_register(AsmRegisterType register_type) {
+  switch(register_type) {
+    case ASM_REGISTER_AX:  return "%eax";
+    case ASM_REGISTER_DX:  return "%edx";
+    case ASM_REGISTER_CX:  return "%ecx";
+    case ASM_REGISTER_DI:  return "%edi";
+    case ASM_REGISTER_SI:  return "%esi";
+    case ASM_REGISTER_R8:  return "%r8d";
+    case ASM_REGISTER_R9:  return "%r9d";
+    case ASM_REGISTER_R10: return "%r10d";
+    case ASM_REGISTER_R11: return "%r11d";
+  }
+}
+
+char* get_1_byte_register(AsmRegisterType register_type) {
+  switch(register_type) {
+    case ASM_REGISTER_AX:  return "%al";
+    case ASM_REGISTER_DX:  return "%dl";
+    case ASM_REGISTER_CX:  return "%cl";
+    case ASM_REGISTER_DI:  return "%dil";
+    case ASM_REGISTER_SI:  return "%sil";
+    case ASM_REGISTER_R8:  return "%r8b";
+    case ASM_REGISTER_R9:  return "%r9b";
+    case ASM_REGISTER_R10: return "%r10b";
+    case ASM_REGISTER_R11: return "%r11b";
   }
 }

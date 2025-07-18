@@ -1,6 +1,7 @@
 # Bugs
     - This declaration doesn't work: int result = j == -1 && i == 11;
 	- Parser print not printing Function Params
+	- Code emit isn't showing first 6 params being loaded into registers. Instead, the first 6 are being added to the stack
 	- The following test code produces incorrect variable resolution results for the 'b' variable. Shadowing 'b' seems to incorrectly increment the variable number:		
 
 		int main(void) {
@@ -66,6 +67,6 @@
 
 # Features
 	- Add generic dynamic array grow function
-	- Add generic malloc / error check function
 	- Add Typedef support: Refer to pg 108 - Sandler Nora.
 	- Add switch statements support: Refer to pg 159 - Sandler Nora.
+	- Add procdedure link table calling support for linux pg 201 - Sandler Nora
