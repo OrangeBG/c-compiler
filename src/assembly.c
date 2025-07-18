@@ -743,9 +743,21 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   int stack_arg_count = 0;
 
   for (int i = 0; i < arg_count; i++) {
-    if (i < 6) {
-      AsmNode *arg = asm_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena);
+    AsmNode *arg = asm_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena);
 
+    if (i < 6) {
+      AsmNode *mov_instruction = arena_alloc(asm_arena);
+      mov_instruction->type = ASM_INSTRUCTION_MOV;
+      mov_instruction->data.instruction_mov.source = arg;
+
+      AsmNode *destination = arena_alloc(asm_arena);
+      destination->type = ASM_OPERAND_REGISTER;
+      destination->data.operand_register.op_register = arg_registers[i];      
+
+      mov_instruction->data.instruction_mov.destination = destination;
+
+      asm_add_instruction_to_function(asm_function, mov_instruction);
+    } else {
       if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM) {
         AsmNode *push_instruction = arena_alloc(asm_arena);
         push_instruction->type = ASM_INSTRUCTION_PUSH;  

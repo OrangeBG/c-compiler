@@ -1,7 +1,6 @@
 # Bugs
     - This declaration doesn't work: int result = j == -1 && i == 11;
 	- Parser print not printing Function Params
-	- Code emit isn't showing first 6 params being loaded into registers. Instead, the first 6 are being added to the stack
 	- The following test code produces incorrect variable resolution results for the 'b' variable. Shadowing 'b' seems to incorrectly increment the variable number:		
 
 		int main(void) {
