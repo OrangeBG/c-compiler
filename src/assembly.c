@@ -708,19 +708,22 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, 
 }
 
 void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena) {
-  AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value, asm_arena);
+  //Function calls were being duplicated without this check.
+  if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
+    AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value, asm_arena);
 
-  AsmNode *destination_node = arena_alloc(asm_arena);
-  destination_node->type = ASM_OPERAND_REGISTER;
-  destination_node->data.operand_register.op_register = ASM_REGISTER_AX;  
+    AsmNode *destination_node = arena_alloc(asm_arena);
+    destination_node->type = ASM_OPERAND_REGISTER;
+    destination_node->data.operand_register.op_register = ASM_REGISTER_AX;  
 
-  AsmNode *mov_node = arena_alloc(asm_arena);
-  mov_node->type = ASM_INSTRUCTION_MOV;
+    AsmNode *mov_node = arena_alloc(asm_arena);
+    mov_node->type = ASM_INSTRUCTION_MOV;
 
-  mov_node->data.instruction_mov.source = source_node;
-  mov_node->data.instruction_mov.destination = destination_node;
+    mov_node->data.instruction_mov.source = source_node;
+    mov_node->data.instruction_mov.destination = destination_node;
 
-  asm_add_instruction_to_function(asm_function, mov_node);
+    asm_add_instruction_to_function(asm_function, mov_node);
+  }
 
   AsmNode *ret_node = arena_alloc(asm_arena);
   ret_node->type = ASM_INSTRUCTION_RET;
@@ -792,7 +795,7 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
 
   AsmNode *call_instruction = arena_alloc(asm_arena);
   call_instruction->type = ASM_INSTRUCTION_CALL;
-  call_instruction->data.call.identifier = asm_function->data.function.name;
+  call_instruction->data.call.identifier = ir_function_call_instruction->data.instruction_function_call.identifier;
 
   asm_add_instruction_to_function(asm_function, call_instruction);        
 
