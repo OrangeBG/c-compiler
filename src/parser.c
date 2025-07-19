@@ -512,7 +512,7 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
       break;
     }
     default: {
-      fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d", current_token(parser)->type);
+      fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d\n", current_token(parser)->type);
       exit(1);
     }
   }

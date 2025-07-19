@@ -60,6 +60,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   program->type = IR_PROGRAM;
   program->data.program.function_capacity = 0;
   program->data.program.function_count = 0;
+  program->data.program.functions = NULL;
 
   IREmitStatus emit_status = {
     .temp_register_id = 0,

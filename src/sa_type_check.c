@@ -97,7 +97,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
       function_symbol->defined = is_defined;
       function_symbol->value_type = TYPE_INT;
-      function_symbol->param_count = node->data.function_declaration.parameter_count;
+      function_symbol->param_count = 0;
 
       TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
       new_symbol->type = SYMBOL_FUNCTION;
@@ -116,6 +116,12 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
         
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *parameter_node = node->data.function_declaration.parameter_ptrs->node_pointers[i];
+
+        if (parameter_node->data.function_parameters.type == AST_PARAMETER_VOID) {
+          continue;
+        }
+
+        function_symbol->param_count++;
         sa_function_and_variable_type_check(parameter_node, symbols);
       }
 
