@@ -609,7 +609,7 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
   ir_add_instruction_to_function(function, ir_function_call);
 
-  return ir_function_call;
+  return destination;
 } 
 
 IRNode* ir_emit_jump(char *label, IRNode *function) {
