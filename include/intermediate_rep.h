@@ -46,11 +46,17 @@ typedef enum {
   IR_BINARY_GREATER_OR_EQUAL,
 } IRBinaryOpType;
 
+typedef struct {
+  int capacity;
+  int count;
+  AstNode **node_pointers;
+} IRNodePointer;
+
 typedef struct IRNode {
  IRNodeType type;
  union {
-  struct IRProgram { struct IRNode *functions; int function_count; int function_capacity; } program;
-  struct IRFunction { char *identifier; char *params; int param_count; int instruction_count; int instruction_capacity; IRNode *instructions; } function;
+  struct IRProgram { IRNodePointer *function_ptrs; int function_count; } program;
+  struct IRFunction { char *identifier; char *params; int param_count; int instruction_count; IRNodePointer *instruction_ptrs; } function;
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;
   struct IRInstructionBinary { IRBinaryOpType op_type; IRNode *source_1; IRNode *source_2; IRNode *destination; } instruction_binary;

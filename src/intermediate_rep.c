@@ -7,6 +7,7 @@
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
 #define FUNCTION_CALL_CAPACITY 8
+#define NODE_POINTER_CAPACITY 8
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
@@ -20,9 +21,9 @@ typedef struct {
 
 void    check_ir_function_instruction_size(IRNode *ir_function);
 void    ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status);
-IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status);
+IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *node_arena);
 IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status); 
-IRNode* ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status);
+IRNode* ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
 void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
 void    ir_emit_goto(AstNode *goto_node, IRNode *function); 
 void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
@@ -53,14 +54,23 @@ char*   ir_create_temp_register(IREmitStatus *emit_status);
 char*   ir_create_concat_identifier(char *string, int integer); 
 IRNode* ir_create_constant(int value);
 IRNode* ir_create_variable(char *identifier);
+void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
+void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
-  IRNode *program = malloc(sizeof(IRNode));
+  Arena *node_arena = malloc(sizeof(IRNode));
+
+  //TODO: Hardcoded capacity
+  arena_init(node_arena, sizeof(IRNode), sizeof(IRNode) * 1000, false);
+
+  IRNodePointer *node_pointer = malloc(sizeof(IRNodePointer));
+  ir_init_node_pointer(node_pointer);
+
+  IRNode *program = arena_alloc(node_arena);
 
   program->type = IR_PROGRAM;
-  program->data.program.function_capacity = 0;
   program->data.program.function_count = 0;
-  program->data.program.functions = NULL;
+  program->data.program.function_ptrs = node_pointer;
 
   IREmitStatus emit_status = {
     .temp_register_id = 0,
@@ -74,7 +84,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
       continue;
     }
     
-    IRNode *function = ir_function(function_node, &emit_status);
+    IRNode *function = ir_function(function_node, &emit_status, node_arena);
     ir_add_function_to_program(program, function);
   }
 
@@ -190,14 +200,15 @@ void print_intermediate_ret(IRNode *ir_node) {
   }
 }
 
-IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
-  IRNode *function = malloc(sizeof(IRNode));
-  IRNode *instructions = malloc(sizeof(IRNode));
+IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *function = arena_alloc(ir_arena);
+  IRNodePoint *ir_node_pointer = malloc(sizeof(IRNodePointer));
+  ir_init_node_pointer(ir_init_node_pointer);
+  
   function->type = IR_FUNCTION;
   function->data.function.identifier = ast_function->data.function_declaration.name;
   function->data.function.instruction_count = 0;
-  function->data.function.instruction_capacity = 0;
-  function->data.function.instructions = instructions;
+  function->data.function.instruction_ptrs = ir_init_node_pointer;
 
   Arena postfix_arena;
   //@WARNING: Hardcoded postfix arena size
@@ -205,11 +216,11 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   arena_init(&postfix_arena, sizeof(AstNode), sizeof(AstNode) * 50, true);
   emit_status->postfix_arena = postfix_arena;
 
-  ir_emit_ast_node(ast_function->data.function_declaration.body_block, function, emit_status);
+  ir_emit_ast_node(ast_function->data.function_declaration.body_block, function, emit_status, node_arena);
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
   IRNode *zero_value = ir_create_constant(0);
-  IRNode *return_instruction = malloc(sizeof(IRNode));
+  IRNode *return_instruction = arena_alloc(node_arena);
   return_instruction->type = IR_INSTRUCTION_RET;
   return_instruction->data.instruction_ret.value = zero_value;
 
@@ -218,7 +229,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status) {
   return function;
 }
 
-IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status) {
+IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   switch (node->type) {
       case AST_BLOCK:                        { ir_emit_block(node, function, emit_status); break; }
       case AST_STATEMENT_IF:                 { ir_emit_if(node, function, emit_status); break; }
@@ -689,8 +700,7 @@ void ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status) {
 }
 
 void ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction) {
-  check_ir_function_instruction_size(ir_function);
-  ir_function->data.function.instructions[ir_function->data.function.instruction_count] = *ir_instruction; 
+  ir_add_to_node_pointer(ir_instruction, ir_function->data.function.instruction_ptrs);
   ir_function->data.function.instruction_count++;
 }
 
@@ -763,4 +773,32 @@ char* ir_create_concat_identifier(char *string, int integer) {
   snprintf(identifier, 64, "%s.%d", string, integer);
 
   return identifier;
+}
+
+void ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer) {
+  if (ir_node_pointer == NULL) {
+    return;
+  }
+  
+  if (ir_node_pointer->count == ir_node_pointer->capacity) {
+    int new_size = ir_node_pointer->capacity == 0 ? NODE_POINTER_CAPACITY : ir_node_pointer->capacity * 2;
+
+    IRNode **realloc_pointers = realloc(ir_node_pointer->ir_pointers, new_size * sizeof(IRNode**));
+
+    ir_node_pointer->capacity = new_size;
+    ir_node_pointer->ir_pointers = realloc_pointers;
+  } 
+
+  ir_node_pointer->ir_pointers[ir_node_pointer->count] = ir_node;
+  ir_node_pointer->count++;
+}
+
+void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
+  if (ir_node_pointer == NULL) {
+    return;
+  }
+  
+  ir_node_pointer->capacity = 0;
+  ir_node_pointer->count = 0;
+  ir_node_pointer->asm_pointers = NULL;
 }
