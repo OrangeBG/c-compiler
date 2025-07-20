@@ -61,7 +61,9 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       symbol->data.variable_symbol_type = variable_symbol;
 
       HashTableEntry *entry = malloc(sizeof(HashTableEntry));
-      entry->key = identifier;
+      char *symbol_key = malloc(IDENTIFIER_BUFFER); 
+      snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name,  identifier);
+      entry->key = symbol_key;
 
       HashValue *value = malloc(sizeof(HashValue));
       value->type = HASH_STRUCT;

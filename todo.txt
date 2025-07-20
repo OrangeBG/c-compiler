@@ -1,6 +1,29 @@
 # Bugs
     - This declaration doesn't work: int result = j == -1 && i == 11;
 	- Parser print not printing Function Params
+    - The following test code does not resolve the two declared 'a' variables as two different values. Variable resolution has to be redone. The 3 hash tables makes it hard to understand the state of things:
+
+        int main(void) {
+            int sum = 0;
+            if (1) {
+                int a = 5;
+                goto other_if;
+                sum = 0;  // not executed
+            first_if:
+                // when we jump back into block at this label, a is uninitialized, so we need to initialize it again
+                a = 5;
+                sum = sum + a;  // sum = 11
+            }
+            if (0) {
+            other_if:;
+                int a = 6;
+                sum = sum + a;  // sum = 6
+                goto first_if;
+                sum = 0;
+            }
+            return sum;
+        }
+
 	- The following test code produces incorrect variable resolution results for the 'b' variable. Shadowing 'b' seems to incorrectly increment the variable number:		
 
 		int main(void) {
