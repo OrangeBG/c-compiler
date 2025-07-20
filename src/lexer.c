@@ -93,7 +93,7 @@ void load_tokens(Lexer *lexer, char *file) {
       break;
     }
 
-    if (is_alpha_char(cur_char)) {
+    if (is_alpha_char(cur_char) || cur_char == '_') {
       add_identifier_token(lexer, file);
       lexer->start_index = lexer->current_index + 1;
       lexer->current_index = lexer->start_index;
