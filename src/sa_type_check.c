@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../include/sa_type_check.h"
 #include "../include/hash_table.h"
+
+//TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
+#define IDENTIFIER_BUFFER 256
 
 typedef enum {
   TYPE_INT
@@ -30,7 +34,7 @@ typedef struct {
   } data;
 } TypeCheckSymbol;
 
-void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols);
+void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name);
 
 void sa_type_check(AstNode *ast_nodes) {
   HashTable symbols;
@@ -38,11 +42,11 @@ void sa_type_check(AstNode *ast_nodes) {
 
   for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
     AstNode *function_node = ast_nodes->data.program.function_ptrs->node_pointers[i];
-    sa_function_and_variable_type_check(function_node, &symbols);
+    sa_function_and_variable_type_check(function_node, &symbols, function_node->data.function_declaration.name);
   } 
 }
 
-void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
+void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
       char *identifier = node->data.variable_declaration.name;
@@ -68,7 +72,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
       hash_table_add_entry(symbols, entry); 
 
       if (node->data.variable_declaration.has_expression) {
-        sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols);
+        sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name);
       }
       break;
     }
@@ -122,11 +126,11 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
         }
 
         function_symbol->param_count++;
-        sa_function_and_variable_type_check(parameter_node, symbols);
+        sa_function_and_variable_type_check(parameter_node, symbols, function_name);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
-        sa_function_and_variable_type_check(node->data.function_declaration.body_block, symbols);
+        sa_function_and_variable_type_check(node->data.function_declaration.body_block, symbols, function_name);
       }
       break;
     }
@@ -146,8 +150,12 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
 
       symbol->data.variable_symbol_type = variable_symbol;
 
-      HashTableEntry *entry = malloc(sizeof(HashTableEntry));
-      entry->key = identifier;
+      HashTableEntry *entry = malloc(IDENTIFIER_BUFFER);
+
+      char *symbol_key = malloc(IDENTIFIER_BUFFER); 
+      snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name,  identifier);
+      entry->key = symbol_key;
+
       HashValue *value = malloc(sizeof(HashValue));
       value->type = HASH_STRUCT;
       value->structure = symbol;
@@ -176,7 +184,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
         AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
-        sa_function_and_variable_type_check(argument_node, symbols);
+        sa_function_and_variable_type_check(argument_node, symbols, function_name);
       }
       break;
     }
@@ -199,71 +207,71 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols) {
     case AST_BLOCK: {
       for (int i = 0; i < node->data.block.block_count; i++) {   
         AstNode *block_item_node = node->data.block.block_ptrs->node_pointers[i];
-        sa_function_and_variable_type_check(block_item_node, symbols);
+        sa_function_and_variable_type_check(block_item_node, symbols, function_name);
       }
       break;
     }
     case AST_STATEMENT_IF: {
-      sa_function_and_variable_type_check(node->data.if_statement.condition_expression, symbols);
-      sa_function_and_variable_type_check(node->data.if_statement.then_statement, symbols);
+      sa_function_and_variable_type_check(node->data.if_statement.condition_expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.if_statement.then_statement, symbols, function_name);
 
       if (node->data.if_statement.else_statement != NULL) {
-        sa_function_and_variable_type_check(node->data.if_statement.else_statement, symbols);
+        sa_function_and_variable_type_check(node->data.if_statement.else_statement, symbols, function_name);
       }
       break;
     }
     case AST_STATEMENT_RETURN: {
-      sa_function_and_variable_type_check(node->data.return_statement.expression, symbols);
+      sa_function_and_variable_type_check(node->data.return_statement.expression, symbols, function_name);
       break;
     }
     case AST_STATEMENT_EXPRESSION: {
-      sa_function_and_variable_type_check(node->data.expression_statement.expression, symbols);
+      sa_function_and_variable_type_check(node->data.expression_statement.expression, symbols, function_name);
       break;
     }
     case AST_STATEMENT_FOR: {
       if (node->data.for_statement.for_loop_init != NULL) {
-        sa_function_and_variable_type_check(node->data.for_statement.for_loop_init, symbols);
+        sa_function_and_variable_type_check(node->data.for_statement.for_loop_init, symbols, function_name);
       }
 
       if (node->data.for_statement.condition_expression != NULL) {
-        sa_function_and_variable_type_check(node->data.for_statement.condition_expression, symbols);
+        sa_function_and_variable_type_check(node->data.for_statement.condition_expression, symbols, function_name);
       }
 
       if (node->data.for_statement.post_expression != NULL) {
-        sa_function_and_variable_type_check(node->data.for_statement.post_expression, symbols);
+        sa_function_and_variable_type_check(node->data.for_statement.post_expression, symbols, function_name);
       }
 
-      sa_function_and_variable_type_check(node->data.for_statement.statement_body, symbols);
+      sa_function_and_variable_type_check(node->data.for_statement.statement_body, symbols, function_name);
       break;
     }
     case AST_STATEMENT_WHILE: {
-      sa_function_and_variable_type_check(node->data.while_statement.condition, symbols);
-      sa_function_and_variable_type_check(node->data.while_statement.statement_body, symbols);
+      sa_function_and_variable_type_check(node->data.while_statement.condition, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.while_statement.statement_body, symbols, function_name);
       break;
     }
     case AST_STATEMENT_DO_WHILE: {
-      sa_function_and_variable_type_check(node->data.do_while_statement.condition, symbols);
-      sa_function_and_variable_type_check(node->data.do_while_statement.statement_body, symbols);
+      sa_function_and_variable_type_check(node->data.do_while_statement.condition, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.do_while_statement.statement_body, symbols, function_name);
       break;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      sa_function_and_variable_type_check(node->data.assignement_expression.left_expression, symbols);
-      sa_function_and_variable_type_check(node->data.assignement_expression.right_expression, symbols);
+      sa_function_and_variable_type_check(node->data.assignement_expression.left_expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.assignement_expression.right_expression, symbols, function_name);
       break;
     }
     case AST_EXPRESSION_BINARY: {
-      sa_function_and_variable_type_check(node->data.binary_expression.left_expression, symbols);
-      sa_function_and_variable_type_check(node->data.binary_expression.right_expression, symbols);
+      sa_function_and_variable_type_check(node->data.binary_expression.left_expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.binary_expression.right_expression, symbols, function_name);
       break;
     }
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT:
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT: 
-      sa_function_and_variable_type_check(node->data.increment_decrement_expression.expression, symbols);
+      sa_function_and_variable_type_check(node->data.increment_decrement_expression.expression, symbols, function_name);
       break;
     case AST_EXPRESSION_UNARY:
-      sa_function_and_variable_type_check(node->data.unary_expression.expression, symbols);
+      sa_function_and_variable_type_check(node->data.unary_expression.expression, symbols, function_name);
       break;
   }  
 }
