@@ -24,19 +24,19 @@ void    ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *node_arena);
 IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status); 
 IRNode* ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
-void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status); 
-void    ir_emit_goto(AstNode *goto_node, IRNode *function); 
-void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function); 
-void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
+void    ir_emit_goto(AstNode *goto_node, IRNode *function, Arena *node_arena); 
+void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function, Arena *node_arena); 
+void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 void    ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status); 
-void    ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 void    ir_emit_continue(int label_id, IRNode *function);
 void    ir_emit_break(int label_id, IRNode *function);
-void    ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status); 
-IRNode* ir_emit_jump(char *label, IRNode *function);
-IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function); 
+void    ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
+IRNode* ir_emit_jump(char *label, IRNode *function, Arena *node_arena);
+IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, Arena *node_arena); 
 IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function); 
-IRNode* ir_emit_label(char* label, IRNode *function);
+IRNode* ir_emit_label(char* label, IRNode *function, Arena *node_arena);
 IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function); 
 IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status); 
 IRNode* ir_emit_conditional_expression(AstNode *condition_node, IRNode *function, IREmitStatus *emit_status);
@@ -231,30 +231,30 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
 
 IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   switch (node->type) {
-      case AST_BLOCK:                        { ir_emit_block(node, function, emit_status); break; }
-      case AST_STATEMENT_IF:                 { ir_emit_if(node, function, emit_status); break; }
-      case AST_STATEMENT_GOTO:               { ir_emit_goto(node, function); break; }
-      case AST_STATEMENT_GOTO_LABEL:         { ir_emit_goto_label(node, function); break; }
-      case AST_STATEMENT_WHILE:              { ir_emit_while(node, function, emit_status); break; }
-      case AST_STATEMENT_DO_WHILE:           { ir_emit_do_while(node, function, emit_status); break; }
-      case AST_STATEMENT_FOR:                { ir_emit_for(node, function, emit_status); break; }
-      case AST_STATEMENT_CONTINUE:           { ir_emit_continue(node->data.continue_statement.label_id, function); break; }
-      case AST_STATEMENT_BREAK:              { ir_emit_break(node->data.break_statement.label_id, function); break; }
+      case AST_BLOCK:                        { ir_emit_block(node, function, emit_status, node_arena); break; }
+      case AST_STATEMENT_IF:                 { ir_emit_if(node, function, emit_status, node_arena); break; }
+      case AST_STATEMENT_GOTO:               { ir_emit_goto(node, function, node_arena); break; }
+      case AST_STATEMENT_GOTO_LABEL:         { ir_emit_goto_label(node, function, node_arena); break; }
+      case AST_STATEMENT_WHILE:              { ir_emit_while(node, function, emit_status, node_arena); break; }
+      case AST_STATEMENT_DO_WHILE:           { ir_emit_do_while(node, function, emit_status, node_arena); break; }
+      case AST_STATEMENT_FOR:                { ir_emit_for(node, function, emit_status, node_arena); break; }
+      case AST_STATEMENT_CONTINUE:           { ir_emit_continue(node->data.continue_statement.label_id, function, node_arena); break; }
+      case AST_STATEMENT_BREAK:              { ir_emit_break(node->data.break_statement.label_id, function, node_arena); break; }
       case AST_STATEMENT_NULL:               { break; } 
       case AST_STATEMENT_RETURN:             { return ir_emit_return(node, function, emit_status); }
       // case AST_DECLARATION:                  { return ir_emit_declaration(node, function, emit_status); }
-      case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier); }
-      case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.value); }
-      case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status); }
-      case AST_EXPRESSION_POSTFIX_INCREMENT: { return ir_emit_postfix_expression(node, emit_status); }
-      case AST_EXPRESSION_POSTFIX_DECREMENT: { return ir_emit_postfix_expression(node, emit_status); }
-      case AST_EXPRESSION_PREFIX_INCREMENT:  { return ir_emit_ast_node(node, function, emit_status); }
-      case AST_EXPRESSION_PREFIX_DECREMENT:  { return ir_emit_ast_node(node, function, emit_status); }
-      case AST_EXPRESSION_UNARY:             { return ir_emit_unary_expression(node, function, emit_status); }
-      case AST_EXPRESSION_BINARY:            { return ir_emit_binary_expression(node, function, emit_status); }
-      case AST_EXPRESSION_ASSIGNMENT:        { return ir_emit_assignment_expression(node, function, emit_status); }
-      case AST_EXPRESSION_FUNCTION_CALL:     { return ir_emit_function_call_expression(node, function, emit_status); }
-      case AST_VARIABLE_DECLARATION:         { return ir_emit_declaration(node, function, emit_status); }
+      case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier, node_arena); }
+      case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.value, node_arena); }
+      case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_POSTFIX_INCREMENT: { return ir_emit_postfix_expression(node, emit_status, node_arena); }
+      case AST_EXPRESSION_POSTFIX_DECREMENT: { return ir_emit_postfix_expression(node, emit_status, node_arena); }
+      case AST_EXPRESSION_PREFIX_INCREMENT:  { return ir_emit_ast_node(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_PREFIX_DECREMENT:  { return ir_emit_ast_node(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_UNARY:             { return ir_emit_unary_expression(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_BINARY:            { return ir_emit_binary_expression(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_ASSIGNMENT:        { return ir_emit_assignment_expression(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_FUNCTION_CALL:     { return ir_emit_function_call_expression(node, function, emit_status, node_arena); }
+      case AST_VARIABLE_DECLARATION:         { return ir_emit_declaration(node, function, emit_status, node_arena); }
       case AST_FUNCTION_DECLARATION:         {
           if (node->data.function_declaration.body_block == NULL) break;
           return ir_function(node, emit_status);
@@ -267,11 +267,11 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
   return NULL;
 }
 
-void ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status) {
+void ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status, Arena node_arena) {
   for (int i = 0; i < block_node->data.block.block_count; i++) {
     arena_reset(&emit_status->postfix_arena);
     AstNode *block_item_node = block_node->data.block.block_ptrs->node_pointers[i];
-    ir_emit_ast_node(block_item_node, function, emit_status);
+    ir_emit_ast_node(block_item_node, function, emit_status, node_arena);
     ir_add_postfix_operations(function, emit_status);
   }
 }
@@ -289,38 +289,38 @@ IRNode* ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit
   return return_instruction;
 }
 
-void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status) {
-  IRNode *condition = ir_emit_ast_node(if_node->data.if_statement.condition_expression, function, emit_status);
+void ir_emit_if(AstNode *if_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *condition = ir_emit_ast_node(if_node->data.if_statement.condition_expression, function, emit_status, node_arena);
   char *label_name = ir_create_temp_label(emit_status);
 
-  ir_emit_jump_if_zero(label_name, condition, function);
+  ir_emit_jump_if_zero(label_name, condition, function, node_arena);
 
   AstNode *then_statement = if_node->data.if_statement.then_statement;
 
-  ir_emit_ast_node(then_statement, function, emit_status);
-  ir_emit_label(label_name, function);
+  ir_emit_ast_node(then_statement, function, emit_status, node_arena);
+  ir_emit_label(label_name, function, node_arena);
 }
 
-void ir_emit_goto(AstNode *goto_node, IRNode *function) {
-  ir_emit_jump(goto_node->data.goto_label_statement.label, function);
+void ir_emit_goto(AstNode *goto_node, IRNode *function, Arena *node_arena) {
+  ir_emit_jump(goto_node->data.goto_label_statement.label, function, node_arena);
 }
 
-void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function) {
-  ir_emit_label(goto_label_node->data.goto_statement.label, function);
+void ir_emit_goto_label(AstNode *goto_label_node, IRNode *function, Arena *node_arena) {
+  ir_emit_label(goto_label_node->data.goto_statement.label, function, node_arena);
 }
 
-void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status) {
+void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, while_node->data.do_while_statement.label_id); 
   char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, while_node->data.do_while_statement.label_id); 
 
-  ir_emit_label(continue_label_identifier, function);
+  ir_emit_label(continue_label_identifier, function, node_arena);
 
-  IRNode *condition = ir_emit_ast_node(while_node->data.while_statement.condition, function, emit_status);
+  IRNode *condition = ir_emit_ast_node(while_node->data.while_statement.condition, function, emit_status, node_arena);
 
-  ir_emit_jump_if_zero(break_label_identifier, condition, function);
-  ir_emit_ast_node(while_node->data.while_statement.statement_body, function, emit_status);
-  ir_emit_jump(continue_label_identifier, function);
-  ir_emit_label(break_label_identifier, function);
+  ir_emit_jump_if_zero(break_label_identifier, condition, function, node_arena);
+  ir_emit_ast_node(while_node->data.while_statement.statement_body, function, emit_status, node_arena);
+  ir_emit_jump(continue_label_identifier, function, node_arena);
+  ir_emit_label(break_label_identifier, function, node_arena);
 }
 
 void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
@@ -339,9 +339,9 @@ void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_sta
   ir_emit_label(break_label_identifier, function);
 }
 
-void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status) {
+void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   if (for_node->data.for_statement.for_loop_init != NULL) {
-    ir_emit_ast_node(for_node->data.for_statement.for_loop_init, function, emit_status);
+    ir_emit_ast_node(for_node->data.for_statement.for_loop_init, function, emit_status, node_arena);
   }  
 
   char *start_label_identifier = ir_create_concat_identifier(START_LABEL, for_node->data.for_statement.label_id);
@@ -350,21 +350,21 @@ void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status)
   char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, for_node->data.for_statement.label_id);
 
   if (for_node->data.for_statement.condition_expression != NULL) {
-    IRNode *condition = ir_emit_ast_node(for_node->data.for_statement.condition_expression, function, emit_status);
-    ir_emit_jump_if_zero(break_label_identifier, condition, function);
+    IRNode *condition = ir_emit_ast_node(for_node->data.for_statement.condition_expression, function, emit_status, node_arena);
+    ir_emit_jump_if_zero(break_label_identifier, condition, function, node_arena);
   }
 
-  ir_emit_ast_node(for_node->data.for_statement.statement_body, function, emit_status);
+  ir_emit_ast_node(for_node->data.for_statement.statement_body, function, emit_status, node_arena);
 
   char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, for_node->data.for_statement.label_id);
-  ir_emit_label(continue_label_identifier, function);
+  ir_emit_label(continue_label_identifier, function, node_arena);
 
   if (for_node->data.for_statement.post_expression != NULL) {
-    ir_emit_ast_node(for_node->data.for_statement.post_expression, function, emit_status);
+    ir_emit_ast_node(for_node->data.for_statement.post_expression, function, emit_status, node_arena);
   }
 
-  ir_emit_jump(start_label_identifier, function);
-  ir_emit_label(break_label_identifier, function);
+  ir_emit_jump(start_label_identifier, function, node_arena);
+  ir_emit_label(break_label_identifier, function, node_arena);
 }
 
 void ir_emit_continue(int label_id, IRNode *function) {
@@ -622,8 +622,8 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   return destination;
 } 
 
-IRNode* ir_emit_jump(char *label, IRNode *function) {
-  IRNode *jmp_instruction = malloc(sizeof(IRNode));
+IRNode* ir_emit_jump(char *label, IRNode *function, Arena *node_arena) {
+  IRNode *jmp_instruction = arena_alloc(node_arena);
   jmp_instruction->type = IR_INSTRUCTION_JUMP;
   jmp_instruction->data.instruction_jump.target = label;
 
@@ -632,8 +632,8 @@ IRNode* ir_emit_jump(char *label, IRNode *function) {
   return jmp_instruction;
 }
 
-IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function) {
-  IRNode *jump_if_zero = malloc(sizeof(IRNode));
+IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, Arena *node_arena) {
+  IRNode *jump_if_zero = arena_alloc(node_arena);
   jump_if_zero->type = IR_INSTRUCTION_JUMP_IF_ZERO;
   jump_if_zero->data.instruction_jump_if_zero.condition = condition;
   jump_if_zero->data.instruction_jump_if_zero.target = label;
@@ -667,8 +667,8 @@ void check_ir_function_instruction_size(IRNode *ir_function) {
   } 
 } 
 
-IRNode* ir_emit_label(char *label, IRNode *function) {
-  IRNode *label_instruction = malloc(sizeof(IRNode));
+IRNode* ir_emit_label(char *label, IRNode *function, Arena *node_arena) {
+  IRNode *label_instruction = arena_alloc(node_arena);
   label_instruction->type = IR_INSTRUCTION_LABEL;
   label_instruction->data.instruction_label.identifier = label;
 
@@ -769,6 +769,7 @@ IRNode* ir_create_variable(char *identifier) {
 }
 
 char* ir_create_concat_identifier(char *string, int integer) {
+  //TODO: Hardcoded value
   char *identifier = malloc(64);
   snprintf(identifier, 64, "%s.%d", string, integer);
 
