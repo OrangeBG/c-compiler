@@ -49,7 +49,7 @@ typedef enum {
 typedef struct {
   int capacity;
   int count;
-  AstNode **node_pointers;
+  IRNode **node_pointers;
 } IRNodePointer;
 
 typedef struct IRNode {

@@ -19,33 +19,31 @@ typedef struct {
   int temp_label_id;
 } IREmitStatus;
 
-void    check_ir_function_instruction_size(IRNode *ir_function);
 void    ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status);
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *node_arena);
-IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status); 
+IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 IRNode* ir_emit_return(AstNode *block_item, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
 void    ir_emit_if(AstNode *block_item, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 void    ir_emit_goto(AstNode *goto_node, IRNode *function, Arena *node_arena); 
 void    ir_emit_goto_label(AstNode *goto_label_node, IRNode *function, Arena *node_arena); 
 void    ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
-void    ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status); 
+void    ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 void    ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
-void    ir_emit_continue(int label_id, IRNode *function);
-void    ir_emit_break(int label_id, IRNode *function);
+void    ir_emit_continue(int label_id, IRNode *function, Arena *node_arena);
+void    ir_emit_break(int label_id, IRNode *function, Arena *node_arena);
 void    ir_emit_block(AstNode *block_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 IRNode* ir_emit_jump(char *label, IRNode *function, Arena *node_arena);
 IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, Arena *node_arena); 
-IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function); 
+IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, Arena *node_arena); 
 IRNode* ir_emit_label(char* label, IRNode *function, Arena *node_arena);
-IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function); 
-IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status); 
-IRNode* ir_emit_conditional_expression(AstNode *condition_node, IRNode *function, IREmitStatus *emit_status);
-IRNode* ir_emit_conditional_expression(AstNode *condition_node, IRNode *function, IREmitStatus *emit_status);
-IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_status);
-IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitStatus *emit_status);
-IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status);
-IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status);
-IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status); 
+IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
+IRNode* ir_emit_conditional_expression(AstNode *condition_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
+IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_status, Arena *node_arena);
+IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
+IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
+IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
+IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 void    ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function);
 void    ir_add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument);
@@ -97,7 +95,7 @@ void print_intermediate_ret(IRNode *ir_node) {
       printf("Program \n");
 
       for (int i = 0; i < ir_node->data.program.function_count; i++) {
-        print_intermediate_ret(&ir_node->data.program.functions[i]);
+        print_intermediate_ret(ir_node->data.program.function_ptrs->node_pointers[i]);
       }
 
       printf("\n");
@@ -107,12 +105,12 @@ void print_intermediate_ret(IRNode *ir_node) {
         printf("Function -> %s\n", function->identifier);
 
         for (int i = 0; i < function->instruction_count; i++) {
-          if (function->instructions[i].type == IR_INSTRUCTION_RET) {
+          if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_RET) {
             printf("Return(");
-            print_intermediate_ret(function->instructions[i].data.instruction_ret.value);
+            print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_ret.value);
             printf(")\n");
-          } else if (function->instructions[i].type == IR_INSTRUCTION_UNARY) {      
-            struct IRInstructionUnary* unary = &function->instructions[i].data.unary;
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_UNARY) {      
+            struct IRInstructionUnary* unary = &function->instruction_ptrs->node_pointers[i]->data.unary;
 
             switch (unary->op_type) {
               case IR_UNARY_NEGATE:     printf("Negate, "); break;
@@ -125,8 +123,8 @@ void print_intermediate_ret(IRNode *ir_node) {
             print_intermediate_ret(unary->destination);
             printf(")");
             printf("\n");
-          } else if (function->instructions[i].type == IR_INSTRUCTION_BINARY) {
-            struct IRInstructionBinary* binary = &function->instructions[i].data.instruction_binary;
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_BINARY) {
+            struct IRInstructionBinary* binary = &function->instruction_ptrs->node_pointers[i]->data.instruction_binary;
 
             printf("Binary(");
       
@@ -156,24 +154,24 @@ void print_intermediate_ret(IRNode *ir_node) {
             print_intermediate_ret(binary->destination);
             printf(")");
             printf("\n");
-          } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP_IF_ZERO) {
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP_IF_ZERO) {
             printf("Jump If Zero(");
-            print_intermediate_ret(function->instructions[i].data.instruction_jump_if_zero.condition);
-            printf(", %s)\n", function->instructions[i].data.instruction_jump_if_zero.target);
-          } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP_IF_NOT_ZERO) {
+            print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_zero.condition);
+            printf(", %s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_zero.target);
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP_IF_NOT_ZERO) {
             printf("Jump If Not Zero(");
-            print_intermediate_ret(function->instructions[i].data.instruction_jump_if_not_zero.condition);
-            printf(" , %s)\n", function->instructions[i].data.instruction_jump_if_not_zero.target);
-          } else if (function->instructions[i].type == IR_INSTRUCTION_JUMP) {
-            printf("Jump(%s)\n", function->instructions[i].data.instruction_jump.target);
-          } else if (function->instructions[i].type == IR_INSTRUCTION_COPY) {
+            print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_not_zero.condition);
+            printf(" , %s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_not_zero.target);
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP) {
+            printf("Jump(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump.target);
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY) {
             printf("Copy(Source(");
-            print_intermediate_ret(function->instructions[i].data.instruction_copy.source);
+            print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.source);
             printf(") (Destination(");
-            print_intermediate_ret(function->instructions[i].data.instruction_copy.destination);
+            print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.destination);
             printf(")\n");
-          } else if (function->instructions[i].type == IR_INSTRUCTION_LABEL) {
-            printf("Label(%s)\n", function->instructions[i].data.instruction_label.identifier);
+          } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_LABEL) {
+            printf("Label(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_label.identifier);
           }
         }
       }
@@ -201,8 +199,8 @@ void print_intermediate_ret(IRNode *ir_node) {
 }
 
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *node_arena) {
-  IRNode *function = arena_alloc(ir_arena);
-  IRNodePoint *ir_node_pointer = malloc(sizeof(IRNodePointer));
+  IRNode *function = arena_alloc(node_arena);
+  IRNodePointer *ir_node_pointer = malloc(sizeof(IRNodePointer));
   ir_init_node_pointer(ir_init_node_pointer);
   
   function->type = IR_FUNCTION;
@@ -323,20 +321,20 @@ void ir_emit_while(AstNode *while_node, IRNode *function, IREmitStatus *emit_sta
   ir_emit_label(break_label_identifier, function, node_arena);
 }
 
-void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status) {
+void ir_emit_do_while(AstNode *do_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   char *start_label_identifier = ir_create_concat_identifier(START_LABEL, do_node->data.do_while_statement.label_id);
-  ir_emit_label(start_label_identifier, function);
+  ir_emit_label(start_label_identifier, function, node_arena);
 
-  ir_emit_ast_node(do_node->data.do_while_statement.statement_body, function, emit_status);
+  ir_emit_ast_node(do_node->data.do_while_statement.statement_body, function, emit_status, node_arena);
 
   char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, do_node->data.do_while_statement.label_id); 
-  ir_emit_label(continue_label_identifier, function);
+  ir_emit_label(continue_label_identifier, function, node_arena);
 
-  IRNode *condition = ir_emit_ast_node(do_node->data.do_while_statement.condition, function, emit_status);
+  IRNode *condition = ir_emit_ast_node(do_node->data.do_while_statement.condition, function, emit_status, node_arena);
   ir_emit_jump_if_not_zero(start_label_identifier, condition, function);
 
   char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, do_node->data.do_while_statement.label_id);
-  ir_emit_label(break_label_identifier, function);
+  ir_emit_label(break_label_identifier, function, node_arena);
 }
 
 void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
@@ -345,7 +343,7 @@ void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status,
   }  
 
   char *start_label_identifier = ir_create_concat_identifier(START_LABEL, for_node->data.for_statement.label_id);
-  ir_emit_label(start_label_identifier, function);
+  ir_emit_label(start_label_identifier, function, node_arena);
 
   char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, for_node->data.for_statement.label_id);
 
@@ -367,52 +365,52 @@ void ir_emit_for(AstNode *for_node, IRNode *function, IREmitStatus *emit_status,
   ir_emit_label(break_label_identifier, function, node_arena);
 }
 
-void ir_emit_continue(int label_id, IRNode *function) {
+void ir_emit_continue(int label_id, IRNode *function, Arena *node_arena) {
   char *continue_label_identifier = ir_create_concat_identifier(CONTINUE_LABEL, label_id); 
-  ir_emit_jump(continue_label_identifier, function);
+  ir_emit_jump(continue_label_identifier, function, node_arena);
 }
 
-void ir_emit_break(int label_id, IRNode *function) {
+void ir_emit_break(int label_id, IRNode *function, Arena *node_arena) {
   char *break_label_identifier = ir_create_concat_identifier(BREAK_LABEL, label_id); 
-  ir_emit_jump(break_label_identifier, function);
+  ir_emit_jump(break_label_identifier, function, node_arena);
 }
 
-IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status) {
+IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   if (!declaration_node->data.variable_declaration.has_expression) {
     return NULL;
   }
 
-  IRNode *node = ir_emit_ast_node(declaration_node->data.variable_declaration.init_expression, function, emit_status);    
+  IRNode *node = ir_emit_ast_node(declaration_node->data.variable_declaration.init_expression, function, emit_status, node_arena);    
   ir_add_postfix_operations(function, emit_status);
 
   return node;
 }
 
-IRNode* ir_emit_conditional_expression(AstNode *conditional_node, IRNode *function, IREmitStatus *emit_status) {
-  IRNode *condition = ir_emit_ast_node(conditional_node->data.conditional_expression.condition, function, emit_status);
+IRNode* ir_emit_conditional_expression(AstNode *conditional_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *condition = ir_emit_ast_node(conditional_node->data.conditional_expression.condition, function, emit_status, node_arena);
 
   char *end_label_name = ir_create_temp_label(emit_status);
   char *false_label_name = ir_create_temp_label(emit_status);
 
-  ir_emit_jump_if_zero(false_label_name, condition, function);
+  ir_emit_jump_if_zero(false_label_name, condition, function, node_arena);
 
-  IRNode *true_value = ir_emit_ast_node(conditional_node->data.conditional_expression.true_expression, function, emit_status);
+  IRNode *true_value = ir_emit_ast_node(conditional_node->data.conditional_expression.true_expression, function, emit_status, node_arena);
 
-  ir_emit_jump(end_label_name, function);
-  ir_emit_label(false_label_name, function);
+  ir_emit_jump(end_label_name, function, node_arena);
+  ir_emit_label(false_label_name, function, node_arena);
 
-  IRNode *false_value = ir_emit_ast_node(conditional_node->data.conditional_expression.false_expression, function, emit_status);      
+  IRNode *false_value = ir_emit_ast_node(conditional_node->data.conditional_expression.false_expression, function, emit_status, node_arena);      
 
-  ir_emit_label(end_label_name, function);
+  ir_emit_label(end_label_name, function, node_arena);
 
   return condition;
 }
 
-IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_status) {
+IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_status, Arena *node_arena) {
   AstNode *postfix_arena_node = arena_alloc(&emit_status->postfix_arena);
   *postfix_arena_node = *postfix_node->data.increment_decrement_expression.expression;
 
-  IRNode *variable = malloc(sizeof(IRNode));
+  IRNode *variable = arena_alloc(node_arena);
   variable->type = IR_VALUE_VAR;
 
   AstNode *postfix_expression = postfix_node->data.increment_decrement_expression.expression->data.assignement_expression.left_expression;
@@ -429,13 +427,13 @@ IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_sta
   return variable;
 }
 
-IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitStatus *emit_status) {
-  IRNode *source = ir_emit_ast_node(unary_node->data.unary_expression.expression, function, emit_status);
+IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *source = ir_emit_ast_node(unary_node->data.unary_expression.expression, function, emit_status, node_arena);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = ir_create_temp_register(emit_status);
 
-  IRNode *destination = malloc(sizeof(IRNode));
+  IRNode *destination = arena_alloc(node_arena);
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
@@ -447,7 +445,7 @@ IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitSt
     case AST_UNARY_NOT:        unary_op_type = IR_UNARY_NOT; break;
   }
 
-  IRNode *unary_instruction = malloc(sizeof(IRNode));         
+  IRNode *unary_instruction = arena_alloc(node_arena);         
   unary_instruction->type = IR_INSTRUCTION_UNARY;
   unary_instruction->data.unary.op_type = unary_op_type;
   unary_instruction->data.unary.source = source;
@@ -458,21 +456,21 @@ IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitSt
   return destination;
 }
 
-IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status) {
-  IRNode *source_1 = ir_emit_ast_node(binary_node->data.binary_expression.left_expression, function, emit_status);
-  IRNode *source_2 = ir_emit_ast_node(binary_node->data.binary_expression.right_expression, function, emit_status);
+IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *source_1 = ir_emit_ast_node(binary_node->data.binary_expression.left_expression, function, emit_status, node_arena);
+  IRNode *source_2 = ir_emit_ast_node(binary_node->data.binary_expression.right_expression, function, emit_status, node_arena);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = ir_create_temp_register(emit_status);
 
-  IRNode *destination = malloc(sizeof(IRNode));
+  IRNode *destination = arena_alloc(node_arena);
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
   if (binary_node->data.binary_expression.op_type == AST_BINARY_AND || binary_node->data.binary_expression.op_type == AST_BINARY_OR) {
     char *label_name = ir_create_temp_label(emit_status);
 
-    IRNode *jmp_instruction_v1 = malloc(sizeof(IRNode));
+    IRNode *jmp_instruction_v1 = arena_alloc(node_arena);
 
     if (binary_node->data.binary_expression.op_type == AST_BINARY_AND) { 
       jmp_instruction_v1->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
@@ -486,7 +484,7 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
 
     ir_add_instruction_to_function(function, jmp_instruction_v1);
 
-    IRNode *jmp_instruction_v2 = malloc(sizeof(IRNode));
+    IRNode *jmp_instruction_v2 = arena_alloc(node_arena);;
 
     if (binary_node->data.binary_expression.op_type == AST_BINARY_AND) { 
       jmp_instruction_v2->type = IR_INSTRUCTION_JUMP_IF_ZERO;  
@@ -502,14 +500,14 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
 
     IRNode *result_1 = ir_create_constant(1);
 
-    ir_emit_copy(result_1, destination, function);
-    ir_emit_jump(END_LABEL, function);
-    ir_emit_label(label_name, function);
+    ir_emit_copy(result_1, destination, function, node_arena);
+    ir_emit_jump(END_LABEL, function, node_arena);
+    ir_emit_label(label_name, function, node_arena);
 
     IRNode *result_0 = ir_create_constant(0);
 
-    ir_emit_copy(result_0, destination, function);
-    ir_emit_label(END_LABEL, function);
+    ir_emit_copy(result_0, destination, function, node_arena);
+    ir_emit_label(END_LABEL, function, node_arena);
 
     return destination;
   }
@@ -536,7 +534,7 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
     default: break;
   }      
 
-  IRNode *binary_instruction = malloc(sizeof(IRNode));         
+  IRNode *binary_instruction = arena_alloc(node_arena);         
   binary_instruction->type = IR_INSTRUCTION_BINARY;
   binary_instruction->data.instruction_binary.op_type = binary_op_type;
   binary_instruction->data.instruction_binary.source_1 = source_1;
@@ -548,35 +546,37 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
   return destination;
 }
 
-IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status) {
+IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
   //TODO: Keep this for now. Need to assess why conditional expressions are handled differently when the source node is 'ast_expression_assignment'. There's already an emit_conditional(). 
   if (assignment_node->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONDITIONAL) {
-    IRNode *condition = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression->data.conditional_expression.condition, function, emit_status);
+    IRNode *condition = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression->data.conditional_expression.condition, function, emit_status, node_arena);
 
     char *end_label_name = ir_create_temp_label(emit_status);
     char *false_label_name = ir_create_temp_label(emit_status);
 
-    ir_emit_jump_if_zero(false_label_name, condition, function);
+    ir_emit_jump_if_zero(false_label_name, condition, function, node_arena);
     
-    IRNode *true_value = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression->data.conditional_expression.true_expression, function, emit_status);
-    IRNode *variable = malloc(sizeof(IRNode));
+    IRNode *true_value = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression->data.conditional_expression.true_expression, function, emit_status, node_arena);
+
+    IRNode *variable = arena_alloc(node_arena);
     variable->type = IR_VALUE_VAR;
     variable->data.value_var.identifier = assignment_node->data.assignement_expression.left_expression->data.variable_expression.identifier;
 
-    ir_emit_copy(true_value, variable, function);
-    ir_emit_jump(end_label_name, function);
-    ir_emit_label(false_label_name, function);
+    ir_emit_copy(true_value, variable, function, node_arena);
+    ir_emit_jump(end_label_name, function, node_arena);
+    ir_emit_label(false_label_name, function, node_arena);
   
-    IRNode *false_value = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression->data.conditional_expression.false_expression, function, emit_status);
+    IRNode *false_value = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression->data.conditional_expression.false_expression, function, emit_status, node_arena);
 
-    ir_emit_copy(false_value, variable, function);
-    ir_emit_label(end_label_name, function);
+    ir_emit_copy(false_value, variable, function, node_arena);
+    ir_emit_label(end_label_name, function, node_arena);
 
     return NULL;
   }
     
-  IRNode *result = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression, function, emit_status);
-  IRNode *variable = malloc(sizeof(IRNode));
+  IRNode *result = ir_emit_ast_node(assignment_node->data.assignement_expression.right_expression, function, emit_status, node_arena);
+
+  IRNode *variable = arena_alloc(node_arena);
   variable->type = IR_VALUE_VAR;
 
   if (assignment_node->data.assignement_expression.left_expression->type == AST_EXPRESSION_VARIABLE) {
@@ -588,13 +588,13 @@ IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function
     exit(1);
   }
 
-  ir_emit_copy(result, variable, function);
+  ir_emit_copy(result, variable, function, node_arena);
   
   return result;
 }
 
-IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status) {
-  IRNode *ir_function_call = malloc(sizeof(IRNode));
+IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *ir_function_call = arena_alloc(node_arena);
   ir_function_call->type = IR_INSTRUCTION_FUNCTION_CALL;
   ir_function_call->data.instruction_function_call.identifier = function_call_node->data.function_call_expression.identfier;
   ir_function_call->data.instruction_function_call.arg_capacity = 0;
@@ -603,7 +603,7 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
   char *destination_name = ir_create_temp_register(emit_status);
 
-  IRNode *destination = malloc(sizeof(IRNode));
+  IRNode *destination = arena_alloc(node_arena);
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
@@ -612,7 +612,7 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   for (int i = 0; i < function_call_node->data.function_call_expression.argument_count; i++) {
     AstNode *argument_node = function_call_node->data.function_call_expression.argument_ptrs->node_pointers[i];
 
-    IRNode *argument = ir_emit_ast_node(argument_node, function, emit_status);
+    IRNode *argument = ir_emit_ast_node(argument_node, function, emit_status, node_arena);
 
     ir_add_argument_to_function_call(ir_function_call, argument);    
   }
@@ -643,8 +643,8 @@ IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, A
   return jump_if_zero;
 }
 
-IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function) {
-  IRNode *jmp_if_not_zero = malloc(sizeof(IRNode));
+IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, Arena *node_arena) {
+  IRNode *jmp_if_not_zero = arena_alloc(node_arena);
   jmp_if_not_zero->type = IR_INSTRUCTION_JUMP_IF_NOT_ZERO;
   jmp_if_not_zero->data.instruction_jump_if_not_zero.condition = condition;
   jmp_if_not_zero->data.instruction_jump_if_not_zero.target = label;
@@ -652,20 +652,6 @@ IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *functio
   ir_add_instruction_to_function(function, jmp_if_not_zero);
   return jmp_if_not_zero;
 }
-
-void check_ir_function_instruction_size(IRNode *ir_function) {
-  int current_count = ir_function->data.function.instruction_count;
-  int current_capacity = ir_function->data.function.instruction_capacity;
-
-  if (current_count == current_capacity) {
-    int new_size = current_capacity == 0 ? INSTRUCTION_CAPACITY : current_capacity * INSTRUCTION_CAPACITY;
-
-    IRNode *instructions = realloc(ir_function->data.function.instructions, new_size * sizeof(IRNode));
-
-    ir_function->data.function.instruction_capacity = new_size;
-    ir_function->data.function.instructions = instructions;
-  } 
-} 
 
 IRNode* ir_emit_label(char *label, IRNode *function, Arena *node_arena) {
   IRNode *label_instruction = arena_alloc(node_arena);
@@ -677,8 +663,8 @@ IRNode* ir_emit_label(char *label, IRNode *function, Arena *node_arena) {
   return label_instruction;
 }
 
-IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function) {
-  IRNode *copy_instruction = malloc(sizeof(IRNode));
+IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *copy_instruction = arena_alloc(node_arena);
   copy_instruction->type = IR_INSTRUCTION_COPY;
   copy_instruction->data.instruction_copy.source = source;
   copy_instruction->data.instruction_copy.destination = destination;      
@@ -801,5 +787,5 @@ void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
   
   ir_node_pointer->capacity = 0;
   ir_node_pointer->count = 0;
-  ir_node_pointer->asm_pointers = NULL;
+  ir_node_pointer->node_pointers = NULL;
 }
