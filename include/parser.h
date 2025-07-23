@@ -3,6 +3,7 @@
 
 #include "../include/lexer.h"
 #include "../include/arena.h"
+#include "intermediate_rep.h"
 #include <stdbool.h>
 
 typedef struct AstNode AstNode;
@@ -77,6 +78,11 @@ typedef enum {
   AST_PARAMETER_INT
 } ParameterType;
 
+typedef enum {
+  AST_STORAGE_CLASS_STATIC,
+  AST_STORAGE_CLASS_EXTERN
+} StorageClassType;
+
 typedef struct {
   int capacity;
   int count;
@@ -86,10 +92,11 @@ typedef struct {
 typedef struct AstNode {
   NodeType type;
   union {
-    struct Program { NodePointer *function_ptrs; int function_count; } program;
-    struct FunctionDeclaration { char *name; NodePointer *parameter_ptrs; int parameter_count; AstNode *body_block; } function_declaration;
+    // struct Program { NodePointer *function_ptrs; int function_count; } program;
+    struct Program { DeclarationType declaration_type; AstNode *declaration; } program;
+    struct FunctionDeclaration { char *name; StorageClassType storage_class_type;  NodePointer *parameter_ptrs; int parameter_count; AstNode *body_block; } function_declaration;
     struct FunctionParameter { char *name; ParameterType type; } function_parameters;
-    struct VariableDeclaration { char *name; bool has_expression; AstNode *init_expression; } variable_declaration;
+    struct VariableDeclaration { char *name; StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } variable_declaration;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
@@ -115,7 +122,6 @@ typedef struct AstNode {
 } AstNode;
 
 Arena* parse_ast(Token *tokens, int token_count, char *file);   
-// void print_ast(AstNode *node, int level);
 void print_ast(const AstNode *node, int whitespace);
 
 #endif
