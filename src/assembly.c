@@ -36,7 +36,7 @@ void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_po
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 
 AsmNode* generate_assembly(IRNode *ir_nodes) {  
-  Arena *asm_arena = malloc(sizeof(AsmNode));
+  Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
 
@@ -119,8 +119,7 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
       continue;
     }
 
-    AsmNode *new_instruction = malloc(sizeof(AsmNode));
-
+    AsmNode *new_instruction = arena_alloc(asm_arena); 
     new_instruction->type = instruction_ptr->asm_pointers[i]->type;
     new_instruction->data = instruction_ptr->asm_pointers[i]->data;
 

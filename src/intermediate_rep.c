@@ -56,7 +56,7 @@ void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer);
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node) {
-  Arena *node_arena = malloc(sizeof(IRNode));
+  Arena *node_arena = malloc(sizeof(Arena));
 
   //TODO: Hardcoded capacity
   arena_init(node_arena, sizeof(IRNode), sizeof(IRNode) * 1000, false);

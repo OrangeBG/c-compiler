@@ -1086,7 +1086,6 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 
   ast_parse_expression(parser, &left, 0);
 
-  // AstNode *prefix_assignment = malloc(sizeof(AstNode));
   factor_node->type = AST_EXPRESSION_ASSIGNMENT;
   factor_node->data.assignement_expression.left_expression = left;
 
