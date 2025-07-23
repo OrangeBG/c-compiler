@@ -31,6 +31,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_DO",
   "TOKEN_ELSE",
   "TOKEN_EQUAL",
+  "TOKEN_EXTERN",
   "TOKEN_FOR",
   "TOKEN_FORWARD_SLASH",
   "TOKEN_FORWARD_SLASH_EQUAL",
@@ -59,6 +60,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_RELATIONAL_GREATER_OR_EQUAL",
   "TOKEN_RETURN",
   "TOKEN_SEMICOLON",
+  "TOKEN_STATIC",
   "TOKEN_VOID", 
   "TOKEN_WHILE",
   "TOKEN_EOF"
@@ -414,7 +416,14 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
     case 'b': return check_keyword(0, 4, "reak", TOKEN_BREAK, lexer, file);
     case 'c': return check_keyword(0, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
     case 'd': return check_keyword(0, 1, "o", TOKEN_DO, lexer, file);
-    case 'e': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
+    case 'e': {
+      if (lexer->current_index - lexer->start_index > 0) {
+        switch (file[lexer->start_index + 1]) {
+          case 'l': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
+          case 'x': return check_keyword(0, 5, "xtern", TOKEN_EXTERN, lexer, file);
+        }
+      }
+    }
     case 'f': return check_keyword(0, 2, "or", TOKEN_FOR, lexer, file);
     case 'g': return check_keyword(0, 3, "oto", TOKEN_GOTO, lexer, file);
     case 'i': {
@@ -427,6 +436,7 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
       break;
      }
     case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
+    case 's': return check_keyword(0, 5, "tatic", TOKEN_STATIC, lexer, file);
     case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
     case 'w': return check_keyword(0, 4, "hile", TOKEN_WHILE, lexer, file);
   }

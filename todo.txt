@@ -91,4 +91,5 @@
 	- Add generic dynamic array grow function
 	- Add Typedef support: Refer to pg 108 - Sandler Nora.
 	- Add switch statements support: Refer to pg 159 - Sandler Nora.
-	- Add procdedure link table calling support for linux pg 201 - Sandler Nora
+	- Add procedure link table calling support for linux pg 201 - Sandler Nora
+	- Look into implementing Global Offset Table - pg 221 - Sandler Nora
