@@ -95,9 +95,9 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       }
       break;    
     case AST_PROGRAM:
-      for (int i = 0; i < ast_node->data.program.function_count; i++) {
-        AstNode *function_node = ast_node->data.program.function_ptrs->node_pointers[i];
-        sa_label_loop(function_node, label_stack, current_loop_id);
+      for (int i = 0; i < ast_node->data.program.declaration_count; i++) {
+        AstNode *declaration_node = ast_node->data.program.declaration_ptrs->node_pointers[i];
+        sa_label_loop(declaration_node, label_stack, current_loop_id);
       }
       break;
     case AST_FUNCTION_DECLARATION:

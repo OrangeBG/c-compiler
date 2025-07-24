@@ -75,14 +75,15 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
     .temp_label_id = 0
   };
 
-  for (int i = 0; i < ast_node->data.program.function_count; i++) {
-    AstNode *function_node = ast_node->data.program.function_ptrs->node_pointers[i];
+  for (int i = 0; i < ast_node->data.program.declaration_count; i++) {
+    AstNode *declaration_node = ast_node->data.program.declaration_ptrs->node_pointers[i];
     //We only need to process function definitions, not function declarations
-    if (function_node->data.function_declaration.body_block == NULL) {
+    if (declaration_node->data.function_declaration.body_block == NULL) {
       continue;
     }
     
-    IRNode *function = ir_function(function_node, &emit_status, node_arena);
+    //TODO: Can no longer assume it's a function declaration
+    IRNode *function = ir_function(declaration_node, &emit_status, node_arena);
     ir_add_function_to_program(program, function);
   }
 

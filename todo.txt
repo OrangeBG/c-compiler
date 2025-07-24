@@ -72,6 +72,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- Parser: Add compound statement construct to parser. It will be easier to determined if the block is from a function definition or an inner scoped block within the function.
     - To handle multiple source files, should convert each file to assembly separately, then use gcc or clang to assemble them and link them together.
 	- Intermediate Rep: AST_EXPRESSION_CONDITIONAL logic in two places. One is for assigning to a var while the other is for nested conditional expressions.
 	- Intermediate Rep: Confirm that nested conditionals are working correctly. It builds, but not sure if it's completely correct. Test with something like: int a = 1 ? 2 ? 3 : 4 : 5;
