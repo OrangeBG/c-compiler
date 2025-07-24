@@ -98,7 +98,15 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_VARIABLE_DECLARATION:
       print_whitespace(whitespace);
-      printf("Variable Declaration (id = \"%s\"\n", node->data.variable_declaration.name);
+      printf("Variable Declaration (id = \"%s\" ", node->data.variable_declaration.name);
+
+      switch (node->data.variable_declaration.storage_class_type) {
+        case AST_STORAGE_CLASS_NONE: printf("storage class = \"None\""); break;
+        case AST_STORAGE_CLASS_EXTERN : printf("storage class = \"Extern\""); break;
+        case AST_STORAGE_CLASS_STATIC : printf("storage class = \"Static\""); break;        
+      }
+      
+      printf("\n");
 
       if (node->data.variable_declaration.has_expression) {
         print_ast(node->data.variable_declaration.init_expression, ADD_WHITESPACE);
