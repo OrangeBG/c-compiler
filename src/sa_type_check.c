@@ -40,8 +40,8 @@ void sa_type_check(AstNode *ast_nodes) {
   HashTable symbols;
   hash_table_init(&symbols);
 
-  for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    AstNode *function_node = ast_nodes->data.program.function_ptrs->node_pointers[i];
+  for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
+    AstNode *function_node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
     sa_function_and_variable_type_check(function_node, &symbols, function_node->data.function_declaration.name);
   } 
 }

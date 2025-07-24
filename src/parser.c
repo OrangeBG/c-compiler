@@ -20,8 +20,8 @@ typedef struct Parser {
 } Parser;
  
 void       ast_program(Parser *parser, AstNode *program_node);
-void       ast_function_declaration(Parser *parser, AstNode *function_node);
-void       ast_variable_declaration(Parser *parser, AstNode *variable_node);
+void       ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type);
+void       ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type);
 void       ast_block(Parser *parser, AstNode *block_node);
 void       ast_declaration(Parser *parser, AstNode *declaration_node); 
 void       ast_parse_statement(Parser *parser, AstNode **statement_node);
@@ -90,8 +90,8 @@ void print_ast(const AstNode *node, int whitespace) {
   switch(node->type){
     case AST_PROGRAM:  
       printf("Program (\n");
-      for (int i = 0; i < node->data.program.function_count; i++) {
-        AstNode *function = node->data.program.function_ptrs->node_pointers[i];
+      for (int i = 0; i < node->data.program.declaration_count; i++) {
+        AstNode *function = node->data.program.declaration_ptrs->node_pointers[i];
         print_ast(function, ADD_WHITESPACE);
       }
       printf(")\n");
@@ -463,33 +463,46 @@ void ast_expect(Parser *parser, TokenType expected_type) {
 
 void ast_program(Parser *parser, AstNode *program_node) {
   program_node->type = AST_PROGRAM;
-  program_node->data.program.function_count = 0;
+  program_node->data.program.declaration_count = 0;
 
-  NodePointer *function_pointers = malloc(sizeof(NodePointer));
-  init_node_pointer(function_pointers);
+  NodePointer *declaration_pointers = malloc(sizeof(NodePointer));
+  init_node_pointer(declaration_pointers);
 
-  program_node->data.program.function_ptrs = function_pointers;
+  program_node->data.program.declaration_ptrs = declaration_pointers;
   
   while (current_token(parser)->type != TOKEN_EOF) {
-    AstNode *function_node = arena_alloc(parser->node_arena);
-    ast_function_declaration(parser, function_node);
-    program_node->data.program.function_count++;
-    add_to_node_pointer(function_node, function_pointers);
+    AstNode *declaration_node = arena_alloc(parser->node_arena);
+    // ast_function_declaration(parser, declaration_node);
+    ast_declaration(parser, declaration_node);
+
+    program_node->data.program.declaration_count++;
+    add_to_node_pointer(declaration_node, declaration_pointers);
   } 
 }
 
 void ast_declaration(Parser *parser, AstNode *declaration_node) {
+  StorageClassType storage_class_type = AST_STORAGE_CLASS_NONE;
+
+  if (current_token(parser)->type == TOKEN_EXTERN) {
+    storage_class_type = AST_STORAGE_CLASS_EXTERN;
+    ast_expect(parser, TOKEN_EXTERN);
+  } else if (current_token(parser)->type == TOKEN_STATIC) {
+    storage_class_type = AST_STORAGE_CLASS_STATIC;
+    ast_expect(parser, TOKEN_STATIC);
+  }
+  
   //Variable Declaration -> int c; or int c = 0; 
   if (parser->tokens[parser->current_token_index + 2].type == TOKEN_EQUAL || parser->tokens[parser->current_token_index + 2].type == TOKEN_SEMICOLON) {
-    ast_variable_declaration(parser, declaration_node);
+    ast_variable_declaration(parser, declaration_node, storage_class_type);
     return;
   }
 
-  ast_function_declaration(parser, declaration_node);
+  ast_function_declaration(parser, declaration_node, storage_class_type);
 }
 
-void ast_function_declaration(Parser *parser, AstNode *function_node) {
+void ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type) {
   function_node->data.function_declaration.parameter_count = 0;
+  function_node->data.function_declaration.storage_class_type = storage_class_type;
   
   ast_expect(parser, TOKEN_INT);
 
@@ -568,13 +581,14 @@ void ast_function_declaration(Parser *parser, AstNode *function_node) {
   ast_block(parser, block_node);
 }
 
-void ast_variable_declaration(Parser *parser, AstNode *variable_node) {
+void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type) {
   ast_expect(parser, TOKEN_INT);
 
   char *identifier = ast_identifier(parser);
 
   variable_node->type = AST_VARIABLE_DECLARATION;
   variable_node->data.variable_declaration.name = identifier;
+  variable_node->data.variable_declaration.storage_class_type = storage_class_type;
 
   if (current_token(parser)->type == TOKEN_EQUAL) {
     //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
@@ -607,7 +621,8 @@ void ast_block(Parser *parser, AstNode *block_node) {
       return;
     }
 
-    if (current_token(parser)->type == TOKEN_INT) {
+    //TODO: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
+    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
       AstNode *declaration_node = arena_alloc(parser->node_arena);
       ast_declaration(parser, declaration_node);
       block_node->data.block.block_count++;
@@ -795,7 +810,8 @@ void ast_parse_statement_for(Parser *parser, AstNode *for_statement_node) {
     ast_expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
   } else if (current_token(parser)->type == TOKEN_INT) {
-    ast_variable_declaration(parser, dec_or_exp);
+    //TODO: We are assuming that the storage class is not defined here. However, we need to test that we error out when a user attempts to initialize with a storage class
+    ast_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE);
   } else {
     ast_parse_expression(parser, &dec_or_exp, 0);
     //TODO: Weird we do this for expressions but are handled in ast_declaration()

@@ -40,9 +40,9 @@ void sa_variable_resolution(AstNode *ast_nodes) {
   HashTable function_identifier_table;
   hash_table_init(&function_identifier_table); 
 
-  for (int i = 0; i < ast_nodes->data.program.function_count; i++) {
-    AstNode *function_node = ast_nodes->data.program.function_ptrs->node_pointers[i];
-    sa_variable_resolve_node(function_node, &variables, &function_identifier_table);
+  for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
+    AstNode *declaration_node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
+    sa_variable_resolve_node(declaration_node, &variables, &function_identifier_table);
   }
 }
 
