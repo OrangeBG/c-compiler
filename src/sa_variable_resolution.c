@@ -53,7 +53,13 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     case AST_VARIABLE_DECLARATION:
       if (declaration_stack->count == 1) {
         resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_stack);
+      } else {
+        resolve_local_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_stack);   
       }
+
+      if (node->data.variable_declaration.has_expression == true) {
+        variable_resolve_node(node->data.variable_declaration.init_expression, declaration_stack);
+      }      
       break;
     default:
       fprintf(stderr, "ERROR - SA Variable Resolution: AST type '%d' not supported", node->type);
