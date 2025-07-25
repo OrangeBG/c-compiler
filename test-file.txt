@@ -1,4 +1,7 @@
 int main(void) {
-    static int a;
-    extern int v;
+    int a = 0;
+
+    {
+        int b = 1;
+    }
 }

@@ -6,13 +6,15 @@
 
 typedef enum {
   STACK_INT,
-  STACK_STRING
+  STACK_STRING,
+  STACK_STRUCT
 } StackType;
 
 typedef struct {
   StackType type;
   union {
     char* string;
+    void* structure;
     int integer;
   } data;  
 } StackValue;

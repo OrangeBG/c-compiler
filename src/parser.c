@@ -34,6 +34,7 @@ void       ast_parse_statement_continue(Parser *parser, AstNode *continue_statem
 void       ast_parse_statement_while(Parser *parser, AstNode *while_statement_node); 
 void       ast_parse_statement_do(Parser *parser, AstNode *do_statement_node); 
 void       ast_parse_statement_for(Parser *parser, AstNode *for_statement_node); 
+void       ast_parse_statement_compound_statement(Parser *parser, AstNode *compound_statement_node); 
 void       ast_parse_expression(Parser *parser, AstNode **expression_node, int min_precedence);
 void       ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, AstNode *left_expression,  TokenType postfix_token);
 void       ast_parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
@@ -269,6 +270,9 @@ void print_ast(const AstNode *node, int whitespace) {
 
       print_whitespace(whitespace);
       printf(")\n");      
+      break;
+    case AST_STATEMENT_COMPOUND:
+      print_ast(node->data.compound_statement.block, whitespace);
       break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
@@ -644,6 +648,15 @@ void ast_block(Parser *parser, AstNode *block_node) {
   }
 }
 
+void ast_parse_statement_compound_statement(Parser *parser, AstNode *compound_statement_node) {
+  AstNode *block_node = arena_alloc(parser->node_arena);
+
+  compound_statement_node->type = AST_STATEMENT_COMPOUND;
+  compound_statement_node->data.compound_statement.block = block_node;
+
+  ast_block(parser, block_node);
+}
+
 char* ast_identifier(Parser *parser) {
   int start = current_token(parser)->start_index;
   int end = current_token(parser)->end_index;
@@ -676,7 +689,8 @@ void ast_parse_statement(Parser *parser, AstNode **statement_node) {
   }
 
   switch (current_token(parser)->type) {
-    case TOKEN_OPEN_BRACE: ast_block(parser, *statement_node); break;
+    // case TOKEN_OPEN_BRACE: ast_block(parser, *statement_node); break;
+    case TOKEN_OPEN_BRACE: ast_parse_statement_compound_statement(parser, *statement_node); break;
     case TOKEN_SEMICOLON:  ast_parse_statement_null(parser, *statement_node); break;
     case TOKEN_RETURN:     ast_parse_statement_return(parser, *statement_node); break;
     case TOKEN_IF:         ast_parse_statement_if(parser, *statement_node); break;
