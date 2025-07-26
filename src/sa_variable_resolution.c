@@ -15,7 +15,6 @@ enum DeclarationType {
 };
 
 typedef struct {
-  char *name;
   enum DeclarationType declaration_type;
   bool from_current_scope;
   bool has_linkage;
@@ -26,6 +25,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack);
 static void resolve_file_scope_variable_declaration(char *identifier, enum DeclarationType declaration_type, HashTable *declaration_table);  
 static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count);   
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); 
+static char* get_identifier_with_stack_offset(char *identifier, int stack_offset); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
   Stack *declaration_stack = malloc(sizeof(Stack));
@@ -57,9 +57,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
-
-      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", node->data.variable_declaration.name, declaration_stack->count);
+      char *converted_identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
 
       HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
       if (existing_variable != NULL && existing_variable->key != NULL) {
@@ -93,7 +91,6 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         }        
       } else {
         Declaration *new_declaration = malloc(sizeof(Declaration));
-        new_declaration->name = function_identifier;
         new_declaration->declaration_type = DECLARATION_TYPE_FUNCTION;
         new_declaration->from_current_scope = true;
         new_declaration->has_linkage = true;
@@ -131,17 +128,14 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         return;
       }
       
-      char* identifier = node->data.function_parameters.name;
-      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, identifier);
+      char* converted_identifier = get_identifier_with_stack_offset(node->data.function_parameters.name, declaration_stack->count);
+      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
 
       if (existing_variable != NULL && existing_variable->key != NULL) {
         if (declaration_stack->count == ((Declaration*)existing_variable->value->structure)->stack_declaration_offset) {
-          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' function variable found\n", identifier);
+          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' function variable found\n", converted_identifier);
           exit(1);
-        }
-        
-        char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-        snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, ((Declaration*)existing_variable->value->structure)->stack_declaration_offset + 1);
+        }      
 
         node->data.function_parameters.name = converted_identifier;
 
@@ -152,26 +146,21 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       file_scope_declaration->declaration_type = DECLARATION_TYPE_VARIABLE;
       file_scope_declaration->from_current_scope = true;
       file_scope_declaration->has_linkage = true;
-      file_scope_declaration->name = identifier;
       file_scope_declaration->stack_declaration_offset = declaration_stack->count;
 
-      add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
+      add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
 
-      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, declaration_stack->count);
       node->data.function_parameters.name = converted_identifier;
       break;
     }
     case AST_BLOCK: {
-
-      stack_print(declaration_stack);
       StackValue *new_block_stack_values = malloc(sizeof(StackValue) * declaration_stack->capacity);
       
       memcpy(new_block_stack_values, declaration_top_stack, sizeof(StackValue));
 
-      //TODO: Iterate through the new block table and reset the 'current_scope' flags since they will all be parent declarations
       HashTable *new_declaration_table = new_block_stack_values->data.hash_table;
 
+      //Iterate through the new block table and reset the 'current_scope' flags since they will all be parent declarations
       for (int i = 0; i < new_declaration_table->capacity; i++) {
         HashValue *new_value = new_declaration_table->entries[i].value;
 
@@ -198,24 +187,92 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     case AST_STATEMENT_RETURN:
       variable_resolve_node(node->data.return_statement.expression, declaration_stack);
       break;
+    case AST_STATEMENT_IF: {
+      variable_resolve_node(node->data.if_statement.condition_expression, declaration_stack);
+      variable_resolve_node(node->data.if_statement.then_statement, declaration_stack);
+
+      if (node->data.if_statement.else_statement != NULL) {
+        variable_resolve_node(node->data.if_statement.else_statement, declaration_stack);
+      }
+      break;
+    }
+    case AST_STATEMENT_EXPRESSION: {
+      variable_resolve_node(node->data.expression_statement.expression, declaration_stack);
+      break;
+    }
+    case AST_STATEMENT_FOR: {
+      if (node->data.for_statement.for_loop_init != NULL) {
+        variable_resolve_node(node->data.for_statement.for_loop_init, declaration_stack);
+      }
+
+      if (node->data.for_statement.condition_expression != NULL) {
+        variable_resolve_node(node->data.for_statement.condition_expression, declaration_stack);
+      }
+
+      if (node->data.for_statement.post_expression != NULL) {
+        variable_resolve_node(node->data.for_statement.post_expression, declaration_stack);
+      }
+
+      variable_resolve_node(node->data.for_statement.statement_body, declaration_stack);
+      break;
+    }
+    case AST_STATEMENT_WHILE: {
+      variable_resolve_node(node->data.while_statement.condition, declaration_stack);
+      variable_resolve_node(node->data.while_statement.statement_body, declaration_stack);
+      break;
+    }
+    case AST_STATEMENT_DO_WHILE: {
+      variable_resolve_node(node->data.do_while_statement.condition, declaration_stack);
+      variable_resolve_node(node->data.do_while_statement.statement_body, declaration_stack);
+      break;
+    }
+    case AST_EXPRESSION_ASSIGNMENT: {
+      if (node->data.assignement_expression.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.assignement_expression.left_expression->type != AST_EXPRESSION_UNARY) {
+        fprintf(stderr, "ERROR - SA Variable Resolution: Invalid LValue for assignment expression\n");
+        exit(1);
+      }
+
+      variable_resolve_node(node->data.assignement_expression.left_expression, declaration_stack);
+      variable_resolve_node(node->data.assignement_expression.right_expression, declaration_stack);
+      break;
+    }
+    case AST_EXPRESSION_BINARY: {
+      variable_resolve_node(node->data.binary_expression.left_expression, declaration_stack);
+      variable_resolve_node(node->data.binary_expression.right_expression, declaration_stack);
+      break;
+    }
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+    case AST_EXPRESSION_POSTFIX_DECREMENT:
+    case AST_EXPRESSION_PREFIX_INCREMENT:
+    case AST_EXPRESSION_PREFIX_DECREMENT: 
+      variable_resolve_node(node->data.increment_decrement_expression.expression, declaration_stack);
+      break;
+    case AST_EXPRESSION_UNARY:
+      variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
+      break;
     case AST_EXPRESSION_VARIABLE: {
-      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", node->data.variable_expression.identifier, declaration_stack->count);
-      HashTableEntry *entry= hash_table_get_entry(declaration_table, converted_identifier);
+
+      //Check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
+      char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
+      HashTableEntry *entry;
+      char *identifier;  
+      
+      if (found_period == NULL) {
+        identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count);
+      } else {
+        identifier = node->data.variable_expression.identifier;
+      }
+
+      entry = hash_table_get_entry(declaration_table, identifier);
       
       if (entry == NULL || entry->key == NULL) {
         fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.variable_expression.identifier);
         exit(1);
-        return;
       } 
 
-      node->data.variable_expression.identifier = ((Declaration*)entry->value->structure)->name;
+      node->data.variable_expression.identifier = identifier;
       break;
     }
-    default:
-      fprintf(stderr, "ERROR - SA Variable Resolution: AST type '%d' not supported\n", node->type);
-      exit(1);
-      break;
   }
 } 
 
@@ -226,7 +283,6 @@ static void resolve_file_scope_variable_declaration(char *identifier, enum Decla
   file_scope_declaration->declaration_type = declaration_type;
   file_scope_declaration->from_current_scope = true;
   file_scope_declaration->has_linkage = true;
-  file_scope_declaration->name = identifier;
   file_scope_declaration->stack_declaration_offset = 1;
 
   add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
@@ -250,27 +306,21 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
   }  
 
   if (ast_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-    //TODO: I think all we need to do is grab what's already in the table and update it's settings rather than make a new Declaration struct
-    // Declaration *file_scope_declaration = malloc(sizeof(Declaration));
-    // file_scope_declaration->declaration_type = declaration_type;
-    // file_scope_declaration->from_current_scope = true;
-    // file_scope_declaration->has_linkage = true;
-    // file_scope_declaration->name = identifier;
+    Declaration *file_scope_declaration = malloc(sizeof(Declaration));
+    file_scope_declaration->declaration_type = declaration_type;
+    file_scope_declaration->from_current_scope = true;
+    file_scope_declaration->has_linkage = true;
 
-    // add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
+    add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
 
     return;
   }
-  
-  // char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-  // snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_count);
 
   if (table_entry == NULL || table_entry->key == NULL) {
     Declaration *file_scope_declaration = malloc(sizeof(Declaration));
     file_scope_declaration->declaration_type = declaration_type;
     file_scope_declaration->from_current_scope = true;
     file_scope_declaration->has_linkage = false;
-    file_scope_declaration->name = converted_identifier;
 
     add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
   }
@@ -288,4 +338,11 @@ static void add_declaration_to_table(Declaration *declaration, char* identifier_
   entry->value = value;
 
   hash_table_add_entry(declaration_table, entry);
+}
+
+static char* get_identifier_with_stack_offset(char *identifier, int stack_offset) {
+  char *converted_identifier = malloc(IDENTIFIER_BUFFER);
+  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_offset);
+
+  return converted_identifier;
 }
