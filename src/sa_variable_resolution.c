@@ -28,21 +28,21 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
-  Stack declaration_stack;
-  stack_init(&declaration_stack, VARIABLE_RESOLUTION_STACK_SIZE);
+  Stack *declaration_stack = malloc(sizeof(Stack));
+  stack_init(declaration_stack, VARIABLE_RESOLUTION_STACK_SIZE);
 
-  HashTable symbols_table;
-  hash_table_init(&symbols_table);
+  HashTable *symbols_table = malloc(sizeof(HashTable));
+  hash_table_init(symbols_table);
 
-  StackValue file_scope_stack;
-  file_scope_stack.type = STACK_STRUCT;
-  file_scope_stack.data.structure = &symbols_table;
+  StackValue *file_scope_stack = malloc(sizeof(StackValue));
+  file_scope_stack->type = STACK_HASH_TABLE;
+  file_scope_stack->data.hash_table = symbols_table;
 
-  stack_push(&declaration_stack, file_scope_stack);
+  stack_push(declaration_stack, file_scope_stack);
 
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
     AstNode *declaration_node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
-    variable_resolve_node(declaration_node, &declaration_stack);
+    variable_resolve_node(declaration_node, declaration_stack);
   }
 }
 
@@ -53,7 +53,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
   }
   
   StackValue *declaration_top_stack = stack_top(declaration_stack);
-  HashTable *declaration_table = declaration_top_stack->data.structure;
+  HashTable *declaration_table = declaration_top_stack->data.hash_table;
 
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
@@ -82,11 +82,15 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       } else {
         Declaration *new_declaration = malloc(sizeof(Declaration));
         new_declaration->name = function_identifier;
+        new_declaration->declaration_type = DECLARATION_TYPE_FUNCTION;
         new_declaration->from_current_scope = true;
         new_declaration->has_linkage = true;
         new_declaration->stack_declaration_offset = declaration_stack->count;
 
         add_declaration_to_table(new_declaration, function_identifier, declaration_table);
+
+        stack_print(declaration_stack);
+        hash_table_print(declaration_table);
       }
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
@@ -152,7 +156,20 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       StackValue *new_block_stack_values = malloc(sizeof(StackValue) * declaration_stack->capacity);
       
       memcpy(new_block_stack_values, declaration_top_stack, sizeof(StackValue));
-      stack_push(declaration_stack, *new_block_stack_values);
+
+      //TODO: Iterate through the new block table and reset the 'current_scope' flags since they will all be parent declarations
+      HashTable *new_declaration_table = new_block_stack_values->data.hash_table;
+
+      for (int i = 0; i < new_declaration_table->capacity; i++) {
+        HashValue *new_value = new_declaration_table->entries[i].value;
+
+        if (new_value == NULL) continue;
+        
+        ((Declaration*)new_value->structure)->from_current_scope = false;
+      }
+      
+      
+      stack_push(declaration_stack, new_block_stack_values);
       
       for (int i = 0; i < node->data.block.block_count; i++) {   
         AstNode *block_item_node = node->data.block.block_ptrs->node_pointers[i];
@@ -169,6 +186,24 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     case AST_STATEMENT_RETURN:
       variable_resolve_node(node->data.return_statement.expression, declaration_stack);
       break;
+    case AST_EXPRESSION_VARIABLE: {
+      HashTableEntry *entry= hash_table_get_entry(declaration_table, node->data.variable_expression.identifier);
+
+      
+      if (entry == NULL || entry->key == NULL) {
+        //check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
+        char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
+
+        if (found_period == NULL) {      
+          fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.variable_expression.identifier);
+          exit(1);
+        }
+        return;
+      } 
+
+      node->data.variable_expression.identifier = ((Declaration*)entry->value->structure)->name;
+      break;
+    }
     default:
       fprintf(stderr, "ERROR - SA Variable Resolution: AST type '%d' not supported\n", node->type);
       exit(1);
@@ -196,10 +231,11 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
   if (table_entry != NULL && table_entry->key != NULL) {
     Declaration *previous_declaration = table_entry->value->structure;
 
-    //TODO: Need to test
-    if (previous_declaration->has_linkage == false || ast_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_EXTERN) {
-      fprintf(stderr, "ERROR: SA Variable Resolution: Conflicting local '%s' declarations", identifier);
-      exit(1);
+    if (previous_declaration->from_current_scope) {
+      if (!(previous_declaration->has_linkage && ast_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN)) {
+        fprintf(stderr, "ERROR: SA Variable Resolution: Conflicting local '%s' declarations\n", identifier);
+        exit(1);
+      }
     }
   }  
 

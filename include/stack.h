@@ -3,11 +3,13 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include "../include/hash_table.h"
 
 typedef enum {
   STACK_INT,
   STACK_STRING,
-  STACK_STRUCT
+  STACK_STRUCT,
+  STACK_HASH_TABLE
 } StackType;
 
 typedef struct {
@@ -15,6 +17,7 @@ typedef struct {
   union {
     char* string;
     void* structure;
+    HashTable* hash_table;
     int integer;
   } data;  
 } StackValue;
@@ -27,7 +30,7 @@ typedef struct {
 
 void stack_init(Stack *stack, int capacity);
 void stack_pop(Stack *stack);
-void stack_push(Stack *stack, StackValue value);
+void stack_push(Stack *stack, StackValue *value);
 void stack_print(Stack *stack);
 StackValue* stack_top(Stack *stack);
 
