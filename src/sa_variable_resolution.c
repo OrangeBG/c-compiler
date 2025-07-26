@@ -57,6 +57,18 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
+
+      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
+      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", node->data.variable_declaration.name, declaration_stack->count);
+
+      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
+      if (existing_variable != NULL && existing_variable->key != NULL) {
+        if (((Declaration*)existing_variable->value->structure)->from_current_scope) {
+          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' variable found in block\n", node->data.variable_declaration.name);
+          exit(1);
+        }
+      }
+
       if (declaration_stack->count == 1) {
         resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
       } else {
@@ -88,9 +100,6 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         new_declaration->stack_declaration_offset = declaration_stack->count;
 
         add_declaration_to_table(new_declaration, function_identifier, declaration_table);
-
-        stack_print(declaration_stack);
-        hash_table_print(declaration_table);
       }
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
@@ -101,6 +110,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       if (node->data.function_declaration.body_block != NULL) {
         variable_resolve_node(node->data.function_declaration.body_block, declaration_stack);
       }
+        break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
       HashTableEntry *table_entry = hash_table_get_entry(declaration_table, node->data.function_call_expression.identfier);
@@ -153,6 +163,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_BLOCK: {
+
+      stack_print(declaration_stack);
       StackValue *new_block_stack_values = malloc(sizeof(StackValue) * declaration_stack->capacity);
       
       memcpy(new_block_stack_values, declaration_top_stack, sizeof(StackValue));
@@ -187,17 +199,13 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.return_statement.expression, declaration_stack);
       break;
     case AST_EXPRESSION_VARIABLE: {
-      HashTableEntry *entry= hash_table_get_entry(declaration_table, node->data.variable_expression.identifier);
-
+      char *converted_identifier = malloc(IDENTIFIER_BUFFER);
+      snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", node->data.variable_expression.identifier, declaration_stack->count);
+      HashTableEntry *entry= hash_table_get_entry(declaration_table, converted_identifier);
       
       if (entry == NULL || entry->key == NULL) {
-        //check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
-        char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
-
-        if (found_period == NULL) {      
-          fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.variable_expression.identifier);
-          exit(1);
-        }
+        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.variable_expression.identifier);
+        exit(1);
         return;
       } 
 
@@ -226,7 +234,9 @@ static void resolve_file_scope_variable_declaration(char *identifier, enum Decla
 
 static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count) {  
   char *identifier = ast_node->data.variable_declaration.name;
-  HashTableEntry *table_entry = hash_table_get_entry(declaration_table, identifier);
+  char *converted_identifier = malloc(IDENTIFIER_BUFFER);
+  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_count);
+  HashTableEntry *table_entry = hash_table_get_entry(declaration_table, converted_identifier);
 
   if (table_entry != NULL && table_entry->key != NULL) {
     Declaration *previous_declaration = table_entry->value->structure;
@@ -240,27 +250,30 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
   }  
 
   if (ast_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-    Declaration *file_scope_declaration = malloc(sizeof(Declaration));
-    file_scope_declaration->declaration_type = declaration_type;
-    file_scope_declaration->from_current_scope = true;
-    file_scope_declaration->has_linkage = true;
-    file_scope_declaration->name = identifier;
+    //TODO: I think all we need to do is grab what's already in the table and update it's settings rather than make a new Declaration struct
+    // Declaration *file_scope_declaration = malloc(sizeof(Declaration));
+    // file_scope_declaration->declaration_type = declaration_type;
+    // file_scope_declaration->from_current_scope = true;
+    // file_scope_declaration->has_linkage = true;
+    // file_scope_declaration->name = identifier;
 
-    add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
+    // add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
 
     return;
   }
   
-  char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_count);
+  // char *converted_identifier = malloc(IDENTIFIER_BUFFER);
+  // snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_count);
 
-  Declaration *file_scope_declaration = malloc(sizeof(Declaration));
-  file_scope_declaration->declaration_type = declaration_type;
-  file_scope_declaration->from_current_scope = true;
-  file_scope_declaration->has_linkage = false;
-  file_scope_declaration->name = converted_identifier;
+  if (table_entry == NULL || table_entry->key == NULL) {
+    Declaration *file_scope_declaration = malloc(sizeof(Declaration));
+    file_scope_declaration->declaration_type = declaration_type;
+    file_scope_declaration->from_current_scope = true;
+    file_scope_declaration->has_linkage = false;
+    file_scope_declaration->name = converted_identifier;
 
-  add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
+    add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
+  }
 
   ast_node->data.variable_declaration.name = converted_identifier;
 }
