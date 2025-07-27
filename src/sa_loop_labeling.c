@@ -19,7 +19,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
         .type = STACK_INT,
         .data.integer = *current_loop_id++
       };
-      stack_push(label_stack, loop_stack_value);
+      stack_push(label_stack, &loop_stack_value);
 
       ast_node->data.while_statement.label_id = loop_stack_value.data.integer;
 
@@ -34,7 +34,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
         .type = STACK_INT,
         .data.integer = *current_loop_id++
       };
-      stack_push(label_stack, loop_stack_value);
+      stack_push(label_stack, &loop_stack_value);
 
       ast_node->data.for_statement.label_id = loop_stack_value.data.integer;
 
@@ -62,7 +62,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
           .type = STACK_INT,
           .data.integer = *current_loop_id++
         };
-        stack_push(label_stack, loop_stack_value);
+        stack_push(label_stack, &loop_stack_value);
 
         ast_node->data.do_while_statement.label_id = loop_stack_value.data.integer;
 
