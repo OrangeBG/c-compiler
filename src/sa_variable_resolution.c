@@ -266,10 +266,25 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       entry = hash_table_get_entry(declaration_table, identifier);
       
       if (entry == NULL || entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.variable_expression.identifier);
-        exit(1);
+        //Check if there is a parent declared variable by traversing backwards from the current stack offset.
+        int stack_offset = declaration_stack->count - 1;
+
+        while (stack_offset > 0) {
+          char *previous_stack_identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, stack_offset);
+          entry = hash_table_get_entry(declaration_table, previous_stack_identifier);
+          
+          if (entry != NULL && entry->key != NULL) {
+            break;
+          }
+
+          stack_offset--;
+        }        
       } 
 
+      if (entry == NULL || entry->key == NULL) {
+        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.variable_expression.identifier);
+        exit(1);
+      }
       node->data.variable_expression.identifier = identifier;
       break;
     }

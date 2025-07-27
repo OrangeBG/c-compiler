@@ -239,9 +239,9 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_STATEMENT_FOR:                { ir_emit_for(node, function, emit_status, node_arena); break; }
       case AST_STATEMENT_CONTINUE:           { ir_emit_continue(node->data.continue_statement.label_id, function, node_arena); break; }
       case AST_STATEMENT_BREAK:              { ir_emit_break(node->data.break_statement.label_id, function, node_arena); break; }
+      case AST_STATEMENT_COMPOUND:           { ir_emit_block(node->data.compound_statement.block, function, emit_status, node_arena); break; }
       case AST_STATEMENT_NULL:               { break; } 
       case AST_STATEMENT_RETURN:             { return ir_emit_return(node, function, emit_status, node_arena); }
-      // case AST_DECLARATION:                  { return ir_emit_declaration(node, function, emit_status); }
       case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier, node_arena); }
       case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.value, node_arena); }
       case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status, node_arena); }
