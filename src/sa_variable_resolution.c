@@ -104,6 +104,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         add_declaration_to_table(new_declaration, function_identifier, declaration_table);
       }
 
+      //Add a new stack for the function variable declarations
       push_new_declaration_stack(declaration_stack);
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
