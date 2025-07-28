@@ -39,8 +39,8 @@ void stack_print(Stack *stack) {
     return;
   }
   
-  printf("Stack:\n");
   for (int i = 0; i < stack->count; i++) {
+    printf("Stack Offset: %d\n", i);
     switch (stack->stack[i].type) {
       case STACK_INT:         printf("%d\n", stack->stack[i].data.integer); break;
       case STACK_STRING:      printf("%s\n", stack->stack[i].data.string); break;

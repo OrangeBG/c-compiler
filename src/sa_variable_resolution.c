@@ -26,6 +26,7 @@ static void resolve_file_scope_variable_declaration(char *identifier, enum Decla
 static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count);   
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); 
 static char* get_identifier_with_stack_offset(char *identifier, int stack_offset); 
+static void push_new_declaration_stack(Stack *declaration_stack); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
   Stack *declaration_stack = malloc(sizeof(Stack));
@@ -51,12 +52,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     fprintf(stderr, "ERROR - SA Variable Resolution: Declaration stack reached a 0 count");
     exit(1);
   }
-  
-  StackValue *declaration_top_stack = stack_top(declaration_stack);
-  HashTable *declaration_table = declaration_top_stack->data.hash_table;
 
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
+      StackValue *declaration_top_stack = stack_top(declaration_stack);
+      HashTable *declaration_table = declaration_top_stack->data.hash_table;
       char *converted_identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
 
       HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
@@ -79,6 +79,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_FUNCTION_DECLARATION: {
+      push_new_declaration_stack(declaration_stack);
+
+      StackValue *declaration_top_stack = stack_top(declaration_stack);
+      HashTable *declaration_table = declaration_top_stack->data.hash_table;
+      
       char *function_identifier = node->data.function_declaration.name;
       HashTableEntry *table_entry = hash_table_get_entry(declaration_table, function_identifier);
       
@@ -99,6 +104,9 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         add_declaration_to_table(new_declaration, function_identifier, declaration_table);
       }
 
+      //Add a new stack for the function variable declarations
+      push_new_declaration_stack(declaration_stack);
+
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *parameter_node = node->data.function_declaration.parameter_ptrs->node_pointers[i];
         variable_resolve_node(parameter_node, declaration_stack);
@@ -107,9 +115,13 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       if (node->data.function_declaration.body_block != NULL) {
         variable_resolve_node(node->data.function_declaration.body_block, declaration_stack);
       }
-        break;
+
+      stack_pop(declaration_stack);
+      break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
+      StackValue *declaration_top_stack = stack_top(declaration_stack);
+      HashTable *declaration_table = declaration_top_stack->data.hash_table;
       HashTableEntry *table_entry = hash_table_get_entry(declaration_table, node->data.function_call_expression.identfier);
 
       if (table_entry == NULL || table_entry->key == NULL) {
@@ -128,6 +140,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         return;
       }
       
+      StackValue *declaration_top_stack = stack_top(declaration_stack);
+      HashTable *declaration_table = declaration_top_stack->data.hash_table;
       char* converted_identifier = get_identifier_with_stack_offset(node->data.function_parameters.name, declaration_stack->count);
       HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
 
@@ -154,23 +168,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_BLOCK: {
-      StackValue *new_block_stack_values = malloc(sizeof(StackValue) * declaration_stack->capacity);
-      
-      memcpy(new_block_stack_values, declaration_top_stack, sizeof(StackValue));
-
-      HashTable *new_declaration_table = new_block_stack_values->data.hash_table;
-
-      //Iterate through the new block table and reset the 'current_scope' flags since they will all be parent declarations
-      for (int i = 0; i < new_declaration_table->capacity; i++) {
-        HashValue *new_value = new_declaration_table->entries[i].value;
-
-        if (new_value == NULL) continue;
-        
-        ((Declaration*)new_value->structure)->from_current_scope = false;
-      }
-      
-      
-      stack_push(declaration_stack, new_block_stack_values);
+      push_new_declaration_stack(declaration_stack);
       
       for (int i = 0; i < node->data.block.block_count; i++) {   
         AstNode *block_item_node = node->data.block.block_ptrs->node_pointers[i];
@@ -201,6 +199,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_STATEMENT_FOR: {
+      push_new_declaration_stack(declaration_stack);
+
       if (node->data.for_statement.for_loop_init != NULL) {
         variable_resolve_node(node->data.for_statement.for_loop_init, declaration_stack);
       }
@@ -214,6 +214,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       }
 
       variable_resolve_node(node->data.for_statement.statement_body, declaration_stack);
+
+      stack_pop(declaration_stack);
       break;
     }
     case AST_STATEMENT_WHILE: {
@@ -251,6 +253,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_VARIABLE: {
+      StackValue *declaration_top_stack = stack_top(declaration_stack);
+      HashTable *declaration_table = declaration_top_stack->data.hash_table;
 
       //Check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
       char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
@@ -360,4 +364,28 @@ static char* get_identifier_with_stack_offset(char *identifier, int stack_offset
   snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_offset);
 
   return converted_identifier;
+}
+
+static void push_new_declaration_stack(Stack *declaration_stack) {
+  StackValue *declaration_top_stack = stack_top(declaration_stack);
+  // StackValue *new_block_stack_values = malloc(sizeof(StackValue) * declaration_stack->capacity);
+  // memcpy(new_block_stack_values, declaration_top_stack, sizeof(StackValue));
+  // HashTable *new_declaration_table = new_block_stack_values->data.hash_table;
+
+  HashTable *new_declaration_table = hash_table_clone(declaration_top_stack->data.hash_table);
+
+  //Iterate through the new block table and reset the 'current_scope' flags since they will all be parent declarations
+  for (int i = 0; i < new_declaration_table->capacity; i++) {
+    HashValue *new_value = new_declaration_table->entries[i].value;
+
+    if (new_value == NULL) continue;
+  
+    ((Declaration*)new_value->structure)->from_current_scope = false;
+  }
+
+  StackValue *new_stack_value = malloc(sizeof(StackValue));
+  new_stack_value->data.hash_table = new_declaration_table;
+  new_stack_value->type = STACK_HASH_TABLE;
+
+  stack_push(declaration_stack, new_stack_value);
 }

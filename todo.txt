@@ -1,47 +1,5 @@
 # Bugs
     - This declaration doesn't work: int result = j == -1 && i == 11;
-	- Parser print not printing Function Params
-    - The following test code does not resolve the two declared 'a' variables as two different values. Variable resolution has to be redone. The 3 hash tables makes it hard to understand the state of things:
-
-        int main(void) {
-            int sum = 0;
-            if (1) {
-                int a = 5;
-                goto other_if;
-                sum = 0;  // not executed
-            first_if:
-                // when we jump back into block at this label, a is uninitialized, so we need to initialize it again
-                a = 5;
-                sum = sum + a;  // sum = 11
-            }
-            if (0) {
-            other_if:;
-                int a = 6;
-                sum = sum + a;  // sum = 6
-                goto first_if;
-                sum = 0;
-            }
-            return sum;
-        }
-
-	- The following test code produces incorrect variable resolution results for the 'b' variable. Shadowing 'b' seems to incorrectly increment the variable number:		
-
-		int main(void) {
-		    int foo(int help);
-		    int foo(int help);
-
-		    int a = 3;
-		    int b = 2;
-
-		    {
-		        int b = 5;
-		        b *= 0;
-		    }
-
-		    b = a;
-
-		    return foo(45);
-		}
 	- The following test is not producing an error when it should. Foo is declared twice with different parameters:
 		int main(void) {
 		    int foo(int help);
@@ -72,11 +30,9 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
-	- Parser: Add compound statement construct to parser. It will be easier to determined if the block is from a function definition or an inner scoped block within the function.
     - To handle multiple source files, should convert each file to assembly separately, then use gcc or clang to assemble them and link them together.
 	- Intermediate Rep: AST_EXPRESSION_CONDITIONAL logic in two places. One is for assigning to a var while the other is for nested conditional expressions.
 	- Intermediate Rep: Confirm that nested conditionals are working correctly. It builds, but not sure if it's completely correct. Test with something like: int a = 1 ? 2 ? 3 : 4 : 5;
-	- Implement memory arena to ir 
 	- Parser: Compound assignment expressions (PlusEqual, Equal) are in seperate statements in ast_expression. Make sure there isn't anything we need to condense the logic.
 	- Check CQL parser for revision to lexing where I'm not incrementing the start_index when doing peek token checks.
 	- Similar to lexer print, create string arrays for other compiler phases for print friendly printing  

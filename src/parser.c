@@ -388,7 +388,7 @@ void print_ast(const AstNode *node, int whitespace) {
       }
       case AST_EXPRESSION_FUNCTION_CALL: {
         print_whitespace(whitespace);
-        printf("Function Call(args=\n");
+        printf("Function Call(name= '%s' args=\n", node->data.function_call_expression.identfier);
 
         for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
           AstNode *argument = node->data.function_call_expression.argument_ptrs->node_pointers[i];
