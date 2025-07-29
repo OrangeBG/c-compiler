@@ -16,8 +16,19 @@ typedef enum {
   SYMBOL_FUNCTION
 } SymbolType;
 
+typedef enum {
+  ATTRIBUTE_FUNCTION,
+  ATTRIBUTE_STATIC,
+  ATTRIBUTE_LOCAL
+} IdentifierAttributeType;
+
+typedef enum {
+  INITIAL_VALUE_TENTATIVE,
+  INITIAL_VALUE_INITIAL,
+  INITIAL_VALUE_NO_INITIALIZER
+} InitialValueType;
+
 typedef struct FunctionSymbol {
-  bool defined;
   ValueType value_type;
   int param_count;
 } FunctionSymbol;
@@ -27,11 +38,26 @@ typedef struct VariableSymbol {
 } VariableSymbol;
 
 typedef struct {
-  SymbolType type;
+  bool defined;
+  bool global;
+} FunctionAttribute;
+ 
+typedef struct {
+  InitialValueType initial_value_type;
+  int initial_value;
+} StaticAttribute;
+ 
+typedef struct {
+  SymbolType symbol_type;
   union {
     FunctionSymbol *function_symbol;
     VariableSymbol *variable_symbol_type;
   } data;
+  IdentifierAttributeType identifier_attribute_type;
+  union {
+    FunctionAttribute *function_attribute;
+    StaticAttribute *static_attribute;
+  } identifier_attribute;
 } TypeCheckSymbol;
 
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name);
@@ -53,7 +79,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
 
       //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
       TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
-      symbol->type = SYMBOL_VARIABLE;
+      symbol->symbol_type = SYMBOL_VARIABLE;
 
       VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
       variable_symbol->value_type = TYPE_INT;
@@ -80,7 +106,6 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
     }
     case AST_FUNCTION_DECLARATION: {
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_declaration.name);
-      bool is_defined = false;
 
       if (entry != NULL && entry->key != NULL) {
         TypeCheckSymbol *existing_function_symbol = entry->value->structure;
@@ -90,24 +115,39 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
           exit(1);
         }
 
-        is_defined = existing_function_symbol->data.function_symbol->defined;
+        // is_defined = existing_function_symbol->data.function_symbol->defined;
 
-        if (existing_function_symbol->data.function_symbol->defined && node->data.function_declaration.body_block != NULL) {
+        if (existing_function_symbol->identifier_attribute.function_attribute->defined && node->data.function_declaration.body_block != NULL) {
           fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
+        }
+
+        if (existing_function_symbol->identifier_attribute.function_attribute->global == node->data.function_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+          fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static", node->data.function_declaration.name);
+          exit(1);
+        }
+
+        if (!existing_function_symbol->identifier_attribute.function_attribute->defined) {
+          existing_function_symbol->identifier_attribute.function_attribute->defined = node->data.function_declaration.body_block != NULL;
         }
 
         break;
       }
 
       FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
-      function_symbol->defined = is_defined;
       function_symbol->value_type = TYPE_INT;
       function_symbol->param_count = 0;
 
       TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
-      new_symbol->type = SYMBOL_FUNCTION;
+      new_symbol->symbol_type = SYMBOL_FUNCTION;
       new_symbol->data.function_symbol = function_symbol;
+      new_symbol->identifier_attribute_type = ATTRIBUTE_FUNCTION;
+
+      FunctionAttribute *function_attribute = malloc(sizeof(FunctionAttribute));
+      function_attribute->defined = node->data.function_declaration.body_block != NULL;
+      function_attribute->global = node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
+
+      new_symbol->identifier_attribute.function_attribute = function_attribute;
 
       HashValue *new_value = malloc(sizeof(HashValue));
       new_value->type = HASH_STRUCT;
@@ -145,7 +185,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
 
       //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
       TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
-      symbol->type = SYMBOL_VARIABLE;
+      symbol->symbol_type = SYMBOL_VARIABLE;
 
       VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
       variable_symbol->value_type = TYPE_INT;
@@ -173,7 +213,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       if (entry != NULL && entry->key != NULL) {
         TypeCheckSymbol *existing_symbol = entry->value->structure;
 
-        if (existing_symbol->type == SYMBOL_VARIABLE) {
+        if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
           fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
           exit(1);
         }               
@@ -199,7 +239,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
 
       TypeCheckSymbol* symbol = entry->value->structure; 
 
-      if (symbol->type == SYMBOL_FUNCTION) {
+      if (symbol->symbol_type == SYMBOL_FUNCTION) {
         fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable\n", node->data.variable_expression.identifier);
         exit(1);
       }
