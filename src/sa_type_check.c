@@ -75,34 +75,68 @@ void sa_type_check(AstNode *ast_nodes) {
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
-      char *identifier = node->data.variable_declaration.name;
+      InitialValueType initial_value_type;
+      int initial_value = 0;
 
-      //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
-      TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
-      symbol->symbol_type = SYMBOL_VARIABLE;
-
-      VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
-      variable_symbol->value_type = TYPE_INT;
-
-      symbol->data.variable_symbol_type = variable_symbol;
-
-      HashTableEntry *entry = malloc(sizeof(HashTableEntry));
-      char *symbol_key = malloc(IDENTIFIER_BUFFER); 
-      snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name,  identifier);
-      entry->key = symbol_key;
-
-      HashValue *value = malloc(sizeof(HashValue));
-      value->type = HASH_STRUCT;
-      value->structure = symbol;
-
-      entry->value = value;
-
-      hash_table_add_entry(symbols, entry); 
-
-      if (node->data.variable_declaration.has_expression) {
-        sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name);
+      if (node->data.variable_declaration.init_expression->type == AST_EXPRESSION_CONSTANT) {
+        initial_value_type = INITIAL_VALUE_INITIAL;
+        initial_value = node->data.variable_declaration.init_expression->data.constant_expression.value;
+      } else if (node->data.variable_declaration.init_expression == NULL) {
+        if (node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+          initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
+        } else {
+          initial_value_type = INITIAL_VALUE_TENTATIVE;
+        }
+      } else {
+        fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer");
+        exit(1);
       }
+
+      bool is_global = node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
+
+      HashTableEntry *entry = hash_table_get_entry(symbols, node->data.variable_declaration.name);
+
+      if (entry != NULL && entry->key != NULL) {
+        TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
+
+        if (existing_variable_symbol->data.variable_symbol_type != TYPE_INT) {
+          fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable", node->data.variable_declaration.name);
+          exit(1);
+        }
+
+      }
+
+
+
       break;
+      // char *identifier = node->data.variable_declaration.name;
+
+      // //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
+      // TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
+      // symbol->symbol_type = SYMBOL_VARIABLE;
+
+      // VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+      // variable_symbol->value_type = TYPE_INT;
+
+      // symbol->data.variable_symbol_type = variable_symbol;
+
+      // HashTableEntry *entry = malloc(sizeof(HashTableEntry));
+      // char *symbol_key = malloc(IDENTIFIER_BUFFER); 
+      // snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name,  identifier);
+      // entry->key = symbol_key;
+
+      // HashValue *value = malloc(sizeof(HashValue));
+      // value->type = HASH_STRUCT;
+      // value->structure = symbol;
+
+      // entry->value = value;
+
+      // hash_table_add_entry(symbols, entry); 
+
+      // if (node->data.variable_declaration.has_expression) {
+      //   sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name);
+      // }
+      // break;
     }
     case AST_FUNCTION_DECLARATION: {
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_declaration.name);
