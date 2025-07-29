@@ -259,15 +259,15 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       //Check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
       char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
       HashTableEntry *entry;
-      char *identifier;  
+      char *identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count);
       
-      if (found_period == NULL) {
-        identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count);
-      } else {
-        identifier = node->data.variable_expression.identifier;
-      }
-
       entry = hash_table_get_entry(declaration_table, identifier);
+
+      if (entry == NULL || entry->key == NULL)
+      {
+        identifier = node->data.variable_expression.identifier;
+        entry = hash_table_get_entry(declaration_table, identifier);
+      }
       
       if (entry == NULL || entry->key == NULL) {
         //Check if there is a parent declared variable by traversing backwards from the current stack offset.
