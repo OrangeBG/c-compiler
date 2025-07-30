@@ -874,17 +874,20 @@ void ast_parse_expression(Parser *parser, AstNode **expression_node, int min_pre
       case TOKEN_INCREMENT:
       case TOKEN_DECREMENT: {
         AstNode *postfix_expression = arena_alloc(parser->node_arena);
-        ast_parse_expression_postfix(parser, postfix_expression, *expression_node, next_token);        
+        ast_parse_expression_postfix(parser, postfix_expression, *expression_node, next_token);
+          *expression_node = postfix_expression;
         break;
       }
       case TOKEN_EQUAL: {
         AstNode *assignment_expression = arena_alloc(parser->node_arena);
-        ast_parse_expression_assignment(parser, assignment_expression, *expression_node, next_token);        
+        ast_parse_expression_assignment(parser, assignment_expression, *expression_node, next_token);
+          *expression_node = assignment_expression;
         break;
       }
       case TOKEN_QUESTION_MARK: {
         AstNode *conditional_expression = arena_alloc(parser->node_arena);
         ast_parse_expression_conditional(parser, conditional_expression, *expression_node, next_token);
+          *expression_node = conditional_expression;
         break;
       }
       default: {

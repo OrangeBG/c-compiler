@@ -1,113 +1,61 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include "../include/sa_type_check.h"
 #include "../include/hash_table.h"
 
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
 
-typedef enum {
-  TYPE_INT
-} ValueType;
+typedef enum { TYPE_INT } ValueType;
+typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
+// typedef enum { ATTRIBUTE_FUNCTION, ATTRIBUTE_STATIC, ATTRIBUTE_LOCAL } IdentifierAttributeType;
+typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIAL, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
 
-typedef enum {
-  SYMBOL_VARIABLE,
-  SYMBOL_FUNCTION
-} SymbolType;
-
-typedef enum {
-  ATTRIBUTE_FUNCTION,
-  ATTRIBUTE_STATIC,
-  ATTRIBUTE_LOCAL
-} IdentifierAttributeType;
-
-typedef enum {
-  INITIAL_VALUE_TENTATIVE,
-  INITIAL_VALUE_INITIAL,
-  INITIAL_VALUE_NO_INITIALIZER
-} InitialValueType;
-
-typedef struct FunctionSymbol {
-  ValueType value_type;
-  int param_count;
-} FunctionSymbol;
-
-typedef struct VariableSymbol {
-  ValueType value_type;
-} VariableSymbol;
-
-typedef struct {
-  bool defined;
-  bool global;
-} FunctionAttribute;
- 
-typedef struct {
-  InitialValueType initial_value_type;
-  int initial_value;
-} StaticAttribute;
- 
-typedef struct {
-  SymbolType symbol_type;
-  union {
-    FunctionSymbol *function_symbol;
-    VariableSymbol *variable_symbol_type;
-  } data;
-  IdentifierAttributeType identifier_attribute_type;
-  union {
-    FunctionAttribute *function_attribute;
-    StaticAttribute *static_attribute;
-  } identifier_attribute;
-} TypeCheckSymbol;
+typedef struct { bool defined; bool global; ValueType value_type; int param_count; } FunctionSymbol;
+//TODO: Look into struct rename
+typedef struct { InitialValueType initial_type; int initial_value; bool is_global; } StaticAttribute;
+typedef struct { ValueType value_type; bool is_local_attribute; StaticAttribute *static_attribute; } VariableSymbol; 
+typedef struct { SymbolType symbol_type; union { FunctionSymbol *function_symbol; VariableSymbol *variable_symbol_type; } data; } TypeCheckSymbol;
 
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name);
+void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
 
 void sa_type_check(AstNode *ast_nodes) {
   HashTable symbols;
   hash_table_init(&symbols);
 
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
-    AstNode *function_node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
-    sa_function_and_variable_type_check(function_node, &symbols, function_node->data.function_declaration.name);
+    AstNode *node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
+
+    if (node->type == AST_FUNCTION_DECLARATION) {
+      sa_function_and_variable_type_check(node, &symbols, node->data.function_declaration.name);
+      continue;
+    } 
+
+    if (node->type == AST_VARIABLE_DECLARATION) {
+      sa_function_and_variable_type_check(node, &symbols, NULL);
+      continue;
+    }
+
+    fprintf(stderr, "ERROR - SA Type Check: Unexpected declaration type");
+    exit(1);
   } 
 }
 
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
-      InitialValueType initial_value_type;
-      int initial_value = 0;
-
-      if (node->data.variable_declaration.init_expression->type == AST_EXPRESSION_CONSTANT) {
-        initial_value_type = INITIAL_VALUE_INITIAL;
-        initial_value = node->data.variable_declaration.init_expression->data.constant_expression.value;
-      } else if (node->data.variable_declaration.init_expression == NULL) {
-        if (node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-          initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
-        } else {
-          initial_value_type = INITIAL_VALUE_TENTATIVE;
-        }
+      if (function_name == NULL) {
+        sa_type_check_file_scope_variable_declaration(node, symbols, function_name);
       } else {
-        fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer");
-        exit(1);
+        //TODO: Local declaration
       }
 
-      bool is_global = node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
-
-      HashTableEntry *entry = hash_table_get_entry(symbols, node->data.variable_declaration.name);
-
-      if (entry != NULL && entry->key != NULL) {
-        TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
-
-        if (existing_variable_symbol->data.variable_symbol_type != TYPE_INT) {
-          fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable", node->data.variable_declaration.name);
-          exit(1);
-        }
-
+      if (node->data.variable_declaration.has_expression) {
+        sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name);
       }
-
-
-
       break;
       // char *identifier = node->data.variable_declaration.name;
 
@@ -151,18 +99,18 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
 
         // is_defined = existing_function_symbol->data.function_symbol->defined;
 
-        if (existing_function_symbol->identifier_attribute.function_attribute->defined && node->data.function_declaration.body_block != NULL) {
+        if (existing_function_symbol->data.function_symbol->defined && node->data.function_declaration.body_block != NULL) {
           fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
         }
 
-        if (existing_function_symbol->identifier_attribute.function_attribute->global == node->data.function_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-          fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static", node->data.function_declaration.name);
+        if (existing_function_symbol->data.function_symbol->global == node->data.function_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+          fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static\n", node->data.function_declaration.name);
           exit(1);
         }
 
-        if (!existing_function_symbol->identifier_attribute.function_attribute->defined) {
-          existing_function_symbol->identifier_attribute.function_attribute->defined = node->data.function_declaration.body_block != NULL;
+        if (!existing_function_symbol->data.function_symbol->defined) {
+          existing_function_symbol->data.function_symbol->defined = node->data.function_declaration.body_block != NULL;
         }
 
         break;
@@ -171,17 +119,12 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
       function_symbol->value_type = TYPE_INT;
       function_symbol->param_count = 0;
+      function_symbol->defined = node->data.function_declaration.body_block != NULL;
+      function_symbol->global = node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
 
       TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
       new_symbol->symbol_type = SYMBOL_FUNCTION;
       new_symbol->data.function_symbol = function_symbol;
-      new_symbol->identifier_attribute_type = ATTRIBUTE_FUNCTION;
-
-      FunctionAttribute *function_attribute = malloc(sizeof(FunctionAttribute));
-      function_attribute->defined = node->data.function_declaration.body_block != NULL;
-      function_attribute->global = node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
-
-      new_symbol->identifier_attribute.function_attribute = function_attribute;
 
       HashValue *new_value = malloc(sizeof(HashValue));
       new_value->type = HASH_STRUCT;
@@ -192,7 +135,6 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       new_entry->value = new_value;
 
       hash_table_add_entry(symbols, new_entry);
-
         
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *parameter_node = node->data.function_declaration.parameter_ptrs->node_pointers[i];
@@ -350,4 +292,78 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       sa_function_and_variable_type_check(node->data.unary_expression.expression, symbols, function_name);
       break;
   }  
+}
+
+void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name) {
+
+  InitialValueType initial_value_type; 
+  int initial_value = 0;
+
+  if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
+    initial_value_type = INITIAL_VALUE_INITIAL;
+    initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.value;
+  } else if (variable_declaration_node->data.variable_declaration.init_expression == NULL) {
+    if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+      initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
+    } else {
+      initial_value_type = INITIAL_VALUE_TENTATIVE;
+    }
+  } else {
+    fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer\n");
+    exit(1);
+  }
+
+  HashTableEntry *entry = hash_table_get_entry(symbols, variable_declaration_node->data.variable_declaration.name);
+
+  if (entry != NULL && entry->key != NULL) {
+    TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
+
+    if (existing_variable_symbol->data.variable_symbol_type != TYPE_INT) {
+      fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.variable_declaration.name);
+      exit(1);
+    }
+
+    if (variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_EXTERN && !existing_variable_symbol->data.variable_symbol_type->static_attribute->is_global) {
+      fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting variable linkage\n", variable_declaration_node->data.variable_declaration.name);
+      exit(1);
+    }
+
+    //TODO: This is probably wrong. Need to test
+    if (existing_variable_symbol->data.variable_symbol_type->static_attribute->initial_type == INITIAL_VALUE_INITIAL) {
+      if (initial_value_type == INITIAL_VALUE_INITIAL) {
+        fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.variable_declaration.name);
+        exit(1);
+      }
+
+      existing_variable_symbol->data.variable_symbol_type->static_attribute->initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.constant_expression.value;        
+    }
+
+    return;
+  }
+
+  TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
+  variable_symbol->symbol_type = SYMBOL_VARIABLE;
+
+  VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
+  symbol->is_local_attribute = false;
+  symbol->value_type = TYPE_INT;
+
+  variable_symbol->data.variable_symbol_type = symbol;
+
+  StaticAttribute *attribute = malloc(sizeof(StaticAttribute));
+  attribute->is_global = variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
+  attribute->initial_type = initial_value_type;
+  attribute->initial_value = initial_value;
+
+  symbol->static_attribute = attribute;
+
+  HashValue *new_value = malloc(sizeof(HashValue));
+  new_value->type = HASH_STRUCT;
+  new_value->structure = symbol;
+
+  HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+  new_entry->key = variable_declaration_node->data.variable_declaration.name;
+  new_entry->value = new_value;
+
+  hash_table_add_entry(symbols, new_entry);
 }

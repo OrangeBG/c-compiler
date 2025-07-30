@@ -57,10 +57,18 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     case AST_VARIABLE_DECLARATION: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
-      char *converted_identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
+      char *identifier = NULL;
 
-      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
-      if (existing_variable != NULL && existing_variable->key != NULL) {
+      if (declaration_stack->count == 1) {
+        identifier = node->data.variable_declaration.name;
+      } else {
+        identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
+      }
+
+      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, identifier);
+      
+      //Duplicate declarations at the file scope level are allowed. Only error when declarations in the same scope within functions are found
+      if (existing_variable != NULL && existing_variable->key != NULL && declaration_stack->count != 1) {
         if (((Declaration*)existing_variable->value->structure)->from_current_scope) {
           fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' variable found in block\n", node->data.variable_declaration.name);
           exit(1);

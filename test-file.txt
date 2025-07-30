@@ -1,4 +1,6 @@
+ int test;
  int test = 1;
+
  int main(void) {
 	return test;
  }
