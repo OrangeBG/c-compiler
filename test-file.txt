@@ -2,5 +2,8 @@
  int test = 1;
 
  int main(void) {
-	return test;
+   int a = 1;
+   int b;
+
+   return test;
  }

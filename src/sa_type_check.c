@@ -19,6 +19,7 @@ typedef struct { SymbolType symbol_type; union { FunctionSymbol *function_symbol
 
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name);
 void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
+void sa_type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
 
 void sa_type_check(AstNode *ast_nodes) {
   HashTable symbols;
@@ -48,41 +49,13 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       if (function_name == NULL) {
         sa_type_check_file_scope_variable_declaration(node, symbols, function_name);
       } else {
-        //TODO: Local declaration
+        sa_type_check_block_scope_variable_declaration(node, symbols, function_name);
       }
 
       if (node->data.variable_declaration.has_expression) {
         sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name);
       }
       break;
-      // char *identifier = node->data.variable_declaration.name;
-
-      // //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
-      // TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
-      // symbol->symbol_type = SYMBOL_VARIABLE;
-
-      // VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
-      // variable_symbol->value_type = TYPE_INT;
-
-      // symbol->data.variable_symbol_type = variable_symbol;
-
-      // HashTableEntry *entry = malloc(sizeof(HashTableEntry));
-      // char *symbol_key = malloc(IDENTIFIER_BUFFER); 
-      // snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name,  identifier);
-      // entry->key = symbol_key;
-
-      // HashValue *value = malloc(sizeof(HashValue));
-      // value->type = HASH_STRUCT;
-      // value->structure = symbol;
-
-      // entry->value = value;
-
-      // hash_table_add_entry(symbols, entry); 
-
-      // if (node->data.variable_declaration.has_expression) {
-      //   sa_function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name);
-      // }
-      // break;
     }
     case AST_FUNCTION_DECLARATION: {
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_declaration.name);
@@ -245,7 +218,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       break;
     }
     case AST_STATEMENT_FOR: {
-      if (node->data.for_statement.for_loop_init != NULL) {
+      if (node->data.for_statement.for_loop_init != NULL) {        
         sa_function_and_variable_type_check(node->data.for_statement.for_loop_init, symbols, function_name);
       }
 
@@ -296,10 +269,10 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
   InitialValueType initial_value_type; 
   int initial_value = 0;
 
-  if (variable_declaration_node->data.variable_declaration.init_expression != NULL && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
+  if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
     initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.value;
-  } else if (variable_declaration_node->data.variable_declaration.init_expression == NULL) {
+  } else if (!variable_declaration_node->data.variable_declaration.has_expression) {
     if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
     } else {
@@ -369,3 +342,112 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
 
   hash_table_add_entry(symbols, new_entry);
 }
+
+void sa_type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name) {
+  if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+    if (variable_declaration_node->data.variable_declaration.has_expression) {
+      fprintf(stderr, "ERROR - SA Type Check: Initializer on local extern variable declaration '%s'\n", variable_declaration_node->data.variable_declaration.name);
+      exit(1);
+    }
+    
+    HashTableEntry *entry = hash_table_get_entry(symbols, variable_declaration_node->data.variable_declaration.name);
+
+    if (entry != NULL && entry->key != NULL) {
+      TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
+
+      if (existing_variable_symbol->symbol_type == SYMBOL_FUNCTION) {        
+        fprintf(stderr, "ERROR - SA Type Check: Function redeclared as variable");
+        exit(1);
+      }
+    } else {
+      TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
+      variable_symbol->symbol_type = SYMBOL_VARIABLE;
+
+      VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
+      symbol->is_automatic_storage_duration = false;
+      symbol->value_type = TYPE_INT;
+
+      variable_symbol->data.variable_symbol = symbol;
+
+      StaticStorageDuration *attribute = malloc(sizeof(StaticStorageDuration));
+      attribute->is_global = true;
+      attribute->initial_type = INITIAL_VALUE_NO_INITIALIZER;
+
+      symbol->static_storage_duration = attribute;
+
+      HashValue *new_value = malloc(sizeof(HashValue));
+      new_value->type = HASH_STRUCT;
+      new_value->structure = variable_symbol;
+
+      HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+      new_entry->key = variable_declaration_node->data.variable_declaration.name;
+      new_entry->value = new_value;
+
+      hash_table_add_entry(symbols, new_entry);
+    }
+    
+    return;
+  }
+
+  if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+    int initial_value; 
+    if (!variable_declaration_node->data.variable_declaration.has_expression) {
+      initial_value = 0;
+    } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
+      initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.value;
+    } else {
+      fprintf(stderr, "ERROR - SA Type Check: Non-constance initializer on local staic variable '%s'\n", variable_declaration_node->data.variable_declaration.name);
+      exit(1);
+    }
+
+    TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
+    variable_symbol->symbol_type = SYMBOL_VARIABLE;
+
+    VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
+    symbol->is_automatic_storage_duration = false;
+    symbol->value_type = TYPE_INT;
+
+    variable_symbol->data.variable_symbol = symbol;
+
+    StaticStorageDuration *attribute = malloc(sizeof(StaticStorageDuration));
+    attribute->is_global = false;
+    attribute->initial_type = INITIAL_VALUE_INITIALIZED;
+    attribute->initial_value = initial_value;
+
+    symbol->static_storage_duration = attribute;
+
+    HashValue *new_value = malloc(sizeof(HashValue));
+    new_value->type = HASH_STRUCT;
+    new_value->structure = variable_symbol;
+
+    HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+    new_entry->key = variable_declaration_node->data.variable_declaration.name;
+    new_entry->value = new_value;
+
+    hash_table_add_entry(symbols, new_entry);
+    
+    return;
+  }   
+
+  
+  TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
+  variable_symbol->symbol_type = SYMBOL_VARIABLE;
+
+  VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
+  symbol->is_automatic_storage_duration = true;
+  symbol->value_type = TYPE_INT;
+
+  variable_symbol->data.variable_symbol = symbol;
+
+  HashValue *new_value = malloc(sizeof(HashValue));
+  new_value->type = HASH_STRUCT;
+  new_value->structure = variable_symbol;
+
+  HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+  new_entry->key = variable_declaration_node->data.variable_declaration.name;
+  new_entry->value = new_value;
+
+  hash_table_add_entry(symbols, new_entry);
+
+  return;
+} 

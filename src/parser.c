@@ -831,9 +831,14 @@ void ast_parse_statement_for(Parser *parser, AstNode *for_statement_node) {
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
     ast_expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
-  } else if (current_token(parser)->type == TOKEN_INT) {
-    //TODO: We are assuming that the storage class is not defined here. However, we need to test that we error out when a user attempts to initialize with a storage class
+  } else if (current_token(parser)->type == TOKEN_INT) {     
     ast_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE);
+  } else if (current_token(parser)->type == TOKEN_EXTERN) {
+    fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'extern' storage class defined\n");
+    exit(1);
+  } else if (current_token(parser)->type == TOKEN_STATIC) {
+    fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'static' storage class defined\n");
+    exit(1);
   } else {
     ast_parse_expression(parser, &dec_or_exp, 0);
     //TODO: Weird we do this for expressions but are handled in ast_declaration()
