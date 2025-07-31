@@ -68,7 +68,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, identifier);
       
       //Duplicate declarations at the file scope level are allowed. Only error when declarations in the same scope within functions are found
-      if (existing_variable != NULL && existing_variable->key != NULL && declaration_stack->count != 1) {
+      if (existing_variable != NULL && existing_variable->key != NULL && declaration_stack->count != 1) {      
         if (((Declaration*)existing_variable->value->structure)->from_current_scope) {
           fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' variable found in block\n", node->data.variable_declaration.name);
           exit(1);
@@ -76,7 +76,10 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       }
 
       if (declaration_stack->count == 1) {
-        resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
+        //Don't process variable resolution for existing table entries for file scoped variables
+        if (existing_variable == NULL) {
+          resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
+        }
       } else {
         resolve_local_scope_variable_declaration(node, DECLARATION_TYPE_VARIABLE, declaration_table, declaration_stack->count);   
       }
