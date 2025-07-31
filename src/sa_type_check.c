@@ -10,7 +10,7 @@
 
 typedef enum { TYPE_INT } ValueType;
 typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
-typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIAL, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
+typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIALIZED, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
 
 typedef struct { bool defined; bool global; ValueType value_type; int param_count; } FunctionSymbol;
 typedef struct { InitialValueType initial_type; int initial_value; bool is_global; } StaticStorageDuration;
@@ -297,7 +297,7 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
   int initial_value = 0;
 
   if (variable_declaration_node->data.variable_declaration.init_expression != NULL && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
-    initial_value_type = INITIAL_VALUE_INITIAL;
+    initial_value_type = INITIAL_VALUE_INITIALIZED;
     initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.value;
   } else if (variable_declaration_node->data.variable_declaration.init_expression == NULL) {
     if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
@@ -330,8 +330,8 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
       exit(1);
     }
 
-    if (existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_type == INITIAL_VALUE_INITIAL) {
-      if (initial_value_type == INITIAL_VALUE_INITIAL) {
+    if (existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_type == INITIAL_VALUE_INITIALIZED) {
+      if (initial_value_type == INITIAL_VALUE_INITIALIZED) {
         fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.variable_declaration.name);
         exit(1);
       }
