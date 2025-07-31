@@ -57,10 +57,18 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     case AST_VARIABLE_DECLARATION: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
-      char *converted_identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
+      char *identifier = NULL;
 
-      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
-      if (existing_variable != NULL && existing_variable->key != NULL) {
+      if (declaration_stack->count == 1) {
+        identifier = node->data.variable_declaration.name;
+      } else {
+        identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
+      }
+
+      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, identifier);
+      
+      //Duplicate declarations at the file scope level are allowed. Only error when declarations in the same scope within functions are found
+      if (existing_variable != NULL && existing_variable->key != NULL && declaration_stack->count != 1) {      
         if (((Declaration*)existing_variable->value->structure)->from_current_scope) {
           fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' variable found in block\n", node->data.variable_declaration.name);
           exit(1);
@@ -68,7 +76,10 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       }
 
       if (declaration_stack->count == 1) {
-        resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
+        //Don't process variable resolution for existing table entries for file scoped variables
+        if (existing_variable == NULL) {
+          resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
+        }
       } else {
         resolve_local_scope_variable_declaration(node, DECLARATION_TYPE_VARIABLE, declaration_table, declaration_stack->count);   
       }
@@ -259,15 +270,15 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       //Check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
       char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
       HashTableEntry *entry;
-      char *identifier;  
+      char *identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count);
       
-      if (found_period == NULL) {
-        identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count);
-      } else {
-        identifier = node->data.variable_expression.identifier;
-      }
-
       entry = hash_table_get_entry(declaration_table, identifier);
+
+      if (entry == NULL || entry->key == NULL)
+      {
+        identifier = node->data.variable_expression.identifier;
+        entry = hash_table_get_entry(declaration_table, identifier);
+      }
       
       if (entry == NULL || entry->key == NULL) {
         //Check if there is a parent declared variable by traversing backwards from the current stack offset.
