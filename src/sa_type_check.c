@@ -10,14 +10,12 @@
 
 typedef enum { TYPE_INT } ValueType;
 typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
-// typedef enum { ATTRIBUTE_FUNCTION, ATTRIBUTE_STATIC, ATTRIBUTE_LOCAL } IdentifierAttributeType;
 typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIAL, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
 
 typedef struct { bool defined; bool global; ValueType value_type; int param_count; } FunctionSymbol;
-//TODO: Look into struct rename
 typedef struct { InitialValueType initial_type; int initial_value; bool is_global; } StaticStorageDuration;
 typedef struct { ValueType value_type; bool is_automatic_storage_duration; StaticStorageDuration *static_storage_duration; } VariableSymbol; 
-typedef struct { SymbolType symbol_type; union { FunctionSymbol *function_symbol; VariableSymbol *variable_symbol_type; } data; } TypeCheckSymbol;
+typedef struct { SymbolType symbol_type; union { FunctionSymbol *function_symbol; VariableSymbol *variable_symbol; } data; } TypeCheckSymbol;
 
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name);
 void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
@@ -166,7 +164,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
       variable_symbol->value_type = TYPE_INT;
 
-      symbol->data.variable_symbol_type = variable_symbol;
+      symbol->data.variable_symbol = variable_symbol;
 
       HashTableEntry *entry = malloc(IDENTIFIER_BUFFER);
 
@@ -319,27 +317,27 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
   if (entry != NULL && entry->key != NULL) {
     TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
 
-    if (existing_variable_symbol->data.variable_symbol_type->value_type != TYPE_INT) {
+    if (existing_variable_symbol->data.variable_symbol->value_type != TYPE_INT) {
       fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
 
     if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-      existing_variable_symbol->data.variable_symbol_type->static_storage_duration->is_global = true;
+      existing_variable_symbol->data.variable_symbol->static_storage_duration->is_global = true;
     }
-    else if (existing_variable_symbol->data.variable_symbol_type->static_storage_duration->is_global != is_global) {
+    else if (existing_variable_symbol->data.variable_symbol->static_storage_duration->is_global != is_global) {
       fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting variable linkage\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
 
-    if (existing_variable_symbol->data.variable_symbol_type->static_storage_duration->initial_type == INITIAL_VALUE_INITIAL) {
+    if (existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_type == INITIAL_VALUE_INITIAL) {
       if (initial_value_type == INITIAL_VALUE_INITIAL) {
         fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.variable_declaration.name);
         exit(1);
       }
     } else {
-      existing_variable_symbol->data.variable_symbol_type->static_storage_duration->initial_type = initial_value_type;
-      existing_variable_symbol->data.variable_symbol_type->static_storage_duration->initial_value = initial_value;
+      existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_type = initial_value_type;
+      existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_value = initial_value;
     }
 
     return;
@@ -352,7 +350,7 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
   symbol->is_automatic_storage_duration = false;
   symbol->value_type = TYPE_INT;
 
-  variable_symbol->data.variable_symbol_type = symbol;
+  variable_symbol->data.variable_symbol = symbol;
 
   StaticStorageDuration *attribute = malloc(sizeof(StaticStorageDuration));
   attribute->is_global = variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
@@ -363,7 +361,7 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
-  new_value->structure = symbol;
+  new_value->structure = variable_symbol;
 
   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
   new_entry->key = variable_declaration_node->data.variable_declaration.name;
