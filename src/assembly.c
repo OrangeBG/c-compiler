@@ -48,10 +48,10 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   program->data.program.function_count = 0;
   program->data.program.function_pointers = node_pointer;
 
-  for (int i = 0; i < ir_nodes->data.program.function_count; i++) {
+  for (int i = 0; i < ir_nodes->data.program.top_level_count; i++) {
     AsmNode *function = arena_alloc(asm_arena);
     asm_add_to_node_pointer(function, node_pointer);
-    asm_function(ir_nodes->data.program.function_ptrs->node_pointers[i], function, asm_arena); 
+    asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], function, asm_arena); 
     program->data.program.function_count++;
   }
 

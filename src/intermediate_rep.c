@@ -67,8 +67,8 @@ IRNode* generate_intermediate_rep(AstNode *ast_node) {
   IRNode *program = arena_alloc(node_arena);
 
   program->type = IR_PROGRAM;
-  program->data.program.function_count = 0;
-  program->data.program.function_ptrs = node_pointer;
+  program->data.program.top_level_count = 0;
+  program->data.program.top_level_ptrs = node_pointer;
 
   IREmitStatus emit_status = {
     .temp_register_id = 0,
@@ -95,8 +95,8 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_PROGRAM:
       printf("Program \n");
 
-      for (int i = 0; i < ir_node->data.program.function_count; i++) {
-        print_intermediate_ret(ir_node->data.program.function_ptrs->node_pointers[i]);
+      for (int i = 0; i < ir_node->data.program.top_level_count; i++) {
+        print_intermediate_ret(ir_node->data.program.top_level_ptrs->node_pointers[i]);
       }
 
       printf("\n");
@@ -692,8 +692,8 @@ void ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction)
 }
 
 void ir_add_function_to_program(IRNode *ir_program, IRNode *ir_function) {
-  ir_add_to_node_pointer(ir_function, ir_program->data.program.function_ptrs);
-  ir_program->data.program.function_count++;
+  ir_add_to_node_pointer(ir_function, ir_program->data.program.top_level_ptrs);
+  ir_program->data.program.top_level_count++;
 }
 
 void ir_add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument) {
