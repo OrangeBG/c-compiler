@@ -1,6 +1,7 @@
 #ifndef INTERMEDIATE_REP
 #define INTERMEDIATE_REP
 
+#include "hash_table.h"
 #include "parser.h"
 
 typedef struct IRNode IRNode;
@@ -18,7 +19,8 @@ typedef enum {
   IR_INSTRUCTION_LABEL,
   IR_INSTRUCTION_FUNCTION_CALL,
   IR_VALUE_CONSTANT,
-  IR_VALUE_VAR
+  IR_VALUE_VAR,
+  IR_VALUE_STATIC_VAR
 } IRNodeType;
 
 typedef enum {
@@ -55,8 +57,9 @@ typedef struct {
 typedef struct IRNode {
  IRNodeType type;
  union {
-  struct IRProgram { IRNodePointer *function_ptrs; int function_count; } program;
-  struct IRFunction { char *identifier; char *params; int param_count; int instruction_count; IRNodePointer *instruction_ptrs; } function;
+  struct IRProgram { IRNodePointer *top_level_ptrs; int top_level_count; } program;
+  struct IRFunction { char *identifier; bool is_global; char *params; int param_count; int instruction_count; IRNodePointer *instruction_ptrs; } function;
+  struct IRStaticVariable { char *identifier; bool is_global; int initial_value; } static_variable;
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;
   struct IRInstructionBinary { IRBinaryOpType op_type; IRNode *source_1; IRNode *source_2; IRNode *destination; } instruction_binary;
@@ -71,7 +74,7 @@ typedef struct IRNode {
  } data; 
 } IRNode;
 
-IRNode* generate_intermediate_rep(AstNode *ast_node);
+IRNode* generate_intermediate_rep(AstNode *ast_node, HashTable *declaration_symbols);
 void print_intermediate_ret(IRNode *ir_node);
 
 #endif

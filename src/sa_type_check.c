@@ -3,38 +3,25 @@
 #include <string.h>
 #include <sys/select.h>
 #include "../include/sa_type_check.h"
-#include "../include/hash_table.h"
 
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
-
-typedef enum { TYPE_INT } ValueType;
-typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
-typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIALIZED, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
-
-typedef struct { bool defined; bool global; ValueType value_type; int param_count; } FunctionSymbol;
-typedef struct { InitialValueType initial_type; int initial_value; bool is_global; } StaticStorageDuration;
-typedef struct { ValueType value_type; bool is_automatic_storage_duration; StaticStorageDuration *static_storage_duration; } VariableSymbol; 
-typedef struct { SymbolType symbol_type; union { FunctionSymbol *function_symbol; VariableSymbol *variable_symbol; } data; } TypeCheckSymbol;
 
 void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name);
 void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
 void sa_type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
 
-void sa_type_check(AstNode *ast_nodes) {
-  HashTable symbols;
-  hash_table_init(&symbols);
-
+void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
     AstNode *node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
 
     if (node->type == AST_FUNCTION_DECLARATION) {
-      sa_function_and_variable_type_check(node, &symbols, node->data.function_declaration.name);
+      sa_function_and_variable_type_check(node, declaration_symbols, node->data.function_declaration.name);
       continue;
     } 
 
     if (node->type == AST_VARIABLE_DECLARATION) {
-      sa_function_and_variable_type_check(node, &symbols, NULL);
+      sa_function_and_variable_type_check(node, declaration_symbols, NULL);
       continue;
     }
 
