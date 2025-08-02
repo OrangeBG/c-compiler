@@ -1,6 +1,7 @@
 #ifndef INTERMEDIATE_REP
 #define INTERMEDIATE_REP
 
+#include "hash_table.h"
 #include "parser.h"
 
 typedef struct IRNode IRNode;
@@ -18,7 +19,8 @@ typedef enum {
   IR_INSTRUCTION_LABEL,
   IR_INSTRUCTION_FUNCTION_CALL,
   IR_VALUE_CONSTANT,
-  IR_VALUE_VAR
+  IR_VALUE_VAR,
+  IR_VALUE_STATIC_VAR
 } IRNodeType;
 
 typedef enum {
@@ -72,7 +74,7 @@ typedef struct IRNode {
  } data; 
 } IRNode;
 
-IRNode* generate_intermediate_rep(AstNode *ast_node);
+IRNode* generate_intermediate_rep(AstNode *ast_node, HashTable *declaration_symbols);
 void print_intermediate_ret(IRNode *ir_node);
 
 #endif

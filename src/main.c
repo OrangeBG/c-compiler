@@ -72,7 +72,11 @@ int main(int argc, const char *argv[]) {
   benchmarks[2] = clock();
   AstNode *program_node = arena_get_by_index(ast_arena, 0);
   sa_variable_resolution(program_node);
-  sa_type_check(program_node);
+
+  HashTable *declaration_symbols = malloc(sizeof(HashTable));
+  hash_table_init(declaration_symbols);
+  
+  sa_type_check(program_node, declaration_symbols);
   sa_loop_labeling(program_node);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
@@ -83,7 +87,7 @@ int main(int argc, const char *argv[]) {
   }
 
   benchmarks[3] = clock();
-  IRNode *ir = generate_intermediate_rep(program_node);
+  IRNode *ir = generate_intermediate_rep(program_node, declaration_symbols);
   benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
   
   if (print_debug) {
