@@ -8,8 +8,8 @@ char* get_1_byte_register(AsmRegisterType register_type);
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
     case ASM_PROGRAM:
-      for (int i = 0; i < asm_node->data.program.function_count; i++) {
-        save_assembly_file(asm_node->data.program.function_pointers->asm_pointers[i], file);
+      for (int i = 0; i < asm_node->data.program.top_level_count; i++) {
+        save_assembly_file(asm_node->data.program.top_level_pointers->asm_pointers[i], file);
       }
       break;
     case ASM_FUNCTION:

@@ -8,6 +8,7 @@
 #define NODE_POINTER_CAPACITY 8
 
 void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena); 
+void     asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
 AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena); 
 AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
@@ -45,33 +46,39 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   
   AsmNode *program = arena_alloc(asm_arena);
   program->type = ASM_PROGRAM;
-  program->data.program.function_count = 0;
-  program->data.program.function_pointers = node_pointer;
+  program->data.program.top_level_count = 0;
+  program->data.program.top_level_pointers = node_pointer;
 
   for (int i = 0; i < ir_nodes->data.program.top_level_count; i++) {
-    AsmNode *function = arena_alloc(asm_arena);
-    asm_add_to_node_pointer(function, node_pointer);
-    asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], function, asm_arena); 
-    program->data.program.function_count++;
+    AsmNode *top_level_declaration = arena_alloc(asm_arena);
+    asm_add_to_node_pointer(top_level_declaration, node_pointer);
+    
+    if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
+      asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, asm_arena);
+    } else {
+      asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
+    }
+    
+    program->data.program.top_level_count++;
   }
 
-  for (int i = 0; i < program->data.program.function_count; i++) {
+  for (int i = 0; i < program->data.program.top_level_count; i++) {
     int stack_offset = 0;
-    asm_pseudo_register_pass(program->data.program.function_pointers->asm_pointers[i], &stack_offset);
+    asm_pseudo_register_pass(program->data.program.top_level_pointers->asm_pointers[i], &stack_offset);
 
-    if (program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
-      fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.function_pointers->asm_pointers[i]->data.function.name);
+    if (program->data.program.top_level_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
+      fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
       exit(1);
     } 
 
     //Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls.
     stack_offset = ((stack_offset + 15) / 16) * 16;
 
-    program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+    program->data.program.top_level_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
-    AsmNode *new_function = asm_resolve_instructions(program->data.program.function_pointers->asm_pointers[i], asm_arena);
+    AsmNode *new_function = asm_resolve_instructions(program->data.program.top_level_pointers->asm_pointers[i], asm_arena);
 
-    program->data.program.function_pointers->asm_pointers[i] = new_function;
+    program->data.program.top_level_pointers->asm_pointers[i] = new_function;
   }
   
   return program;
@@ -356,6 +363,7 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
 void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
   asm_function->type = ASM_FUNCTION;
   asm_function->data.function.name = ir_function->data.function.identifier;
+  asm_function->data.function.is_global = ir_function->data.function.is_global;
   
   AsmNodePointers *asm_pointers = malloc(sizeof(AsmNodePointers));
   asm_init_node_pointer(asm_pointers);
@@ -425,6 +433,13 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
         exit(1);
     }
   }
+}
+
+void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable) {
+  asm_static_variable->type = ASM_STATIC_VARIABLE;
+  asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
+  asm_static_variable->data.static_variable.initial_value = ir_static_variable->data.static_variable.initial_value;
+  asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 }
 
 void asm_instruction_allocate_stack(AsmNode *asm_function, int padding, Arena *asm_arena) {
@@ -854,8 +869,8 @@ void print_assembly(AsmNode *node) {
     case ASM_PROGRAM:
       printf("Program \n");
 
-      for (int i = 0; i < node->data.program.function_count; i++) {
-        print_assembly(node->data.program.function_pointers->asm_pointers[i]);
+      for (int i = 0; i < node->data.program.top_level_count; i++) {
+        print_assembly(node->data.program.top_level_pointers->asm_pointers[i]);
       }
 
       printf("\n");
