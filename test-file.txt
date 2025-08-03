@@ -1,6 +1,6 @@
  int test = 1;
 
  int main(void) {
-   static int a = 10;
+   int a = 10;
    return test;
  }

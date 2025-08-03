@@ -53,20 +53,26 @@ AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {
     AsmNode *top_level_declaration = arena_alloc(asm_arena);
     asm_add_to_node_pointer(top_level_declaration, node_pointer);
     
-    if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
+    // if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
       asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, asm_arena);
-    } else {
-      asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
-    }
+    // } else {
+      // asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
+   // }
     
     program->data.program.top_level_count++;
   }
 
   for (int i = 0; i < program->data.program.top_level_count; i++) {
-    int stack_offset = 0;
-    asm_pseudo_register_pass(program->data.program.top_level_pointers->asm_pointers[i], declaration_symbols, &stack_offset);
+    AsmNode *top_level_node = program->data.program.top_level_pointers->asm_pointers[i];
 
-    if (program->data.program.top_level_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
+    if (top_level_node->type != ASM_FUNCTION) {
+      continue;
+    }
+    
+    int stack_offset = 0;
+    asm_pseudo_register_pass(top_level_node, declaration_symbols, &stack_offset);
+
+    if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
       fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
       exit(1);
     } 
@@ -74,11 +80,11 @@ AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {
     //Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls.
     stack_offset = ((stack_offset + 15) / 16) * 16;
 
-    program->data.program.top_level_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+    top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
-    AsmNode *new_function = asm_resolve_instructions(program->data.program.top_level_pointers->asm_pointers[i], asm_arena);
+    AsmNode *new_function = asm_resolve_instructions(top_level_node, asm_arena);
 
-    program->data.program.top_level_pointers->asm_pointers[i] = new_function;
+    top_level_node = new_function;
   }
   
   return program;
@@ -888,6 +894,9 @@ void print_assembly(AsmNode *node) {
         print_assembly(node->data.function.instruction_pointers->asm_pointers[i]);
       }      
       break;
+    case ASM_STATIC_VARIABLE:
+      printf("Static Variable %s\n", node->data.static_variable.identifier);
+      break;
     case ASM_INSTRUCTION_MOV:
       printf("MOV -> ");
       printf("Src( ");
@@ -986,6 +995,9 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_OPERAND_STACK:
       printf("Stack %d ", node->data.operand_stack.address);
+      break;
+    case ASM_OPERAND_DATA:
+      printf("Data %s ", node->data.operand_data.identifier);
       break;
     case ASM_INSTRUCTION_ALLOCATE_STACK:
       printf("RSP %d\n", node->data.instruction_allocate_stack.bytes_to_subtract);

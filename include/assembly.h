@@ -80,7 +80,7 @@ typedef struct AsmNode {
   union {
     struct AsmProgram { AsmNodePointers *top_level_pointers; int top_level_count; } program;
     struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
-    struct AsmStaticVatiable { char *identifier; bool is_global; int initial_value; } static_variable;
+    struct AsmStaticVariable { char *identifier; bool is_global; int initial_value; } static_variable;
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionUnary { AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
     struct AsmInstructionBinary { AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
