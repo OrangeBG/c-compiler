@@ -2,6 +2,7 @@
 #define ASSEMBLY
 
 #include "../include/intermediate_rep.h"
+#include "../include/hash_table.h"
 
 typedef struct AsmNode AsmNode;
 
@@ -27,7 +28,8 @@ typedef enum {
   ASM_OPERAND_IMM,
   ASM_OPERAND_REGISTER,
   ASM_OPERAND_PSEUDO_REGISTER,
-  ASM_OPERAND_STACK
+  ASM_OPERAND_STACK,
+  ASM_OPERAND_DATA
 } AsmNodeType;
 
 typedef enum {
@@ -100,7 +102,7 @@ typedef struct AsmNode {
   } data;
 } AsmNode;
 
-AsmNode *generate_assembly(IRNode *ir_nodes);
+AsmNode *generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols);
 void print_assembly(AsmNode *asm_node);
 
 #endif

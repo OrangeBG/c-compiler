@@ -17,8 +17,8 @@ void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instructio
 void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
-void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
+void     asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset); 
+void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena); 
@@ -36,7 +36,7 @@ void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction
 void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 
-AsmNode* generate_assembly(IRNode *ir_nodes) {  
+AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {  
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
@@ -64,7 +64,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
 
   for (int i = 0; i < program->data.program.top_level_count; i++) {
     int stack_offset = 0;
-    asm_pseudo_register_pass(program->data.program.top_level_pointers->asm_pointers[i], &stack_offset);
+    asm_pseudo_register_pass(program->data.program.top_level_pointers->asm_pointers[i], declaration_symbols, &stack_offset);
 
     if (program->data.program.top_level_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
       fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
@@ -275,7 +275,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, A
     asm_add_instruction_to_function(function, new_destination_mov_instruction);
 }
 
-void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
+void asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
   
@@ -285,44 +285,44 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
     switch(instruction->type) {
       case ASM_INSTRUCTION_MOV:        
         if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, stack_offset);
+         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, declaration_symbols, stack_offset);
         }
 
         if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, &stack_location_table, declaration_symbols, stack_offset);        
         }
 
         if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_IDIV:
         if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_CMP:
         if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, &stack_location_table, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, &stack_location_table, declaration_symbols, stack_offset);
         }        
 
         if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, declaration_symbols, stack_offset);
         }        
         break;
       case ASM_INSTRUCTION_PUSH:
         if (instruction->data.push.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.push.operand, &stack_location_table, stack_offset);
+          asm_replace_pseudo_register(instruction->data.push.operand, &stack_location_table, declaration_symbols, stack_offset);
         }
         break;
       default:
@@ -331,33 +331,39 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
   }
 }
 
-void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, int *stack_offset) {
+void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset) {
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
-  //TODO: Shouldn't need to do table_entry->key == NULL, but is currently needed here. Need to investigate
-  if (table_entry == NULL || table_entry->key == NULL) {
-    HashValue value = {
-      .integer = *stack_offset += 4,
-      .type = HASH_INT
-    };
-    
-    HashTableEntry new_entry = {
-      .key = pseudo_register->data.operand_pseudo_register.identifier,
-      .value = &value
-    };
-
-    hash_table_add_entry(stack_location_table, &new_entry);    
-
+  if (table_entry != NULL && table_entry->key != NULL) {
     pseudo_register->type = ASM_OPERAND_STACK;
     pseudo_register->data.operand_pseudo_register.identifier = NULL;
-    pseudo_register->data.operand_stack.address = *stack_offset;
-
+    pseudo_register->data.operand_stack.address = table_entry->value->integer;
     return;
   }
+
+  HashTableEntry *existing_declaration_symbol = hash_table_get_entry(declaration_symbols, pseudo_register->data.operand_pseudo_register.identifier);
+
+  if (existing_declaration_symbol != NULL && existing_declaration_symbol->key != NULL) {    
+    pseudo_register->type = ASM_OPERAND_DATA;
+    pseudo_register->data.operand_data.identifier = NULL;
+    return;
+  }
+
+  HashValue value = {
+    .integer = *stack_offset += 4,
+    .type = HASH_INT
+  };
   
+  HashTableEntry new_entry = {
+    .key = pseudo_register->data.operand_pseudo_register.identifier,
+    .value = &value
+  };
+
+  hash_table_add_entry(stack_location_table, &new_entry);    
+
   pseudo_register->type = ASM_OPERAND_STACK;
   pseudo_register->data.operand_pseudo_register.identifier = NULL;
-  pseudo_register->data.operand_stack.address = table_entry->value->integer;
+  pseudo_register->data.operand_stack.address = *stack_offset;
 }
 
 void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
