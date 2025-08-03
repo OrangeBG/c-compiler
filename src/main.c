@@ -99,7 +99,7 @@ int main(int argc, const char *argv[]) {
   arena_free(ast_arena);
 
   benchmarks[4] = clock();
-  AsmNode *asm_nodes = generate_assembly(ir);
+  AsmNode *asm_nodes = generate_assembly(ir, declaration_symbols);
   benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
 
   if (print_debug) {

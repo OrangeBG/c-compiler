@@ -8,6 +8,7 @@
 #define NODE_POINTER_CAPACITY 8
 
 void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena); 
+void     asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
 AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena); 
 AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
@@ -16,8 +17,8 @@ void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instructio
 void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset); 
-void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, int *stack_offset); 
+void     asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset); 
+void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena); 
@@ -35,7 +36,7 @@ void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction
 void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 
-AsmNode* generate_assembly(IRNode *ir_nodes) {  
+AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {  
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
@@ -45,33 +46,45 @@ AsmNode* generate_assembly(IRNode *ir_nodes) {
   
   AsmNode *program = arena_alloc(asm_arena);
   program->type = ASM_PROGRAM;
-  program->data.program.function_count = 0;
-  program->data.program.function_pointers = node_pointer;
+  program->data.program.top_level_count = 0;
+  program->data.program.top_level_pointers = node_pointer;
 
   for (int i = 0; i < ir_nodes->data.program.top_level_count; i++) {
-    AsmNode *function = arena_alloc(asm_arena);
-    asm_add_to_node_pointer(function, node_pointer);
-    asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], function, asm_arena); 
-    program->data.program.function_count++;
+    AsmNode *top_level_declaration = arena_alloc(asm_arena);
+    asm_add_to_node_pointer(top_level_declaration, node_pointer);
+    
+    // if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
+      asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, asm_arena);
+    // } else {
+      // asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
+   // }
+    
+    program->data.program.top_level_count++;
   }
 
-  for (int i = 0; i < program->data.program.function_count; i++) {
-    int stack_offset = 0;
-    asm_pseudo_register_pass(program->data.program.function_pointers->asm_pointers[i], &stack_offset);
+  for (int i = 0; i < program->data.program.top_level_count; i++) {
+    AsmNode *top_level_node = program->data.program.top_level_pointers->asm_pointers[i];
 
-    if (program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
-      fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.function_pointers->asm_pointers[i]->data.function.name);
+    if (top_level_node->type != ASM_FUNCTION) {
+      continue;
+    }
+    
+    int stack_offset = 0;
+    asm_pseudo_register_pass(top_level_node, declaration_symbols, &stack_offset);
+
+    if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_ALLOCATE_STACK) {
+      fprintf(stderr, "ERROR - Assembler: First instruction is not Allocate Stack for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
       exit(1);
     } 
 
     //Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls.
     stack_offset = ((stack_offset + 15) / 16) * 16;
 
-    program->data.program.function_pointers->asm_pointers[i]->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+    top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
 
-    AsmNode *new_function = asm_resolve_instructions(program->data.program.function_pointers->asm_pointers[i], asm_arena);
+    AsmNode *new_function = asm_resolve_instructions(top_level_node, asm_arena);
 
-    program->data.program.function_pointers->asm_pointers[i] = new_function;
+    top_level_node = new_function;
   }
   
   return program;
@@ -268,7 +281,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, A
     asm_add_instruction_to_function(function, new_destination_mov_instruction);
 }
 
-void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
+void asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
   
@@ -278,44 +291,44 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
     switch(instruction->type) {
       case ASM_INSTRUCTION_MOV:        
         if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, stack_offset);
+         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, declaration_symbols, stack_offset);
         }
 
         if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, &stack_location_table, declaration_symbols, stack_offset);        
         }
 
         if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_IDIV:
         if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_CMP:
         if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, &stack_location_table, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, &stack_location_table, declaration_symbols, stack_offset);
         }        
 
         if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, declaration_symbols, stack_offset);
         }        
         break;
       case ASM_INSTRUCTION_PUSH:
         if (instruction->data.push.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.push.operand, &stack_location_table, stack_offset);
+          asm_replace_pseudo_register(instruction->data.push.operand, &stack_location_table, declaration_symbols, stack_offset);
         }
         break;
       default:
@@ -324,38 +337,45 @@ void asm_pseudo_register_pass(AsmNode *asm_function, int *stack_offset) {
   }
 }
 
-void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, int *stack_offset) {
+void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset) {
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
-  //TODO: Shouldn't need to do table_entry->key == NULL, but is currently needed here. Need to investigate
-  if (table_entry == NULL || table_entry->key == NULL) {
-    HashValue value = {
-      .integer = *stack_offset += 4,
-      .type = HASH_INT
-    };
-    
-    HashTableEntry new_entry = {
-      .key = pseudo_register->data.operand_pseudo_register.identifier,
-      .value = &value
-    };
-
-    hash_table_add_entry(stack_location_table, &new_entry);    
-
+  if (table_entry != NULL && table_entry->key != NULL) {
     pseudo_register->type = ASM_OPERAND_STACK;
     pseudo_register->data.operand_pseudo_register.identifier = NULL;
-    pseudo_register->data.operand_stack.address = *stack_offset;
-
+    pseudo_register->data.operand_stack.address = table_entry->value->integer;
     return;
   }
+
+  HashTableEntry *existing_declaration_symbol = hash_table_get_entry(declaration_symbols, pseudo_register->data.operand_pseudo_register.identifier);
+
+  if (existing_declaration_symbol != NULL && existing_declaration_symbol->key != NULL) {    
+    pseudo_register->type = ASM_OPERAND_DATA;
+    pseudo_register->data.operand_data.identifier = NULL;
+    return;
+  }
+
+  HashValue value = {
+    .integer = *stack_offset += 4,
+    .type = HASH_INT
+  };
   
+  HashTableEntry new_entry = {
+    .key = pseudo_register->data.operand_pseudo_register.identifier,
+    .value = &value
+  };
+
+  hash_table_add_entry(stack_location_table, &new_entry);    
+
   pseudo_register->type = ASM_OPERAND_STACK;
   pseudo_register->data.operand_pseudo_register.identifier = NULL;
-  pseudo_register->data.operand_stack.address = table_entry->value->integer;
+  pseudo_register->data.operand_stack.address = *stack_offset;
 }
 
 void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
   asm_function->type = ASM_FUNCTION;
   asm_function->data.function.name = ir_function->data.function.identifier;
+  asm_function->data.function.is_global = ir_function->data.function.is_global;
   
   AsmNodePointers *asm_pointers = malloc(sizeof(AsmNodePointers));
   asm_init_node_pointer(asm_pointers);
@@ -425,6 +445,13 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
         exit(1);
     }
   }
+}
+
+void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable) {
+  asm_static_variable->type = ASM_STATIC_VARIABLE;
+  asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
+  asm_static_variable->data.static_variable.initial_value = ir_static_variable->data.static_variable.initial_value;
+  asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 }
 
 void asm_instruction_allocate_stack(AsmNode *asm_function, int padding, Arena *asm_arena) {
@@ -854,8 +881,8 @@ void print_assembly(AsmNode *node) {
     case ASM_PROGRAM:
       printf("Program \n");
 
-      for (int i = 0; i < node->data.program.function_count; i++) {
-        print_assembly(node->data.program.function_pointers->asm_pointers[i]);
+      for (int i = 0; i < node->data.program.top_level_count; i++) {
+        print_assembly(node->data.program.top_level_pointers->asm_pointers[i]);
       }
 
       printf("\n");
@@ -866,6 +893,9 @@ void print_assembly(AsmNode *node) {
       for (int i = 0; i < node->data.function.instruction_count; i++) {
         print_assembly(node->data.function.instruction_pointers->asm_pointers[i]);
       }      
+      break;
+    case ASM_STATIC_VARIABLE:
+      printf("Static Variable %s\n", node->data.static_variable.identifier);
       break;
     case ASM_INSTRUCTION_MOV:
       printf("MOV -> ");
@@ -965,6 +995,9 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_OPERAND_STACK:
       printf("Stack %d ", node->data.operand_stack.address);
+      break;
+    case ASM_OPERAND_DATA:
+      printf("Data %s ", node->data.operand_data.identifier);
       break;
     case ASM_INSTRUCTION_ALLOCATE_STACK:
       printf("RSP %d\n", node->data.instruction_allocate_stack.bytes_to_subtract);

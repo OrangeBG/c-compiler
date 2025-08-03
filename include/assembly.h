@@ -2,12 +2,14 @@
 #define ASSEMBLY
 
 #include "../include/intermediate_rep.h"
+#include "../include/hash_table.h"
 
 typedef struct AsmNode AsmNode;
 
 typedef enum {
   ASM_PROGRAM,
   ASM_FUNCTION,
+  ASM_STATIC_VARIABLE,
   ASM_INSTRUCTION_MOV,
   ASM_INSTRUCTION_RET,
   ASM_INSTRUCTION_UNARY,
@@ -26,7 +28,8 @@ typedef enum {
   ASM_OPERAND_IMM,
   ASM_OPERAND_REGISTER,
   ASM_OPERAND_PSEUDO_REGISTER,
-  ASM_OPERAND_STACK
+  ASM_OPERAND_STACK,
+  ASM_OPERAND_DATA
 } AsmNodeType;
 
 typedef enum {
@@ -75,29 +78,31 @@ typedef struct {
 typedef struct AsmNode {
   AsmNodeType type;
   union {
-    struct AsmProgram { AsmNodePointers *function_pointers; int function_count; } program;
-    struct AsmFunction { char* name; AsmNodePointers *instruction_pointers; int instruction_count; } function;
+    struct AsmProgram { AsmNodePointers *top_level_pointers; int top_level_count; } program;
+    struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
+    struct AsmStaticVariable { char *identifier; bool is_global; int initial_value; } static_variable;
     struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
-    struct AsmInstructionUnary { AsmUnaryOpType unary_op; AsmNode *operand;  } instruction_unary;
-    struct AsmInstructionBinary { AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2;  } instruction_binary;
+    struct AsmInstructionUnary { AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
+    struct AsmInstructionBinary { AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
     struct AsmInstructionIdiv { AsmNode *operand; } instruction_idiv;
     struct AsmInstructionCmp { AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
     struct AsmInstructionJmp { char *identifier; } instruction_jmp;
     struct AsmInstructionJmpCC { AsmConditionCode condition_code; char *identifier; } instruction_jmp_cc;
     struct AsmInstructionSetCC { AsmConditionCode condition_code; AsmNode *operand; } instruction_set_cc;
     struct AsmInstructionLabel { char *identifier; } instruction_label;
-    struct AsmInstructionAllocateStack { int bytes_to_subtract;  } instruction_allocate_stack;
+    struct AsmInstructionAllocateStack { int bytes_to_subtract; } instruction_allocate_stack;
     struct AsmOperandImmediate { int value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
-    struct AsmOperandPseudoRegister { char *identifier;  } operand_pseudo_register;
-    struct AsmOperandStack { int address;  } operand_stack;
+    struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;
+    struct AsmOperandStack { int address; } operand_stack;
+    struct AsmOperandData { char *identifier; } operand_data;
     struct AsmDeallocateStack { int address; } deallocate_stack;
     struct AsmPush { AsmNode *operand; } push;
     struct AsmCall { char *identifier; } call;
   } data;
 } AsmNode;
 
-AsmNode *generate_assembly(IRNode *ir_nodes);
+AsmNode *generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols);
 void print_assembly(AsmNode *asm_node);
 
 #endif
