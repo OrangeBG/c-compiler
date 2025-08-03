@@ -354,13 +354,15 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
     TypeCheckSymbol *symbol = existing_declaration_symbol->value->structure;    
 
     if (symbol->data.variable_symbol->is_automatic_storage_duration) {
-      return;
+      goto process_pseudo_register;
     }
     
     pseudo_register->type = ASM_OPERAND_DATA;
     pseudo_register->data.operand_data.identifier = pseudo_register->data.operand_pseudo_register.identifier;
     return;
   }
+
+  process_pseudo_register:
 
   HashValue value = {
     .integer = *stack_offset += 4,

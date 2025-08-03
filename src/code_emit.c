@@ -22,7 +22,12 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
       
       fprintf(file, "\t.text\n");
-      fprintf(file, "%s:\n", asm_node->data.function.name);
+
+      #ifdef __APPLE__
+        fprintf(file, "_%s:\n", asm_node->data.function.name);
+      #else
+        fprintf(file, "%s:\n", asm_node->data.function.name);
+      #endif
 
       //Function prologue
       fprintf(file, "\tpushq\t%%rbp\n");
@@ -50,8 +55,6 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       #ifdef __APPLE__
         fprintf(file, "\t.balign 4\n");
       #endif 
-
-      fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
       if (asm_node->data.static_variable.initial_value == 0) {        
         fprintf(file, "\t.zero 4\n");
