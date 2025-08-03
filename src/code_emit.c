@@ -11,9 +11,17 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       for (int i = 0; i < asm_node->data.program.top_level_count; i++) {
         save_assembly_file(asm_node->data.program.top_level_pointers->asm_pointers[i], file);
       }
+
+      #ifdef __linux__         
+        fprintf(file, "\t.section .note.GNU-stack,\"\",@progbits\n");
+      #endif
       break;
     case ASM_FUNCTION:
-      fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
+      if (asm_node->data.function.is_global) {        
+        fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
+      }
+      
+      fprintf(file, "\t.text\n");
       fprintf(file, "%s:\n", asm_node->data.function.name);
 
       //Function prologue
@@ -22,6 +30,33 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       for (int i = 0; i < asm_node->data.function.instruction_count; i++) {
         save_assembly_file(asm_node->data.function.instruction_pointers->asm_pointers[i], file);
+      }
+      break;
+    case ASM_STATIC_VARIABLE:
+      if (asm_node->data.static_variable.is_global) {
+        fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
+      }
+
+      if (asm_node->data.static_variable.initial_value == 0) {        
+        fprintf(file, "\t.bss\n");
+      } else {
+        fprintf(file, "\t.data\n");
+      }
+
+      #ifdef __linux__
+        fprintf(file, "\t.align 4\n");
+      #endif 
+
+      #ifdef __APPLE__
+        fprintf(file, "\t.balign 4\n");
+      #endif 
+
+      fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
+
+      if (asm_node->data.static_variable.initial_value == 0) {        
+        fprintf(file, "\t.zero 4\n");
+      } else {
+        fprintf(file, "\t.long %d\n", asm_node->data.static_variable.initial_value);
       }
       break;
     case ASM_INSTRUCTION_MOV:
@@ -144,6 +179,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     }
     case ASM_OPERAND_STACK:
       fprintf(file, "-%d(%%rbp)", asm_node->data.operand_stack.address);
+      break;
+    case ASM_OPERAND_DATA:
+      fprintf(file, "%s(%%rip)", asm_node->data.operand_data.identifier);
       break;
     default:
       fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
