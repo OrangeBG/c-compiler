@@ -23,7 +23,7 @@ void       ast_program(Parser *parser, AstNode *program_node);
 void       ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type);
 void       ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type);
 void       ast_block(Parser *parser, AstNode *block_node);
-void       ast_declaration(Parser *parser, AstNode *declaration_node); 
+void       ast_declaration(Parser *parser, AstNode *declaration_node, bool is_file_scope_declaration); 
 void       ast_parse_statement(Parser *parser, AstNode **statement_node);
 void       ast_parse_statement_null(Parser *parser, AstNode *statement_node);
 void       ast_parse_statement_return(Parser *parser, AstNode *statement_node); 
@@ -485,14 +485,14 @@ void ast_program(Parser *parser, AstNode *program_node) {
   while (current_token(parser)->type != TOKEN_EOF) {
     AstNode *declaration_node = arena_alloc(parser->node_arena);
     // ast_function_declaration(parser, declaration_node);
-    ast_declaration(parser, declaration_node);
+    ast_declaration(parser, declaration_node, true);
 
     program_node->data.program.declaration_count++;
     add_to_node_pointer(declaration_node, declaration_pointers);
   } 
 }
 
-void ast_declaration(Parser *parser, AstNode *declaration_node) {
+void ast_declaration(Parser *parser, AstNode *declaration_node, bool is_file_scope_declaration) {
   StorageClassType storage_class_type = AST_STORAGE_CLASS_NONE;
 
   if (current_token(parser)->type == TOKEN_EXTERN) {
@@ -501,6 +501,8 @@ void ast_declaration(Parser *parser, AstNode *declaration_node) {
   } else if (current_token(parser)->type == TOKEN_STATIC) {
     storage_class_type = AST_STORAGE_CLASS_STATIC;
     ast_expect(parser, TOKEN_STATIC);
+  } else if (is_file_scope_declaration) {
+    storage_class_type = AST_STORAGE_CLASS_STATIC;
   }
   
   //Variable Declaration -> int c; or int c = 0; 
@@ -636,7 +638,7 @@ void ast_block(Parser *parser, AstNode *block_node) {
     //TODO: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
     if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
       AstNode *declaration_node = arena_alloc(parser->node_arena);
-      ast_declaration(parser, declaration_node);
+      ast_declaration(parser, declaration_node, false);
       block_node->data.block.block_count++;
       add_to_node_pointer(declaration_node, block_item_pointers);
     } else {

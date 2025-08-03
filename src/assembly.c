@@ -53,11 +53,11 @@ AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {
     AsmNode *top_level_declaration = arena_alloc(asm_arena);
     asm_add_to_node_pointer(top_level_declaration, node_pointer);
     
-    // if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
+    if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
       asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, asm_arena);
-    // } else {
-      // asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
-   // }
+    } else {
+      asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
+   }
     
     program->data.program.top_level_count++;
   }
