@@ -20,6 +20,8 @@ typedef struct {
   int temp_label_id;
 } IREmitStatus;
 
+static HashTable *ir_declaration_symbols;
+
 void    ir_add_postfix_operations(IRNode *ir_function, IREmitStatus *emit_status, Arena *node_arena);
 IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *node_arena);
 IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
@@ -58,6 +60,8 @@ void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer);
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, HashTable *declaration_symbols) {
+  ir_declaration_symbols = declaration_symbols;
+
   Arena *node_arena = malloc(sizeof(Arena));
 
   //TODO: Hardcoded capacity
@@ -106,7 +110,7 @@ void print_intermediate_ret(IRNode *ir_node) {
       break;
     case IR_FUNCTION: {
       struct IRFunction *function = &ir_node->data.function; 
-      printf("Function -> %s\n", function->identifier);
+      printf("Function -> %s\n is_global = %d ", function->identifier, function->is_global);
 
       for (int i = 0; i < function->instruction_count; i++) {
         if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_RET) {
@@ -214,6 +218,16 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
   function->data.function.identifier = ast_function->data.function_declaration.name;
   function->data.function.instruction_count = 0;
   function->data.function.instruction_ptrs = ir_node_pointer;
+
+  HashTableEntry *found_declaration_entry = hash_table_get_entry(ir_declaration_symbols, ast_function->data.function_declaration.name);
+
+  if (found_declaration_entry == NULL || found_declaration_entry->key == NULL) {
+    fprintf(stderr, "ERROR - IR: Declaration Symbol expected for the following function: '%s'\n", ast_function->data.function_declaration.name);
+    exit(1);
+  }
+
+  TypeCheckSymbol *symbol = found_declaration_entry->value->structure;
+  function->data.function.is_global = symbol->data.function_symbol->global;
 
   Arena postfix_arena;
   //@WARNING: Hardcoded postfix arena size

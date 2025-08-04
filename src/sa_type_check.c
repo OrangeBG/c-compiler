@@ -78,7 +78,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       function_symbol->value_type = TYPE_INT;
       function_symbol->param_count = 0;
       function_symbol->defined = node->data.function_declaration.body_block != NULL;
-      function_symbol->global = node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
+      function_symbol->global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
 
       TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
       new_symbol->symbol_type = SYMBOL_FUNCTION;

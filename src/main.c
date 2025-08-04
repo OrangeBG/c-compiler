@@ -113,6 +113,7 @@ int main(int argc, const char *argv[]) {
 
     #ifdef __x86_64__
       system("clang -c assembly.asm -o assembly.o");
+      // system("clang assembly.o -o assembly");   
     #else 
       system("clang -arch x86_64 -c assembly.asm -o assembly.o");
     #endif

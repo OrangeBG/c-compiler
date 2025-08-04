@@ -1,6 +1,3 @@
- int test = 1;
-
  int main(void) {
-   int a = 10;
-   return test;
+	return 3;
  }

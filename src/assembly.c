@@ -98,6 +98,7 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
   AsmNode *new_function = arena_alloc(asm_arena);
   new_function->type = ASM_FUNCTION;
   new_function->data.function.name = function->data.function.name;
+  new_function->data.function.is_global = function->data.function.is_global;
   new_function->data.function.instruction_count = 0;
   new_function->data.function.instruction_pointers = new_instructions;
   
@@ -363,22 +364,21 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
   }
 
   process_pseudo_register:
-
-  HashValue value = {
-    .integer = *stack_offset += 4,
-    .type = HASH_INT
-  };
+      HashValue value = {
+        .integer = *stack_offset += 4,
+        .type = HASH_INT
+      };
   
-  HashTableEntry new_entry = {
-    .key = pseudo_register->data.operand_pseudo_register.identifier,
-    .value = &value
-  };
+      HashTableEntry new_entry = {
+        .key = pseudo_register->data.operand_pseudo_register.identifier,
+        .value = &value
+      };
 
-  hash_table_add_entry(stack_location_table, &new_entry);    
+      hash_table_add_entry(stack_location_table, &new_entry);    
 
-  pseudo_register->type = ASM_OPERAND_STACK;
-  pseudo_register->data.operand_pseudo_register.identifier = NULL;
-  pseudo_register->data.operand_stack.address = *stack_offset;
+      pseudo_register->type = ASM_OPERAND_STACK;
+      pseudo_register->data.operand_pseudo_register.identifier = NULL;
+      pseudo_register->data.operand_stack.address = *stack_offset;
 }
 
 void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
