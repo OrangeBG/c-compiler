@@ -1,3 +1,4 @@
  int main(void) {
-	return 3;
+    long a = 3l;
+	return 0;
  }

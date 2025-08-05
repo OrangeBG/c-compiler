@@ -26,6 +26,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_COLON",
   "TOKEN_COMMA",
   "TOKEN_CONSTANT_INT",
+  "TOKEN_CONSTANT_LONG",
   "TOKEN_CONTINUE",
   "TOKEN_DECREMENT",
   "TOKEN_DO",
@@ -43,6 +44,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_LOGICAL_AND",
   "TOKEN_LOGICAL_OR",
   "TOKEN_LOGICAL_NOT",  
+  "TOKEN_LONG",
   "TOKEN_NEGATION",
   "TOKEN_NEGATION_EQUAL",
   "TOKEN_OPEN_PAREN",
@@ -383,6 +385,16 @@ void add_number_token(Lexer *lexer, char *file) {
     lexer->current_index++;
   }
 
+  if (file[lexer->current_index + 1] == 'L' || file[lexer->current_index + 1] == 'l') {
+    add_token(TOKEN_CONSTANT_LONG, lexer);
+    lexer->current_index++;
+    if (is_alpha_char(file[lexer->current_index + 1])) {
+      fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
+      exit(1);
+    } 
+    return;
+  }
+
   if (is_alpha_char(file[lexer->current_index + 1])) {
     fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
     exit(1);
@@ -435,6 +447,7 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
       } 
       break;
      }
+    case 'l': return check_keyword(0, 3, "ong", TOKEN_LONG, lexer, file);
     case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
     case 's': return check_keyword(0, 5, "tatic", TOKEN_STATIC, lexer, file);
     case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
