@@ -79,6 +79,17 @@ typedef enum {
   AST_STORAGE_CLASS_EXTERN
 } StorageClassType;
 
+typedef enum {
+  AST_TYPE_INT,
+  AST_TYPE_LONG,
+  AST_TYPE_FUNCTION
+} Types;
+
+typedef enum {
+  AST_CONSTANT_TYPE_INT,
+  AST_CONSTANT_TYPE_LONG
+} ConstantType;
+
 typedef struct {
   int capacity;
   int count;
@@ -91,7 +102,9 @@ typedef struct AstNode {
     struct Program { NodePointer *declaration_ptrs; int declaration_count; } program;
     struct FunctionDeclaration { char *name; StorageClassType storage_class_type;  NodePointer *parameter_ptrs; int parameter_count; AstNode *body_block; } function_declaration;
     struct FunctionParameter { char *name; ParameterType type; } function_parameters;
-    struct VariableDeclaration { char *name; StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } variable_declaration;
+    struct VariableDeclaration { char *name; AstNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } variable_declaration;
+    struct Type { Types type; AstNode *function_type; } type;
+    struct FunctionType { AstNode *type; AstNode *param_types; AstNode *return_type; } function_type;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct ExpressionStatement { AstNode *expression; } expression_statement;
@@ -104,7 +117,7 @@ typedef struct AstNode {
     struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
     struct BreakStatement { int label_id; } break_statement;
     struct ContinueStatement { int label_id; } continue_statement;
-    struct ConstantExpression { int value; } constant_expression;
+    struct ConstantExpression { ConstantType constant_type; int value; } constant_expression;
     struct VariableExpression { char *identifier; } variable_expression;
     struct UnaryExpression { UnaryOpType op_type; AstNode *expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; } binary_expression;
@@ -112,6 +125,7 @@ typedef struct AstNode {
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;
     struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; int argument_count; } function_call_expression;
+    struct CastExpression { AstNode *type; AstNode *expression; } cast_expression;
   } data;
 } AstNode;
 
