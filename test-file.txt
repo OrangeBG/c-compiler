@@ -1,4 +1,4 @@
- int main(void) {
+long main(long j) {
     long a = 3l;
 	return 0;
  }

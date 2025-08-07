@@ -45,7 +45,8 @@
 
 # Testing Needed
 
-# Research
+# Investigate
+	- Look into why I'm adding the following in the parser (2 of them were found and tagged with TODOs): postfix_constant->data.constant_expression.int_value = 1;
 
 # Features
 	- Add generic dynamic array grow function
