@@ -47,6 +47,7 @@ void       ast_parse_factor_constant(Parser *parser, AstNode *factor_node, Token
 void       ast_parse_factor_unary(Parser *parser, AstNode *factor_node); 
 void       ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
 void       ast_parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node); 
+void       ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
 void       ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier); 
 void       ast_parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 void       ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
@@ -59,7 +60,7 @@ void       print_whitespace(int count);
 void       add_to_node_pointer(AstNode *node, NodePointer *node_pointer); 
 void       init_node_pointer(NodePointer *node_pointer); 
 bool       end_of_file(const Parser *parser);
-bool       is_binary_operator_token(Parser *parser);
+static bool       is_type_identifier_token(TokenType token_type);
 int        get_precedence(TokenType token_type);
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
@@ -407,6 +408,23 @@ void print_ast(const AstNode *node, int whitespace) {
           AstNode *argument = node->data.function_call_expression.argument_ptrs->node_pointers[i];
           print_ast(argument, ADD_WHITESPACE);
         }
+
+        print_whitespace(whitespace);
+        printf(")\n");
+        break;
+      }
+      case AST_EXPRESSION_CAST: {
+        print_whitespace(whitespace);
+        printf("Cast(type=");
+
+        switch (node->data.cast_expression.type->data.type.type) {
+          case AST_TYPE_INT:   printf("int\n"); break;
+          case AST_TYPE_LONG:  printf("long\n"); break;
+          default:            
+            printf("ERROR - Parser: Unsupported cast node type to print %d\n", node->type);
+        }
+
+        print_ast(node->data.cast_expression.expression, ADD_WHITESPACE);        
 
         print_whitespace(whitespace);
         printf(")\n");
@@ -1097,8 +1115,15 @@ void ast_parse_factor(Parser *parser, AstNode *factor_node) {
     case TOKEN_INCREMENT:
     case TOKEN_DECREMENT:
       ast_parse_factor_prefix_expression(parser, factor_node); break;
-    case TOKEN_OPEN_PAREN:
-      ast_parse_factor_parenthetical_expression(parser, factor_node); break;
+    case TOKEN_OPEN_PAREN: {
+      if (is_type_identifier_token(peek_next_token(parser))) {
+        ast_parse_factor_cast_expression(parser, factor_node); 
+        break;
+      }
+
+      ast_parse_factor_parenthetical_expression(parser, factor_node);
+      break;
+    }
     case TOKEN_IDENTIFIER: {    
       char *identifier = ast_identifier(parser);
 
@@ -1202,11 +1227,36 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 }
 
 void ast_parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node) {
-  parser->current_token_index++;
+  ast_expect(parser, TOKEN_OPEN_PAREN);
   ast_parse_expression(parser, &factor_node, 0);    
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 }
- 
+
+void ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
+  ast_expect(parser, TOKEN_OPEN_PAREN);
+
+  AstNode *type_node = arena_alloc(parser->node_arena);
+  type_node->type = AST_TYPE;
+
+  switch(current_token(parser)->type) {
+    case TOKEN_INT:  type_node->data.type.type = AST_TYPE_INT; break;
+    case TOKEN_LONG: type_node->data.type.type = AST_TYPE_LONG; break;      
+    default:
+      fprintf(stderr, "ERROR - Parser: Cast node type '%d' not supported", current_token(parser)->type);
+      exit(1);
+  }
+
+  parser->current_token_index++;
+  ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+  AstNode *expression_node = arena_alloc(parser->node_arena);
+  ast_parse_factor(parser, expression_node);
+  
+  factor_node->type = AST_EXPRESSION_CAST;
+  factor_node->data.cast_expression.type = type_node;
+  factor_node->data.cast_expression.expression = expression_node;
+}
+
 void ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier) {
   ast_expect(parser, TOKEN_COLON);
   factor_node->type = AST_STATEMENT_GOTO_LABEL;
@@ -1303,3 +1353,12 @@ int get_precedence(TokenType token_type) {
   }
 }
 
+static bool is_type_identifier_token(TokenType token_type) {
+  switch(token_type) {
+    case TOKEN_INT:
+    case TOKEN_LONG:
+      return true;
+    default:
+      return false;
+  }
+}
