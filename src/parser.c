@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <limits.h>
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "lexer.h"
@@ -11,6 +11,7 @@
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define NODE_POINTER_CAPACITY 8
+#define BASE_TEN 10
 
 typedef struct Parser {
   int token_count;
@@ -1147,16 +1148,28 @@ void ast_parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType c
 
   char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
   strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
-  
-  if (constant_type == TOKEN_INT) {
-    int int_value = atoi(slice);
+
+  char *end_ptr;
+  long constant_value = strtol(slice, &end_ptr, BASE_TEN);
+
+  if (constant_type == TOKEN_CONSTANT_INT) {
+    if (constant_value < INT_MIN || constant_value > INT_MAX) {
+      fprintf(stderr, "ERROR - Parser: Out of bounds int constant '%ld'\n", constant_value);
+      exit(1);
+    }
+
     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
-    factor_node->data.constant_expression.int_value = int_value;
-  } else {
-    long long_constant = atol(slice);
-    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
-    factor_node->data.constant_expression.long_value = long_constant;
+    factor_node->data.constant_expression.int_value = (int)constant_value;
+    return;
   }
+  
+  if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
+    fprintf(stderr, "ERROR - Parser: Out of bounds long constant '%ld'\n", constant_value);
+    exit(1);
+  }
+
+  factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
+  factor_node->data.constant_expression.long_value = constant_value;
 }
 
 void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
