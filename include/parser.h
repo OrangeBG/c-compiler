@@ -13,6 +13,7 @@ typedef enum {
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
   AST_FUNCTION_PARAMETER,
+  AST_TYPE,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
   AST_STATEMENT_EXPRESSION,
@@ -26,6 +27,7 @@ typedef enum {
   AST_STATEMENT_DO_WHILE,
   AST_STATEMENT_FOR,
   AST_STATEMENT_COMPOUND,
+  AST_EXPRESSION_CAST,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
   AST_EXPRESSION_UNARY,
@@ -70,7 +72,8 @@ typedef enum {
 
 typedef enum {
   AST_PARAMETER_VOID,
-  AST_PARAMETER_INT
+  AST_PARAMETER_INT,
+  AST_PARAMETER_LONG
 } ParameterType;
 
 typedef enum {
@@ -117,7 +120,7 @@ typedef struct AstNode {
     struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
     struct BreakStatement { int label_id; } break_statement;
     struct ContinueStatement { int label_id; } continue_statement;
-    struct ConstantExpression { ConstantType constant_type; int value; } constant_expression;
+    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; } constant_expression;
     struct VariableExpression { char *identifier; } variable_expression;
     struct UnaryExpression { UnaryOpType op_type; AstNode *expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; } binary_expression;

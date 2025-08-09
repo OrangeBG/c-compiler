@@ -263,7 +263,8 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_STATEMENT_NULL:               { break; } 
       case AST_STATEMENT_RETURN:             { return ir_emit_return(node, function, emit_status, node_arena); }
       case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier, node_arena); }
-      case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.value, node_arena); }
+      //TODO: Will need to support long constants
+      case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.int_value, node_arena); }
       case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status, node_arena); }
       case AST_EXPRESSION_POSTFIX_INCREMENT: { return ir_emit_postfix_expression(node, emit_status, node_arena); }
       case AST_EXPRESSION_POSTFIX_DECREMENT: { return ir_emit_postfix_expression(node, emit_status, node_arena); }

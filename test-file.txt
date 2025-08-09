@@ -1,4 +1,4 @@
- int main(void) {
-    long a = 3l;
+long main(void) {
+    int b = 300;
 	return 0;
  }

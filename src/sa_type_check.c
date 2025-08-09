@@ -258,7 +258,8 @@ void sa_type_check_file_scope_variable_declaration(AstNode *variable_declaration
 
   if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
-    initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.value;
+    //TODO: Will need to support long constants
+    initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
   } else if (!variable_declaration_node->data.variable_declaration.has_expression) {
     if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
@@ -381,7 +382,8 @@ void sa_type_check_block_scope_variable_declaration(AstNode *variable_declaratio
     if (!variable_declaration_node->data.variable_declaration.has_expression) {
       initial_value = 0;
     } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
-      initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.value;
+      //TODO: Will need to support long constants
+      initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
     } else {
       fprintf(stderr, "ERROR - SA Type Check: Non-constance initializer on local staic variable '%s'\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);

@@ -1,14 +1,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <limits.h>
 #include "../include/parser.h"
 #include "../include/arena.h"
+#include "lexer.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define NODE_POINTER_CAPACITY 8
+#define BASE_TEN 10
 
 typedef struct Parser {
   int token_count;
@@ -41,10 +44,11 @@ void       ast_parse_expression_assignment(Parser *parser, AstNode *assignment_e
 void       ast_parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
 void       ast_parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
 void       ast_parse_factor(Parser *parser, AstNode *factor_node);
-void       ast_parse_factor_constant(Parser *parser, AstNode *factor_node);
+void       ast_parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type);
 void       ast_parse_factor_unary(Parser *parser, AstNode *factor_node); 
 void       ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
 void       ast_parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node); 
+void       ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
 void       ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier); 
 void       ast_parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 void       ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
@@ -57,7 +61,7 @@ void       print_whitespace(int count);
 void       add_to_node_pointer(AstNode *node, NodePointer *node_pointer); 
 void       init_node_pointer(NodePointer *node_pointer); 
 bool       end_of_file(const Parser *parser);
-bool       is_binary_operator_token(Parser *parser);
+static bool       is_type_identifier_token(TokenType token_type);
 int        get_precedence(TokenType token_type);
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
@@ -144,6 +148,9 @@ void print_ast(const AstNode *node, int whitespace) {
           break;
         case AST_PARAMETER_INT:
           printf("int");
+          break;
+        case AST_PARAMETER_LONG:
+          printf("long");
           break;
       }
 
@@ -276,7 +283,15 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_EXPRESSION_CONSTANT:
       print_whitespace(whitespace);
-      printf("Constant(%d)\n", node->data.constant_expression.value);
+
+      switch (node->data.constant_expression.constant_type) {
+        case AST_CONSTANT_TYPE_INT:
+          printf("Constant(Int (%d))\n", node->data.constant_expression.int_value);
+          break;
+        case AST_CONSTANT_TYPE_LONG:
+          printf("Constant(Long(%ld))\n", node->data.constant_expression.long_value);
+          break;
+      }
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
       print_whitespace(whitespace);
@@ -394,6 +409,23 @@ void print_ast(const AstNode *node, int whitespace) {
           AstNode *argument = node->data.function_call_expression.argument_ptrs->node_pointers[i];
           print_ast(argument, ADD_WHITESPACE);
         }
+
+        print_whitespace(whitespace);
+        printf(")\n");
+        break;
+      }
+      case AST_EXPRESSION_CAST: {
+        print_whitespace(whitespace);
+        printf("Cast(type=");
+
+        switch (node->data.cast_expression.type->data.type.type) {
+          case AST_TYPE_INT:   printf("int\n"); break;
+          case AST_TYPE_LONG:  printf("long\n"); break;
+          default:            
+            printf("ERROR - Parser: Unsupported cast node type to print %d\n", node->type);
+        }
+
+        print_ast(node->data.cast_expression.expression, ADD_WHITESPACE);        
 
         print_whitespace(whitespace);
         printf(")\n");
@@ -517,8 +549,12 @@ void ast_declaration(Parser *parser, AstNode *declaration_node, bool is_file_sco
 void ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type) {
   function_node->data.function_declaration.parameter_count = 0;
   function_node->data.function_declaration.storage_class_type = storage_class_type;
-  
-  ast_expect(parser, TOKEN_INT);
+
+  if (current_token(parser)->type == TOKEN_INT) {
+    ast_expect(parser, TOKEN_INT);
+  } else {
+    ast_expect(parser, TOKEN_LONG);
+  } 
 
   char *id_name = ast_identifier(parser);  
 
@@ -535,6 +571,12 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
     case TOKEN_INT: {
       ast_expect(parser, TOKEN_INT);
       parameter->data.function_parameters.type = AST_PARAMETER_INT;
+      parameter->data.function_parameters.name = ast_identifier(parser); 
+      break;
+    }
+    case TOKEN_LONG: {
+      ast_expect(parser, TOKEN_LONG);
+      parameter->data.function_parameters.type = AST_PARAMETER_LONG;
       parameter->data.function_parameters.name = ast_identifier(parser); 
       break;
     }
@@ -568,6 +610,12 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
         next_parameter->data.function_parameters.name = ast_identifier(parser); 
         break;
       }
+      case TOKEN_LONG: {
+        ast_expect(parser, TOKEN_LONG);
+        parameter->data.function_parameters.type = AST_PARAMETER_LONG;
+        parameter->data.function_parameters.name = ast_identifier(parser); 
+        break;
+      }
       default: {
         fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d", current_token(parser)->type);
         exit(1);
@@ -596,7 +644,11 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
 }
 
 void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type) {
-  ast_expect(parser, TOKEN_INT);
+  if (current_token(parser)->type == TOKEN_INT) {
+    ast_expect(parser, TOKEN_INT);
+  } else {
+    ast_expect(parser, TOKEN_LONG);
+  }
 
   char *identifier = ast_identifier(parser);
 
@@ -636,7 +688,7 @@ void ast_block(Parser *parser, AstNode *block_node) {
     }
 
     //TODO: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
-    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
+    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_LONG || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
       AstNode *declaration_node = arena_alloc(parser->node_arena);
       ast_declaration(parser, declaration_node, false);
       block_node->data.block.block_count++;
@@ -925,7 +977,8 @@ void ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, A
 
   AstNode *postfix_constant = arena_alloc(parser->node_arena);
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
-  postfix_constant->data.constant_expression.value = 1;
+  //TODO: Look into why I'm doing this
+  postfix_constant->data.constant_expression.int_value = 1;
   
   AstNode *postfix_binary = arena_alloc(parser->node_arena);
   postfix_binary->type = AST_EXPRESSION_BINARY;
@@ -1054,7 +1107,8 @@ void ast_parse_factor(Parser *parser, AstNode *factor_node) {
 
   switch(current_token(parser)->type) {
     case TOKEN_CONSTANT_INT:
-      ast_parse_factor_constant(parser, factor_node); break;
+    case TOKEN_CONSTANT_LONG:
+      ast_parse_factor_constant(parser, factor_node, current_token(parser)->type); break;
     case TOKEN_NEGATION:
     case TOKEN_BITWISE_NOT:
     case TOKEN_LOGICAL_NOT:
@@ -1062,8 +1116,15 @@ void ast_parse_factor(Parser *parser, AstNode *factor_node) {
     case TOKEN_INCREMENT:
     case TOKEN_DECREMENT:
       ast_parse_factor_prefix_expression(parser, factor_node); break;
-    case TOKEN_OPEN_PAREN:
-      ast_parse_factor_parenthetical_expression(parser, factor_node); break;
+    case TOKEN_OPEN_PAREN: {
+      if (is_type_identifier_token(peek_next_token(parser))) {
+        ast_parse_factor_cast_expression(parser, factor_node); 
+        break;
+      }
+
+      ast_parse_factor_parenthetical_expression(parser, factor_node);
+      break;
+    }
     case TOKEN_IDENTIFIER: {    
       char *identifier = ast_identifier(parser);
 
@@ -1080,16 +1141,35 @@ void ast_parse_factor(Parser *parser, AstNode *factor_node) {
   }
 }
 
-void ast_parse_factor_constant(Parser *parser, AstNode *factor_node) {
-  ast_expect(parser, TOKEN_CONSTANT_INT); 
+void ast_parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type) {
+  ast_expect(parser, constant_type); 
 
   factor_node->type = AST_EXPRESSION_CONSTANT;
 
   char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
   strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
+
+  char *end_ptr;
+  long constant_value = strtol(slice, &end_ptr, BASE_TEN);
+
+  if (constant_type == TOKEN_CONSTANT_INT) {
+    if (constant_value < INT_MIN || constant_value > INT_MAX) {
+      fprintf(stderr, "ERROR - Parser: Out of bounds int constant '%ld'\n", constant_value);
+      exit(1);
+    }
+
+    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
+    factor_node->data.constant_expression.int_value = (int)constant_value;
+    return;
+  }
   
-  int constant_value = atoi(slice);
-  factor_node->data.constant_expression.value = constant_value;
+  if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
+    fprintf(stderr, "ERROR - Parser: Out of bounds long constant '%ld'\n", constant_value);
+    exit(1);
+  }
+
+  factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
+  factor_node->data.constant_expression.long_value = constant_value;
 }
 
 void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
@@ -1139,7 +1219,8 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 
   AstNode *postfix_constant = arena_alloc(parser->node_arena);
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
-  postfix_constant->data.constant_expression.value = 1;
+  //TODO: Look into why I'm doing this
+  postfix_constant->data.constant_expression.int_value = 1;
 
   AstNode *postfix_binary = arena_alloc(parser->node_arena);
   postfix_binary->type = AST_EXPRESSION_BINARY;
@@ -1159,11 +1240,36 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 }
 
 void ast_parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node) {
-  parser->current_token_index++;
+  ast_expect(parser, TOKEN_OPEN_PAREN);
   ast_parse_expression(parser, &factor_node, 0);    
   ast_expect(parser, TOKEN_CLOSE_PAREN);
 }
- 
+
+void ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
+  ast_expect(parser, TOKEN_OPEN_PAREN);
+
+  AstNode *type_node = arena_alloc(parser->node_arena);
+  type_node->type = AST_TYPE;
+
+  switch(current_token(parser)->type) {
+    case TOKEN_INT:  type_node->data.type.type = AST_TYPE_INT; break;
+    case TOKEN_LONG: type_node->data.type.type = AST_TYPE_LONG; break;      
+    default:
+      fprintf(stderr, "ERROR - Parser: Cast node type '%d' not supported", current_token(parser)->type);
+      exit(1);
+  }
+
+  parser->current_token_index++;
+  ast_expect(parser, TOKEN_CLOSE_PAREN);
+
+  AstNode *expression_node = arena_alloc(parser->node_arena);
+  ast_parse_factor(parser, expression_node);
+  
+  factor_node->type = AST_EXPRESSION_CAST;
+  factor_node->data.cast_expression.type = type_node;
+  factor_node->data.cast_expression.expression = expression_node;
+}
+
 void ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier) {
   ast_expect(parser, TOKEN_COLON);
   factor_node->type = AST_STATEMENT_GOTO_LABEL;
@@ -1260,3 +1366,12 @@ int get_precedence(TokenType token_type) {
   }
 }
 
+static bool is_type_identifier_token(TokenType token_type) {
+  switch(token_type) {
+    case TOKEN_INT:
+    case TOKEN_LONG:
+      return true;
+    default:
+      return false;
+  }
+}
