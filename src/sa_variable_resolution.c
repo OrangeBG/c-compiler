@@ -263,6 +263,10 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     case AST_EXPRESSION_UNARY:
       variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
       break;
+    case AST_EXPRESSION_CAST:
+      variable_resolve_node(node->data.cast_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.cast_expression.type, declaration_stack);
+      break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
