@@ -346,7 +346,7 @@ void print_ast(const AstNode *node, int whitespace) {
         case AST_UNARY_PREFIX_DECREMENT: printf("Prefix Decrement"); break;
       }
       printf("\n");      
-      print_ast(node->data.unary_expression.expression, ADD_WHITESPACE);
+      print_ast(node->data.unary_expression.typed_expression, ADD_WHITESPACE);
       print_whitespace(whitespace);
       printf(")\n");
       break;
@@ -1200,7 +1200,13 @@ void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
 
   factor_node->type = AST_EXPRESSION_UNARY;
   factor_node->data.unary_expression.op_type = op_type;
-  factor_node->data.unary_expression.expression = unary_value_expression_node;
+
+  AstNode *typed_expression = arena_alloc(parser->node_arena);
+  typed_expression->type = AST_TYPED_EXPRESSION;
+  typed_expression->data.typed_expression.expression = unary_value_expression_node;
+  typed_expression->data.typed_expression.type_node = NULL;
+  
+  factor_node->data.unary_expression.typed_expression = typed_expression;
 }
 
 void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {

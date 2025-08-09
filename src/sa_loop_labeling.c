@@ -140,7 +140,7 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       sa_label_loop(ast_node->data.conditional_expression.false_expression, label_stack, current_loop_id);
       break;
     case AST_EXPRESSION_UNARY:
-      sa_label_loop(ast_node->data.unary_expression.expression, label_stack, current_loop_id);
+      sa_label_loop(ast_node->data.unary_expression.typed_expression->data.typed_expression.expression, label_stack, current_loop_id);
       break;
     case AST_EXPRESSION_BINARY:
       sa_label_loop(ast_node->data.binary_expression.left_expression, label_stack, current_loop_id);

@@ -247,7 +247,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       sa_function_and_variable_type_check(node->data.increment_decrement_expression.expression, symbols, function_name);
       break;
     case AST_EXPRESSION_UNARY:
-      sa_function_and_variable_type_check(node->data.unary_expression.expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.unary_expression.typed_expression->data.typed_expression.expression, symbols, function_name);
       break;
   }  
 }

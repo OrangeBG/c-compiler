@@ -262,7 +262,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.increment_decrement_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_UNARY:
-      variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.unary_expression.typed_expression, declaration_stack);
       break;
     case AST_EXPRESSION_CAST:
       variable_resolve_node(node->data.cast_expression.typed_expression, declaration_stack);

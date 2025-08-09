@@ -124,7 +124,7 @@ typedef struct AstNode {
     struct TypedExpression { AstNode *type_node; AstNode *expression; } typed_expression;
     struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; } constant_expression;
     struct VariableExpression { char *identifier; } variable_expression;
-    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; } unary_expression;
+    struct UnaryExpression { UnaryOpType op_type; AstNode *typed_expression; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; } binary_expression;
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
     struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
