@@ -418,17 +418,21 @@ void print_ast(const AstNode *node, int whitespace) {
         print_whitespace(whitespace);
         printf("Cast(type=");
 
-        switch (node->data.cast_expression.type->data.type.type) {
+        switch (node->data.cast_expression.type_node->data.type.type) {
           case AST_TYPE_INT:   printf("int\n"); break;
           case AST_TYPE_LONG:  printf("long\n"); break;
           default:            
             printf("ERROR - Parser: Unsupported cast node type to print %d\n", node->type);
         }
 
-        print_ast(node->data.cast_expression.expression, ADD_WHITESPACE);        
+        print_ast(node->data.cast_expression.typed_expression, ADD_WHITESPACE);        
 
         print_whitespace(whitespace);
         printf(")\n");
+        break;
+      }
+      case AST_TYPED_EXPRESSION: {
+        print_ast(node->data.typed_expression.expression, whitespace);        
         break;
       }
       default: {
@@ -1266,8 +1270,14 @@ void ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   ast_parse_factor(parser, expression_node);
   
   factor_node->type = AST_EXPRESSION_CAST;
-  factor_node->data.cast_expression.type = type_node;
-  factor_node->data.cast_expression.expression = expression_node;
+  factor_node->data.cast_expression.type_node = type_node;
+
+  AstNode *typed_expression = arena_alloc(parser->node_arena);
+  typed_expression->type = AST_TYPED_EXPRESSION;
+  typed_expression->data.typed_expression.expression = expression_node;
+  typed_expression->data.typed_expression.type_node = NULL;
+  
+  factor_node->data.cast_expression.typed_expression = typed_expression;
 }
 
 void ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier) {

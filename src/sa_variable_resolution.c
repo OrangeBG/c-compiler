@@ -5,6 +5,7 @@
 #include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
 #include "../include/stack.h"
+#include "parser.h"
 
 #define VARIABLE_RESOLUTION_STACK_SIZE 16
 #define IDENTIFIER_BUFFER 256
@@ -264,8 +265,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_CAST:
-      variable_resolve_node(node->data.cast_expression.expression, declaration_stack);
-      variable_resolve_node(node->data.cast_expression.type, declaration_stack);
+      variable_resolve_node(node->data.cast_expression.typed_expression, declaration_stack);
+      variable_resolve_node(node->data.cast_expression.type_node, declaration_stack);
+      break;
+    case AST_TYPED_EXPRESSION:
+      variable_resolve_node(node->data.typed_expression.expression, declaration_stack);      
       break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
