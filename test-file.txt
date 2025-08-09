@@ -1,4 +1,4 @@
-long main(void) {
-    int b = 300;
+long main(int t, long i) {
+    long b = (long)300;
 	return 0;
  }

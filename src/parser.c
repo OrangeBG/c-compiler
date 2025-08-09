@@ -612,8 +612,8 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
       }
       case TOKEN_LONG: {
         ast_expect(parser, TOKEN_LONG);
-        parameter->data.function_parameters.type = AST_PARAMETER_LONG;
-        parameter->data.function_parameters.name = ast_identifier(parser); 
+        next_parameter->data.function_parameters.type = AST_PARAMETER_LONG;
+        next_parameter->data.function_parameters.name = ast_identifier(parser); 
         break;
       }
       default: {
