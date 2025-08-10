@@ -440,7 +440,7 @@ IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_sta
   if (postfix_expression->type == AST_EXPRESSION_VARIABLE) {
     variable->data.value_var.identifier = postfix_expression->data.variable_expression.identifier;
   } else if (postfix_expression->type == AST_EXPRESSION_UNARY) {
-    variable->data.value_var.identifier = postfix_expression->data.unary_expression.typed_expression->data.typed_expression.expression->data.variable_expression.identifier;
+    variable->data.value_var.identifier = postfix_expression->data.unary_expression.expression->data.variable_expression.identifier;
   } else {
     fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Postfix expression\n");
     exit(1);
@@ -450,7 +450,7 @@ IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_sta
 }
 
 IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
-  IRNode *source = ir_emit_ast_node(unary_node->data.unary_expression.typed_expression->data.typed_expression.expression, function, emit_status, node_arena);
+  IRNode *source = ir_emit_ast_node(unary_node->data.unary_expression.expression, function, emit_status, node_arena);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = ir_create_temp_register(emit_status);
@@ -479,8 +479,8 @@ IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitSt
 }
 
 IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
-  IRNode *source_1 = ir_emit_ast_node(binary_node->data.binary_expression.left_typed_expression->data.typed_expression.expression, function, emit_status, node_arena);
-  IRNode *source_2 = ir_emit_ast_node(binary_node->data.binary_expression.right_typed_expression->data.typed_expression.expression, function, emit_status, node_arena);
+  IRNode *source_1 = ir_emit_ast_node(binary_node->data.binary_expression.left_expression, function, emit_status, node_arena);
+  IRNode *source_2 = ir_emit_ast_node(binary_node->data.binary_expression.right_expression, function, emit_status, node_arena);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = ir_create_temp_register(emit_status);
@@ -604,7 +604,7 @@ IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function
   if (assignment_node->data.assignement_expression.left_expression->type == AST_EXPRESSION_VARIABLE) {
     variable->data.value_var.identifier = assignment_node->data.assignement_expression.left_expression->data.variable_expression.identifier;
   } else if (assignment_node->data.assignement_expression.left_expression->type == AST_EXPRESSION_UNARY) {
-    variable->data.value_var.identifier = assignment_node->data.assignement_expression.left_expression->data.unary_expression.typed_expression->data.typed_expression.expression->data.variable_expression.identifier;
+    variable->data.value_var.identifier = assignment_node->data.assignement_expression.left_expression->data.unary_expression.expression->data.variable_expression.identifier;
   } else {
     fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Expression Assignment\n");
     exit(1);

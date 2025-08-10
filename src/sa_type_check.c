@@ -200,10 +200,6 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       sa_function_and_variable_type_check(node->data.return_statement.expression, symbols, function_name);
       break;
     }
-    case AST_STATEMENT_EXPRESSION: {
-      sa_function_and_variable_type_check(node->data.expression_statement.expression, symbols, function_name);
-      break;
-    }
     case AST_STATEMENT_FOR: {
       if (node->data.for_statement.for_loop_init != NULL) {        
         sa_function_and_variable_type_check(node->data.for_statement.for_loop_init, symbols, function_name);
@@ -236,8 +232,8 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       break;
     }
     case AST_EXPRESSION_BINARY: {
-      sa_function_and_variable_type_check(node->data.binary_expression.left_typed_expression->data.typed_expression.expression, symbols, function_name);
-      sa_function_and_variable_type_check(node->data.binary_expression.right_typed_expression->data.typed_expression.expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.binary_expression.left_expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.binary_expression.right_expression, symbols, function_name);
       break;
     }
     case AST_EXPRESSION_POSTFIX_INCREMENT:
@@ -247,7 +243,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
       sa_function_and_variable_type_check(node->data.increment_decrement_expression.expression, symbols, function_name);
       break;
     case AST_EXPRESSION_UNARY:
-      sa_function_and_variable_type_check(node->data.unary_expression.typed_expression->data.typed_expression.expression, symbols, function_name);
+      sa_function_and_variable_type_check(node->data.unary_expression.expression, symbols, function_name);
       break;
   }  
 }

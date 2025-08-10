@@ -197,12 +197,12 @@ void print_ast(const AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Null()\n");
       break;
-     case AST_STATEMENT_EXPRESSION:
-      print_whitespace(whitespace);
-      printf("Expression Statement(\n");
-      print_ast(node->data.expression_statement.expression, ADD_WHITESPACE);
-      printf(")\n");
-      break;
+     // case AST_STATEMENT_EXPRESSION:
+     //  print_whitespace(whitespace);
+     //  printf("Expression Statement(\n");
+     //  print_ast(node->data.expression, ADD_WHITESPACE);
+     //  printf(")\n");
+     //  break;
     case AST_STATEMENT_IF:      
       print_whitespace(whitespace);
       printf("If (\n");
@@ -346,7 +346,7 @@ void print_ast(const AstNode *node, int whitespace) {
         case AST_UNARY_PREFIX_DECREMENT: printf("Prefix Decrement"); break;
       }
       printf("\n");      
-      print_ast(node->data.unary_expression.typed_expression, ADD_WHITESPACE);
+      print_ast(node->data.unary_expression.expression, ADD_WHITESPACE);
       print_whitespace(whitespace);
       printf(")\n");
       break;
@@ -376,10 +376,10 @@ void print_ast(const AstNode *node, int whitespace) {
       printf("\n");    
       print_whitespace(ADD_WHITESPACE);
       printf("Left = \n");
-      print_ast(node->data.binary_expression.left_typed_expression->data.typed_expression.expression, ADD_WHITESPACE + 5);
+      print_ast(node->data.binary_expression.left_expression, ADD_WHITESPACE + 5);
       print_whitespace(ADD_WHITESPACE);
       printf("Right = \n");    
-      print_ast(node->data.binary_expression.right_typed_expression->data.typed_expression.expression, ADD_WHITESPACE + 5);
+      print_ast(node->data.binary_expression.right_expression, ADD_WHITESPACE + 5);
       print_whitespace(whitespace);
       printf(")\n");
       break;
@@ -418,21 +418,17 @@ void print_ast(const AstNode *node, int whitespace) {
         print_whitespace(whitespace);
         printf("Cast(type=");
 
-        switch (node->data.cast_expression.type_node->data.type.type) {
+        switch (node->data.cast_expression.target_type->data.type.type) {
           case AST_TYPE_INT:   printf("int\n"); break;
           case AST_TYPE_LONG:  printf("long\n"); break;
           default:            
             printf("ERROR - Parser: Unsupported cast node type to print %d\n", node->type);
         }
 
-        print_ast(node->data.cast_expression.typed_expression, ADD_WHITESPACE);        
+        print_ast(node->data.cast_expression.expression, ADD_WHITESPACE);        
 
         print_whitespace(whitespace);
         printf(")\n");
-        break;
-      }
-      case AST_TYPED_EXPRESSION: {
-        print_ast(node->data.typed_expression.expression, whitespace);        
         break;
       }
       default: {
@@ -973,8 +969,6 @@ void ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, A
     postfix_expression->type = AST_EXPRESSION_POSTFIX_DECREMENT;
   }
 
-  //TODO: We should validate that 'left' is an identifier. May do in semantic analysis
-
   AstNode *postfix_assignment = arena_alloc(parser->node_arena);
   postfix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
   postfix_assignment->data.assignement_expression.left_expression = left_expression;
@@ -992,20 +986,9 @@ void ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, A
   } else {
     postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
   }
-
-  AstNode *left_typed_expression = arena_alloc(parser->node_arena);
-  left_typed_expression->type = AST_TYPED_EXPRESSION;
-  left_typed_expression->data.typed_expression.expression = left_expression;
-  left_typed_expression->data.typed_expression.type_node = NULL;
   
-  postfix_binary->data.binary_expression.left_typed_expression = left_expression;
-
-  AstNode *right_typed_expression = arena_alloc(parser->node_arena);
-  right_typed_expression->type = AST_TYPED_EXPRESSION;
-  right_typed_expression->data.typed_expression.expression = postfix_constant;
-  right_typed_expression->data.typed_expression.type_node = NULL;
-  
-  postfix_binary->data.binary_expression.right_typed_expression = right_typed_expression;
+  postfix_binary->data.binary_expression.left_expression = left_expression;  
+  postfix_binary->data.binary_expression.right_expression = postfix_constant;
   postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
   postfix_expression->data.increment_decrement_expression.expression = postfix_assignment;
 }
@@ -1051,20 +1034,9 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
   ast_parse_expression(parser, &right, get_precedence(op_type) + 1);
 
   AstNode *binary_expression_pointer = *binary_expression;
-
-  AstNode *left_typed_expression = arena_alloc(parser->node_arena);
-  left_typed_expression->type = AST_TYPED_EXPRESSION;
-  left_typed_expression->data.typed_expression.expression = left_expression;
-  left_typed_expression->data.typed_expression.type_node = NULL;
-  
-  AstNode *right_typed_expression = arena_alloc(parser->node_arena);
-  right_typed_expression->type = AST_TYPED_EXPRESSION;
-  right_typed_expression->data.typed_expression.expression = right;
-  right_typed_expression->data.typed_expression.type_node = NULL;
-
   binary_expression_pointer->type = AST_EXPRESSION_BINARY;
-  binary_expression_pointer->data.binary_expression.left_typed_expression = left_typed_expression;
-  binary_expression_pointer->data.binary_expression.right_typed_expression = right_typed_expression;
+  binary_expression_pointer->data.binary_expression.left_expression = left_expression;
+  binary_expression_pointer->data.binary_expression.right_expression = right;
  
   switch (op_type) {
     case TOKEN_PLUS:                        binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_ADD; break;
@@ -1220,14 +1192,8 @@ void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
   ast_parse_factor(parser, unary_value_expression_node);
 
   factor_node->type = AST_EXPRESSION_UNARY;
-  factor_node->data.unary_expression.op_type = op_type;
-
-  AstNode *typed_expression = arena_alloc(parser->node_arena);
-  typed_expression->type = AST_TYPED_EXPRESSION;
-  typed_expression->data.typed_expression.expression = unary_value_expression_node;
-  typed_expression->data.typed_expression.type_node = NULL;
-  
-  factor_node->data.unary_expression.typed_expression = typed_expression;
+  factor_node->data.unary_expression.op_type = op_type;  
+  factor_node->data.unary_expression.expression = unary_value_expression_node;
 }
 
 void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
@@ -1262,18 +1228,8 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
     postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
   }
 
-  AstNode *left_typed_expression = arena_alloc(parser->node_arena);
-  left_typed_expression->type = AST_TYPED_EXPRESSION;
-  left_typed_expression->data.typed_expression.expression = left;
-  left_typed_expression->data.typed_expression.type_node = NULL;
-  
-  AstNode *right_typed_expression = arena_alloc(parser->node_arena);
-  right_typed_expression->type = AST_TYPED_EXPRESSION;
-  right_typed_expression->data.typed_expression.expression = postfix_constant;
-  right_typed_expression->data.typed_expression.type_node = NULL;
-
-  postfix_binary->data.binary_expression.left_typed_expression = left_typed_expression;
-  postfix_binary->data.binary_expression.right_typed_expression = right_typed_expression;
+  postfix_binary->data.binary_expression.left_expression = left;
+  postfix_binary->data.binary_expression.right_expression = postfix_constant;
 
   factor_node->data.assignement_expression.right_expression = postfix_binary;
 
@@ -1307,14 +1263,8 @@ void ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   ast_parse_factor(parser, expression_node);
   
   factor_node->type = AST_EXPRESSION_CAST;
-  factor_node->data.cast_expression.type_node = type_node;
-
-  AstNode *typed_expression = arena_alloc(parser->node_arena);
-  typed_expression->type = AST_TYPED_EXPRESSION;
-  typed_expression->data.typed_expression.expression = expression_node;
-  typed_expression->data.typed_expression.type_node = NULL;
-  
-  factor_node->data.cast_expression.typed_expression = typed_expression;
+  factor_node->data.cast_expression.target_type = type_node;  
+  factor_node->data.cast_expression.expression = expression_node;
 }
 
 void ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier) {

@@ -119,7 +119,6 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       sa_label_loop(ast_node->data.variable_declaration.init_expression, label_stack, current_loop_id);
       break;
     case AST_STATEMENT_RETURN: sa_label_loop(ast_node->data.return_statement.expression, label_stack, current_loop_id); break;
-    case AST_STATEMENT_EXPRESSION: sa_label_loop(ast_node->data.expression_statement.expression, label_stack, current_loop_id);
     case AST_STATEMENT_IF:
       sa_label_loop(ast_node->data.if_statement.condition_expression, label_stack, current_loop_id);
       sa_label_loop(ast_node->data.if_statement.then_statement, label_stack, current_loop_id);
@@ -140,11 +139,11 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       sa_label_loop(ast_node->data.conditional_expression.false_expression, label_stack, current_loop_id);
       break;
     case AST_EXPRESSION_UNARY:
-      sa_label_loop(ast_node->data.unary_expression.typed_expression->data.typed_expression.expression, label_stack, current_loop_id);
+      sa_label_loop(ast_node->data.unary_expression.expression, label_stack, current_loop_id);
       break;
     case AST_EXPRESSION_BINARY:
-      sa_label_loop(ast_node->data.binary_expression.left_typed_expression->data.typed_expression.expression, label_stack, current_loop_id);
-      sa_label_loop(ast_node->data.binary_expression.right_typed_expression->data.typed_expression.expression, label_stack, current_loop_id);
+      sa_label_loop(ast_node->data.binary_expression.left_expression, label_stack, current_loop_id);
+      sa_label_loop(ast_node->data.binary_expression.right_expression, label_stack, current_loop_id);
       break;
     case AST_EXPRESSION_ASSIGNMENT: 
       sa_label_loop(ast_node->data.assignement_expression.left_expression, label_stack, current_loop_id);

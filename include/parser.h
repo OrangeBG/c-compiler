@@ -16,7 +16,7 @@ typedef enum {
   AST_TYPE,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
-  AST_STATEMENT_EXPRESSION,
+  // AST_STATEMENT_EXPRESSION,
   AST_STATEMENT_NULL,
   AST_STATEMENT_IF,
   AST_STATEMENT_GOTO,
@@ -27,7 +27,7 @@ typedef enum {
   AST_STATEMENT_DO_WHILE,
   AST_STATEMENT_FOR,
   AST_STATEMENT_COMPOUND,
-  AST_TYPED_EXPRESSION,
+  // AST_TYPED_EXPRESSION,
   AST_EXPRESSION_CAST,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
@@ -111,8 +111,8 @@ typedef struct AstNode {
     struct FunctionType { AstNode *type; AstNode *param_types; AstNode *return_type; } function_type;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
-    struct ExpressionStatement { AstNode *expression; } expression_statement;
-    struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement;  } if_statement;
+    // struct ExpressionStatement { AstNode *expression; } expression_statement;
+    struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } if_statement;
     struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
     struct GotoLabelStatement { char *label; } goto_label_statement;
@@ -121,16 +121,16 @@ typedef struct AstNode {
     struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
     struct BreakStatement { int label_id; } break_statement;
     struct ContinueStatement { int label_id; } continue_statement;
-    struct TypedExpression { AstNode *type_node; AstNode *expression; } typed_expression;
-    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; } constant_expression;
-    struct VariableExpression { char *identifier; } variable_expression;
-    struct UnaryExpression { UnaryOpType op_type; AstNode *typed_expression; } unary_expression;
-    struct BinaryExpression { BinaryOpType op_type; AstNode *left_typed_expression; AstNode *right_typed_expression; } binary_expression;
-    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; } assignement_expression;
-    struct IncrementDecrementExpression { AstNode *expression; } increment_decrement_expression;
-    struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; } conditional_expression;
-    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; int argument_count; } function_call_expression;
-    struct CastExpression { AstNode *type_node; AstNode *typed_expression;  } cast_expression;
+    // struct TypedExpression { AstNode *type_node; AstNode *expression; } typed_expression;
+    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; AstNode *expression_type; } constant_expression;
+    struct VariableExpression { char *identifier; AstNode *expression_type; } variable_expression;
+    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; AstNode *expression_type; } unary_expression;
+    struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } binary_expression;
+    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } assignement_expression;
+    struct IncrementDecrementExpression { AstNode *expression; AstNode *expression_type; } increment_decrement_expression;
+    struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; AstNode *expression_type; } conditional_expression;
+    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; AstNode *expression_type; int argument_count; } function_call_expression;
+    struct CastExpression { AstNode *target_type; AstNode *expression; AstNode *expression_type; } cast_expression;
   } data;
 } AstNode;
 

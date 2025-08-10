@@ -206,10 +206,6 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       }
       break;
     }
-    case AST_STATEMENT_EXPRESSION: {
-      variable_resolve_node(node->data.expression_statement.expression, declaration_stack);
-      break;
-    }
     case AST_STATEMENT_FOR: {
       push_new_declaration_stack(declaration_stack);
 
@@ -251,8 +247,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_EXPRESSION_BINARY: {
-      variable_resolve_node(node->data.binary_expression.left_typed_expression->data.typed_expression.expression, declaration_stack);
-      variable_resolve_node(node->data.binary_expression.right_typed_expression->data.typed_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.binary_expression.left_expression, declaration_stack);
+      variable_resolve_node(node->data.binary_expression.right_expression, declaration_stack);
       break;
     }
     case AST_EXPRESSION_POSTFIX_INCREMENT:
@@ -262,14 +258,10 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.increment_decrement_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_UNARY:
-      variable_resolve_node(node->data.unary_expression.typed_expression, declaration_stack);
+      variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_CAST:
-      variable_resolve_node(node->data.cast_expression.typed_expression, declaration_stack);
-      variable_resolve_node(node->data.cast_expression.type_node, declaration_stack);
-      break;
-    case AST_TYPED_EXPRESSION:
-      variable_resolve_node(node->data.typed_expression.expression, declaration_stack);      
+      variable_resolve_node(node->data.cast_expression.target_type, declaration_stack);
       break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
