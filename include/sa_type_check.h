@@ -4,7 +4,7 @@
 #include "../include/parser.h"
 #include "../include/hash_table.h"
 
-typedef enum { TYPE_INT } ValueType;
+typedef enum { TYPE_INT, TYPE_LONG } ValueType;
 typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
 typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIALIZED, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
 
@@ -35,6 +35,6 @@ typedef struct {
   } data;
 } TypeCheckSymbol;
 
-void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols);
+void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena);
 
 #endif
