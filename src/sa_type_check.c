@@ -123,6 +123,7 @@ void sa_function_and_variable_type_check(AstNode *node, HashTable *symbols, char
 
       VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
       variable_symbol->value_type = TYPE_INT;
+      variable_symbol->is_automatic_storage_duration = true;
 
       symbol->data.variable_symbol = variable_symbol;
 

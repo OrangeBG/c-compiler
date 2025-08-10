@@ -1,4 +1,3 @@
 long main(int t, long i) {
-    int j = 1 + 2;
 	return 0;
  }
