@@ -251,8 +251,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_EXPRESSION_BINARY: {
-      variable_resolve_node(node->data.binary_expression.left_expression, declaration_stack);
-      variable_resolve_node(node->data.binary_expression.right_expression, declaration_stack);
+      variable_resolve_node(node->data.binary_expression.left_typed_expression->data.typed_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.binary_expression.right_typed_expression->data.typed_expression.expression, declaration_stack);
       break;
     }
     case AST_EXPRESSION_POSTFIX_INCREMENT:

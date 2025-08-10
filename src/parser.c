@@ -376,10 +376,10 @@ void print_ast(const AstNode *node, int whitespace) {
       printf("\n");    
       print_whitespace(ADD_WHITESPACE);
       printf("Left = \n");
-      print_ast(node->data.binary_expression.left_expression, ADD_WHITESPACE + 5);
+      print_ast(node->data.binary_expression.left_typed_expression->data.typed_expression.expression, ADD_WHITESPACE + 5);
       print_whitespace(ADD_WHITESPACE);
       printf("Right = \n");    
-      print_ast(node->data.binary_expression.right_expression, ADD_WHITESPACE + 5);
+      print_ast(node->data.binary_expression.right_typed_expression->data.typed_expression.expression, ADD_WHITESPACE + 5);
       print_whitespace(whitespace);
       printf(")\n");
       break;
@@ -993,8 +993,19 @@ void ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, A
     postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
   }
 
-  postfix_binary->data.binary_expression.left_expression = left_expression;
-  postfix_binary->data.binary_expression.right_expression = postfix_constant;
+  AstNode *left_typed_expression = arena_alloc(parser->node_arena);
+  left_typed_expression->type = AST_TYPED_EXPRESSION;
+  left_typed_expression->data.typed_expression.expression = left_expression;
+  left_typed_expression->data.typed_expression.type_node = NULL;
+  
+  postfix_binary->data.binary_expression.left_typed_expression = left_expression;
+
+  AstNode *right_typed_expression = arena_alloc(parser->node_arena);
+  right_typed_expression->type = AST_TYPED_EXPRESSION;
+  right_typed_expression->data.typed_expression.expression = postfix_constant;
+  right_typed_expression->data.typed_expression.type_node = NULL;
+  
+  postfix_binary->data.binary_expression.right_typed_expression = right_typed_expression;
   postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
   postfix_expression->data.increment_decrement_expression.expression = postfix_assignment;
 }
@@ -1041,9 +1052,19 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
 
   AstNode *binary_expression_pointer = *binary_expression;
 
+  AstNode *left_typed_expression = arena_alloc(parser->node_arena);
+  left_typed_expression->type = AST_TYPED_EXPRESSION;
+  left_typed_expression->data.typed_expression.expression = left_expression;
+  left_typed_expression->data.typed_expression.type_node = NULL;
+  
+  AstNode *right_typed_expression = arena_alloc(parser->node_arena);
+  right_typed_expression->type = AST_TYPED_EXPRESSION;
+  right_typed_expression->data.typed_expression.expression = right;
+  right_typed_expression->data.typed_expression.type_node = NULL;
+
   binary_expression_pointer->type = AST_EXPRESSION_BINARY;
-  binary_expression_pointer->data.binary_expression.left_expression = left_expression;
-  binary_expression_pointer->data.binary_expression.right_expression = right;
+  binary_expression_pointer->data.binary_expression.left_typed_expression = left_typed_expression;
+  binary_expression_pointer->data.binary_expression.right_typed_expression = right_typed_expression;
  
   switch (op_type) {
     case TOKEN_PLUS:                        binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_ADD; break;
@@ -1241,8 +1262,18 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
     postfix_binary->data.binary_expression.op_type = AST_BINARY_SUBTRACT;
   }
 
-  postfix_binary->data.binary_expression.left_expression = left;
-  postfix_binary->data.binary_expression.right_expression = postfix_constant;
+  AstNode *left_typed_expression = arena_alloc(parser->node_arena);
+  left_typed_expression->type = AST_TYPED_EXPRESSION;
+  left_typed_expression->data.typed_expression.expression = left;
+  left_typed_expression->data.typed_expression.type_node = NULL;
+  
+  AstNode *right_typed_expression = arena_alloc(parser->node_arena);
+  right_typed_expression->type = AST_TYPED_EXPRESSION;
+  right_typed_expression->data.typed_expression.expression = postfix_constant;
+  right_typed_expression->data.typed_expression.type_node = NULL;
+
+  postfix_binary->data.binary_expression.left_typed_expression = left_typed_expression;
+  postfix_binary->data.binary_expression.right_typed_expression = right_typed_expression;
 
   factor_node->data.assignement_expression.right_expression = postfix_binary;
 

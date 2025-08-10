@@ -479,8 +479,8 @@ IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitSt
 }
 
 IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
-  IRNode *source_1 = ir_emit_ast_node(binary_node->data.binary_expression.left_expression, function, emit_status, node_arena);
-  IRNode *source_2 = ir_emit_ast_node(binary_node->data.binary_expression.right_expression, function, emit_status, node_arena);
+  IRNode *source_1 = ir_emit_ast_node(binary_node->data.binary_expression.left_typed_expression->data.typed_expression.expression, function, emit_status, node_arena);
+  IRNode *source_2 = ir_emit_ast_node(binary_node->data.binary_expression.right_typed_expression->data.typed_expression.expression, function, emit_status, node_arena);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = ir_create_temp_register(emit_status);

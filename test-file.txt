@@ -1,4 +1,4 @@
 long main(int t, long i) {
-    long b = (long)300;
+    int j = 1 + 2;
 	return 0;
  }
