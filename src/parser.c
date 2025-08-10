@@ -977,6 +977,7 @@ void ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, A
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
   //TODO: Look into why I'm doing this
   postfix_constant->data.constant_expression.int_value = 1;
+  postfix_constant->data.constant_expression.expression_type = NULL;
   
   AstNode *postfix_binary = arena_alloc(parser->node_arena);
   postfix_binary->type = AST_EXPRESSION_BINARY;
@@ -989,6 +990,7 @@ void ast_parse_expression_postfix(Parser *parser, AstNode *postfix_expression, A
   
   postfix_binary->data.binary_expression.left_expression = left_expression;  
   postfix_binary->data.binary_expression.right_expression = postfix_constant;
+  postfix_binary->data.binary_expression.expression_type = NULL;
   postfix_assignment->data.assignement_expression.right_expression = postfix_binary;
   postfix_expression->data.increment_decrement_expression.expression = postfix_assignment;
 }
@@ -1006,6 +1008,7 @@ void ast_parse_expression_assignment(Parser *parser, AstNode *assignment_express
   assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
   assignment_expression->data.assignement_expression.left_expression = left_factor;
   assignment_expression->data.assignement_expression.right_expression = right;
+  assignment_expression->data.assignement_expression.expression_type = NULL;
 }
 
 // TODO: conditional_token may always be question mark. If so, remove param and assign get_precedence in the function
@@ -1025,6 +1028,7 @@ void ast_parse_expression_conditional(Parser *parser, AstNode *conditional_expre
   conditional_expression_node->data.conditional_expression.condition = left_expression;
   conditional_expression_node->data.conditional_expression.true_expression = middle;
   conditional_expression_node->data.conditional_expression.false_expression = right;
+  conditional_expression_node->data.conditional_expression.expression_type = NULL;
 }
 
 void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, AstNode *left_expression, TokenType op_type) {
@@ -1037,6 +1041,7 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
   binary_expression_pointer->type = AST_EXPRESSION_BINARY;
   binary_expression_pointer->data.binary_expression.left_expression = left_expression;
   binary_expression_pointer->data.binary_expression.right_expression = right;
+  binary_expression_pointer->data.binary_expression.expression_type = NULL;
  
   switch (op_type) {
     case TOKEN_PLUS:                        binary_expression_pointer->data.binary_expression.op_type = AST_BINARY_ADD; break;
@@ -1088,6 +1093,7 @@ void ast_parse_expression_binary(Parser *parser, AstNode **binary_expression, As
       assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
       assignment_expression->data.assignement_expression.left_expression = left_expression;
       assignment_expression->data.assignement_expression.right_expression = binary_expression_pointer;
+      assignment_expression->data.assignement_expression.expression_type = NULL;
       *binary_expression = assignment_expression;
       return;
     }
@@ -1157,6 +1163,7 @@ void ast_parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType c
 
     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
     factor_node->data.constant_expression.int_value = (int)constant_value;
+    factor_node->data.constant_expression.expression_type = NULL;
     return;
   }
   
@@ -1167,6 +1174,7 @@ void ast_parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType c
 
   factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
   factor_node->data.constant_expression.long_value = constant_value;
+  factor_node->data.constant_expression.expression_type = NULL;
 }
 
 void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
@@ -1194,6 +1202,7 @@ void ast_parse_factor_unary(Parser *parser, AstNode *factor_node) {
   factor_node->type = AST_EXPRESSION_UNARY;
   factor_node->data.unary_expression.op_type = op_type;  
   factor_node->data.unary_expression.expression = unary_value_expression_node;
+  factor_node->data.unary_expression.expression_type = NULL;
 }
 
 void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
@@ -1218,6 +1227,7 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
   //TODO: Look into why I'm doing this
   postfix_constant->data.constant_expression.int_value = 1;
+  postfix_constant->data.constant_expression.expression_type = NULL;
 
   AstNode *postfix_binary = arena_alloc(parser->node_arena);
   postfix_binary->type = AST_EXPRESSION_BINARY;
@@ -1230,6 +1240,7 @@ void ast_parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
 
   postfix_binary->data.binary_expression.left_expression = left;
   postfix_binary->data.binary_expression.right_expression = postfix_constant;
+  postfix_binary->data.binary_expression.expression_type = NULL;
 
   factor_node->data.assignement_expression.right_expression = postfix_binary;
 
@@ -1265,6 +1276,7 @@ void ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   factor_node->type = AST_EXPRESSION_CAST;
   factor_node->data.cast_expression.target_type = type_node;  
   factor_node->data.cast_expression.expression = expression_node;
+  factor_node->data.cast_expression.expression_type = NULL;
 }
 
 void ast_parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier) {
@@ -1284,6 +1296,7 @@ void ast_parse_factor_function_call(Parser *parser, AstNode *factor_node, char *
   factor_node->type = AST_EXPRESSION_FUNCTION_CALL;
   factor_node->data.function_call_expression.identfier = identifier;
   factor_node->data.function_call_expression.argument_count = 0;
+  factor_node->data.function_call_expression.expression_type = NULL;
   
   NodePointer *argument_pointers = malloc(sizeof(NodePointer));
   init_node_pointer(argument_pointers);

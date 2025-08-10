@@ -9,14 +9,12 @@ typedef struct AstNode AstNode;
 
 typedef enum {
   AST_PROGRAM,
-  // AST_DECLARATION,
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
   AST_FUNCTION_PARAMETER,
   AST_TYPE,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
-  // AST_STATEMENT_EXPRESSION,
   AST_STATEMENT_NULL,
   AST_STATEMENT_IF,
   AST_STATEMENT_GOTO,
@@ -27,7 +25,6 @@ typedef enum {
   AST_STATEMENT_DO_WHILE,
   AST_STATEMENT_FOR,
   AST_STATEMENT_COMPOUND,
-  // AST_TYPED_EXPRESSION,
   AST_EXPRESSION_CAST,
   AST_EXPRESSION_BINARY,
   AST_EXPRESSION_CONSTANT,
@@ -111,7 +108,6 @@ typedef struct AstNode {
     struct FunctionType { AstNode *type; AstNode *param_types; AstNode *return_type; } function_type;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
-    // struct ExpressionStatement { AstNode *expression; } expression_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } if_statement;
     struct CompoundStatement { AstNode *block; } compound_statement;
     struct GotoStatement { char *label; } goto_statement;
@@ -121,7 +117,6 @@ typedef struct AstNode {
     struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
     struct BreakStatement { int label_id; } break_statement;
     struct ContinueStatement { int label_id; } continue_statement;
-    // struct TypedExpression { AstNode *type_node; AstNode *expression; } typed_expression;
     struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; AstNode *expression_type; } constant_expression;
     struct VariableExpression { char *identifier; AstNode *expression_type; } variable_expression;
     struct UnaryExpression { UnaryOpType op_type; AstNode *expression; AstNode *expression_type; } unary_expression;
