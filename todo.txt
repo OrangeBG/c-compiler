@@ -30,6 +30,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- Look into combining AST Types and the TypeCheck ValueType
 	- Ensure that we are emitting the correct assembly instruction format for the running operating system. List of OS related C macros here: https://www.geeksforgeeks.org/operating-systems/how-to-detect-operating-system-through-a-c-program/
 	- Re-format intermediate rep print function to better display instructions
 	- Type Checker: Lots of malloc'ing and can make a function to create new table entries rather than repeating the same logic across multiple if branches.
