@@ -524,6 +524,7 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       Types left_expression_type = expression_type_check(node->data.assignement_expression.left_expression, symbols, function_name, ast_arena);
       Types right_expression_type = expression_type_check(node->data.assignement_expression.right_expression, symbols, function_name, ast_arena);
 
+      //TODO: Need to look into this. I don't think it's working correctly
       node->data.assignement_expression.right_expression = implicit_expression_type_cast(node->data.assignement_expression.right_expression, right_expression_type, left_expression_type, ast_arena);      
 
       return left_expression_type;
@@ -592,5 +593,5 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
   casted_expression->data.cast_expression.target_type = type_node;
   casted_expression->data.cast_expression.expression = expression;
 
-  return type_node;
+  return casted_expression;
 }

@@ -1155,21 +1155,16 @@ void ast_parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType c
   char *end_ptr;
   long constant_value = strtol(slice, &end_ptr, BASE_TEN);
 
-  if (constant_type == TOKEN_CONSTANT_INT) {
-    if (constant_value < INT_MIN || constant_value > INT_MAX) {
-      fprintf(stderr, "ERROR - Parser: Out of bounds int constant '%ld'\n", constant_value);
-      exit(1);
-    }
+  if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
+    fprintf(stderr, "ERROR - Parser: Out of bounds int/long constant '%ld'\n", constant_value);
+    exit(1);
+  }
 
+  if (constant_type == TOKEN_CONSTANT_INT && constant_value > INT_MIN && constant_value < INT_MAX) {
     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
     factor_node->data.constant_expression.int_value = (int)constant_value;
     factor_node->data.constant_expression.expression_type = NULL;
     return;
-  }
-  
-  if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
-    fprintf(stderr, "ERROR - Parser: Out of bounds long constant '%ld'\n", constant_value);
-    exit(1);
   }
 
   factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
