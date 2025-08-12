@@ -1,4 +1,7 @@
-long main(int t, long i) {
-    int k = 1 + 200;
+int main(void) {
+    int a = 5;
+    long b = 30000099000;
+
+    long c = a + b;
 	return 0;
- }
+}

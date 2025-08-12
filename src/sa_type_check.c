@@ -13,6 +13,8 @@ static void  function_and_variable_type_check(AstNode *node, HashTable *symbols,
 static void  type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
 static void  type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
 static Types expression_type_check(AstNode *node, HashTable *symbols, char *function_name, Arena *ast_arena); 
+static Types get_common_real_type(Types type_1, Types type_2);
+static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
 
 void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
@@ -172,6 +174,12 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
     case AST_EXPRESSION_CONSTANT:
     case AST_EXPRESSION_CAST: 
     case AST_EXPRESSION_UNARY:
+    case AST_EXPRESSION_BINARY:
+    case AST_EXPRESSION_ASSIGNMENT:
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+    case AST_EXPRESSION_POSTFIX_DECREMENT:
+    case AST_EXPRESSION_PREFIX_INCREMENT:
+    case AST_EXPRESSION_PREFIX_DECREMENT: 
       expression_type_check(node, symbols, function_name, ast_arena);
       break;
     case AST_BLOCK: {
@@ -220,22 +228,9 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       function_and_variable_type_check(node->data.do_while_statement.statement_body, symbols, function_name, ast_arena);
       break;
     }
-    case AST_EXPRESSION_ASSIGNMENT: {
-      function_and_variable_type_check(node->data.assignement_expression.left_expression, symbols, function_name, ast_arena);
-      function_and_variable_type_check(node->data.assignement_expression.right_expression, symbols, function_name, ast_arena);
-      break;
-    }
-    case AST_EXPRESSION_BINARY: {
-      function_and_variable_type_check(node->data.binary_expression.left_expression, symbols, function_name, ast_arena);
-      function_and_variable_type_check(node->data.binary_expression.right_expression, symbols, function_name, ast_arena);
-      break;
-    }
-    case AST_EXPRESSION_POSTFIX_INCREMENT:
-    case AST_EXPRESSION_POSTFIX_DECREMENT:
-    case AST_EXPRESSION_PREFIX_INCREMENT:
-    case AST_EXPRESSION_PREFIX_DECREMENT: 
-      function_and_variable_type_check(node->data.increment_decrement_expression.expression, symbols, function_name, ast_arena);
-      break;
+    default:    
+      fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check", node->type);
+      exit(1);
   }  
 }
 
@@ -496,5 +491,106 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
 
       return expression_type;
     }
+    case AST_EXPRESSION_BINARY: {
+      Types left_expression_type = expression_type_check(node->data.binary_expression.left_expression, symbols, function_name, ast_arena);
+      Types right_expression_type = expression_type_check(node->data.binary_expression.right_expression, symbols, function_name, ast_arena);
+
+      if (node->data.binary_expression.op_type == AST_BINARY_AND || node->data.binary_expression.op_type == AST_BINARY_OR) {
+        AstNode *ast_expression_type_node = arena_alloc(ast_arena);
+        ast_expression_type_node->type = AST_TYPE;
+        ast_expression_type_node->data.type.type = AST_TYPE_INT;
+
+        node->data.binary_expression.expression_type = ast_expression_type_node;
+        return AST_TYPE_INT;
+      }
+
+      Types common_real_type = get_common_real_type(left_expression_type, right_expression_type);
+
+      node->data.binary_expression.left_expression = implicit_expression_type_cast(node->data.binary_expression.left_expression, left_expression_type, common_real_type, ast_arena);
+      node->data.binary_expression.right_expression = implicit_expression_type_cast(node->data.binary_expression.right_expression, right_expression_type, common_real_type, ast_arena);
+      
+      switch (node->data.binary_expression.op_type) {
+        case AST_BINARY_ADD:
+        case AST_BINARY_SUBTRACT:
+        case AST_BINARY_MULTIPLY:
+        case AST_BINARY_DIVIDE:
+        case AST_BINARY_REMAINDER:
+          return common_real_type;
+        default:
+          return AST_TYPE_INT;
+      }
+    }
+    case AST_EXPRESSION_ASSIGNMENT: {
+      Types left_expression_type = expression_type_check(node->data.assignement_expression.left_expression, symbols, function_name, ast_arena);
+      Types right_expression_type = expression_type_check(node->data.assignement_expression.right_expression, symbols, function_name, ast_arena);
+
+      node->data.assignement_expression.right_expression = implicit_expression_type_cast(node->data.assignement_expression.right_expression, right_expression_type, left_expression_type, ast_arena);      
+
+      return left_expression_type;
+    }
+    case AST_EXPRESSION_FUNCTION_CALL: {
+      HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_call_expression.identfier);
+      if (entry == NULL && entry->key == NULL) {
+        fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table", node->data.function_call_expression.identfier);
+        exit(1);
+      }
+
+      TypeCheckSymbol *existing_symbol = entry->value->structure;
+
+      if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
+        fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
+        exit(1);
+      }               
+
+      if (existing_symbol->data.function_symbol->param_count != node->data.function_call_expression.argument_count) {
+        fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.function_call_expression.identfier);
+        exit(1);
+      }
+      
+      for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
+        AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
+        function_and_variable_type_check(argument_node, symbols, function_name, ast_arena);
+      }
+    
+      AstNode *ast_expression_type_node = arena_alloc(ast_arena);
+      ast_expression_type_node->type = AST_TYPE;
+
+      switch (existing_symbol->data.function_symbol->value_type) {
+        case TYPE_INT:   ast_expression_type_node->data.type.type = AST_TYPE_INT; break;
+        case TYPE_LONG:  ast_expression_type_node->data.type.type = AST_TYPE_LONG; break;
+      }
+
+      node->data.function_call_expression.expression_type = ast_expression_type_node;
+
+      return ast_expression_type_node->data.type.type;
+    }
+    default:
+      fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check", node->type);
+      exit(1);
   }
+}
+
+static Types get_common_real_type(Types type_1, Types type_2) {
+  if (type_1 == type_2) {
+    return type_1;
+  }
+
+  return AST_TYPE_LONG;
+}
+
+static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena) {
+  if (expression_type == common_type) {
+    return expression;
+  }
+
+  AstNode *type_node = arena_alloc(ast_arena);
+  type_node->type = AST_TYPE;
+  type_node->data.type.type = common_type;
+
+  AstNode *casted_expression = arena_alloc(ast_arena);
+  casted_expression->type = AST_EXPRESSION_CAST;
+  casted_expression->data.cast_expression.target_type = type_node;
+  casted_expression->data.cast_expression.expression = expression;
+
+  return type_node;
 }
