@@ -644,10 +644,14 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
 }
 
 void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type) {
+  Types variable_type;
+
   if (current_token(parser)->type == TOKEN_INT) {
     ast_expect(parser, TOKEN_INT);
+    variable_type = AST_TYPE_INT;
   } else {
     ast_expect(parser, TOKEN_LONG);
+    variable_type = AST_TYPE_LONG;
   }
 
   char *identifier = ast_identifier(parser);
@@ -655,6 +659,12 @@ void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageCla
   variable_node->type = AST_VARIABLE_DECLARATION;
   variable_node->data.variable_declaration.name = identifier;
   variable_node->data.variable_declaration.storage_class_type = storage_class_type;
+
+  AstNode *variable_type_node = arena_alloc(parser->node_arena);
+  variable_type_node->type = AST_TYPE;
+  variable_type_node->data.type.type = variable_type;
+
+  variable_node->data.variable_declaration.type = variable_type_node;
 
   if (current_token(parser)->type == TOKEN_EQUAL) {
     //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
