@@ -5,7 +5,7 @@
 #include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
 #include "../include/stack.h"
-#include "parser.h"
+#include "../include/parser.h"
 
 #define VARIABLE_RESOLUTION_STACK_SIZE 16
 #define IDENTIFIER_BUFFER 256
@@ -28,6 +28,7 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); 
 static char* get_identifier_with_stack_offset(char *identifier, int stack_offset); 
 static void push_new_declaration_stack(Stack *declaration_stack); 
+static void resolve_function_parameter(AstNode *param_type_node, char **parameter_identifier, Stack *declaration_stack); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
   Stack *declaration_stack = malloc(sizeof(Stack));
@@ -120,8 +121,9 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       push_new_declaration_stack(declaration_stack);
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        AstNode *parameter_node = node->data.function_declaration.parameter_ptrs->node_pointers[i];
-        variable_resolve_node(parameter_node, declaration_stack);
+        AstNode *param_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
+        char *identifier = &node->data.function_declaration.parameter_identifiers[i];
+        resolve_function_parameter(param_type, &identifier, declaration_stack);
       }
   
       if (node->data.function_declaration.body_block != NULL) {
@@ -146,38 +148,6 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         variable_resolve_node(argument_node, declaration_stack); 
       }      
       break;      
-    }
-    case AST_FUNCTION_PARAMETER: {
-      if (node->data.function_parameters.type == AST_PARAMETER_VOID) {
-        return;
-      }
-      
-      StackValue *declaration_top_stack = stack_top(declaration_stack);
-      HashTable *declaration_table = declaration_top_stack->data.hash_table;
-      char* converted_identifier = get_identifier_with_stack_offset(node->data.function_parameters.name, declaration_stack->count);
-      HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
-
-      if (existing_variable != NULL && existing_variable->key != NULL) {
-        if (declaration_stack->count == ((Declaration*)existing_variable->value->structure)->stack_declaration_offset) {
-          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' function variable found\n", converted_identifier);
-          exit(1);
-        }      
-
-        node->data.function_parameters.name = converted_identifier;
-
-        break;
-      }
-
-      Declaration *file_scope_declaration = malloc(sizeof(Declaration));
-      file_scope_declaration->declaration_type = DECLARATION_TYPE_VARIABLE;
-      file_scope_declaration->from_current_scope = true;
-      file_scope_declaration->has_linkage = true;
-      file_scope_declaration->stack_declaration_offset = declaration_stack->count;
-
-      add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
-
-      node->data.function_parameters.name = converted_identifier;
-      break;
     }
     case AST_BLOCK: {
       push_new_declaration_stack(declaration_stack);
@@ -379,10 +349,6 @@ static char* get_identifier_with_stack_offset(char *identifier, int stack_offset
 
 static void push_new_declaration_stack(Stack *declaration_stack) {
   StackValue *declaration_top_stack = stack_top(declaration_stack);
-  // StackValue *new_block_stack_values = malloc(sizeof(StackValue) * declaration_stack->capacity);
-  // memcpy(new_block_stack_values, declaration_top_stack, sizeof(StackValue));
-  // HashTable *new_declaration_table = new_block_stack_values->data.hash_table;
-
   HashTable *new_declaration_table = hash_table_clone(declaration_top_stack->data.hash_table);
 
   //Iterate through the new block table and reset the 'current_scope' flags since they will all be parent declarations
@@ -399,4 +365,36 @@ static void push_new_declaration_stack(Stack *declaration_stack) {
   new_stack_value->type = STACK_HASH_TABLE;
 
   stack_push(declaration_stack, new_stack_value);
+}
+
+static void resolve_function_parameter(AstNode *param_type_node, char **parameter_identifier, Stack *declaration_stack) {
+  if (param_type_node->data.type.type == AST_TYPE_VOID) {
+    return;
+  }
+
+  StackValue *declaration_top_stack = stack_top(declaration_stack);
+  HashTable *declaration_table = declaration_top_stack->data.hash_table;
+  char* converted_identifier = get_identifier_with_stack_offset(*parameter_identifier, declaration_stack->count);
+  HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
+
+  if (existing_variable != NULL && existing_variable->key != NULL) {
+    if (declaration_stack->count == ((Declaration*)existing_variable->value->structure)->stack_declaration_offset) {
+      fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' function variable found\n", converted_identifier);
+      exit(1);
+    }      
+
+    *parameter_identifier = converted_identifier;
+
+    return;
+  }
+
+  Declaration *file_scope_declaration = malloc(sizeof(Declaration));
+  file_scope_declaration->declaration_type = DECLARATION_TYPE_VARIABLE;
+  file_scope_declaration->from_current_scope = true;
+  file_scope_declaration->has_linkage = true;
+  file_scope_declaration->stack_declaration_offset = declaration_stack->count;
+
+  add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
+
+  *parameter_identifier = converted_identifier;
 }

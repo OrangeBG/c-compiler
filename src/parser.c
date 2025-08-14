@@ -127,45 +127,40 @@ void print_ast(const AstNode *node, int whitespace) {
     case AST_FUNCTION_DECLARATION:
       print_whitespace(whitespace);
       printf("Function Declaration (name = \"%s\"\n", node->data.function_declaration.name);
-
-    //  TODO: Fix after function declaration changes are working
      
-    //   for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-    //     AstNode *parameter = node->data.function_declaration.parameter_ptrs->node_pointers[i];
-    //     print_ast(parameter, ADD_WHITESPACE);
-    //   }
+      for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Param( name = %s\n", &node->data.function_declaration.parameter_identifiers[i]);
 
-    //   if (node->data.function_declaration.body_block != NULL) {
-    //     print_whitespace(whitespace);
-    //     printf("body=\n");
-    //     print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
-    //   }
+        print_ast(&node->data.function_declaration.function_type->data.type.function_param_types[i], ADD_WHITESPACE + 5);
+        
+        print_whitespace(ADD_WHITESPACE);
+        printf(")\n");
+        // AstNode *parameter = node->data.function_declaration.parameter_ptrs->node_pointers[i];
+        // print_ast(parameter, ADD_WHITESPACE);
+      }
 
-    //   print_whitespace(whitespace);
-    //   printf(")\n");      
-    //   break;
-    // case AST_FUNCTION_PARAMETER:
-    //   print_whitespace(whitespace);
-    //   printf("Function Param (type = ");
+      if (node->data.function_declaration.body_block != NULL) {
+        print_whitespace(whitespace);
+        printf("body=\n");
+        print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
+      }
 
-    //   switch (node->data.function_parameters.type) {
-    //     case AST_PARAMETER_VOID:
-    //       printf("void");
-    //       break;
-    //     case AST_PARAMETER_INT:
-    //       printf("int");
-    //       break;
-    //     case AST_PARAMETER_LONG:
-    //       printf("long");
-    //       break;
-    //   }
+      print_whitespace(whitespace);
+      printf(")\n");      
+      break;
+    case AST_TYPE:
+      print_whitespace(whitespace);
+      printf("Type(");
 
-    //   if (node->data.function_parameters.type != AST_PARAMETER_VOID) {
-    //     printf(" id = %s", node->data.function_parameters.name);
-    //   }      
-
-      printf(")\n");
-      break;      
+      switch (node->data.type.type) {
+        case AST_TYPE_VOID:     printf("void"); break;
+        case AST_TYPE_INT:      printf("int"); break;
+        case AST_TYPE_LONG:     printf("long"); break;
+        case AST_TYPE_FUNCTION: printf("function"); break;
+      }
+      printf(")\n");      
+      break;
     case AST_BLOCK:
       print_whitespace(whitespace);
       printf("Block (\n");
@@ -579,6 +574,8 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
   function_type->data.type.function_return_type = return_type_node;
   function_type->data.type.function_param_type_count = 0;
 
+  function_node->data.function_declaration.function_type = function_type;
+  
   char *id_name = ast_identifier(parser);  
 
   function_node->data.function_declaration.name = id_name;

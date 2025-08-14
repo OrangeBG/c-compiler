@@ -3,8 +3,8 @@
 #include <string.h>
 #include <sys/select.h>
 #include "../include/sa_type_check.h"
-#include "arena.h"
-#include "parser.h"
+#include "../include/arena.h"
+#include "../include/parser.h"
 
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
@@ -15,6 +15,7 @@ static void  type_check_block_scope_variable_declaration(AstNode *variable_decla
 static Types expression_type_check(AstNode *node, HashTable *symbols, char *function_name, Arena *ast_arena); 
 static Types get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
+static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols); 
 
 void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
@@ -100,51 +101,19 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       hash_table_add_entry(symbols, new_entry);
         
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        AstNode *parameter_node = node->data.function_declaration.parameter_ptrs->node_pointers[i];
+        AstNode *parameter_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
 
-        if (parameter_node->data.function_parameters.type == AST_PARAMETER_VOID) {
+        if (parameter_type->data.type.type == AST_TYPE_VOID) {
           continue;
         }
 
         function_symbol->param_count++;
-        function_and_variable_type_check(parameter_node, symbols, function_name, ast_arena);
+        add_function_parameter_to_symbol_table(parameter_type, &node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, symbols);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
         function_and_variable_type_check(node->data.function_declaration.body_block, symbols, function_name, ast_arena);
       }
-      break;
-    }
-    case AST_FUNCTION_PARAMETER: {
-      if (node->data.function_parameters.type == AST_PARAMETER_VOID) {
-        break;
-      }
-      
-      char *identifier = node->data.function_parameters.name;
-
-      //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
-      TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
-      symbol->symbol_type = SYMBOL_VARIABLE;
-
-      VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
-      variable_symbol->value_type = TYPE_INT;
-      variable_symbol->is_automatic_storage_duration = true;
-
-      symbol->data.variable_symbol = variable_symbol;
-
-      HashTableEntry *entry = malloc(IDENTIFIER_BUFFER);
-
-      char *symbol_key = malloc(IDENTIFIER_BUFFER); 
-      snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name,  identifier);
-      entry->key = symbol_key;
-
-      HashValue *value = malloc(sizeof(HashValue));
-      value->type = HASH_STRUCT;
-      value->structure = symbol;
-
-      entry->value = value;
-
-      hash_table_add_entry(symbols, entry); 
       break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
@@ -594,4 +563,34 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
   casted_expression->data.cast_expression.expression = expression;
 
   return casted_expression;
+}
+
+static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols) {
+  if (parameter_type->data.type.type != AST_TYPE_FUNCTION) {
+    return;
+  }
+
+  //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
+  TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
+  symbol->symbol_type = SYMBOL_VARIABLE;
+
+  VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+  variable_symbol->value_type = TYPE_INT;
+  variable_symbol->is_automatic_storage_duration = true;
+
+  symbol->data.variable_symbol = variable_symbol;
+
+  HashTableEntry *entry = malloc(IDENTIFIER_BUFFER);
+
+  char *symbol_key = malloc(IDENTIFIER_BUFFER); 
+  snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name, parameter_identifier);
+  entry->key = symbol_key;
+
+  HashValue *value = malloc(sizeof(HashValue));
+  value->type = HASH_STRUCT;
+  value->structure = symbol;
+
+  entry->value = value;
+
+  hash_table_add_entry(symbols, entry); 
 }
