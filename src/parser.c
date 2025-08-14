@@ -6,11 +6,12 @@
 #include <limits.h>
 #include "../include/parser.h"
 #include "../include/arena.h"
-#include "lexer.h"
+#include "../include/lexer.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define FUNCTION_IDENTIFIER_INIT_CAPACITY 4
+#define FUNCTION_PARAMETER_TYPE_INIT_CAPACITY 4
 #define NODE_POINTER_CAPACITY 8
 #define BASE_TEN 10
 
@@ -65,6 +66,7 @@ bool       end_of_file(const Parser *parser);
 static bool       is_type_identifier_token(TokenType token_type);
 int        get_precedence(TokenType token_type);
 static void add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
+static void add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -552,6 +554,8 @@ void ast_declaration(Parser *parser, AstNode *declaration_node, bool is_file_sco
 
 void ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type) {
   function_node->data.function_declaration.parameter_count = 0;
+  function_node->data.function_declaration.parameter_identifier_capacity = 0;
+  function_node->data.function_declaration.parameter_identifiers = NULL;
   function_node->data.function_declaration.storage_class_type = storage_class_type;
 
   Types return_type;
@@ -570,32 +574,35 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
   return_type_node->type = AST_TYPE;
   return_type_node->data.type.type = return_type;
 
-  AstNode *function_type_node = arena_alloc(parser->node_arena);
-  function_type_node->type = AST_TYPE;
-  function_type_node->data.type.function_return_type = return_type_node;
+  AstNode *function_type = arena_alloc(parser->node_arena);
+  function_type->type = AST_TYPE;
+  function_type->data.type.function_return_type = return_type_node;
+  function_type->data.type.function_param_type_count = 0;
 
   char *id_name = ast_identifier(parser);  
 
+  function_node->data.function_declaration.name = id_name;
+
   ast_expect(parser, TOKEN_OPEN_PAREN);
 
-  AstNode *parameter = arena_alloc(parser->node_arena);
-  parameter->type = AST_FUNCTION_PARAMETER;
+  AstNode *parameter_type = arena_alloc(parser->node_arena);
+  parameter_type->type = AST_TYPE;
 
   switch (current_token(parser)->type) {
     case TOKEN_VOID:
       ast_expect(parser, TOKEN_VOID);
-      parameter->data.function_parameters.type = AST_PARAMETER_VOID;
+      parameter_type->data.type.type = AST_TYPE_VOID;
       break;
     case TOKEN_INT: {
       ast_expect(parser, TOKEN_INT);
-      parameter->data.function_parameters.type = AST_PARAMETER_INT;
-      parameter->data.function_parameters.name = ast_identifier(parser); 
+      parameter_type->data.type.type = AST_TYPE_INT;
+      add_function_parameter_identifier(ast_identifier(parser), parameter_type);
       break;
     }
     case TOKEN_LONG: {
       ast_expect(parser, TOKEN_LONG);
-      parameter->data.function_parameters.type = AST_PARAMETER_LONG;
-      parameter->data.function_parameters.name = ast_identifier(parser); 
+      parameter_type->data.type.type = AST_TYPE_LONG;
+      add_function_parameter_identifier(ast_identifier(parser), parameter_type);
       break;
     }
     default: {
@@ -605,33 +612,29 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
   }
 
   function_node->data.function_declaration.parameter_count++;
-
-  NodePointer *parameter_pointers = malloc(sizeof(NodePointer));
-  init_node_pointer(parameter_pointers);
-  function_node->data.function_declaration.parameter_ptrs = parameter_pointers;
-  add_to_node_pointer(parameter, parameter_pointers);
+  add_function_parameter_type(parameter_type, function_type);
 
   while(current_token(parser)->type == TOKEN_COMMA) {
     ast_expect(parser, TOKEN_COMMA);
 
-    AstNode *next_parameter = arena_alloc(parser->node_arena);
-    next_parameter->type = AST_FUNCTION_PARAMETER;
+    AstNode *next_parameter_type = arena_alloc(parser->node_arena);
+    next_parameter_type->type = AST_TYPE;
     
     switch (current_token(parser)->type) {
       case TOKEN_VOID:
         ast_expect(parser, TOKEN_VOID);
-        next_parameter->data.function_parameters.type = AST_PARAMETER_VOID;
+        next_parameter_type->data.type.type = AST_TYPE_VOID;
         break;
       case TOKEN_INT: {
         ast_expect(parser, TOKEN_INT);
-        next_parameter->data.function_parameters.type = AST_PARAMETER_INT;
-        next_parameter->data.function_parameters.name = ast_identifier(parser); 
+        next_parameter_type->data.type.type = AST_TYPE_INT;
+        add_function_parameter_identifier(ast_identifier(parser), next_parameter_type);
         break;
       }
       case TOKEN_LONG: {
         ast_expect(parser, TOKEN_LONG);
-        next_parameter->data.function_parameters.type = AST_PARAMETER_LONG;
-        next_parameter->data.function_parameters.name = ast_identifier(parser); 
+        next_parameter_type->data.type.type = AST_TYPE_LONG;
+        add_function_parameter_identifier(ast_identifier(parser), next_parameter_type);
         break;
       }
       default: {
@@ -640,9 +643,8 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
       }    
     }
 
-    add_to_node_pointer(next_parameter, parameter_pointers);
-
     function_node->data.function_declaration.parameter_count++;
+    add_function_parameter_type(next_parameter_type, function_type);
   }
   
   ast_expect(parser, TOKEN_CLOSE_PAREN);
@@ -1419,3 +1421,14 @@ static void add_function_parameter_identifier(char *identifier, AstNode *functio
   function_declaration_node->data.function_declaration.parameter_identifiers[function_declaration_node->data.function_declaration.parameter_count] = *identifier;
   function_declaration_node->data.function_declaration.parameter_count++;
 }
+
+static void add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type) {
+  if (function_type->data.type.function_param_type_count == function_type->data.type.function_param_type_capacity) {
+    int size = function_type->data.type.function_param_type_capacity == 0 ? FUNCTION_PARAMETER_TYPE_INIT_CAPACITY : function_type->data.type.function_param_type_capacity * 2;
+    function_type->data.type.function_param_type_capacity = size;
+    function_type->data.type.function_param_types = realloc(function_type->data.type.function_param_types, size * sizeof(AstNode));
+  }
+
+  function_type->data.type.function_param_types[function_type->data.type.function_param_type_count] = *function_parameter_type;
+  function_type->data.type.function_param_type_count++;
+}   

@@ -11,8 +11,8 @@ typedef enum {
   AST_PROGRAM,
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
-  AST_FUNCTION_PARAMETER,
-  AST_FUNCTION_TYPE,
+  // AST_FUNCTION_PARAMETER,
+  // AST_FUNCTION_TYPE,
   AST_TYPE,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
@@ -69,11 +69,11 @@ typedef enum {
   AST_BINARY_BITWISE_RIGHT_SHIFT
 } BinaryOpType;
 
-typedef enum {
-  AST_PARAMETER_VOID,
-  AST_PARAMETER_INT,
-  AST_PARAMETER_LONG
-} ParameterType;
+// typedef enum {
+//   AST_PARAMETER_VOID,
+//   AST_PARAMETER_INT,
+//   AST_PARAMETER_LONG
+// } ParameterType;
 
 typedef enum {
   AST_STORAGE_CLASS_NONE,
@@ -82,6 +82,7 @@ typedef enum {
 } StorageClassType;
 
 typedef enum {
+  AST_TYPE_VOID,
   AST_TYPE_INT,
   AST_TYPE_LONG,
   AST_TYPE_FUNCTION
@@ -104,9 +105,9 @@ typedef struct AstNode {
     struct Program { NodePointer *declaration_ptrs; int declaration_count; } program;
     // struct FunctionDeclaration { char *name; StorageClassType storage_class_type;  NodePointer *parameter_ptrs; int parameter_count; AstNode *body_block; AstNode *function_type; } function_declaration;
     // struct FunctionParameter { char *name; ParameterType type; } function_parameters;
-    struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char *parameter_identifiers; int parameter_identifier_capacity;  NodePointer *parameter_type_ptrs; int parameter_count; AstNode *body_block; AstNode *function_type; } function_declaration;
+    struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char *parameter_identifiers; int parameter_identifier_capacity;  /*NodePointer *parameter_type_ptrs;*/ int parameter_count; AstNode *body_block; AstNode *function_type; } function_declaration;
     struct VariableDeclaration { char *name; AstNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } variable_declaration;
-    struct Type { Types type; AstNode *function_param_types; AstNode *function_return_type; } type;
+    struct Type { Types type; AstNode *function_param_types; int function_param_type_count; int function_param_type_capacity; AstNode *function_return_type; } type;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } if_statement;
