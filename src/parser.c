@@ -328,8 +328,10 @@ void print_ast(const AstNode *node, int whitespace) {
       print_whitespace(ADD_WHITESPACE);
       printf("Condition = \n");
       print_ast(node->data.conditional_expression.condition, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
       printf("True Expression = \n");
       print_ast(node->data.conditional_expression.true_expression, ADD_WHITESPACE + 5);
+      print_whitespace(ADD_WHITESPACE);
       printf("False Expression = \n");
       print_ast(node->data.conditional_expression.false_expression, ADD_WHITESPACE + 5);
       print_whitespace(whitespace);

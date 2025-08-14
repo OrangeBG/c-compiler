@@ -3,5 +3,7 @@ int main(void) {
     long b = 30000099000;
 
     long c = a + b;
+
+    1 ? 2L : 3;
 	return 0;
 }

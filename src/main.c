@@ -14,7 +14,6 @@
 char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {  
-  int foo(int help);
   char* file;
   bool print_debug = true;
    

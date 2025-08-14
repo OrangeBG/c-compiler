@@ -149,6 +149,7 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
     case AST_EXPRESSION_POSTFIX_DECREMENT:
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT: 
+    case AST_EXPRESSION_CONDITIONAL:
       expression_type_check(node, symbols, function_name, ast_arena);
       break;
     case AST_BLOCK: {
@@ -533,6 +534,18 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       node->data.function_call_expression.expression_type = ast_expression_type_node;
 
       return ast_expression_type_node->data.type.type;
+    }
+    case AST_EXPRESSION_CONDITIONAL: {
+      expression_type_check(node->data.conditional_expression.condition, symbols, function_name, ast_arena);
+
+      Types true_expression_type = expression_type_check(node->data.conditional_expression.true_expression, symbols, function_name, ast_arena);
+      Types false_expression_type = expression_type_check(node->data.conditional_expression.false_expression, symbols, function_name, ast_arena);
+      
+      Types common_real_type = get_common_real_type(true_expression_type, false_expression_type);
+
+      node->data.conditional_expression.true_expression = implicit_expression_type_cast(node->data.conditional_expression.true_expression, true_expression_type, common_real_type, ast_arena);
+      node->data.conditional_expression.false_expression = implicit_expression_type_cast(node->data.conditional_expression.false_expression, false_expression_type, common_real_type, ast_arena);
+      return common_real_type;
     }
     default:
       fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check", node->type);
