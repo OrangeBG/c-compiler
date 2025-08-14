@@ -10,6 +10,7 @@
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
+#define FUNCTION_IDENTIFIER_INIT_CAPACITY 4
 #define NODE_POINTER_CAPACITY 8
 #define BASE_TEN 10
 
@@ -63,6 +64,7 @@ void       init_node_pointer(NodePointer *node_pointer);
 bool       end_of_file(const Parser *parser);
 static bool       is_type_identifier_token(TokenType token_type);
 int        get_precedence(TokenType token_type);
+static void add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -124,39 +126,41 @@ void print_ast(const AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf("Function Declaration (name = \"%s\"\n", node->data.function_declaration.name);
 
-      for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        AstNode *parameter = node->data.function_declaration.parameter_ptrs->node_pointers[i];
-        print_ast(parameter, ADD_WHITESPACE);
-      }
+    //  TODO: Fix after function declaration changes are working
+     
+    //   for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
+    //     AstNode *parameter = node->data.function_declaration.parameter_ptrs->node_pointers[i];
+    //     print_ast(parameter, ADD_WHITESPACE);
+    //   }
 
-      if (node->data.function_declaration.body_block != NULL) {
-        print_whitespace(whitespace);
-        printf("body=\n");
-        print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
-      }
+    //   if (node->data.function_declaration.body_block != NULL) {
+    //     print_whitespace(whitespace);
+    //     printf("body=\n");
+    //     print_ast(node->data.function_declaration.body_block, ADD_WHITESPACE);
+    //   }
 
-      print_whitespace(whitespace);
-      printf(")\n");      
-      break;
-    case AST_FUNCTION_PARAMETER:
-      print_whitespace(whitespace);
-      printf("Function Param (type = ");
+    //   print_whitespace(whitespace);
+    //   printf(")\n");      
+    //   break;
+    // case AST_FUNCTION_PARAMETER:
+    //   print_whitespace(whitespace);
+    //   printf("Function Param (type = ");
 
-      switch (node->data.function_parameters.type) {
-        case AST_PARAMETER_VOID:
-          printf("void");
-          break;
-        case AST_PARAMETER_INT:
-          printf("int");
-          break;
-        case AST_PARAMETER_LONG:
-          printf("long");
-          break;
-      }
+    //   switch (node->data.function_parameters.type) {
+    //     case AST_PARAMETER_VOID:
+    //       printf("void");
+    //       break;
+    //     case AST_PARAMETER_INT:
+    //       printf("int");
+    //       break;
+    //     case AST_PARAMETER_LONG:
+    //       printf("long");
+    //       break;
+    //   }
 
-      if (node->data.function_parameters.type != AST_PARAMETER_VOID) {
-        printf(" id = %s", node->data.function_parameters.name);
-      }      
+    //   if (node->data.function_parameters.type != AST_PARAMETER_VOID) {
+    //     printf(" id = %s", node->data.function_parameters.name);
+    //   }      
 
       printf(")\n");
       break;      
@@ -550,11 +554,25 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
   function_node->data.function_declaration.parameter_count = 0;
   function_node->data.function_declaration.storage_class_type = storage_class_type;
 
+  Types return_type;
+
   if (current_token(parser)->type == TOKEN_INT) {
     ast_expect(parser, TOKEN_INT);
+    return_type = AST_TYPE_INT;
   } else {
     ast_expect(parser, TOKEN_LONG);
+    return_type = AST_TYPE_LONG;
   } 
+
+  //TODO: Incomplete
+
+  AstNode *return_type_node = arena_alloc(parser->node_arena);
+  return_type_node->type = AST_TYPE;
+  return_type_node->data.type.type = return_type;
+
+  AstNode *function_type_node = arena_alloc(parser->node_arena);
+  function_type_node->type = AST_TYPE;
+  function_type_node->data.type.function_return_type = return_type_node;
 
   char *id_name = ast_identifier(parser);  
 
@@ -1389,4 +1407,15 @@ static bool is_type_identifier_token(TokenType token_type) {
     default:
       return false;
   }
+}
+
+static void add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node) {  
+  if (function_declaration_node->data.function_declaration.parameter_count == function_declaration_node->data.function_declaration.parameter_identifier_capacity) {
+    int size = function_declaration_node->data.function_declaration.parameter_identifier_capacity == 0 ? FUNCTION_IDENTIFIER_INIT_CAPACITY : function_declaration_node->data.function_declaration.parameter_identifier_capacity * 2;
+    function_declaration_node->data.function_declaration.parameter_identifier_capacity = size;
+    function_declaration_node->data.function_declaration.parameter_identifiers = realloc(function_declaration_node->data.function_declaration.parameter_identifiers, size * sizeof(char*));
+  }
+
+  function_declaration_node->data.function_declaration.parameter_identifiers[function_declaration_node->data.function_declaration.parameter_count] = *identifier;
+  function_declaration_node->data.function_declaration.parameter_count++;
 }
