@@ -25,10 +25,10 @@ typedef struct Parser {
 } Parser;
  
 void       ast_program(Parser *parser, AstNode *program_node);
-void       ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type);
-void       ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type);
-void       ast_block(Parser *parser, AstNode *block_node);
 void       ast_declaration(Parser *parser, AstNode *declaration_node, bool is_file_scope_declaration); 
+void       ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier);
+void       ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier);
+void       ast_block(Parser *parser, AstNode *block_node);
 void       ast_parse_statement(Parser *parser, AstNode **statement_node);
 void       ast_parse_statement_null(Parser *parser, AstNode *statement_node);
 void       ast_parse_statement_return(Parser *parser, AstNode *statement_node); 
@@ -67,6 +67,7 @@ static bool       is_type_identifier_token(TokenType token_type);
 int        get_precedence(TokenType token_type);
 static void add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 static void add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
+static Types expect_type_specifier(Parser *parser); 
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -115,7 +116,8 @@ void print_ast(const AstNode *node, int whitespace) {
         case AST_STORAGE_CLASS_STATIC : printf("storage class = \"Static\""); break;        
       }
       
-      printf("\n");
+      printf(", type = ");
+      print_ast(node->data.variable_declaration.type, 0);
 
       if (node->data.variable_declaration.has_expression) {
         print_ast(node->data.variable_declaration.init_expression, ADD_WHITESPACE);
@@ -136,8 +138,6 @@ void print_ast(const AstNode *node, int whitespace) {
         
         print_whitespace(ADD_WHITESPACE);
         printf(")\n");
-        // AstNode *parameter = node->data.function_declaration.parameter_ptrs->node_pointers[i];
-        // print_ast(parameter, ADD_WHITESPACE);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
@@ -540,36 +540,26 @@ void ast_declaration(Parser *parser, AstNode *declaration_node, bool is_file_sco
     storage_class_type = AST_STORAGE_CLASS_STATIC;
   }
   
+  Types type_specifier = expect_type_specifier(parser);
+
   //Variable Declaration -> int c; or int c = 0; 
-  if (parser->tokens[parser->current_token_index + 2].type == TOKEN_EQUAL || parser->tokens[parser->current_token_index + 2].type == TOKEN_SEMICOLON) {
-    ast_variable_declaration(parser, declaration_node, storage_class_type);
+  if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
+    ast_variable_declaration(parser, declaration_node, storage_class_type, type_specifier);
     return;
   }
 
-  ast_function_declaration(parser, declaration_node, storage_class_type);
+  ast_function_declaration(parser, declaration_node, storage_class_type, type_specifier);
 }
 
-void ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type) {
+void ast_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {
   function_node->data.function_declaration.parameter_count = 0;
   function_node->data.function_declaration.parameter_identifier_capacity = 0;
   function_node->data.function_declaration.parameter_identifiers = NULL;
   function_node->data.function_declaration.storage_class_type = storage_class_type;
 
-  Types return_type;
-
-  if (current_token(parser)->type == TOKEN_INT) {
-    ast_expect(parser, TOKEN_INT);
-    return_type = AST_TYPE_INT;
-  } else {
-    ast_expect(parser, TOKEN_LONG);
-    return_type = AST_TYPE_LONG;
-  } 
-
-  //TODO: Incomplete
-
   AstNode *return_type_node = arena_alloc(parser->node_arena);
   return_type_node->type = AST_TYPE;
-  return_type_node->data.type.type = return_type;
+  return_type_node->data.type.type = return_type_specifier;
 
   AstNode *function_type = arena_alloc(parser->node_arena);
   function_type->type = AST_TYPE;
@@ -587,29 +577,13 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
   AstNode *parameter_type = arena_alloc(parser->node_arena);
   parameter_type->type = AST_TYPE;
 
-  switch (current_token(parser)->type) {
-    case TOKEN_VOID:
-      ast_expect(parser, TOKEN_VOID);
-      parameter_type->data.type.type = AST_TYPE_VOID;
-      break;
-    case TOKEN_INT: {
-      ast_expect(parser, TOKEN_INT);
-      parameter_type->data.type.type = AST_TYPE_INT;
-      add_function_parameter_identifier(ast_identifier(parser), parameter_type);
-      break;
-    }
-    case TOKEN_LONG: {
-      ast_expect(parser, TOKEN_LONG);
-      parameter_type->data.type.type = AST_TYPE_LONG;
-      add_function_parameter_identifier(ast_identifier(parser), parameter_type);
-      break;
-    }
-    default: {
-      fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d\n", current_token(parser)->type);
-      exit(1);
-    }
-  }
+  Types parameter_type_specifier = expect_type_specifier(parser);
+  parameter_type->data.type.type = parameter_type_specifier;
 
+  if (parameter_type_specifier != AST_TYPE_VOID) {
+      add_function_parameter_identifier(ast_identifier(parser), parameter_type);
+  }
+  
   function_node->data.function_declaration.parameter_count++;
   add_function_parameter_type(parameter_type, function_type);
 
@@ -619,27 +593,11 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
     AstNode *next_parameter_type = arena_alloc(parser->node_arena);
     next_parameter_type->type = AST_TYPE;
     
-    switch (current_token(parser)->type) {
-      case TOKEN_VOID:
-        ast_expect(parser, TOKEN_VOID);
-        next_parameter_type->data.type.type = AST_TYPE_VOID;
-        break;
-      case TOKEN_INT: {
-        ast_expect(parser, TOKEN_INT);
-        next_parameter_type->data.type.type = AST_TYPE_INT;
+    Types next_parameter_type_specifier = expect_type_specifier(parser);
+    next_parameter_type->data.type.type = next_parameter_type_specifier;
+
+    if (next_parameter_type_specifier != AST_TYPE_VOID) {
         add_function_parameter_identifier(ast_identifier(parser), next_parameter_type);
-        break;
-      }
-      case TOKEN_LONG: {
-        ast_expect(parser, TOKEN_LONG);
-        next_parameter_type->data.type.type = AST_TYPE_LONG;
-        add_function_parameter_identifier(ast_identifier(parser), next_parameter_type);
-        break;
-      }
-      default: {
-        fprintf(stderr, "ERROR - Parser: Unsupported parameter type %d", current_token(parser)->type);
-        exit(1);
-      }    
     }
 
     function_node->data.function_declaration.parameter_count++;
@@ -662,17 +620,7 @@ void ast_function_declaration(Parser *parser, AstNode *function_node, StorageCla
   ast_block(parser, block_node);
 }
 
-void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type) {
-  Types variable_type;
-
-  if (current_token(parser)->type == TOKEN_INT) {
-    ast_expect(parser, TOKEN_INT);
-    variable_type = AST_TYPE_INT;
-  } else {
-    ast_expect(parser, TOKEN_LONG);
-    variable_type = AST_TYPE_LONG;
-  }
-
+void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier) {
   char *identifier = ast_identifier(parser);
 
   variable_node->type = AST_VARIABLE_DECLARATION;
@@ -681,7 +629,7 @@ void ast_variable_declaration(Parser *parser, AstNode *variable_node, StorageCla
 
   AstNode *variable_type_node = arena_alloc(parser->node_arena);
   variable_type_node->type = AST_TYPE;
-  variable_type_node->data.type.type = variable_type;
+  variable_type_node->data.type.type = variable_type_specifier;
 
   variable_node->data.variable_declaration.type = variable_type_node;
 
@@ -915,7 +863,7 @@ void ast_parse_statement_for(Parser *parser, AstNode *for_statement_node) {
     ast_expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
   } else if (current_token(parser)->type == TOKEN_INT) {     
-    ast_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE);
+    ast_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, AST_TYPE_INT);
   } else if (current_token(parser)->type == TOKEN_EXTERN) {
     fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'extern' storage class defined\n");
     exit(1);
@@ -1282,14 +1230,7 @@ void ast_parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
 
   AstNode *type_node = arena_alloc(parser->node_arena);
   type_node->type = AST_TYPE;
-
-  switch(current_token(parser)->type) {
-    case TOKEN_INT:  type_node->data.type.type = AST_TYPE_INT; break;
-    case TOKEN_LONG: type_node->data.type.type = AST_TYPE_LONG; break;      
-    default:
-      fprintf(stderr, "ERROR - Parser: Cast node type '%d' not supported", current_token(parser)->type);
-      exit(1);
-  }
+  type_node->data.type.type = expect_type_specifier(parser);
 
   parser->current_token_index++;
   ast_expect(parser, TOKEN_CLOSE_PAREN);
@@ -1431,3 +1372,30 @@ static void add_function_parameter_type(AstNode *function_parameter_type, AstNod
   function_type->data.type.function_param_types[function_type->data.type.function_param_type_count] = *function_parameter_type;
   function_type->data.type.function_param_type_count++;
 }   
+
+static Types expect_type_specifier(Parser *parser) {
+  if (current_token(parser)->type == TOKEN_VOID) {
+    ast_expect(parser, TOKEN_VOID);
+    return AST_TYPE_VOID;
+  }
+  
+  Types type;
+
+  if (current_token(parser)->type == TOKEN_LONG) {
+    ast_expect(parser, TOKEN_LONG);
+    type = AST_TYPE_LONG;
+  } else if (current_token(parser)->type == TOKEN_INT) {
+    ast_expect(parser, TOKEN_INT);
+    type = AST_TYPE_INT;
+  } else {
+    fprintf(stderr, "ERROR - Parser: Found '%d' Token type instead of type specifiers\n", current_token(parser)->type);
+    exit(1);
+  }
+
+  if (current_token(parser)->type == TOKEN_LONG) {  
+    ast_expect(parser, TOKEN_LONG);
+    return  AST_TYPE_LONG;
+  }
+
+  return type;
+}

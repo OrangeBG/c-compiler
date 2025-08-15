@@ -1,6 +1,6 @@
 int main(void) {
     int a = 5;
-    long b = 30000099000;
+    long long b = 30000099000;
 
     long c = a + b;
 
