@@ -1395,6 +1395,8 @@ static Types expect_type_specifier(Parser *parser) {
   if (current_token(parser)->type == TOKEN_LONG) {  
     ast_expect(parser, TOKEN_LONG);
     return  AST_TYPE_LONG;
+  } else if (current_token(parser)->type == TOKEN_INT) {
+    ast_expect(parser, TOKEN_INT);
   }
 
   return type;

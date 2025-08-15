@@ -9,10 +9,10 @@
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
 
-static void  function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name, Arena *ast_arena);
-static void  type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
+static void  function_and_variable_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena);
+static void  type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols); 
 static void  type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
-static Types expression_type_check(AstNode *node, HashTable *symbols, char *function_name, Arena *ast_arena); 
+static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena); 
 static Types get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
 static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols); 
@@ -22,7 +22,7 @@ void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *as
     AstNode *node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
 
     if (node->type == AST_FUNCTION_DECLARATION) {
-      function_and_variable_type_check(node, declaration_symbols, node->data.function_declaration.name, ast_arena);
+      function_and_variable_type_check(node, declaration_symbols, node, ast_arena);
       continue;
     } 
 
@@ -36,17 +36,17 @@ void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *as
   } 
 }
 
-static void function_and_variable_type_check(AstNode *node, HashTable *symbols, char *function_name, Arena *ast_arena) {
+static void function_and_variable_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
-      if (function_name == NULL) {
-        type_check_file_scope_variable_declaration(node, symbols, function_name);
+      if (function_declaration_node == NULL) {
+        type_check_file_scope_variable_declaration(node, symbols);
       } else {
-        type_check_block_scope_variable_declaration(node, symbols, function_name);
+        type_check_block_scope_variable_declaration(node, symbols, function_declaration_node->data.function_declaration.name);
       }
 
       if (node->data.variable_declaration.has_expression) {
-        function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_name, ast_arena);
+        function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_declaration_node, ast_arena);
       }
       break;
     }
@@ -112,7 +112,7 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       }
 
       if (node->data.function_declaration.body_block != NULL) {
-        function_and_variable_type_check(node->data.function_declaration.body_block, symbols, function_name, ast_arena);
+        function_and_variable_type_check(node->data.function_declaration.body_block, symbols, node, ast_arena);
       }
       break;
     }
@@ -135,7 +135,7 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
         AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
-        function_and_variable_type_check(argument_node, symbols, function_name, ast_arena);
+        function_and_variable_type_check(argument_node, symbols, function_declaration_node, ast_arena);
       }
       break;
     }
@@ -150,52 +150,59 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT: 
     case AST_EXPRESSION_CONDITIONAL:
-      expression_type_check(node, symbols, function_name, ast_arena);
+      expression_type_check(node, symbols, function_declaration_node, ast_arena);
       break;
     case AST_BLOCK: {
       for (int i = 0; i < node->data.block.block_count; i++) {   
         AstNode *block_item_node = node->data.block.block_ptrs->node_pointers[i];
-        function_and_variable_type_check(block_item_node, symbols, function_name, ast_arena);
+        function_and_variable_type_check(block_item_node, symbols, function_declaration_node, ast_arena);
       }
       break;
     }
     case AST_STATEMENT_IF: {
-      function_and_variable_type_check(node->data.if_statement.condition_expression, symbols, function_name, ast_arena);
-      function_and_variable_type_check(node->data.if_statement.then_statement, symbols, function_name, ast_arena);
+      function_and_variable_type_check(node->data.if_statement.condition_expression, symbols, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.if_statement.then_statement, symbols, function_declaration_node, ast_arena);
 
       if (node->data.if_statement.else_statement != NULL) {
-        function_and_variable_type_check(node->data.if_statement.else_statement, symbols, function_name, ast_arena);
+        function_and_variable_type_check(node->data.if_statement.else_statement, symbols, function_declaration_node, ast_arena);
       }
       break;
     }
     case AST_STATEMENT_RETURN: {
-      function_and_variable_type_check(node->data.return_statement.expression, symbols, function_name, ast_arena);
+      Types return_expression_type = expression_type_check(node->data.return_statement.expression, symbols, function_declaration_node, ast_arena);
+      Types function_return_type = function_declaration_node->data.function_declaration.function_type->data.type.function_return_type->data.type.type;
+
+      if (function_return_type == return_expression_type) {
+        break;
+      }
+
+      node->data.return_statement.expression = implicit_expression_type_cast(node->data.return_statement.expression, return_expression_type, function_return_type, ast_arena);
       break;
     }
     case AST_STATEMENT_FOR: {
       if (node->data.for_statement.for_loop_init != NULL) {        
-        function_and_variable_type_check(node->data.for_statement.for_loop_init, symbols, function_name, ast_arena);
+        function_and_variable_type_check(node->data.for_statement.for_loop_init, symbols, function_declaration_node, ast_arena);
       }
 
       if (node->data.for_statement.condition_expression != NULL) {
-        function_and_variable_type_check(node->data.for_statement.condition_expression, symbols, function_name, ast_arena);
+        function_and_variable_type_check(node->data.for_statement.condition_expression, symbols, function_declaration_node, ast_arena);
       }
 
       if (node->data.for_statement.post_expression != NULL) {
-        function_and_variable_type_check(node->data.for_statement.post_expression, symbols, function_name, ast_arena);
+        function_and_variable_type_check(node->data.for_statement.post_expression, symbols, function_declaration_node, ast_arena);
       }
 
-      function_and_variable_type_check(node->data.for_statement.statement_body, symbols, function_name, ast_arena);
+      function_and_variable_type_check(node->data.for_statement.statement_body, symbols, function_declaration_node, ast_arena);
       break;
     }
     case AST_STATEMENT_WHILE: {
-      function_and_variable_type_check(node->data.while_statement.condition, symbols, function_name, ast_arena);
-      function_and_variable_type_check(node->data.while_statement.statement_body, symbols, function_name, ast_arena);
+      function_and_variable_type_check(node->data.while_statement.condition, symbols, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.while_statement.statement_body, symbols, function_declaration_node, ast_arena);
       break;
     }
     case AST_STATEMENT_DO_WHILE: {
-      function_and_variable_type_check(node->data.do_while_statement.condition, symbols, function_name, ast_arena);
-      function_and_variable_type_check(node->data.do_while_statement.statement_body, symbols, function_name, ast_arena);
+      function_and_variable_type_check(node->data.do_while_statement.condition, symbols, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.do_while_statement.statement_body, symbols, function_declaration_node, ast_arena);
       break;
     }
     default:    
@@ -204,7 +211,7 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
   }  
 }
 
-static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name) {
+static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols) {
   InitialValueType initial_value_type; 
   int initial_value = 0;
 
@@ -393,7 +400,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   return;
 } 
 
-static Types expression_type_check(AstNode *node, HashTable *symbols, char *function_name, Arena *ast_arena) {
+static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena) {
   switch (node->type) {
     case AST_EXPRESSION_VARIABLE: {
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.variable_expression.identifier);
@@ -436,7 +443,7 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       return ast_expression_type->data.type.type;
     }
     case AST_EXPRESSION_CAST: {
-      Types expression_type = expression_type_check(node, symbols, function_name, ast_arena);
+      Types expression_type = expression_type_check(node, symbols, function_declaration_node, ast_arena);
 
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
@@ -447,7 +454,7 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       return expression_type;
     }
     case AST_EXPRESSION_UNARY: {
-      Types expression_type = expression_type_check(node->data.unary_expression.expression, symbols, function_name, ast_arena);
+      Types expression_type = expression_type_check(node->data.unary_expression.expression, symbols, function_declaration_node, ast_arena);
 
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
@@ -462,8 +469,8 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       return expression_type;
     }
     case AST_EXPRESSION_BINARY: {
-      Types left_expression_type = expression_type_check(node->data.binary_expression.left_expression, symbols, function_name, ast_arena);
-      Types right_expression_type = expression_type_check(node->data.binary_expression.right_expression, symbols, function_name, ast_arena);
+      Types left_expression_type = expression_type_check(node->data.binary_expression.left_expression, symbols, function_declaration_node, ast_arena);
+      Types right_expression_type = expression_type_check(node->data.binary_expression.right_expression, symbols, function_declaration_node, ast_arena);
 
       if (node->data.binary_expression.op_type == AST_BINARY_AND || node->data.binary_expression.op_type == AST_BINARY_OR) {
         AstNode *ast_expression_type_node = arena_alloc(ast_arena);
@@ -491,8 +498,8 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       }
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      Types left_expression_type = expression_type_check(node->data.assignement_expression.left_expression, symbols, function_name, ast_arena);
-      Types right_expression_type = expression_type_check(node->data.assignement_expression.right_expression, symbols, function_name, ast_arena);
+      Types left_expression_type = expression_type_check(node->data.assignement_expression.left_expression, symbols, function_declaration_node, ast_arena);
+      Types right_expression_type = expression_type_check(node->data.assignement_expression.right_expression, symbols, function_declaration_node, ast_arena);
 
       //TODO: Need to look into this. I don't think it's working correctly
       node->data.assignement_expression.right_expression = implicit_expression_type_cast(node->data.assignement_expression.right_expression, right_expression_type, left_expression_type, ast_arena);      
@@ -520,7 +527,7 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
         AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
-        function_and_variable_type_check(argument_node, symbols, function_name, ast_arena);
+        function_and_variable_type_check(argument_node, symbols, function_declaration_node, ast_arena);
       }
     
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
@@ -536,10 +543,10 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, char *func
       return ast_expression_type_node->data.type.type;
     }
     case AST_EXPRESSION_CONDITIONAL: {
-      expression_type_check(node->data.conditional_expression.condition, symbols, function_name, ast_arena);
+      expression_type_check(node->data.conditional_expression.condition, symbols, function_declaration_node, ast_arena);
 
-      Types true_expression_type = expression_type_check(node->data.conditional_expression.true_expression, symbols, function_name, ast_arena);
-      Types false_expression_type = expression_type_check(node->data.conditional_expression.false_expression, symbols, function_name, ast_arena);
+      Types true_expression_type = expression_type_check(node->data.conditional_expression.true_expression, symbols, function_declaration_node, ast_arena);
+      Types false_expression_type = expression_type_check(node->data.conditional_expression.false_expression, symbols, function_declaration_node, ast_arena);
       
       Types common_real_type = get_common_real_type(true_expression_type, false_expression_type);
 
