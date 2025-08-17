@@ -715,7 +715,8 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
     static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_storage_duration->is_global;
-    static_node->data.static_variable.initial_value = declaration_symbol->data.variable_symbol->static_storage_duration->initial_value;
+    //TODO: Need to support long here
+    static_node->data.static_variable.initial_value = declaration_symbol->data.variable_symbol->static_storage_duration->initial_value.value.int_value;
 
     ir_add_top_level_declaration_to_program(ir_program, static_node);    
   }

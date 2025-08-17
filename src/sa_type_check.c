@@ -61,8 +61,6 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
           exit(1);
         }
 
-        // is_defined = existing_function_symbol->data.function_symbol->defined;
-
         if (existing_function_symbol->data.function_symbol->defined && node->data.function_declaration.body_block != NULL) {
           fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
@@ -81,7 +79,16 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       }
 
       FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
-      function_symbol->value_type = TYPE_INT;
+
+      switch (node->data.function_declaration.function_type->data.type.function_return_type->data.type.type) {
+        case AST_TYPE_INT:   function_symbol->value_type = TYPE_INT; break;
+        case AST_TYPE_LONG:  function_symbol->value_type = TYPE_LONG; break;
+        case AST_TYPE_VOID:  break;
+        default:
+          fprintf(stderr, "ERROR - SA Type Check: Unsuported function declaration AST type '%d'\n", node->data.function_declaration.function_type->data.type.type);
+          exit(1);          
+      }
+      
       function_symbol->param_count = 0;
       function_symbol->defined = node->data.function_declaration.body_block != NULL;
       function_symbol->global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
@@ -213,12 +220,20 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols) {
   InitialValueType initial_value_type; 
-  int initial_value = 0;
+  InitialValue initial_value;
 
   if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
-    //TODO: Will need to support long constants
-    initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+
+    //TODO: Look to see if there is a better way to do this since it's going to grow past ints and longs 
+    if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type == AST_TYPE_INT) {
+      initial_value.value_type = TYPE_INT;
+      initial_value.value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+
+    } else {
+      initial_value.value_type = TYPE_LONG;
+      initial_value.value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+    }    
   } else if (!variable_declaration_node->data.variable_declaration.has_expression) {
     if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
@@ -268,7 +283,14 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
 
   VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
   symbol->is_automatic_storage_duration = false;
-  symbol->value_type = TYPE_INT;
+
+  switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
+    case AST_TYPE_INT:    symbol->value_type = TYPE_INT; break;
+    case AST_TYPE_LONG:   symbol->value_type = TYPE_LONG; break;
+    default:
+      fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
+      exit(1);
+  }
 
   variable_symbol->data.variable_symbol = symbol;
 
@@ -337,12 +359,38 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   }
 
   if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-    int initial_value; 
+    // int initial_value; 
+    InitialValue initial_value;
+    
     if (!variable_declaration_node->data.variable_declaration.has_expression) {
-      initial_value = 0;
+      switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
+        case AST_TYPE_INT:
+          initial_value.value_type = TYPE_INT;
+          initial_value.value.int_value = 0; 
+          break;
+        case AST_TYPE_LONG:
+          initial_value.value_type = TYPE_LONG;
+          initial_value.value.long_value = 0; 
+          break;
+        default:
+          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
+          exit(1);
+      }
     } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
-      //TODO: Will need to support long constants
-      initial_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+
+      switch(variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type) {
+        case AST_TYPE_INT:
+          initial_value.value_type = TYPE_INT;
+          initial_value.value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          break;
+        case AST_TYPE_LONG:
+          initial_value.value_type = TYPE_LONG;
+          initial_value.value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          break;
+        default:
+          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'",variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type);
+          exit(1);
+      }
     } else {
       fprintf(stderr, "ERROR - SA Type Check: Non-constance initializer on local staic variable '%s'\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);

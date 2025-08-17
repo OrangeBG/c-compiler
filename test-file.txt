@@ -1,7 +1,6 @@
 long int main(void) {
     int a = 5;
     long long b = 30000099000;
-
     long c = a + b;
 
     1 ? 2L : 3;

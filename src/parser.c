@@ -564,6 +564,7 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
 
   AstNode *function_type = arena_alloc(parser->node_arena);
   function_type->type = AST_TYPE;
+  function_type->data.type.type = AST_TYPE_FUNCTION;
   function_type->data.type.function_return_type = return_type_node;
   function_type->data.type.function_param_type_count = 0;
 

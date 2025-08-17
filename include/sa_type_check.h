@@ -4,9 +4,21 @@
 #include "../include/parser.h"
 #include "../include/hash_table.h"
 
-typedef enum { TYPE_INT, TYPE_LONG } ValueType;
-typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
-typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIALIZED, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
+typedef enum {
+  TYPE_INT,
+  TYPE_LONG
+} ValueType;
+
+typedef enum {
+  SYMBOL_VARIABLE,
+  SYMBOL_FUNCTION
+} SymbolType;
+
+typedef enum {
+  INITIAL_VALUE_TENTATIVE,
+  INITIAL_VALUE_INITIALIZED,
+  INITIAL_VALUE_NO_INITIALIZER
+} InitialValueType;
 
 typedef struct {
   bool defined;
@@ -15,9 +27,17 @@ typedef struct {
   int param_count;
 } FunctionSymbol;
 
+typedef struct {    
+  ValueType value_type;
+  union {
+    int int_value;
+    long long_value;
+  } value;
+} InitialValue;
+
 typedef struct {
   InitialValueType initial_type;
-  int initial_value;
+  InitialValue initial_value;
   bool is_global;
 } StaticStorageDuration;
 
