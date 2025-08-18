@@ -16,7 +16,8 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *f
 static Types get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
 static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols); 
-
+static void assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node);
+ 
 void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
     AstNode *node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
@@ -290,13 +291,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
   symbol->is_automatic_storage_duration = false;
 
-  switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
-    case AST_TYPE_INT:    symbol->value_type = TYPE_INT; break;
-    case AST_TYPE_LONG:   symbol->value_type = TYPE_LONG; break;
-    default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
-      exit(1);
-  }
+  assign_variable_symbol_value_type(symbol, variable_declaration_node);
 
   variable_symbol->data.variable_symbol = symbol;
   variable_symbol->data.variable_symbol->static_is_global = variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
@@ -336,7 +331,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
       VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
       symbol->is_automatic_storage_duration = false;
-      symbol->value_type = TYPE_INT;
+
+      assign_variable_symbol_value_type(symbol, variable_declaration_node);
 
       variable_symbol->data.variable_symbol = symbol;
 
@@ -395,7 +391,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
     VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
     symbol->is_automatic_storage_duration = false;
-    symbol->value_type = TYPE_INT;
+
+    assign_variable_symbol_value_type(symbol, variable_declaration_node);
 
     variable_symbol->data.variable_symbol = symbol;
 
@@ -422,7 +419,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
   VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
   symbol->is_automatic_storage_duration = true;
-  symbol->value_type = TYPE_INT;
+
+  assign_variable_symbol_value_type(symbol, variable_declaration_node);
 
   variable_symbol->data.variable_symbol = symbol;
 
@@ -652,4 +650,15 @@ static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char
   entry->value = value;
 
   hash_table_add_entry(symbols, entry); 
+}
+
+static void assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node) {
+  switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
+    case AST_TYPE_INT:    variable_symbol->value_type = TYPE_INT; break;
+    case AST_TYPE_LONG:   variable_symbol->value_type = TYPE_LONG; break;
+    default:
+      fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
+      exit(1);
+  }
+
 }
