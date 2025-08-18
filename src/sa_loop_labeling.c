@@ -119,7 +119,6 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       sa_label_loop(ast_node->data.variable_declaration.init_expression, label_stack, current_loop_id);
       break;
     case AST_STATEMENT_RETURN: sa_label_loop(ast_node->data.return_statement.expression, label_stack, current_loop_id); break;
-    case AST_STATEMENT_EXPRESSION: sa_label_loop(ast_node->data.expression_statement.expression, label_stack, current_loop_id);
     case AST_STATEMENT_IF:
       sa_label_loop(ast_node->data.if_statement.condition_expression, label_stack, current_loop_id);
       sa_label_loop(ast_node->data.if_statement.then_statement, label_stack, current_loop_id);

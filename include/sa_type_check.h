@@ -4,9 +4,21 @@
 #include "../include/parser.h"
 #include "../include/hash_table.h"
 
-typedef enum { TYPE_INT } ValueType;
-typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION } SymbolType;
-typedef enum { INITIAL_VALUE_TENTATIVE, INITIAL_VALUE_INITIALIZED, INITIAL_VALUE_NO_INITIALIZER } InitialValueType;
+typedef enum {
+  TYPE_INT,
+  TYPE_LONG
+} ValueType;
+
+typedef enum {
+  SYMBOL_VARIABLE,
+  SYMBOL_FUNCTION
+} SymbolType;
+
+typedef enum {
+  INITIAL_VALUE_TENTATIVE,
+  INITIAL_VALUE_INITIALIZED,
+  INITIAL_VALUE_NO_INITIALIZER
+} InitialValueType;
 
 typedef struct {
   bool defined;
@@ -15,16 +27,23 @@ typedef struct {
   int param_count;
 } FunctionSymbol;
 
-typedef struct {
-  InitialValueType initial_type;
-  int initial_value;
-  bool is_global;
-} StaticStorageDuration;
+typedef union {
+    int int_value;
+    long long_value;
+} InitialValue;
+
+// typedef struct {
+//   InitialValueType initial_type;
+//   InitialValue initial_value;
+//   bool is_global;
+// } StaticStorageDuration;
 
 typedef struct {
   ValueType value_type;
   bool is_automatic_storage_duration;
-  StaticStorageDuration *static_storage_duration;
+  InitialValueType static_initial_type;
+  InitialValue static_initial_value;
+  bool static_is_global;
 } VariableSymbol; 
 
 typedef struct {
@@ -35,6 +54,6 @@ typedef struct {
   } data;
 } TypeCheckSymbol;
 
-void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols);
+void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena);
 
 #endif

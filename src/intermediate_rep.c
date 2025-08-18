@@ -706,7 +706,7 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
 
     TypeCheckSymbol *declaration_symbol= entry->value->structure;
 
-    if (declaration_symbol->symbol_type != SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration || declaration_symbol->data.variable_symbol->static_storage_duration->initial_type == INITIAL_VALUE_TENTATIVE) {
+    if (declaration_symbol->symbol_type != SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration || declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {
       continue;
     }
     
@@ -714,8 +714,9 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
 
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
-    static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_storage_duration->is_global;
-    static_node->data.static_variable.initial_value = declaration_symbol->data.variable_symbol->static_storage_duration->initial_value;
+    static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
+    //TODO: Need to support long here
+    static_node->data.static_variable.initial_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
 
     ir_add_top_level_declaration_to_program(ir_program, static_node);    
   }

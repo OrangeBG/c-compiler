@@ -14,7 +14,6 @@
 char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {  
-  int foo(int help);
   char* file;
   bool print_debug = true;
    
@@ -76,7 +75,7 @@ int main(int argc, const char *argv[]) {
   HashTable *declaration_symbols = malloc(sizeof(HashTable));
   hash_table_init(declaration_symbols);
   
-  sa_type_check(program_node, declaration_symbols);
+  sa_type_check(program_node, declaration_symbols, ast_arena);
   sa_loop_labeling(program_node);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
