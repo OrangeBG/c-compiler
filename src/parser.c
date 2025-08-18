@@ -1139,16 +1139,25 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     exit(1);
   }
 
+  AstNode *expression_type = arena_alloc(parser->node_arena);
+  expression_type->type = AST_TYPE;
+
   if (constant_type == TOKEN_CONSTANT_INT && constant_value > INT_MIN && constant_value < INT_MAX) {
     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
     factor_node->data.constant_expression.int_value = (int)constant_value;
-    factor_node->data.constant_expression.expression_type = NULL;
+
+    expression_type->data.type.type = AST_TYPE_INT;  
+    
+    factor_node->data.constant_expression.expression_type = expression_type;
     return;
   }
 
   factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
   factor_node->data.constant_expression.long_value = constant_value;
-  factor_node->data.constant_expression.expression_type = NULL;
+
+  expression_type->data.type.type = AST_TYPE_LONG;  
+    
+  factor_node->data.constant_expression.expression_type = expression_type;
 }
 
 static void parse_factor_unary(Parser *parser, AstNode *factor_node) {

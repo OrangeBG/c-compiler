@@ -370,12 +370,22 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       }
     } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
 
+      Types constant_expression_type = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type;
+
       switch(variable_declaration_node->data.variable_declaration.type->data.type.type) {
         case AST_TYPE_INT:
-          initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          if (constant_expression_type == AST_TYPE_LONG) {
+            initial_value.int_value = (int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          } else {
+            initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          }
           break;
         case AST_TYPE_LONG:
-          initial_value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          if (constant_expression_type == AST_TYPE_LONG) {
+            initial_value.long_value = (long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          } else {
+            initial_value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          }
           break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'",variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type);
