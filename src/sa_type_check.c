@@ -9,14 +9,14 @@
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
 
-static void  function_and_variable_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena);
-static void  type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols); 
-static void  type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
-static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena); 
-static Types get_common_real_type(Types type_1, Types type_2);
+static void     function_and_variable_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena);
+static void     type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols); 
+static void     type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
+static void     add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols); 
+static void     assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node);
+static Types    expression_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena); 
+static Types    get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
-static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols); 
-static void assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node);
  
 void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
@@ -370,7 +370,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       }
     } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
 
-      switch(variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type) {
+      switch(variable_declaration_node->data.variable_declaration.type->data.type.type) {
         case AST_TYPE_INT:
           initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
           break;
@@ -412,7 +412,6 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     
     return;
   }   
-
   
   TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
   variable_symbol->symbol_type = SYMBOL_VARIABLE;
