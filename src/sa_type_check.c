@@ -221,18 +221,19 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols) {
   InitialValueType initial_value_type; 
   InitialValue initial_value;
+  ValueType value_type;
 
   if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
 
     //TODO: Look to see if there is a better way to do this since it's going to grow past ints and longs 
-    if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type == AST_TYPE_INT) {
-      initial_value.value_type = TYPE_INT;
-      initial_value.value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+    if (variable_declaration_node->data.variable_declaration.type->data.type.type == AST_TYPE_INT) {
+      value_type = TYPE_INT;
+      initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
 
     } else {
-      initial_value.value_type = TYPE_LONG;
-      initial_value.value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+      value_type = TYPE_LONG;
+      initial_value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
     }    
   } else if (!variable_declaration_node->data.variable_declaration.has_expression) {
     if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
@@ -252,27 +253,32 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   if (entry != NULL && entry->key != NULL) {
     TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
 
-    if (existing_variable_symbol->data.variable_symbol->value_type != TYPE_INT) {
+    if (existing_variable_symbol->symbol_type == SYMBOL_FUNCTION) {
       fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
 
-    if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-      existing_variable_symbol->data.variable_symbol->static_storage_duration->is_global = true;
+    if (value_type != existing_variable_symbol->data.variable_symbol->value_type) {
+      fprintf(stderr, "ERROR: SA Type Check: Previously declared '%s' variable has type of '%d'\n", variable_declaration_node->data.variable_declaration.name, existing_variable_symbol->data.variable_symbol->value_type);
+      exit(1);
     }
-    else if (existing_variable_symbol->data.variable_symbol->static_storage_duration->is_global != is_global) {
+
+    if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+      existing_variable_symbol->data.variable_symbol->static_is_global = true;
+    }
+    else if (existing_variable_symbol->data.variable_symbol->static_is_global != is_global) {
       fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting variable linkage\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
 
-    if (existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_type == INITIAL_VALUE_INITIALIZED) {
+    if (existing_variable_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_INITIALIZED) {
       if (initial_value_type == INITIAL_VALUE_INITIALIZED) {
         fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.variable_declaration.name);
         exit(1);
       }
     } else {
-      existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_type = initial_value_type;
-      existing_variable_symbol->data.variable_symbol->static_storage_duration->initial_value = initial_value;
+      existing_variable_symbol->data.variable_symbol->static_initial_type = initial_value_type;
+      existing_variable_symbol->data.variable_symbol->static_initial_value = initial_value;
     }
 
     return;
@@ -293,13 +299,9 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   }
 
   variable_symbol->data.variable_symbol = symbol;
-
-  StaticStorageDuration *attribute = malloc(sizeof(StaticStorageDuration));
-  attribute->is_global = variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
-  attribute->initial_type = initial_value_type;
-  attribute->initial_value = initial_value;
-
-  symbol->static_storage_duration = attribute;
+  variable_symbol->data.variable_symbol->static_is_global = variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
+  variable_symbol->data.variable_symbol->static_initial_type = initial_value_type;
+  variable_symbol->data.variable_symbol->static_initial_value = initial_value;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
@@ -338,11 +340,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
       variable_symbol->data.variable_symbol = symbol;
 
-      StaticStorageDuration *attribute = malloc(sizeof(StaticStorageDuration));
-      attribute->is_global = true;
-      attribute->initial_type = INITIAL_VALUE_NO_INITIALIZER;
-
-      symbol->static_storage_duration = attribute;
+      symbol->static_is_global = true;
+      symbol->static_initial_type = INITIAL_VALUE_NO_INITIALIZER;
 
       HashValue *new_value = malloc(sizeof(HashValue));
       new_value->type = HASH_STRUCT;
@@ -359,18 +358,15 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   }
 
   if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-    // int initial_value; 
     InitialValue initial_value;
     
     if (!variable_declaration_node->data.variable_declaration.has_expression) {
       switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
         case AST_TYPE_INT:
-          initial_value.value_type = TYPE_INT;
-          initial_value.value.int_value = 0; 
+          initial_value.int_value = 0; 
           break;
         case AST_TYPE_LONG:
-          initial_value.value_type = TYPE_LONG;
-          initial_value.value.long_value = 0; 
+          initial_value.long_value = 0; 
           break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
@@ -380,12 +376,10 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
       switch(variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type) {
         case AST_TYPE_INT:
-          initial_value.value_type = TYPE_INT;
-          initial_value.value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
           break;
         case AST_TYPE_LONG:
-          initial_value.value_type = TYPE_LONG;
-          initial_value.value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          initial_value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
           break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'",variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type);
@@ -405,12 +399,9 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
     variable_symbol->data.variable_symbol = symbol;
 
-    StaticStorageDuration *attribute = malloc(sizeof(StaticStorageDuration));
-    attribute->is_global = false;
-    attribute->initial_type = INITIAL_VALUE_INITIALIZED;
-    attribute->initial_value = initial_value;
-
-    symbol->static_storage_duration = attribute;
+    symbol->static_is_global = false;
+    symbol->static_initial_type = INITIAL_VALUE_INITIALIZED;
+    symbol->static_initial_value = initial_value;
 
     HashValue *new_value = malloc(sizeof(HashValue));
     new_value->type = HASH_STRUCT;

@@ -1,3 +1,6 @@
+int k = 1;
+long k = 2;
+
 long int main(void) {
     int a = 5;
     long long b = 30000099000;

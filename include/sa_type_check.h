@@ -27,24 +27,23 @@ typedef struct {
   int param_count;
 } FunctionSymbol;
 
-typedef struct {    
-  ValueType value_type;
-  union {
+typedef union {
     int int_value;
     long long_value;
-  } value;
 } InitialValue;
 
-typedef struct {
-  InitialValueType initial_type;
-  InitialValue initial_value;
-  bool is_global;
-} StaticStorageDuration;
+// typedef struct {
+//   InitialValueType initial_type;
+//   InitialValue initial_value;
+//   bool is_global;
+// } StaticStorageDuration;
 
 typedef struct {
   ValueType value_type;
   bool is_automatic_storage_duration;
-  StaticStorageDuration *static_storage_duration;
+  InitialValueType static_initial_type;
+  InitialValue static_initial_value;
+  bool static_is_global;
 } VariableSymbol; 
 
 typedef struct {
