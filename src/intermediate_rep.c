@@ -54,7 +54,8 @@ void    ir_add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *
 char*   ir_create_temp_label(IREmitStatus *emit_status); 
 char*   ir_create_temp_register(IREmitStatus *emit_status); 
 char*   ir_create_concat_identifier(char *string, int integer); 
-IRNode* ir_create_constant(int value, Arena *node_arena);
+IRNode* ir_create_ast_constant(AstNode *constant_node, Arena *node_arena);
+IRNode* ir_create_int_constant(int value, Arena *node_arena);
 IRNode* ir_create_variable(char *identifier, Arena *node_arena);
 void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
@@ -238,7 +239,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
   ir_emit_ast_node(ast_function->data.function_declaration.body_block, function, emit_status, node_arena);
 
   //@Temporary: Add return statement to every function that returns 0. If there is a return statement already for the function, this won't run.
-  IRNode *zero_value = ir_create_constant(0, node_arena);
+  IRNode *zero_value = ir_create_int_constant(0, node_arena);
   IRNode *return_instruction = arena_alloc(node_arena);
   return_instruction->type = IR_INSTRUCTION_RET;
   return_instruction->data.instruction_ret.value = zero_value;
@@ -263,8 +264,7 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_STATEMENT_NULL:               { break; } 
       case AST_STATEMENT_RETURN:             { return ir_emit_return(node, function, emit_status, node_arena); }
       case AST_EXPRESSION_VARIABLE:          { return ir_create_variable(node->data.variable_expression.identifier, node_arena); }
-      //TODO: Will need to support long constants
-      case AST_EXPRESSION_CONSTANT:          { return ir_create_constant(node->data.constant_expression.int_value, node_arena); }
+      case AST_EXPRESSION_CONSTANT:          { return ir_create_ast_constant(node, node_arena); }
       case AST_EXPRESSION_CONDITIONAL:       { return ir_emit_conditional_expression(node, function, emit_status, node_arena); }
       case AST_EXPRESSION_POSTFIX_INCREMENT: { return ir_emit_postfix_expression(node, emit_status, node_arena); }
       case AST_EXPRESSION_POSTFIX_DECREMENT: { return ir_emit_postfix_expression(node, emit_status, node_arena); }
@@ -520,13 +520,13 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
 
     ir_add_instruction_to_function(function, jmp_instruction_v2);
 
-    IRNode *result_1 = ir_create_constant(1, node_arena);
+    IRNode *result_1 = ir_create_int_constant(1, node_arena);
 
     ir_emit_copy(result_1, destination, function, node_arena);
     ir_emit_jump(END_LABEL, function, node_arena);
     ir_emit_label(label_name, function, node_arena);
 
-    IRNode *result_0 = ir_create_constant(0, node_arena);
+    IRNode *result_0 = ir_create_int_constant(0, node_arena);
 
     ir_emit_copy(result_0, destination, function, node_arena);
     ir_emit_label(END_LABEL, function, node_arena);
@@ -706,7 +706,7 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
 
     TypeCheckSymbol *declaration_symbol= entry->value->structure;
 
-    if (declaration_symbol->symbol_type != SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration || declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {
+    if (declaration_symbol->symbol_type != SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration) {
       continue;
     }
     
@@ -715,8 +715,20 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
     static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
-    //TODO: Need to support long here
-    static_node->data.static_variable.initial_value.int_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
+
+    if (declaration_symbol->data.variable_symbol->value_type == TYPE_INT) {
+      if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
+        static_node->data.static_variable.initial_value.int_value = 0;
+      } else {
+        static_node->data.static_variable.initial_value.int_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
+      }
+    } else {
+      if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
+        static_node->data.static_variable.initial_value.long_value = 0;
+      } else {
+        static_node->data.static_variable.initial_value.long_value = declaration_symbol->data.variable_symbol->static_initial_value.long_value;
+      }
+    } 
 
     ir_add_top_level_declaration_to_program(ir_program, static_node);    
   }
@@ -774,13 +786,29 @@ char* ir_create_temp_register(IREmitStatus *emit_status) {
   return register_name;
 }
 
-IRNode* ir_create_constant(int value, Arena *node_arena) {
+IRNode* ir_create_int_constant(int value, Arena *node_arena) {
+  IRNode *constant = arena_alloc(node_arena);
+  constant->type = IR_VALUE_CONSTANT;
+  constant->data.value_constant.value.int_value = value;
+
+  return constant;
+}
+
+IRNode* ir_create_ast_constant(AstNode *ast_constant, Arena *node_arena) {
   IRNode *constant = arena_alloc(node_arena);
   constant->type = IR_VALUE_CONSTANT;
 
-  //TODO: Need to support long
-  constant->data.value_constant.value.int_value = value;
-
+  switch (ast_constant->data.constant_expression.expression_type->data.type.type) {
+    case AST_TYPE_INT:
+      constant->data.value_constant.value.int_value = ast_constant->data.constant_expression.int_value;
+      break;
+    case AST_TYPE_LONG:
+      constant->data.value_constant.value.int_value = ast_constant->data.constant_expression.long_value;
+      break;
+    default:
+      fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)", ast_constant->data.constant_expression.expression_type->data.type.type);
+      exit(1);
+  }
 
   return constant;
 }

@@ -1,8 +1,8 @@
-int test = 5;
+int test;
 int test2 = 4;
 int test_4 = 4;
 
 int main(void) {
-    static int a = 100L;
+    static int a = 100;
 	return a;
 }
