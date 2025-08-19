@@ -716,7 +716,7 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
     static_node->data.static_variable.identifier = entry->key;
     static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
     //TODO: Need to support long here
-    static_node->data.static_variable.initial_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
+    static_node->data.static_variable.initial_value.int_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
 
     ir_add_top_level_declaration_to_program(ir_program, static_node);    
   }
@@ -777,7 +777,10 @@ char* ir_create_temp_register(IREmitStatus *emit_status) {
 IRNode* ir_create_constant(int value, Arena *node_arena) {
   IRNode *constant = arena_alloc(node_arena);
   constant->type = IR_VALUE_CONSTANT;
-  constant->data.value_constant.value = value;
+
+  //TODO: Need to support long
+  constant->data.value_constant.value.int_value = value;
+
 
   return constant;
 }

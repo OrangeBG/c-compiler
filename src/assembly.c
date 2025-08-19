@@ -459,7 +459,8 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
 void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable) {
   asm_static_variable->type = ASM_STATIC_VARIABLE;
   asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
-  asm_static_variable->data.static_variable.initial_value = ir_static_variable->data.static_variable.initial_value;
+  //TODO: Need to support long
+  asm_static_variable->data.static_variable.initial_value = ir_static_variable->data.static_variable.initial_value.int_value;
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 }
 
@@ -871,7 +872,8 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
       asm_operand->type = ASM_OPERAND_IMM;
-      asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value;
+      //TODO: Need to support long
+      asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value;
       break;
     case IR_VALUE_VAR:
       asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
