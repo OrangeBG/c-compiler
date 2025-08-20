@@ -4,6 +4,7 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/sa_type_check.h"
+#include "parser.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -47,6 +48,7 @@ IRNode* ir_emit_unary_expression(AstNode *unary_node, IRNode *function, IREmitSt
 IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
 IRNode* ir_emit_assignment_expression(AstNode *assignment_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
 IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena); 
+IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena);
 void    ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  Arena *node_arena); 
 void    ir_add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 void    ir_add_top_level_declaration_to_program(IRNode *ir_program, IRNode *ir_function); 
@@ -59,6 +61,7 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena);
 IRNode* ir_create_variable(char *identifier, Arena *node_arena);
 void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
+static IRType  get_node_type(IRNode *node); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, HashTable *declaration_symbols) {
   ir_declaration_symbols = declaration_symbols;
@@ -111,7 +114,7 @@ void print_intermediate_ret(IRNode *ir_node) {
       break;
     case IR_FUNCTION: {
       struct IRFunction *function = &ir_node->data.function; 
-      printf("Function -> %s\n is_global = %d ", function->identifier, function->is_global);
+      printf("Function(name = %s, is_global = %d)\n", function->identifier, function->is_global);
 
       for (int i = 0; i < function->instruction_count; i++) {
         if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_RET) {
@@ -181,6 +184,18 @@ void print_intermediate_ret(IRNode *ir_node) {
           printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_LABEL) {
           printf("Label(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_label.identifier);
+        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_TRUNCATE) {
+          printf("Truncate(Source(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.source);
+          printf(") (Destination(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.destination);
+          printf(")\n");
+        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_SIGN_EXTEND) {
+          printf("Sign Extend(Source(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.source);
+          printf(") (Destination(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.destination);
+          printf(")\n");
         }
       }
     }
@@ -284,6 +299,7 @@ IRNode* ir_emit_ast_node(AstNode *node, IRNode *function, IREmitStatus *emit_sta
       case AST_EXPRESSION_BINARY:            { return ir_emit_binary_expression(node, function, emit_status, node_arena); }
       case AST_EXPRESSION_ASSIGNMENT:        { return ir_emit_assignment_expression(node, function, emit_status, node_arena); }
       case AST_EXPRESSION_FUNCTION_CALL:     { return ir_emit_function_call_expression(node, function, emit_status, node_arena); }
+      case AST_EXPRESSION_CAST:              { return ir_emit_cast_expression(node, function, emit_status, node_arena); } 
       case AST_VARIABLE_DECLARATION:         { return ir_emit_declaration(node, function, emit_status, node_arena); }
       case AST_FUNCTION_DECLARATION:         {
           if (node->data.function_declaration.body_block == NULL) break;
@@ -654,6 +670,46 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
   return destination;
 } 
 
+IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena) {
+  IRNode *cast_expression = ir_emit_ast_node(cast_node->data.cast_expression.expression, function, emit_status, node_arena);
+  IRType expression_type = get_node_type(cast_expression); 
+
+  if (cast_node->data.cast_expression.target_type->data.type.type == cast_node->data.cast_expression.expression_type->data.type.type) {
+    return cast_expression;
+  }
+
+  char *temp_destination = ir_create_temp_register(emit_status);
+  IRNode *var_destination_node = arena_alloc(node_arena);
+  var_destination_node->type = IR_VALUE_VAR;
+  var_destination_node->data.value_var.identifier = temp_destination; 
+  
+  switch (expression_type) {
+    case IR_TYPE_INT: {
+      IRNode *truncate_instruction = arena_alloc(node_arena);
+      truncate_instruction->type = IR_INSTRUCTION_TRUNCATE;
+      truncate_instruction->data.instruction_truncate.destination = var_destination_node;
+      truncate_instruction->data.instruction_truncate.source = cast_expression;
+
+      ir_add_instruction_to_function(function, truncate_instruction);
+      break;
+    }
+    case IR_TYPE_LONG: {
+      IRNode *sign_extend_instruction = arena_alloc(node_arena);
+      sign_extend_instruction->type = IR_INSTRUCTION_SIGN_EXTEND;
+      sign_extend_instruction->data.instruction_sign_extend.destination = var_destination_node;
+      sign_extend_instruction->data.instruction_sign_extend.source = cast_expression;
+
+      ir_add_instruction_to_function(function, sign_extend_instruction);
+      break;
+    }
+    default:
+      fprintf(stderr, "ERROR - IR: Unsupported cast expression type '%d'", expression_type);
+      exit(1);
+  }
+  
+  return var_destination_node;
+}
+
 IRNode* ir_emit_jump(char *label, IRNode *function, Arena *node_arena) {
   IRNode *jmp_instruction = arena_alloc(node_arena);
   jmp_instruction->type = IR_INSTRUCTION_JUMP;
@@ -865,4 +921,14 @@ void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
   ir_node_pointer->capacity = 0;
   ir_node_pointer->count = 0;
   ir_node_pointer->node_pointers = NULL;
+}
+
+static IRType get_node_type(IRNode *node) {
+  switch (node->type) {
+    case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
+    case IR_VALUE_STATIC_VAR: return node->data.static_variable.type; break;
+    default:
+      fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type", node->type);
+      exit(1);
+  }
 }

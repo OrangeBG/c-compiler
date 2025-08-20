@@ -628,6 +628,25 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
   casted_expression->data.cast_expression.target_type = type_node;
   casted_expression->data.cast_expression.expression = expression;
 
+  
+  AstNode *cast_expression_type = NULL;
+
+  switch (expression->type) {
+    case AST_EXPRESSION_CONSTANT:      cast_expression_type = expression->data.constant_expression.expression_type; break;
+    case AST_EXPRESSION_VARIABLE:      cast_expression_type = expression->data.variable_expression.expression_type; break;
+    case AST_EXPRESSION_CAST:          cast_expression_type = expression->data.cast_expression.expression_type; break;
+    case AST_EXPRESSION_UNARY:         cast_expression_type = expression->data.unary_expression.expression_type; break;
+    case AST_EXPRESSION_BINARY:        cast_expression_type = expression->data.binary_expression.expression_type; break;
+    case AST_EXPRESSION_ASSIGNMENT:    cast_expression_type = expression->data.assignement_expression.expression_type; break;
+    case AST_EXPRESSION_CONDITIONAL:   cast_expression_type = expression->data.conditional_expression.expression_type; break;
+    case AST_EXPRESSION_FUNCTION_CALL: cast_expression_type = expression->data.variable_expression.expression_type; break;
+    default:
+      fprintf(stderr, "ERROR - Parser: Unsupported cast expression type '%d'", expression->type);
+      exit(1);
+  }
+
+  casted_expression->data.cast_expression.expression_type = cast_expression_type;
+  
   return casted_expression;
 }
 
