@@ -186,13 +186,23 @@ void print_intermediate_ret(IRNode *ir_node) {
     }
     break;
     case IR_VALUE_CONSTANT:
-      printf("Constant(%d)", ir_node->data.value_constant.value);
+      switch (ir_node->data.value_constant.type) {
+        case IR_TYPE_INT:    printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
+        case IR_TYPE_LONG:   printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
+      }
       break;
     case IR_VALUE_VAR:
       printf("Var(\"%s\")", ir_node->data.value_var.identifier);
       break;
     case IR_VALUE_STATIC_VAR:
-      printf("Static Var(\"%s\") Initial Value: %d Is Global: %d\n", ir_node->data.static_variable.identifier, ir_node->data.static_variable.initial_value, ir_node->data.static_variable.is_global);
+      printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
+
+      switch (ir_node->data.static_variable.type) {
+        case IR_TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.initial_value.int_value); break;
+        case IR_TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.initial_value.long_value); break;
+      }
+
+      printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
       break;
     case IR_INSTRUCTION_FUNCTION_CALL:
       printf("Function Call(name=%s ", ir_node->data.instruction_function_call.identifier);
