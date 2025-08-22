@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
-#include "../include/sa_type_check.h"
-#include "parser.h"
+#include "../include/declaration_symbol.h"
+// #include "parser.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -252,7 +252,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
     exit(1);
   }
 
-  TypeCheckSymbol *symbol = found_declaration_entry->value->structure;
+  DeclarationSymbol *symbol = found_declaration_entry->value->structure;
   function->data.function.is_global = symbol->data.function_symbol->global;
 
   Arena postfix_arena;
@@ -770,9 +770,9 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
       continue;
     }
 
-    TypeCheckSymbol *declaration_symbol= entry->value->structure;
+    DeclarationSymbol *declaration_symbol= entry->value->structure;
 
-    if (declaration_symbol->symbol_type != SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration) {
+    if (declaration_symbol->symbol_type != DECLARATION_SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration) {
       continue;
     }
     
@@ -782,7 +782,7 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
     static_node->data.static_variable.identifier = entry->key;
     static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
 
-    if (declaration_symbol->data.variable_symbol->value_type == TYPE_INT) {
+    if (declaration_symbol->data.variable_symbol->value_type == DECLARATION_SYMBOL_TYPE_INT) {
       if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
         static_node->data.static_variable.initial_value.int_value = 0;
       } else {

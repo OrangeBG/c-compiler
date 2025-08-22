@@ -4,7 +4,7 @@
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
-#include "../include/sa_type_check.h"
+#include "../include/declaration_symbol.h"
 
 #define NODE_POINTER_CAPACITY 8
 
@@ -352,7 +352,7 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
   HashTableEntry *existing_declaration_symbol = hash_table_get_entry(declaration_symbols, pseudo_register->data.operand_pseudo_register.identifier);
 
   if (existing_declaration_symbol != NULL && existing_declaration_symbol->key != NULL) {    
-    TypeCheckSymbol *symbol = existing_declaration_symbol->value->structure;    
+    DeclarationSymbol *symbol = existing_declaration_symbol->value->structure;    
 
     if (symbol->data.variable_symbol->is_automatic_storage_duration) {
       goto process_pseudo_register;

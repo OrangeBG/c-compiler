@@ -5,6 +5,7 @@
 #include "../include/sa_type_check.h"
 #include "../include/arena.h"
 #include "../include/parser.h"
+#include "../include/declaration_symbol.h"
 
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
@@ -55,9 +56,9 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_declaration.name);
 
       if (entry != NULL && entry->key != NULL) {
-        TypeCheckSymbol *existing_function_symbol = entry->value->structure;
+        DeclarationSymbol *existing_function_symbol = entry->value->structure;
 
-        if (existing_function_symbol->data.function_symbol->value_type != TYPE_INT) {
+        if (existing_function_symbol->data.function_symbol->value_type != DECLARATION_SYMBOL_TYPE_INT) {
           fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
           exit(1);
         }
@@ -82,8 +83,8 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
 
       switch (node->data.function_declaration.function_type->data.type.function_return_type->data.type.type) {
-        case AST_TYPE_INT:   function_symbol->value_type = TYPE_INT; break;
-        case AST_TYPE_LONG:  function_symbol->value_type = TYPE_LONG; break;
+        case AST_TYPE_INT:   function_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT; break;
+        case AST_TYPE_LONG:  function_symbol->value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
         case AST_TYPE_VOID:  break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsuported function declaration AST type '%d'\n", node->data.function_declaration.function_type->data.type.type);
@@ -94,8 +95,8 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       function_symbol->defined = node->data.function_declaration.body_block != NULL;
       function_symbol->global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
 
-      TypeCheckSymbol *new_symbol = malloc(sizeof(TypeCheckSymbol));
-      new_symbol->symbol_type = SYMBOL_FUNCTION;
+      DeclarationSymbol *new_symbol = malloc(sizeof(DeclarationSymbol));
+      new_symbol->symbol_type = DECLARATION_SYMBOL_FUNCTION;
       new_symbol->data.function_symbol = function_symbol;
 
       HashValue *new_value = malloc(sizeof(HashValue));
@@ -128,9 +129,9 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
       HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_call_expression.identfier);
 
       if (entry != NULL && entry->key != NULL) {
-        TypeCheckSymbol *existing_symbol = entry->value->structure;
+        DeclarationSymbol *existing_symbol = entry->value->structure;
 
-        if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
+        if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
           fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
           exit(1);
         }               
@@ -222,18 +223,18 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols) {
   InitialValueType initial_value_type; 
   InitialValue initial_value;
-  ValueType value_type;
+  DeclarationSymbolValueType value_type;
 
   if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
 
     //TODO: Look to see if there is a better way to do this since it's going to grow past ints and longs 
     if (variable_declaration_node->data.variable_declaration.type->data.type.type == AST_TYPE_INT) {
-      value_type = TYPE_INT;
+      value_type = DECLARATION_SYMBOL_TYPE_INT;
       initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
 
     } else {
-      value_type = TYPE_LONG;
+      value_type = DECLARATION_SYMBOL_TYPE_LONG;
       initial_value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
     }    
   } else if (!variable_declaration_node->data.variable_declaration.has_expression) {
@@ -252,9 +253,9 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   HashTableEntry *entry = hash_table_get_entry(symbols, variable_declaration_node->data.variable_declaration.name);
 
   if (entry != NULL && entry->key != NULL) {
-    TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
+    DeclarationSymbol *existing_variable_symbol = entry->value->structure;
 
-    if (existing_variable_symbol->symbol_type == SYMBOL_FUNCTION) {
+    if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
       fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
@@ -285,8 +286,8 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     return;
   }
 
-  TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
-  variable_symbol->symbol_type = SYMBOL_VARIABLE;
+  DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
+  variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
   VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
   symbol->is_automatic_storage_duration = false;
@@ -319,15 +320,15 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     HashTableEntry *entry = hash_table_get_entry(symbols, variable_declaration_node->data.variable_declaration.name);
 
     if (entry != NULL && entry->key != NULL) {
-      TypeCheckSymbol *existing_variable_symbol = entry->value->structure;
+      DeclarationSymbol *existing_variable_symbol = entry->value->structure;
 
-      if (existing_variable_symbol->symbol_type == SYMBOL_FUNCTION) {        
+      if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {        
         fprintf(stderr, "ERROR - SA Type Check: Function redeclared as variable");
         exit(1);
       }
     } else {
-      TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
-      variable_symbol->symbol_type = SYMBOL_VARIABLE;
+      DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
+      variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
       VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
       symbol->is_automatic_storage_duration = false;
@@ -396,8 +397,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       exit(1);
     }
 
-    TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
-    variable_symbol->symbol_type = SYMBOL_VARIABLE;
+    DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
+    variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
     VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
     symbol->is_automatic_storage_duration = false;
@@ -423,8 +424,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     return;
   }   
   
-  TypeCheckSymbol *variable_symbol = malloc(sizeof(TypeCheckSymbol));
-  variable_symbol->symbol_type = SYMBOL_VARIABLE;
+  DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
+  variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
   VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
   symbol->is_automatic_storage_duration = true;
@@ -456,9 +457,9 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *f
         exit(1);
       }
 
-      TypeCheckSymbol* symbol = entry->value->structure; 
+      DeclarationSymbol* symbol = entry->value->structure; 
 
-      if (symbol->symbol_type == SYMBOL_FUNCTION) {
+      if (symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
         fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable\n", node->data.variable_expression.identifier);
         exit(1);
       }
@@ -467,8 +468,8 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *f
       ast_expression_type->type = AST_TYPE;
       
       switch (symbol->data.variable_symbol->value_type) {
-        case TYPE_INT:   ast_expression_type->data.type.type = AST_TYPE_INT; break;
-        case TYPE_LONG:  ast_expression_type->data.type.type = AST_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_INT:   ast_expression_type->data.type.type = AST_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  ast_expression_type->data.type.type = AST_TYPE_LONG; break;
       }
 
       node->data.variable_expression.expression_type = ast_expression_type;
@@ -559,9 +560,9 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *f
         exit(1);
       }
 
-      TypeCheckSymbol *existing_symbol = entry->value->structure;
+      DeclarationSymbol *existing_symbol = entry->value->structure;
 
-      if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
+      if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
         fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
         exit(1);
       }               
@@ -580,8 +581,8 @@ static Types expression_type_check(AstNode *node, HashTable *symbols, AstNode *f
       ast_expression_type_node->type = AST_TYPE;
 
       switch (existing_symbol->data.function_symbol->value_type) {
-        case TYPE_INT:   ast_expression_type_node->data.type.type = AST_TYPE_INT; break;
-        case TYPE_LONG:  ast_expression_type_node->data.type.type = AST_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_INT:   ast_expression_type_node->data.type.type = AST_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  ast_expression_type_node->data.type.type = AST_TYPE_LONG; break;
       }
 
       node->data.function_call_expression.expression_type = ast_expression_type_node;
@@ -656,11 +657,11 @@ static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char
   }
 
   //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
-  TypeCheckSymbol *symbol = malloc(sizeof(TypeCheckSymbol));
-  symbol->symbol_type = SYMBOL_VARIABLE;
+  DeclarationSymbol *symbol = malloc(sizeof(DeclarationSymbol));
+  symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
   VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
-  variable_symbol->value_type = TYPE_INT;
+  variable_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT;
   variable_symbol->is_automatic_storage_duration = true;
 
   symbol->data.variable_symbol = variable_symbol;
@@ -682,8 +683,8 @@ static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char
 
 static void assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node) {
   switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
-    case AST_TYPE_INT:    variable_symbol->value_type = TYPE_INT; break;
-    case AST_TYPE_LONG:   variable_symbol->value_type = TYPE_LONG; break;
+    case AST_TYPE_INT:    variable_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT; break;
+    case AST_TYPE_LONG:   variable_symbol->value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
       exit(1);
