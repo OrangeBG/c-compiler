@@ -47,10 +47,10 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
 }
 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key) {  
-  DeclarationSymbol *symbol = malloc(sizeof(DeclarationSymbol));
+  DeclarationSymbol *symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
   symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
-  VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+  VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->value_type = value_type;
   variable_symbol->is_automatic_storage_duration = true;
 
@@ -68,27 +68,25 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
   hash_table_add_entry(declaration_symbol_table->symbol_table, entry); 
 }
 
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
-  DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
-  variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-
-  VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
-  symbol->is_automatic_storage_duration = false;
-
-  assign_variable_symbol_value_type(symbol, variable_declaration_node);
-
-  variable_symbol->data.variable_symbol = symbol;
-
-  symbol->static_is_global = true;
-  symbol->static_initial_type = INITIAL_VALUE_NO_INITIALIZER;
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
+  VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+  variable_symbol->is_automatic_storage_duration = false;
+  variable_symbol->value_type = value_type;
+  variable_symbol->static_initial_value = initial_value;
+  variable_symbol->static_is_global = is_global;
+  variable_symbol->static_initial_type = initial_value_type;
+  
+  DeclarationSymbol *declaration_symbol = malloc(sizeof(DeclarationSymbol));
+  declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
+  declaration_symbol->data.variable_symbol = variable_symbol;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
   new_value->structure = variable_symbol;
 
   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
-  new_entry->key = variable_declaration_node->data.variable_declaration.name;
+  new_entry->key = symbol_key;
   new_entry->value = new_value;
 
-  hash_table_add_entry(symbols, new_entry);
+  hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
 }
