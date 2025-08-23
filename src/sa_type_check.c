@@ -10,26 +10,26 @@
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
 
-static void     function_and_variable_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena);
-static void     type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols); 
-static void     type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name); 
-static void     add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols); 
+static void     function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena);
+static void     type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
+static void     type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
+static void     add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
 static void     assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node);
 static Types    expression_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena); 
 static Types    get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
  
-void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *ast_arena) {
+void sa_type_check(AstNode *ast_nodes, DeclarationSymbolTable *declaration_table, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
     AstNode *node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
 
     if (node->type == AST_FUNCTION_DECLARATION) {
-      function_and_variable_type_check(node, declaration_symbols, node, ast_arena);
+      function_and_variable_type_check(node, declaration_table, node, ast_arena);
       continue;
     } 
 
     if (node->type == AST_VARIABLE_DECLARATION) {
-      function_and_variable_type_check(node, declaration_symbols, NULL, ast_arena);
+      function_and_variable_type_check(node, declaration_table, NULL, ast_arena);
       continue;
     }
 
@@ -38,22 +38,22 @@ void sa_type_check(AstNode *ast_nodes, HashTable *declaration_symbols, Arena *as
   } 
 }
 
-static void function_and_variable_type_check(AstNode *node, HashTable *symbols, AstNode *function_declaration_node, Arena *ast_arena) {
+static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
       if (function_declaration_node == NULL) {
-        type_check_file_scope_variable_declaration(node, symbols);
+        type_check_file_scope_variable_declaration(node, declaration_table);
       } else {
-        type_check_block_scope_variable_declaration(node, symbols, function_declaration_node->data.function_declaration.name);
+        type_check_block_scope_variable_declaration(node, declaration_table, function_declaration_node->data.function_declaration.name);
       }
 
       if (node->data.variable_declaration.has_expression) {
-        function_and_variable_type_check(node->data.variable_declaration.init_expression, symbols, function_declaration_node, ast_arena);
+        function_and_variable_type_check(node->data.variable_declaration.init_expression, declaration_table, function_declaration_node, ast_arena);
       }
       break;
     }
     case AST_FUNCTION_DECLARATION: {
-      HashTableEntry *entry = hash_table_get_entry(symbols, node->data.function_declaration.name);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_declaration.name);
 
       if (entry != NULL && entry->key != NULL) {
         DeclarationSymbol *existing_function_symbol = entry->value->structure;
@@ -63,51 +63,68 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
           exit(1);
         }
 
-        if (existing_function_symbol->data.function_symbol->defined && node->data.function_declaration.body_block != NULL) {
+        if (existing_function_symbol->data.function_symbol->is_defined && node->data.function_declaration.body_block != NULL) {
           fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
         }
 
-        if (existing_function_symbol->data.function_symbol->global == node->data.function_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+        if (existing_function_symbol->data.function_symbol->is_global == node->data.function_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
           fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static\n", node->data.function_declaration.name);
           exit(1);
         }
 
-        if (!existing_function_symbol->data.function_symbol->defined) {
-          existing_function_symbol->data.function_symbol->defined = node->data.function_declaration.body_block != NULL;
+        if (!existing_function_symbol->data.function_symbol->is_defined) {
+          existing_function_symbol->data.function_symbol->is_defined = node->data.function_declaration.body_block != NULL;
         }
 
         break;
       }
 
-      FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
+      // FunctionSymbol *function_symbol = malloc(sizeof(FunctionSymbol));
 
+      // switch (node->data.function_declaration.function_type->data.type.function_return_type->data.type.type) {
+      //   case AST_TYPE_INT:   function_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT; break;
+      //   case AST_TYPE_LONG:  function_symbol->value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
+      //   case AST_TYPE_VOID:  break;
+      //   default:
+      //     fprintf(stderr, "ERROR - SA Type Check: Unsuported function declaration AST type '%d'\n", node->data.function_declaration.function_type->data.type.type);
+      //     exit(1);          
+      // }
+      
+      // function_symbol->param_count = 0;
+      // function_symbol->is_defined = node->data.function_declaration.body_block != NULL;
+      // function_symbol->is_global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
+
+      // DeclarationSymbol *new_symbol = malloc(sizeof(DeclarationSymbol));
+      // new_symbol->symbol_type = DECLARATION_SYMBOL_FUNCTION;
+      // new_symbol->data.function_symbol = function_symbol;
+
+      // HashValue *new_value = malloc(sizeof(HashValue));
+      // new_value->type = HASH_STRUCT;
+      // new_value->structure = new_symbol;
+
+      // HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+      // new_entry->key = node->data.function_declaration.name;
+      // new_entry->value = new_value;
+
+      // hash_table_add_entry(symbols, new_entry);
+
+      DeclarationSymbolValueType declaration_value_type;
+      
       switch (node->data.function_declaration.function_type->data.type.function_return_type->data.type.type) {
-        case AST_TYPE_INT:   function_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT; break;
-        case AST_TYPE_LONG:  function_symbol->value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
-        case AST_TYPE_VOID:  break;
+        case AST_TYPE_INT:   declaration_value_type = DECLARATION_SYMBOL_TYPE_INT; break;
+        case AST_TYPE_LONG:  declaration_value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
+        case AST_TYPE_VOID:  declaration_value_type = DECLARATION_SYMBOL_TYPE_VOID; break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsuported function declaration AST type '%d'\n", node->data.function_declaration.function_type->data.type.type);
           exit(1);          
       }
-      
-      function_symbol->param_count = 0;
-      function_symbol->defined = node->data.function_declaration.body_block != NULL;
-      function_symbol->global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
 
-      DeclarationSymbol *new_symbol = malloc(sizeof(DeclarationSymbol));
-      new_symbol->symbol_type = DECLARATION_SYMBOL_FUNCTION;
-      new_symbol->data.function_symbol = function_symbol;
+      int param_count = 0;
+      bool is_defined = node->data.function_declaration.body_block != NULL;
+      bool is_global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
 
-      HashValue *new_value = malloc(sizeof(HashValue));
-      new_value->type = HASH_STRUCT;
-      new_value->structure = new_symbol;
-
-      HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
-      new_entry->key = node->data.function_declaration.name;
-      new_entry->value = new_value;
-
-      hash_table_add_entry(symbols, new_entry);
+      DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.function_declaration.name, declaration_value_type, param_count, is_global, is_defined);
         
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *parameter_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
@@ -116,12 +133,12 @@ static void function_and_variable_type_check(AstNode *node, HashTable *symbols, 
           continue;
         }
 
-        function_symbol->param_count++;
-        add_function_parameter_to_symbol_table(parameter_type, &node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, symbols);
+        function_declaration_symbol->data.function_symbol->param_count++;
+        add_function_parameter_to_symbol_table(parameter_type, &node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
-        function_and_variable_type_check(node->data.function_declaration.body_block, symbols, node, ast_arena);
+        function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
       }
       break;
     }
@@ -310,14 +327,14 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   hash_table_add_entry(symbols, new_entry);
 }
 
-static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, HashTable *symbols, char *function_name) {
+static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name) {
   if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
     if (variable_declaration_node->data.variable_declaration.has_expression) {
       fprintf(stderr, "ERROR - SA Type Check: Initializer on local extern variable declaration '%s'\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
     
-    HashTableEntry *entry = hash_table_get_entry(symbols, variable_declaration_node->data.variable_declaration.name);
+    HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.variable_declaration.name);
 
     if (entry != NULL && entry->key != NULL) {
       DeclarationSymbol *existing_variable_symbol = entry->value->structure;
@@ -651,34 +668,39 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
   return casted_expression;
 }
 
-static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, HashTable *symbols) {
+static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table) {
   if (parameter_type->data.type.type != AST_TYPE_FUNCTION) {
     return;
   }
 
-  //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
-  DeclarationSymbol *symbol = malloc(sizeof(DeclarationSymbol));
-  symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-
-  VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
-  variable_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT;
-  variable_symbol->is_automatic_storage_duration = true;
-
-  symbol->data.variable_symbol = variable_symbol;
-
-  HashTableEntry *entry = malloc(IDENTIFIER_BUFFER);
-
   char *symbol_key = malloc(IDENTIFIER_BUFFER); 
   snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name, parameter_identifier);
-  entry->key = symbol_key;
+  //TODO: Should include Long type
+  add_automatic_variable_declaration_symbol(declaration_table, DECLARATION_SYMBOL_TYPE_INT, symbol_key);
 
-  HashValue *value = malloc(sizeof(HashValue));
-  value->type = HASH_STRUCT;
-  value->structure = symbol;
+  // //This pass happens after variable resolution, so no need to check to see if the variable is duplicated in the hash table
+  // DeclarationSymbol *symbol = malloc(sizeof(DeclarationSymbol));
+  // symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
-  entry->value = value;
+  // VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+  // variable_symbol->value_type = DECLARATION_SYMBOL_TYPE_INT;
+  // variable_symbol->is_automatic_storage_duration = true;
 
-  hash_table_add_entry(symbols, entry); 
+  // symbol->data.variable_symbol = variable_symbol;
+
+  // HashTableEntry *entry = malloc(IDENTIFIER_BUFFER);
+
+  // char *symbol_key = malloc(IDENTIFIER_BUFFER); 
+  // snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name, parameter_identifier);
+  // entry->key = symbol_key;
+
+  // HashValue *value = malloc(sizeof(HashValue));
+  // value->type = HASH_STRUCT;
+  // value->structure = symbol;
+
+  // entry->value = value;
+
+  // hash_table_add_entry(symbols, entry); 
 }
 
 static void assign_variable_symbol_value_type(VariableSymbol *variable_symbol, AstNode *variable_declaration_node) {

@@ -12,7 +12,6 @@ void arena_init(Arena *arena, int base_size, int capacity, bool allow_expand) {
 }
 
 void* arena_alloc(Arena *arena) {
-  //TODO: Check to see if we ever want to expand the arena
   if (arena->offset + arena->base_size > arena->capacity) {
     if (!arena->allow_expand) {
       fprintf(stderr, "Ran out of memory in arena");
