@@ -295,30 +295,8 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         exit(1);
       }
     } else {
-      DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
-      variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-
-      VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
-      symbol->is_automatic_storage_duration = false;
-
-      assign_variable_symbol_value_type(symbol, variable_declaration_node);
-
-      variable_symbol->data.variable_symbol = symbol;
-
-      symbol->static_is_global = true;
-      symbol->static_initial_type = INITIAL_VALUE_NO_INITIALIZER;
-
-      HashValue *new_value = malloc(sizeof(HashValue));
-      new_value->type = HASH_STRUCT;
-      new_value->structure = variable_symbol;
-
-      HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
-      new_entry->key = variable_declaration_node->data.variable_declaration.name;
-      new_entry->value = new_value;
-
-      hash_table_add_entry(declaration_table->symbol_table, new_entry);
-
       DeclarationSymbolValueType declaration_symbol_value_type = convert_ast_declaration_type_to_symbol_type(variable_declaration_node);
+      add_static_extern_variable_declaration_symbol(declaration_table, declaration_symbol_value_type, variable_declaration_node->data.variable_declaration.name); 
     }
     
     return;
@@ -367,52 +345,15 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       exit(1);
     }
 
-    DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
-    variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
+   DeclarationSymbolValueType value_type = convert_ast_declaration_type_to_symbol_type(variable_declaration_node);
 
-    VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
-    symbol->is_automatic_storage_duration = false;
-
-    assign_variable_symbol_value_type(symbol, variable_declaration_node);
-
-    variable_symbol->data.variable_symbol = symbol;
-
-    symbol->static_is_global = false;
-    symbol->static_initial_type = INITIAL_VALUE_INITIALIZED;
-    symbol->static_initial_value = initial_value;
-
-    HashValue *new_value = malloc(sizeof(HashValue));
-    new_value->type = HASH_STRUCT;
-    new_value->structure = variable_symbol;
-
-    HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
-    new_entry->key = variable_declaration_node->data.variable_declaration.name;
-    new_entry->value = new_value;
-
-    hash_table_add_entry(declaration_table->symbol_table, new_entry);
+    add_static_variable_declaration_symbol(declaration_table, value_type, initial_value, variable_declaration_node->data.variable_declaration.name, false, INITIAL_VALUE_INITIALIZED);
     
     return;
   }   
-  
-  DeclarationSymbol *variable_symbol = malloc(sizeof(DeclarationSymbol));
-  variable_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
 
-  VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
-  symbol->is_automatic_storage_duration = true;
-
-  assign_variable_symbol_value_type(symbol, variable_declaration_node);
-
-  variable_symbol->data.variable_symbol = symbol;
-
-  HashValue *new_value = malloc(sizeof(HashValue));
-  new_value->type = HASH_STRUCT;
-  new_value->structure = variable_symbol;
-
-  HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
-  new_entry->key = variable_declaration_node->data.variable_declaration.name;
-  new_entry->value = new_value;
-
-  hash_table_add_entry(declaration_table->symbol_table, new_entry);
+  DeclarationSymbolValueType value_type = convert_ast_declaration_type_to_symbol_type(variable_declaration_node);
+  add_automatic_variable_declaration_symbol(declaration_table, value_type, variable_declaration_node->data.variable_declaration.name);
 
   return;
 } 

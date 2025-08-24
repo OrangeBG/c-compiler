@@ -89,3 +89,27 @@ void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_
 
   hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
 }
+
+void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key) {
+
+  VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
+  variable_symbol->is_automatic_storage_duration = false;
+  variable_symbol->value_type = value_type;
+
+  DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);;
+  declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
+  declaration_symbol->data.variable_symbol = variable_symbol;
+
+  variable_symbol->static_is_global = true;
+  variable_symbol->static_initial_type = INITIAL_VALUE_NO_INITIALIZER;
+
+  HashValue *new_value = malloc(sizeof(HashValue));
+  new_value->type = HASH_STRUCT;
+  new_value->structure = declaration_symbol;
+
+  HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+  new_entry->key = symbol_key;
+  new_entry->value = new_value;
+
+  hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
+}   
