@@ -91,7 +91,6 @@ void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_
 }
 
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key) {
-
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;

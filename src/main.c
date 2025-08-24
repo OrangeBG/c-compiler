@@ -86,7 +86,7 @@ int main(int argc, const char *argv[]) {
   }
 
   benchmarks[3] = clock();
-  IRNode *ir = generate_intermediate_rep(program_node, declaration_symbol_table.symbol_table);
+  IRNode *ir = generate_intermediate_rep(program_node, &declaration_symbol_table);
   benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
   
   if (print_debug) {

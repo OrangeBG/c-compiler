@@ -345,8 +345,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       exit(1);
     }
 
-   DeclarationSymbolValueType value_type = convert_ast_declaration_type_to_symbol_type(variable_declaration_node);
-
+    DeclarationSymbolValueType value_type = convert_ast_declaration_type_to_symbol_type(variable_declaration_node);
     add_static_variable_declaration_symbol(declaration_table, value_type, initial_value, variable_declaration_node->data.variable_declaration.name, false, INITIAL_VALUE_INITIALIZED);
     
     return;
