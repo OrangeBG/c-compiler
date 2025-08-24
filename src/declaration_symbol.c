@@ -47,21 +47,20 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
 }
 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key) {  
-  DeclarationSymbol *symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
-  symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->value_type = value_type;
   variable_symbol->is_automatic_storage_duration = true;
 
-  symbol->data.variable_symbol = variable_symbol;
+  DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
+  declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
+  declaration_symbol->data.variable_symbol = variable_symbol;
 
   HashTableEntry *entry = malloc(sizeof(HashTableEntry));
   entry->key = symbol_key;
 
   HashValue *value = malloc(sizeof(HashValue));
   value->type = HASH_STRUCT;
-  value->structure = symbol;
+  value->structure = declaration_symbol;
 
   entry->value = value;
 
@@ -82,7 +81,7 @@ void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
-  new_value->structure = variable_symbol;
+  new_value->structure = declaration_symbol;
 
   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
   new_entry->key = symbol_key;
