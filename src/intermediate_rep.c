@@ -4,7 +4,6 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
-// #include "parser.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -253,7 +252,7 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
   }
 
   DeclarationSymbol *symbol = found_declaration_entry->value->structure;
-  function->data.function.is_global = symbol->data.function_symbol->global;
+  function->data.function.is_global = symbol->data.function_symbol->is_global;
 
   Arena postfix_arena;
   //@WARNING: Hardcoded postfix arena size

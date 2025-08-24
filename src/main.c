@@ -72,10 +72,10 @@ int main(int argc, const char *argv[]) {
   AstNode *program_node = arena_get_by_index(ast_arena, 0);
   sa_variable_resolution(program_node);
 
-  HashTable *declaration_symbols = malloc(sizeof(HashTable));
-  hash_table_init(declaration_symbols);
+  DeclarationSymbolTable declaration_symbol_table;
+  declaration_symbol_table_init(&declaration_symbol_table);
   
-  sa_type_check(program_node, declaration_symbols, ast_arena);
+  sa_type_check(program_node, &declaration_symbol_table, ast_arena);
   sa_loop_labeling(program_node);
   benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
@@ -86,7 +86,7 @@ int main(int argc, const char *argv[]) {
   }
 
   benchmarks[3] = clock();
-  IRNode *ir = generate_intermediate_rep(program_node, declaration_symbols);
+  IRNode *ir = generate_intermediate_rep(program_node, declaration_symbol_table.symbol_table);
   benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
   
   if (print_debug) {
@@ -98,7 +98,7 @@ int main(int argc, const char *argv[]) {
   arena_free(ast_arena);
 
   benchmarks[4] = clock();
-  AsmNode *asm_nodes = generate_assembly(ir, declaration_symbols);
+  AsmNode *asm_nodes = generate_assembly(ir, declaration_symbol_table.symbol_table);
   benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
