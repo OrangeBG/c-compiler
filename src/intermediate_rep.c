@@ -675,6 +675,19 @@ IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStat
 
   char *temp_destination = ir_create_temp_register(emit_status);
 
+  DeclarationSymbolValueType declaration_symbol_value_type;
+
+  switch (expression_type) {
+    case IR_TYPE_INT:  declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_INT; break;
+    case IR_TYPE_LONG: declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
+    default: {
+      fprintf(stderr, "ERROR - IR: Unsupported IR Type '%d' when attempting to convert casted value to Declaration Symbol Type\n", expression_type);
+      exit(1);
+    }
+  }
+
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, declaration_symbol_value_type, temp_destination);
+
   IRNode *var_destination_node = arena_alloc(node_arena);
   var_destination_node->type = IR_VALUE_VAR;
   var_destination_node->data.value_var.identifier = temp_destination; 

@@ -2,7 +2,6 @@
 #define INTERMEDIATE_REP
 
 #include "declaration_symbol.h"
-#include "hash_table.h"
 #include "parser.h"
 
 typedef struct IRNode IRNode;
