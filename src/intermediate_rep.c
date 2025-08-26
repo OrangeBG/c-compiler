@@ -59,6 +59,7 @@ IRNode* ir_create_variable(char *identifier, Arena *node_arena);
 void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
 static IRType  get_node_type(IRNode *node); 
+static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
@@ -511,6 +512,8 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
   destination->data.value_var.identifier = destination_name;
 
   if (binary_node->data.binary_expression.op_type == AST_BINARY_AND || binary_node->data.binary_expression.op_type == AST_BINARY_OR) {
+    add_automatic_variable_declaration_symbol(declaration_symbol_table, DECLARATION_SYMBOL_TYPE_INT, destination_name);    
+
     char *label_name = ir_create_temp_label(emit_status);
 
     IRNode *jmp_instruction_v1 = arena_alloc(node_arena);
@@ -554,6 +557,9 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
 
     return destination;
   }
+
+  DeclarationSymbolValueType declaration_value_type = convert_ast_type_to_symbol_type(binary_node->data.binary_expression.expression_type);
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, declaration_value_type, destination_name);
 
   IRBinaryOpType binary_op_type;
 
@@ -938,6 +944,17 @@ static IRType get_node_type(IRNode *node) {
     case IR_VALUE_STATIC_VAR: return node->data.static_variable.type; break;
     default:
       fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type", node->type);
+      exit(1);
+  }
+}
+
+static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node) {
+  switch (type_node->data.type.type) {
+    case AST_TYPE_INT:    return DECLARATION_SYMBOL_TYPE_INT; break;
+    case AST_TYPE_LONG:   return DECLARATION_SYMBOL_TYPE_LONG; break;
+    case AST_TYPE_VOID:   return DECLARATION_SYMBOL_TYPE_VOID; break;
+    default:
+      fprintf(stderr, "ERROR - Intermediate Rep: Unsupported AST Declaration Type '%d' when attempting to convert to Declaration Symbol Value Type", type_node->data.variable_declaration.type->data.type.type);
       exit(1);
   }
 }

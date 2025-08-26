@@ -5,5 +5,8 @@ int test_4 = 4;
 int main(void) {
     static int a = 100;
     int b = 200L;
+
+    int c = 3 + 4;
+
 	return a;
 }

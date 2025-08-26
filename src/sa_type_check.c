@@ -443,6 +443,12 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       node->data.binary_expression.left_expression = implicit_expression_type_cast(node->data.binary_expression.left_expression, left_expression_type, common_real_type, ast_arena);
       node->data.binary_expression.right_expression = implicit_expression_type_cast(node->data.binary_expression.right_expression, right_expression_type, common_real_type, ast_arena);
       
+      AstNode *ast_expression_type_node = arena_alloc(ast_arena);
+      ast_expression_type_node->type = AST_TYPE;
+      ast_expression_type_node->data.type.type = common_real_type;
+
+      node->data.binary_expression.expression_type = ast_expression_type_node;
+      
       switch (node->data.binary_expression.op_type) {
         case AST_BINARY_ADD:
         case AST_BINARY_SUBTRACT:
