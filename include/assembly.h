@@ -3,6 +3,7 @@
 
 #include "../include/intermediate_rep.h"
 #include "../include/hash_table.h"
+#include "../include/declaration_symbol.h"
 
 typedef struct AsmNode AsmNode;
 
@@ -57,7 +58,8 @@ typedef enum {
   ASM_REGISTER_R8,
   ASM_REGISTER_R9,
   ASM_REGISTER_R10,
-  ASM_REGISTER_R11
+  ASM_REGISTER_R11,
+  ASM_REGISTER_SP
 } AsmRegisterType;
 
 typedef enum {
@@ -68,6 +70,11 @@ typedef enum {
   ASM_CONDITION_LESS,
   ASM_CONDITION_LESS_EQUAL
 } AsmConditionCode;
+
+typedef enum {
+  ASM_TYPE_LONGWORD,
+  ASM_TYPE_QUADWORD
+} AsmType;
 
 typedef struct {
   int capacity;
@@ -80,12 +87,14 @@ typedef struct AsmNode {
   union {
     struct AsmProgram { AsmNodePointers *top_level_pointers; int top_level_count; } program;
     struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
-    struct AsmStaticVariable { char *identifier; bool is_global; int initial_value; } static_variable;
-    struct AsmInstructionMov { AsmNode *source; AsmNode *destination; } instruction_mov;
-    struct AsmInstructionUnary { AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
-    struct AsmInstructionBinary { AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
-    struct AsmInstructionIdiv { AsmNode *operand; } instruction_idiv;
-    struct AsmInstructionCmp { AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
+    struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol static_variable_symbol; } static_variable;
+    struct AsmInstructionMov { AsmType assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
+    struct AsmInstructionMovsx { AsmNode *source; AsmNode *destination; } instruction_movsx;
+    struct AsmInstructionUnary { AsmType assembly_type; AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
+    struct AsmInstructionBinary { AsmType assembly_type; AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
+    struct AsmInstructionIdiv { AsmType assembly_type; AsmNode *operand; } instruction_idiv;
+    struct AsmInstructionCmp { AsmType assembly_type; AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
+    struct AsmInstructionCdq { AsmType assembly_type; } instruction_cdq;
     struct AsmInstructionJmp { char *identifier; } instruction_jmp;
     struct AsmInstructionJmpCC { AsmConditionCode condition_code; char *identifier; } instruction_jmp_cc;
     struct AsmInstructionSetCC { AsmConditionCode condition_code; AsmNode *operand; } instruction_set_cc;
