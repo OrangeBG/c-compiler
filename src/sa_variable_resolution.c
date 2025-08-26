@@ -79,7 +79,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
       if (declaration_stack->count == 1) {
         //Don't process variable resolution for existing table entries for file scoped variables
-        if (existing_variable == NULL) {
+        if (existing_variable == NULL || existing_variable->key == NULL) {
           resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
         }
       } else {

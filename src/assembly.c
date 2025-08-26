@@ -4,7 +4,7 @@
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
-#include "../include/sa_type_check.h"
+#include "../include/declaration_symbol.h"
 
 #define NODE_POINTER_CAPACITY 8
 
@@ -352,7 +352,7 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
   HashTableEntry *existing_declaration_symbol = hash_table_get_entry(declaration_symbols, pseudo_register->data.operand_pseudo_register.identifier);
 
   if (existing_declaration_symbol != NULL && existing_declaration_symbol->key != NULL) {    
-    TypeCheckSymbol *symbol = existing_declaration_symbol->value->structure;    
+    DeclarationSymbol *symbol = existing_declaration_symbol->value->structure;    
 
     if (symbol->data.variable_symbol->is_automatic_storage_duration) {
       goto process_pseudo_register;
@@ -459,7 +459,8 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) 
 void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable) {
   asm_static_variable->type = ASM_STATIC_VARIABLE;
   asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
-  asm_static_variable->data.static_variable.initial_value = ir_static_variable->data.static_variable.initial_value;
+  //TODO: Need to support long
+  asm_static_variable->data.static_variable.initial_value = ir_static_variable->data.static_variable.initial_value.int_value;
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 }
 
@@ -871,7 +872,8 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
       asm_operand->type = ASM_OPERAND_IMM;
-      asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value;
+      //TODO: Need to support long
+      asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value;
       break;
     case IR_VALUE_VAR:
       asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
