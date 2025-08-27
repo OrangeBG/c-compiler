@@ -99,15 +99,13 @@ typedef struct AsmNode {
     struct AsmInstructionJmpCC { AsmConditionCode condition_code; char *identifier; } instruction_jmp_cc;
     struct AsmInstructionSetCC { AsmConditionCode condition_code; AsmNode *operand; } instruction_set_cc;
     struct AsmInstructionLabel { char *identifier; } instruction_label;
-    struct AsmInstructionAllocateStack { int bytes_to_subtract; } instruction_allocate_stack;
+    struct AsmInstructionPush { AsmNode *operand; } instruction_push;
+    struct AsmInstructionCall { char *identifier; } instruction_call;
     struct AsmOperandImmediate { int value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;
     struct AsmOperandStack { int address; } operand_stack;
     struct AsmOperandData { char *identifier; } operand_data;
-    struct AsmDeallocateStack { int address; } deallocate_stack;
-    struct AsmPush { AsmNode *operand; } push;
-    struct AsmCall { char *identifier; } call;
   } data;
 } AsmNode;
 

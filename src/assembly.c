@@ -81,7 +81,13 @@ AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {
     //Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls.
     stack_offset = ((stack_offset + 15) / 16) * 16;
 
-    top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+    // top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_allocate_stack.bytes_to_subtract = stack_offset;
+    //TODO: Incomplete
+    AsmNode *allocated_rsp = arena_alloc(asm_arena);
+    allocated_rsp->type = ASM_INSTRUCTION_BINARY;
+    allocated_rsp->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
+    allocated_rsp->data.instruction_binary.binary_op = ASM_BINARY_ADD;
+    
 
     AsmNode *new_function = asm_resolve_instructions(top_level_node, asm_arena);
 
