@@ -12,10 +12,10 @@ typedef enum {
   ASM_FUNCTION,
   ASM_STATIC_VARIABLE,
   ASM_INSTRUCTION_MOV,
+  ASM_INSTRUCTION_MOVSX,
   ASM_INSTRUCTION_RET,
   ASM_INSTRUCTION_UNARY,
   ASM_INSTRUCTION_BINARY,
-  ASM_INSTRUCTION_ALLOCATE_STACK,
   ASM_INSTRUCTION_IDIV,
   ASM_INSTRUCTION_CDQ,
   ASM_INSTRUCTION_CMP,
@@ -23,7 +23,6 @@ typedef enum {
   ASM_INSTRUCTION_JMPCC,
   ASM_INSTRUCTION_SETCC,
   ASM_INSTRUCTION_LABEL,
-  ASM_INSTRUCTION_DEALLOCATE_STACK,
   ASM_INSTRUCTION_PUSH,
   ASM_INSTRUCTION_CALL,
   ASM_OPERAND_IMM,
@@ -87,7 +86,7 @@ typedef struct AsmNode {
   union {
     struct AsmProgram { AsmNodePointers *top_level_pointers; int top_level_count; } program;
     struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
-    struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol static_variable_symbol; } static_variable;
+    struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol *static_variable_symbol; } static_variable;
     struct AsmInstructionMov { AsmType assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionMovsx { AsmNode *source; AsmNode *destination; } instruction_movsx;
     struct AsmInstructionUnary { AsmType assembly_type; AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;

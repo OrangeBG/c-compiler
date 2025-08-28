@@ -42,11 +42,12 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
       }
 
-      if (asm_node->data.static_variable.initial_value == 0) {        
-        fprintf(file, "\t.bss\n");
-      } else {
-        fprintf(file, "\t.data\n");
-      }
+      //TODO: Need to rework
+      // if (asm_node->data.static_variable.initial_value == 0) {        
+      //   fprintf(file, "\t.bss\n");
+      // } else {
+      //   fprintf(file, "\t.data\n");
+      // }
 
       #ifdef __linux__
         fprintf(file, "\t.align 4\n");
@@ -56,11 +57,12 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.balign 4\n");
       #endif 
 
-      if (asm_node->data.static_variable.initial_value == 0) {        
-        fprintf(file, "\t.zero 4\n");
-      } else {
-        fprintf(file, "\t.long %d\n", asm_node->data.static_variable.initial_value);
-      }
+      //TODO: Need to rework
+      // if (asm_node->data.static_variable.initial_value == 0) {        
+      //   fprintf(file, "\t.zero 4\n");
+      // } else {
+      //   fprintf(file, "\t.long %d\n", asm_node->data.static_variable.initial_value);
+      // }
       break;
     case ASM_INSTRUCTION_MOV:
       fprintf(file, "\tmovl\t");
@@ -155,20 +157,17 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tpopq\t%%rbp\n");
       fprintf(file, "\tret\n");
       break;
-    case ASM_INSTRUCTION_ALLOCATE_STACK:
-      fprintf(file, "\tsubq\t$%d, %%rsp\n", asm_node->data.instruction_allocate_stack.bytes_to_subtract);
-      break;
     case ASM_INSTRUCTION_CALL:
-      fprintf(file, "\tcall\t%s\n", asm_node->data.call.identifier);
+      fprintf(file, "\tcall\t%s\n", asm_node->data.instruction_call.identifier);
       break;
     case ASM_INSTRUCTION_PUSH:
       fprintf(file, "\tpush\t"); 
 
-      if (asm_node->data.push.operand->type == ASM_OPERAND_REGISTER) {
-        char *operand_register = get_8_byte_register(asm_node->data.push.operand->data.operand_register.op_register);
+      if (asm_node->data.instruction_push.operand->type == ASM_OPERAND_REGISTER) {
+        char *operand_register = get_8_byte_register(asm_node->data.instruction_push.operand->data.operand_register.op_register);
         fprintf(file, "%s", operand_register);
       } else {
-        save_assembly_file(asm_node->data.push.operand, file);
+        save_assembly_file(asm_node->data.instruction_push.operand, file);
       }
       fprintf(file, "\n");
       break;

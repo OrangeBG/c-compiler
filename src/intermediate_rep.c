@@ -208,9 +208,9 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_STATIC_VAR:
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
-      switch (ir_node->data.static_variable.type) {
-        case IR_TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.initial_value.int_value); break;
-        case IR_TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.initial_value.long_value); break;
+      switch (ir_node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
+        case DECLARATION_SYMBOL_TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
       }
 
       printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
@@ -796,20 +796,7 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
     static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
-
-    if (declaration_symbol->data.variable_symbol->value_type == DECLARATION_SYMBOL_TYPE_INT) {
-      if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
-        static_node->data.static_variable.initial_value.int_value = 0;
-      } else {
-        static_node->data.static_variable.initial_value.int_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
-      }
-    } else {
-      if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
-        static_node->data.static_variable.initial_value.long_value = 0;
-      } else {
-        static_node->data.static_variable.initial_value.long_value = declaration_symbol->data.variable_symbol->static_initial_value.long_value;
-      }
-    } 
+    static_node->data.static_variable.static_variable_symbol = declaration_symbol->data.variable_symbol;
 
     ir_add_top_level_declaration_to_program(ir_program, static_node);    
   }
@@ -941,7 +928,12 @@ void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
 static IRType get_node_type(IRNode *node) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
-    case IR_VALUE_STATIC_VAR: return node->data.static_variable.type; break;
+    case IR_VALUE_STATIC_VAR: {
+      switch (node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
+      }
+    }
     default:
       fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type", node->type);
       exit(1);
