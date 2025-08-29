@@ -449,7 +449,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           asm_instruction_label(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
           break;
         case IR_INSTRUCTION_FUNCTION_CALL:
-          asm_instruction_function_call(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_function_call(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_SIGN_EXTEND:
           asm_instruction_sign_extend(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
