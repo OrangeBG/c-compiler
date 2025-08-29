@@ -30,7 +30,7 @@ void     asm_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Ar
 void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
 void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena); 
 void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena); 
-void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena);
+void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
 void     asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena); 
@@ -443,7 +443,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           asm_instruction_jump_if_not_zero(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
           break;
         case IR_INSTRUCTION_COPY:
-          asm_instruction_copy(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_copy(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_LABEL:
           asm_instruction_label(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
@@ -498,14 +498,17 @@ void asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, 
   asm_add_instruction_to_function(asm_function, label);
 }
 
-void asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena) {
+void asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source = asm_operand(ir_copy_instruction->data.instruction_copy.source, asm_arena);
   AsmNode *destination = asm_operand(ir_copy_instruction->data.instruction_copy.destination, asm_arena);
+
+  AsmType source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, declaration_symbol_table);
 
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = source;
   mov_instruction->data.instruction_mov.destination = destination;
+  mov_instruction->data.instruction_mov.assembly_type = source_type;
 
   asm_add_instruction_to_function(asm_function, mov_instruction);
 }
