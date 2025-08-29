@@ -428,9 +428,9 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           case IR_BINARY_LESS_THAN:
           case IR_BINARY_LESS_OR_EQUAL:
             asm_instruction_binary_relational(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
-            break;
-          default:
-            asm_instruction_binary_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
+          case IR_BINARY_DIVIDE:
+          case IR_BINARY_REMAINDER:
+            asm_instruction_binary_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table);            
             break;
         }
           break;
@@ -751,6 +751,7 @@ void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_bin
   if (ir_binary_instruction->data.instruction_binary.op_type == IR_BINARY_DIVIDE) {
     mov_destination_2->data.operand_register.op_register = ASM_REGISTER_AX;
   } else {
+    //IR_BINARY_REMAINDER
     mov_destination_2->data.operand_register.op_register = ASM_REGISTER_DX;
   }
 
