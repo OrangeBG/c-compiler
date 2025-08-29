@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
+#include "assembly.h"
 
 char* get_8_byte_register(AsmRegisterType register_type); 
 char* get_4_byte_register(AsmRegisterType register_type); 
@@ -223,6 +224,7 @@ char* get_4_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R9:  return "%r9d";
     case ASM_REGISTER_R10: return "%r10d";
     case ASM_REGISTER_R11: return "%r11d";
+    case ASM_REGISTER_SP:  return "%rsp";
   }
 }
 
