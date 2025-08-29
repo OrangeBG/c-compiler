@@ -98,7 +98,7 @@ int main(int argc, const char *argv[]) {
   arena_free(ast_arena);
 
   benchmarks[4] = clock();
-  AsmNode *asm_nodes = generate_assembly(ir, declaration_symbol_table.symbol_table);
+  AsmNode *asm_nodes = generate_assembly(ir, &declaration_symbol_table);
   benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
 
   if (print_debug) {

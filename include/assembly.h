@@ -108,7 +108,7 @@ typedef struct AsmNode {
   } data;
 } AsmNode;
 
-AsmNode *generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols);
+AsmNode *generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table);
 void print_assembly(AsmNode *asm_node);
 
 #endif

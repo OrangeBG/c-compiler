@@ -8,7 +8,7 @@
 
 #define NODE_POINTER_CAPACITY 8
 
-void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena); 
+void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
 AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena); 
 AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena);
@@ -21,7 +21,7 @@ void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *ins
 void     asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena);
-void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena); 
+void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena); 
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena); 
 void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena); 
@@ -38,8 +38,9 @@ void     asm_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_ins
 void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
+static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 
-AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {  
+AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
@@ -57,7 +58,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {
     asm_add_to_node_pointer(top_level_declaration, node_pointer);
     
     if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
-      asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, asm_arena);
+      asm_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, asm_arena, declaration_symbol_table);
     } else {
       asm_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
    }
@@ -73,7 +74,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, HashTable *declaration_symbols) {
     }
     
     int stack_offset = 0;
-    asm_pseudo_register_pass(top_level_node, declaration_symbols, &stack_offset);
+    asm_pseudo_register_pass(top_level_node, declaration_symbol_table->symbol_table, &stack_offset);
 
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
       fprintf(stderr, "ERROR - Assembler: First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
@@ -382,7 +383,7 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
       pseudo_register->data.operand_stack.address = *stack_offset;
 }
 
-void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena) {
+void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   asm_function->type = ASM_FUNCTION;
   asm_function->data.function.name = ir_function->data.function.identifier;
   asm_function->data.function.is_global = ir_function->data.function.is_global;
@@ -734,9 +735,12 @@ void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_bin
   asm_add_instruction_to_function(asm_function, mov_instruction_2);
 }
  
-void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena) {
+void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source_node = asm_operand(ir_unary_instruction->data.unary.source, asm_arena);
   AsmNode *destination_node = asm_operand(ir_unary_instruction->data.unary.destination, asm_arena);
+
+  AsmType source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.unary.source, declaration_symbol_table);
+  AsmType destination_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.unary.destination, declaration_symbol_table);
 
   AsmNode *mov_node = arena_alloc(asm_arena);
 
@@ -746,18 +750,18 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, 
 
   asm_add_instruction_to_function(asm_function, mov_node);
   
-  AsmNode *ret_node = arena_alloc(asm_arena);
-  ret_node->type = ASM_INSTRUCTION_UNARY;
+  AsmNode *unary_instruction = arena_alloc(asm_arena);
+  unary_instruction->type = ASM_INSTRUCTION_UNARY;
 
   if (ir_unary_instruction->data.unary.op_type == IR_UNARY_NEGATE) {
-    ret_node->data.instruction_unary.unary_op = ASM_UNARY_NEG;
+    unary_instruction->data.instruction_unary.unary_op = ASM_UNARY_NEG;
   } else {
-    ret_node->data.instruction_unary.unary_op = ASM_UNARY_NOT;
+    unary_instruction->data.instruction_unary.unary_op = ASM_UNARY_NOT;
   }
   
-  ret_node->data.instruction_unary.operand = destination_node;
+  unary_instruction->data.instruction_unary.operand = destination_node;
 
-  asm_add_instruction_to_function(asm_function, ret_node);
+  asm_add_instruction_to_function(asm_function, unary_instruction);
 }
 
 void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena) {
@@ -1097,4 +1101,32 @@ void asm_init_node_pointer(AsmNodePointers *asm_node_pointer) {
   asm_node_pointer->capacity = 0;
   asm_node_pointer->count = 0;
   asm_node_pointer->asm_pointers = NULL;
+}
+
+static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+  switch (ir_node->type) {
+    case IR_VALUE_CONSTANT:
+        switch (ir_node->data.value_constant.type) {
+          case IR_TYPE_INT: return ASM_TYPE_LONGWORD;
+          case IR_TYPE_LONG: return ASM_TYPE_QUADWORD;
+        }
+      break;
+    case IR_VALUE_VAR: {
+      //TODO: Add some error checking
+      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
+      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+
+      switch (declaration_symbol->data.variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:  return ASM_TYPE_LONGWORD;
+        case DECLARATION_SYMBOL_TYPE_LONG: return ASM_TYPE_QUADWORD;
+      }
+
+      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
+      exit(1);
+      break;
+    }
+    default:
+      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
+      exit(1);
+  }
 }
