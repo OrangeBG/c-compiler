@@ -32,7 +32,7 @@ void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_
 void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena); 
 void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena);
 void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
-void     asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena);
+void     asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena); 
 void     asm_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena); 
 void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
@@ -800,7 +800,7 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
   asm_add_instruction_to_function(asm_function, ret_node);
 }
 
-void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena) {
+void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   //As per the System V ABI (Application Binary Interface), the first 6 arguments of a function call will be loaded into the following 'arg_registers' as ordered in the array. After that, any additional arguments will be added to the stack in reverse order to be processed in the order of how they are called.
   AsmRegisterType arg_registers[] = { ASM_REGISTER_DI, ASM_REGISTER_SI, ASM_REGISTER_DX, ASM_REGISTER_CX, ASM_REGISTER_R8, ASM_REGISTER_R9 };
   int arg_count = ir_function_call_instruction->data.instruction_function_call.arg_count;
@@ -896,11 +896,14 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   AsmNode *dest_register = arena_alloc(asm_arena);
   dest_register->type = ASM_OPERAND_REGISTER;
   dest_register->data.operand_register.op_register = ASM_REGISTER_AX;
+
+  AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, declaration_symbol_table);
   
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;  
   mov_instruction->data.instruction_mov.source = dest_register;
   mov_instruction->data.instruction_mov.destination = assembly_destination;
+  mov_instruction->data.instruction_mov.assembly_type = destination_type;
 
   asm_add_instruction_to_function(asm_function, mov_instruction);  
 }
