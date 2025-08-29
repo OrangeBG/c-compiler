@@ -259,6 +259,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
           entry = hash_table_get_entry(declaration_table, previous_stack_identifier);
           
           if (entry != NULL && entry->key != NULL) {
+            identifier = previous_stack_identifier;
             break;
           }
 

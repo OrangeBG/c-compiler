@@ -1,14 +1,9 @@
-int test;
-int test2 = 4;
-int test_4 = 4;
-
 int main(void) {
-    static int a = 100;
-    int b = 200L;
+    int a = 5;
 
-    long c = 3 + 4;
+    {
+        a = 4;
+    }
 
-    -c;
-
-	return a;
+    return a;
 }
