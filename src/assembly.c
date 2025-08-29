@@ -405,7 +405,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
         if (ir_function->data.function.instruction_ptrs->node_pointers[i]->data.unary.op_type == IR_UNARY_NOT) {
           asm_instruction_unary_not(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i],  asm_arena);
         } else {
-          asm_instruction_unary(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i],  asm_arena);
+          asm_instruction_unary(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
         }
         break;
       case IR_INSTRUCTION_BINARY:        
@@ -740,18 +740,19 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, 
   AsmNode *destination_node = asm_operand(ir_unary_instruction->data.unary.destination, asm_arena);
 
   AsmType source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.unary.source, declaration_symbol_table);
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.unary.destination, declaration_symbol_table);
 
   AsmNode *mov_node = arena_alloc(asm_arena);
 
   mov_node->type = ASM_INSTRUCTION_MOV;
   mov_node->data.instruction_mov.source = source_node;
   mov_node->data.instruction_mov.destination = destination_node;
+  mov_node->data.instruction_mov.assembly_type = source_type;
 
   asm_add_instruction_to_function(asm_function, mov_node);
   
   AsmNode *unary_instruction = arena_alloc(asm_arena);
   unary_instruction->type = ASM_INSTRUCTION_UNARY;
+  unary_instruction->data.instruction_unary.assembly_type = source_type;
 
   if (ir_unary_instruction->data.unary.op_type == IR_UNARY_NEGATE) {
     unary_instruction->data.instruction_unary.unary_op = ASM_UNARY_NEG;

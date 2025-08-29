@@ -470,7 +470,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       return left_expression_type;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table, node->data.function_call_expression.identfier);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_call_expression.identfier);
       if (entry == NULL && entry->key == NULL) {
         fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table", node->data.function_call_expression.identfier);
         exit(1);
