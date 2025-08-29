@@ -24,7 +24,7 @@ void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruc
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena); 
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena); 
-void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena); 
+void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena); 
 void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
@@ -426,7 +426,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           case IR_BINARY_GREATER_OR_EQUAL:
           case IR_BINARY_LESS_THAN:
           case IR_BINARY_LESS_OR_EQUAL:
-            asm_instruction_binary_relational(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+            asm_instruction_binary_relational(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
             break;
           default:
             asm_instruction_binary_division(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
@@ -643,15 +643,19 @@ void asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instr
   asm_add_instruction_to_function(asm_function, set_cc_instruction);
 }
 
-void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena) {
+void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source_1 = asm_operand(ir_relational_instruction->data.instruction_binary.source_1, asm_arena);
   AsmNode *source_2 = asm_operand(ir_relational_instruction->data.instruction_binary.source_2, asm_arena);
   AsmNode *destination_node = asm_operand(ir_relational_instruction->data.instruction_binary.destination, asm_arena);
 
+  AsmType source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, declaration_symbol_table);
+  AsmType destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, declaration_symbol_table);
+  
   AsmNode *cmp_instruction = arena_alloc(asm_arena);
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = source_2;
   cmp_instruction->data.instruction_cmp.operand_2 = source_1;
+  cmp_instruction->data.instruction_cmp.assembly_type = source_1_type;
   
   asm_add_instruction_to_function(asm_function, cmp_instruction);
 
@@ -663,6 +667,7 @@ void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relatio
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = imm_operand;
   mov_instruction->data.instruction_mov.destination = destination_node;
+  mov_instruction->data.instruction_mov.assembly_type = destination_type;
 
   asm_add_instruction_to_function(asm_function, mov_instruction);
 
