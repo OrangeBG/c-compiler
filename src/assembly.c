@@ -20,7 +20,7 @@ void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset); 
-void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena);
+void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena); 
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena); 
@@ -399,7 +399,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
     switch (ir_function->data.function.instruction_ptrs->node_pointers[i]->type) {
       case IR_INSTRUCTION_RET:
-        asm_instruction_return(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+        asm_instruction_return(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
         break;
       case IR_INSTRUCTION_UNARY:
         if (ir_function->data.function.instruction_ptrs->node_pointers[i]->data.unary.op_type == IR_UNARY_NOT) {
@@ -779,10 +779,11 @@ void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, 
   asm_add_instruction_to_function(asm_function, unary_instruction);
 }
 
-void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena) {
+void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
     AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value, asm_arena);
+    AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, declaration_symbol_table);
 
     AsmNode *destination_node = arena_alloc(asm_arena);
     destination_node->type = ASM_OPERAND_REGISTER;
@@ -790,9 +791,9 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
 
     AsmNode *mov_node = arena_alloc(asm_arena);
     mov_node->type = ASM_INSTRUCTION_MOV;
-
     mov_node->data.instruction_mov.source = source_node;
     mov_node->data.instruction_mov.destination = destination_node;
+    mov_node->data.instruction_mov.assembly_type = source_type;
 
     asm_add_instruction_to_function(asm_function, mov_node);
   }
