@@ -4,6 +4,7 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
+#include "hash_table.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -58,7 +59,7 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena);
 IRNode* ir_create_variable(char *identifier, Arena *node_arena);
 void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
-static IRType  get_node_type(IRNode *node); 
+static IRType  get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table); 
 static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
@@ -673,7 +674,7 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
 IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table) {
   IRNode *cast_expression = ir_emit_ast_node(cast_node->data.cast_expression.expression, function, emit_status, node_arena, declaration_symbol_table);
-  IRType expression_type = get_node_type(cast_expression); 
+  IRType expression_type = get_node_type(cast_expression, declaration_symbol_table); 
 
   if (cast_node->data.cast_expression.target_type->data.type.type == cast_node->data.cast_expression.expression_type->data.type.type) {
     return cast_expression;
@@ -925,7 +926,7 @@ void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
   ir_node_pointer->node_pointers = NULL;
 }
 
-static IRType get_node_type(IRNode *node) {
+static IRType get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
     case IR_VALUE_STATIC_VAR: {
@@ -933,6 +934,18 @@ static IRType get_node_type(IRNode *node) {
         case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
         case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
       }
+    }
+    case IR_VALUE_VAR: {
+      //TODO: Error check to make sure we actually have a variable symbol.
+      //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
+      HashTableEntry *entry = hash_table_get_entry(declaration_symbol_table->symbol_table, node->data.value_var.identifier);
+      DeclarationSymbol *declaration_symbol = entry->value->structure;
+
+      switch (declaration_symbol->data.variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
+      }
+
     }
     default:
       fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type", node->type);
