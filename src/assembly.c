@@ -23,7 +23,7 @@ void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_loca
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
-void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena); 
+void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena); 
@@ -397,19 +397,20 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
   asm_instruction_allocate_rsp_stack(asm_function, 0, asm_arena);
 
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
-    switch (ir_function->data.function.instruction_ptrs->node_pointers[i]->type) {
+    IRNode *current_ir_node = ir_function->data.function.instruction_ptrs->node_pointers[i];
+    switch (current_ir_node->type) {
       case IR_INSTRUCTION_RET:
-        asm_instruction_return(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+        asm_instruction_return(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
         break;
       case IR_INSTRUCTION_UNARY:
-        if (ir_function->data.function.instruction_ptrs->node_pointers[i]->data.unary.op_type == IR_UNARY_NOT) {
-          asm_instruction_unary_not(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+        if (current_ir_node->data.unary.op_type == IR_UNARY_NOT) {
+          asm_instruction_unary_not(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
         } else {
-          asm_instruction_unary(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+          asm_instruction_unary(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
         }
         break;
       case IR_INSTRUCTION_BINARY:        
-        switch (ir_function->data.function.instruction_ptrs->node_pointers[i]->data.instruction_binary.op_type) {
+        switch (current_ir_node->data.instruction_binary.op_type) {
           case IR_BINARY_ADD:
           case IR_BINARY_SUBTRACT:
           case IR_BINARY_MULTIPLY:
@@ -418,7 +419,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           case IR_BINARY_BITWISE_XOR:
           case IR_BINARY_BITWISE_LEFT_SHIFT:
           case IR_BINARY_BITWISE_RIGHT_SHIFT:
-            asm_instruction_binary(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+            asm_instruction_binary(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
             break;
           case IR_BINARY_EQUAL:
           case IR_BINARY_NOT_EQUAL:
@@ -426,36 +427,36 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           case IR_BINARY_GREATER_OR_EQUAL:
           case IR_BINARY_LESS_THAN:
           case IR_BINARY_LESS_OR_EQUAL:
-            asm_instruction_binary_relational(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+            asm_instruction_binary_relational(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
             break;
           default:
-            asm_instruction_binary_division(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+            asm_instruction_binary_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
             break;
         }
           break;
         case IR_INSTRUCTION_JUMP:
-          asm_instruction_jump(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_jump(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_JUMP_IF_ZERO:
-          asm_instruction_jump_if_zero(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_jump_if_zero(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:
-          asm_instruction_jump_if_not_zero(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_jump_if_not_zero(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_COPY:
-          asm_instruction_copy(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+          asm_instruction_copy(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_LABEL:
-          asm_instruction_label(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_label(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_FUNCTION_CALL:
-          asm_instruction_function_call(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena, declaration_symbol_table);
+          asm_instruction_function_call(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_SIGN_EXTEND:
-          asm_instruction_sign_extend(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_sign_extend(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_TRUNCATE:
-          asm_instruction_truncate(asm_function, ir_function->data.function.instruction_ptrs->node_pointers[i], asm_arena);
+          asm_instruction_truncate(asm_function, current_ir_node, asm_arena);
           break;
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
@@ -565,20 +566,24 @@ void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_
   asm_add_instruction_to_function(asm_function, jmp_instruction);
 }
 
-void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena) {
+void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
   AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
   AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
 
+  AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, declaration_symbol_table);
+  
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = source_1;
   mov_instruction->data.instruction_mov.destination = destination_node;
+  mov_instruction->data.instruction_mov.assembly_type = source_1_type;
 
   AsmNode *binary_instruction = arena_alloc(asm_arena);
   binary_instruction->type = ASM_INSTRUCTION_BINARY;
   binary_instruction->data.instruction_binary.operand_1 = source_2;
   binary_instruction->data.instruction_binary.operand_2 = destination_node;
+  binary_instruction->data.instruction_binary.assembly_type = source_1_type;
 
   switch (ir_binary_instruction->data.instruction_binary.op_type) {
     case IR_BINARY_ADD:
