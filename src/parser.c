@@ -132,7 +132,7 @@ void print_ast(const AstNode *node, int whitespace) {
      
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         print_whitespace(ADD_WHITESPACE);
-        printf("Param( name = %s\n", &node->data.function_declaration.parameter_identifiers[i]);
+        printf("Param( name = %s\n", node->data.function_declaration.parameter_identifiers[i]);
 
         print_ast(&node->data.function_declaration.function_type->data.type.function_param_types[i], ADD_WHITESPACE + 5);
         
@@ -583,10 +583,10 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   parameter_type->data.type.type = parameter_type_specifier;
 
   if (parameter_type_specifier != AST_TYPE_VOID) {
-    add_function_parameter_identifier(get_identifier(parser), parameter_type);
+    char *identifier = get_identifier(parser);
+    add_function_parameter_identifier(identifier, function_node);
   }
   
-  function_node->data.function_declaration.parameter_count++;
   add_function_parameter_type(parameter_type, function_type);
 
   while(current_token(parser)->type == TOKEN_COMMA) {
@@ -599,10 +599,10 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
     next_parameter_type->data.type.type = next_parameter_type_specifier;
 
     if (next_parameter_type_specifier != AST_TYPE_VOID) {
-      add_function_parameter_identifier(get_identifier(parser), next_parameter_type);
+      char *identifier = get_identifier(parser);
+      add_function_parameter_identifier(identifier, function_node);
     }
 
-    function_node->data.function_declaration.parameter_count++;
     add_function_parameter_type(next_parameter_type, function_type);
   }
   
@@ -864,7 +864,7 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
     expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
-  } else if (current_token(parser)->type == TOKEN_INT) {     
+  } else if (current_token(parser)->type == TOKEN_INT) {
     parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, AST_TYPE_INT);
   } else if (current_token(parser)->type == TOKEN_EXTERN) {
     fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'extern' storage class defined\n");
@@ -1369,7 +1369,7 @@ static void add_function_parameter_identifier(char *identifier, AstNode *functio
     function_declaration_node->data.function_declaration.parameter_identifiers = realloc(function_declaration_node->data.function_declaration.parameter_identifiers, size * sizeof(char*));
   }
 
-  function_declaration_node->data.function_declaration.parameter_identifiers[function_declaration_node->data.function_declaration.parameter_count] = *identifier;
+  function_declaration_node->data.function_declaration.parameter_identifiers[function_declaration_node->data.function_declaration.parameter_count] = identifier;
   function_declaration_node->data.function_declaration.parameter_count++;
 }
 

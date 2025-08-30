@@ -7,6 +7,8 @@
 #include "../include/declaration_symbol.h"
 
 #define NODE_POINTER_CAPACITY 8
+#define ALIGNMENT_QUADWORD 8
+#define ALIGNMENT_LONGWORD 4
 
 void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
@@ -470,6 +472,14 @@ void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variabl
   asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
   asm_static_variable->data.static_variable.static_variable_symbol = ir_static_variable->data.static_variable.static_variable_symbol;
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
+
+  switch (ir_static_variable->data.static_variable.static_variable_symbol->value_type) {
+    case DECLARATION_SYMBOL_TYPE_INT:   asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD; break;
+    case DECLARATION_SYMBOL_TYPE_LONG:  asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD; break;
+    default:
+      fprintf(stderr, "ERROR: Assembler - Could not assign alignment value to static variable '%s'", ir_static_variable->data.static_variable.identifier);
+      exit(1);
+  }  
 }
 
 void asm_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena) {
@@ -953,7 +963,12 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
       asm_operand->type = ASM_OPERAND_IMM;
-      asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value;
+
+      switch (ir_operand->data.value_constant.type) {
+        case IR_TYPE_INT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
+        //TODO: Assigning long to int here. Don't think that's right
+        case IR_TYPE_LONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
+      }
       break;
     case IR_VALUE_VAR:
       asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
