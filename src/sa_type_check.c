@@ -105,8 +105,10 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         }
 
         function_declaration_symbol->data.function_symbol->param_count++;
-        add_function_parameter_to_symbol_table(parameter_type, &node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+        add_function_parameter_to_symbol_table(parameter_type, node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
       }
+
+      hash_table_print(declaration_table->symbol_table);
 
       if (node->data.function_declaration.body_block != NULL) {
         function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
@@ -366,6 +368,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.variable_expression.identifier);
 
       if (entry == NULL || entry->key == NULL) {
+        hash_table_print(declaration_table->symbol_table);
         fprintf(stderr, "ERROR - SA Type Check: Expression variable '%s' not found in declaration symbol table\n", node->data.variable_expression.identifier);
         exit(1);
       }
@@ -570,12 +573,13 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
 }
 
 static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table) {
-  if (parameter_type->data.type.type != AST_TYPE_FUNCTION) {
+  if (parameter_type->data.type.type == AST_TYPE_VOID) {
     return;
   }
 
   char *symbol_key = malloc(IDENTIFIER_BUFFER); 
-  snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name, parameter_identifier);
+  snprintf(symbol_key, IDENTIFIER_BUFFER, "%s", parameter_identifier);
+
   //TODO: Should include Long type
   add_automatic_variable_declaration_symbol(declaration_table, DECLARATION_SYMBOL_TYPE_INT, symbol_key);
 }
