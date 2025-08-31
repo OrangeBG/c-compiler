@@ -108,8 +108,6 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         add_function_parameter_to_symbol_table(parameter_type, node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
       }
 
-      hash_table_print(declaration_table->symbol_table);
-
       if (node->data.function_declaration.body_block != NULL) {
         function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
       }
