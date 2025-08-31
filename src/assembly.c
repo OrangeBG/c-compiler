@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
@@ -398,6 +399,49 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
   //Adds the Allocate Stack instruction, but will allocate the stack offset value of the instruction in another pass after building the assembly nodes
   asm_instruction_allocate_rsp_stack(asm_function, 0, asm_arena);
 
+  //Parameter instructions
+  int stack_offset = 16;
+
+  for (int i = 0; i < ir_function->data.function.parameter_count; i++) {    
+    AsmNode *source_operand = arena_alloc(asm_arena);
+
+    if (i == 0) {
+      source_operand->data.operand_register.op_register = ASM_REGISTER_DI;
+      source_operand->type = ASM_OPERAND_REGISTER;
+    } else if (i == 1) {
+      source_operand->data.operand_register.op_register = ASM_REGISTER_SI;
+      source_operand->type = ASM_OPERAND_REGISTER;
+    } else if (i == 2) {
+      source_operand->data.operand_register.op_register = ASM_REGISTER_DX;
+      source_operand->type = ASM_OPERAND_REGISTER;
+    } else if (i == 3) {
+      source_operand->data.operand_register.op_register = ASM_REGISTER_CX;
+      source_operand->type = ASM_OPERAND_REGISTER;
+    } else if (i == 4) {
+      source_operand->data.operand_register.op_register = ASM_REGISTER_R8;
+      source_operand->type = ASM_OPERAND_REGISTER;
+    } else if (i == 5) {
+      source_operand->data.operand_register.op_register = ASM_REGISTER_R9;
+      source_operand->type = ASM_OPERAND_REGISTER;
+    } else {
+      source_operand->data.operand_stack.address = stack_offset;
+      source_operand->type = ASM_OPERAND_STACK;
+      stack_offset *= 8;
+    }
+    
+    AsmNode *destination_pseudo_register = arena_alloc(asm_arena);
+    destination_pseudo_register->type = ASM_OPERAND_PSEUDO_REGISTER;
+    destination_pseudo_register->data.operand_pseudo_register.identifier = ir_function->data.function.parameter_identifiers[i];
+
+    AsmNode *mov_instruction = arena_alloc(asm_arena);
+    mov_instruction->type = ASM_INSTRUCTION_MOV;
+    mov_instruction->data.instruction_mov.source = source_operand;
+    mov_instruction->data.instruction_mov.destination = destination_pseudo_register;
+
+    asm_add_instruction_to_function(asm_function, mov_instruction);
+  }
+
+  //Function block instructions
   for (int i = 0; i < ir_function->data.function.instruction_count; i++) {
     IRNode *current_ir_node = ir_function->data.function.instruction_ptrs->node_pointers[i];
     switch (current_ir_node->type) {
@@ -804,7 +848,6 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
     AsmNode *source_node = asm_operand(ir_return_instruction->data.instruction_ret.value, asm_arena);
-    AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, declaration_symbol_table);
 
     AsmNode *destination_node = arena_alloc(asm_arena);
     destination_node->type = ASM_OPERAND_REGISTER;
@@ -814,7 +857,12 @@ void asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction
     mov_node->type = ASM_INSTRUCTION_MOV;
     mov_node->data.instruction_mov.source = source_node;
     mov_node->data.instruction_mov.destination = destination_node;
-    mov_node->data.instruction_mov.assembly_type = source_type;
+
+    //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+    if (source_node->type != ASM_OPERAND_PSEUDO_REGISTER) {
+      AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, declaration_symbol_table);
+      mov_node->data.instruction_mov.assembly_type = source_type;
+    }
 
     asm_add_instruction_to_function(asm_function, mov_node);
   }
@@ -921,15 +969,18 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
   AsmNode *dest_register = arena_alloc(asm_arena);
   dest_register->type = ASM_OPERAND_REGISTER;
   dest_register->data.operand_register.op_register = ASM_REGISTER_AX;
-
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, declaration_symbol_table);
   
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;  
   mov_instruction->data.instruction_mov.source = dest_register;
   mov_instruction->data.instruction_mov.destination = assembly_destination;
-  mov_instruction->data.instruction_mov.assembly_type = destination_type;
 
+  //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+  if (assembly_destination->type != ASM_OPERAND_PSEUDO_REGISTER) {
+    AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, declaration_symbol_table);
+    mov_instruction->data.instruction_mov.assembly_type = destination_type;
+  }
+  
   asm_add_instruction_to_function(asm_function, mov_instruction);  
 }
 
@@ -1159,6 +1210,7 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
     case IR_VALUE_VAR: {
       //TODO: Add some error checking
       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
+     
       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
 
       switch (declaration_symbol->data.variable_symbol->value_type) {

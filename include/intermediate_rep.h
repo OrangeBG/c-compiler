@@ -66,7 +66,7 @@ typedef struct IRNode {
  IRNodeType type;
  union {
   struct IRProgram { IRNodePointer *top_level_ptrs; int top_level_count; } program;
-  struct IRFunction { char *identifier; bool is_global; char *params; int param_count; int instruction_count; IRNodePointer *instruction_ptrs; } function;
+  struct IRFunction { char *identifier; bool is_global; char **parameter_identifiers; int parameter_count;int parameter_identifier_capacity; int instruction_count; IRNodePointer *instruction_ptrs; } function;
   struct IRStaticVariable { char *identifier; bool is_global; VariableSymbol *static_variable_symbol; } static_variable;
   struct IRInstructionReturn { struct IRNode *value; } instruction_ret;
   struct IRInstructionUnary { IRUnaryOpType op_type; IRNode *source; IRNode *destination; } unary;

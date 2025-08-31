@@ -4,12 +4,12 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
-#include "hash_table.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
 #define FUNCTION_CALL_CAPACITY 8
 #define NODE_POINTER_CAPACITY 8
+#define FUNCTION_IDENTIFIER_INIT_CAPACITY 4
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
@@ -61,6 +61,7 @@ void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer);
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
 static IRType  get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table); 
 static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node); 
+static void add_function_parameter_identifier(char *identifier, IRNode *function_node);  
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
@@ -252,6 +253,10 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
   DeclarationSymbol *symbol = found_declaration_entry->value->structure;
   function->data.function.is_global = symbol->data.function_symbol->is_global;
 
+  for (int i = 0; i < ast_function->data.function_declaration.parameter_count; i++) {
+    add_function_parameter_identifier(ast_function->data.function_declaration.parameter_identifiers[i], function);
+  }
+    
   Arena postfix_arena;
   //@WARNING: Hardcoded postfix arena size
   //TODO: May be better to initialize outside of this function and instead reset the allocated arena
@@ -963,3 +968,15 @@ static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_
       exit(1);
   }
 }
+
+static void add_function_parameter_identifier(char *identifier, IRNode *function_node) {  
+  if (function_node->data.function.parameter_count == function_node->data.function.parameter_identifier_capacity) {
+    int size = function_node->data.function.parameter_identifier_capacity == 0 ? FUNCTION_IDENTIFIER_INIT_CAPACITY : function_node->data.function.parameter_identifier_capacity * 2;
+    function_node->data.function.parameter_identifier_capacity = size;
+    function_node->data.function.parameter_identifiers = realloc(function_node->data.function.parameter_identifiers, size * sizeof(char*));
+  }
+
+  function_node->data.function.parameter_identifiers[function_node->data.function.parameter_count] = identifier;
+  function_node->data.function.parameter_count++;
+}
+
