@@ -62,5 +62,5 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key);  
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key);   
-
+void print_declaration_symbol_table(DeclarationSymbolTable *declaration_symbol_table); 
 #endif

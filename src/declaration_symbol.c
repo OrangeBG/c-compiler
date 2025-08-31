@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "../include/declaration_symbol.h"
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table) {
@@ -68,14 +69,14 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
 }
 
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
-  VariableSymbol *variable_symbol = malloc(sizeof(VariableSymbol));
+  VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
   variable_symbol->static_initial_value = initial_value;
   variable_symbol->static_is_global = is_global;
   variable_symbol->static_initial_type = initial_value_type;
   
-  DeclarationSymbol *declaration_symbol = malloc(sizeof(DeclarationSymbol));
+  DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
   declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
   declaration_symbol->data.variable_symbol = variable_symbol;
 
@@ -112,3 +113,10 @@ void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *decla
 
   hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
 }   
+
+void print_declaration_symbol_table(DeclarationSymbolTable *declaration_symbol_table) {
+  //TODO: Overide the table print here and print more useful info for each symbol type
+  printf("Declaration Table: \n");
+  hash_table_print(declaration_symbol_table->symbol_table);
+}
+
