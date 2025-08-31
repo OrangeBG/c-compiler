@@ -122,7 +122,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *param_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
-        char *identifier = &node->data.function_declaration.parameter_identifiers[i];
+        char *identifier = node->data.function_declaration.parameter_identifiers[i];
         resolve_function_parameter(param_type, &identifier, declaration_stack);
       }
   
