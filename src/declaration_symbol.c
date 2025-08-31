@@ -118,9 +118,65 @@ void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *decla
   hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
 }   
 
-void print_declaration_symbol_table(DeclarationSymbolTable *declaration_symbol_table) {
-  //TODO: Overide the table print here and print more useful info for each symbol type
+void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table) {
   printf("Declaration Table: \n");
-  hash_table_print(declaration_symbol_table->symbol_table);
-}
 
+  for (int i = 0; i < declaration_symbol_table->symbol_table->capacity; i++) {
+    if (declaration_symbol_table->symbol_table->entries[i].key == NULL) {
+      continue;
+    }
+    
+    printf("index: %d\tkey: %s \t", i, declaration_symbol_table->symbol_table->entries[i].key);    
+    
+    HashValue *hash_value = declaration_symbol_table->symbol_table->entries[i].value;
+    DeclarationSymbol *symbol = hash_value->structure;
+
+    if (symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
+      printf("type: Variable\n");
+      printf("\tvalue_type: ");
+
+      switch (symbol->data.variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:    printf("int\n"); break;
+        case DECLARATION_SYMBOL_TYPE_LONG:   printf("long\n"); break;
+        case DECLARATION_SYMBOL_TYPE_VOID:   printf("void\n"); break;
+      }      
+
+      printf("\tis_automatic_storage_duration: %d\n", symbol->data.variable_symbol->is_automatic_storage_duration);
+
+      if (symbol->data.variable_symbol->is_automatic_storage_duration) {
+        continue;
+      }
+
+      printf("\tstatic_initial_type: ");
+
+      switch(symbol->data.variable_symbol->static_initial_type) {
+        case INITIAL_VALUE_INITIALIZED:     printf("Initialized\n"); break;
+        case INITIAL_VALUE_NO_INITIALIZER:  printf("Not Initialized\n"); break;
+        case INITIAL_VALUE_TENTATIVE:       printf("Tentative\n"); break;
+      }
+
+      printf("\tstatic_initial_value: ");
+
+      switch (symbol->data.variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:    printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
+        case DECLARATION_SYMBOL_TYPE_LONG:   printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
+      }
+
+      printf("\tstatic_is_global: %d\n", symbol->data.variable_symbol->static_is_global);
+
+    } else {
+      printf("type: Function\n");
+      printf("\tvalue_type: ");
+
+      switch (symbol->data.function_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:    printf("int\n"); break;
+        case DECLARATION_SYMBOL_TYPE_LONG:   printf("long\n"); break;
+        case DECLARATION_SYMBOL_TYPE_VOID:   printf("void\n"); break;
+      }      
+
+      printf("\tparam_count: %d\n", symbol->data.function_symbol->param_count);
+      printf("\tis_defined: %d\n", symbol->data.function_symbol->is_defined);
+      printf("\tis_global: %d\n", symbol->data.function_symbol->is_global);
+    }
+  }
+}
