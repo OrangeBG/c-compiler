@@ -10,20 +10,24 @@ void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_ta
   arena_init(declaration_symbol_arena, sizeof(DeclarationSymbol), sizeof(DeclarationSymbol) * 1000, true);
   Arena *variable_symbol_arena = malloc(sizeof(Arena));
   arena_init(variable_symbol_arena, sizeof(VariableSymbol), sizeof(VariableSymbol) * 1000, true);
+  Arena *function_symbol_arena = malloc(sizeof(Arena));
+  arena_init(function_symbol_arena, sizeof(FunctionSymbol), sizeof(FunctionSymbol) * 1000, true);
 
   declaration_symbol_table->symbol_table = symbol_table;
   declaration_symbol_table->declaration_symbol_arena = declaration_symbol_arena;
   declaration_symbol_table->variable_symbol_arena = variable_symbol_arena;
+  declaration_symbol_table->function_symbol_arena = function_symbol_arena;
 }
 
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table) {
   arena_free(declaration_symbol_table->variable_symbol_arena);
   arena_free(declaration_symbol_table->declaration_symbol_arena);
+  arena_free(declaration_symbol_table->function_symbol_arena);
   free(declaration_symbol_table->symbol_table);
 }
 
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, DeclarationSymbolValueType function_value_type, int parameter_count, bool is_global, bool is_defined) {
-  FunctionSymbol *function_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
+  FunctionSymbol *function_symbol = arena_alloc(declaration_symbol_table->function_symbol_arena);
 
   function_symbol->value_type = function_value_type;
   function_symbol->is_defined = is_defined;

@@ -52,8 +52,10 @@ typedef struct {
 
 typedef struct {
   HashTable *symbol_table;
+  //TODO: May not need to keep 3 separate arenas if I change the union to be the structs themselves rather than pointers to the struct.
   Arena *declaration_symbol_arena;
   Arena *variable_symbol_arena;
+  Arena *function_symbol_arena;
 } DeclarationSymbolTable;
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table);
