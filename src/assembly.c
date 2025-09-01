@@ -31,8 +31,8 @@ void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_rel
 void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena); 
 void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
-void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena); 
-void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena); 
+void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
+void     asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
 void     asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
@@ -42,6 +42,7 @@ void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction
 void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
+static bool is_instruction_quadword(AsmNode *instruction); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
@@ -484,10 +485,10 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
           asm_instruction_jump(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_JUMP_IF_ZERO:
-          asm_instruction_jump_if_zero(asm_function, current_ir_node, asm_arena);
+          asm_instruction_jump_if_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:
-          asm_instruction_jump_if_not_zero(asm_function, current_ir_node, asm_arena);
+          asm_instruction_jump_if_not_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_COPY:
           asm_instruction_copy(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
@@ -576,7 +577,7 @@ void asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Ar
   asm_add_instruction_to_function(asm_function, jmp_instruction); 
 }
 
-void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena) {
+void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
@@ -588,6 +589,12 @@ void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
+  //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+  if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
+    AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, declaration_symbol_table);
+    cmp_instruction->data.instruction_cmp.assembly_type = source_type;
+  }
+
   asm_add_instruction_to_function(asm_function, cmp_instruction);
   
   AsmNode *jmp_instruction = arena_alloc(asm_arena);
@@ -598,7 +605,7 @@ void asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero
   asm_add_instruction_to_function(asm_function, jmp_instruction);
 }
 
-void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena) {
+void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
@@ -610,6 +617,12 @@ void asm_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
+  //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+  if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
+    AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, declaration_symbol_table);
+    cmp_instruction->data.instruction_cmp.assembly_type = source_type;
+  }
+
   asm_add_instruction_to_function(asm_function, cmp_instruction);
   
   AsmNode *jmp_instruction = arena_alloc(asm_arena);
@@ -903,7 +916,7 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
 
       asm_add_instruction_to_function(asm_function, mov_instruction);
     } else {
-      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM) {
+      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || is_instruction_quadword(arg)) {
         AsmNode *push_instruction = arena_alloc(asm_arena);
         push_instruction->type = ASM_INSTRUCTION_PUSH;  
         push_instruction->data.instruction_push.operand = arg;
@@ -915,6 +928,7 @@ void asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_ca
         AsmNode *mov_instruction = arena_alloc(asm_arena);
         mov_instruction->type = ASM_INSTRUCTION_MOV;  
         mov_instruction->data.instruction_mov.source = arg;
+        mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
 
         asm_add_instruction_to_function(asm_function, mov_instruction);
 
@@ -1225,5 +1239,18 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
     default:
       fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
       exit(1);
+  }
+}
+
+static bool is_instruction_quadword(AsmNode *instruction) {
+  switch (instruction->type) {
+    case ASM_INSTRUCTION_MOV: return instruction->data.instruction_mov.assembly_type == ASM_TYPE_QUADWORD;
+    case ASM_INSTRUCTION_UNARY: return instruction->data.instruction_unary.assembly_type == ASM_TYPE_QUADWORD;
+    case ASM_INSTRUCTION_BINARY: return instruction->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD;
+    case ASM_INSTRUCTION_CMP: return instruction->data.instruction_cmp.assembly_type == ASM_TYPE_QUADWORD;
+    case ASM_INSTRUCTION_IDIV: return instruction->data.instruction_idiv.assembly_type == ASM_TYPE_QUADWORD;
+    case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type == ASM_TYPE_QUADWORD;
+    default:
+      return false;
   }
 }

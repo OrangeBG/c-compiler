@@ -1,6 +1,10 @@
 int test_fun(int test, int b, int c, int d, int e, int f, int g, int h, int i, int j) {
     int x = 3;
 
+    if (x == 4) {
+        b = 20;
+    }
+
     {
         x += c;
     }
