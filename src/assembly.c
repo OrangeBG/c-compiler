@@ -43,8 +43,9 @@ void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_po
 void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static bool is_instruction_quadword(AsmNode *instruction); 
+static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
 
-AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table) {  
+AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
@@ -69,6 +70,8 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
     
     program->data.program.top_level_count++;
   }
+
+  convert_declaration_table_to_backend_table(declaration_symbol_table, backend_symbol_table);
 
   for (int i = 0; i < program->data.program.top_level_count; i++) {
     AsmNode *top_level_node = program->data.program.top_level_pointers->asm_pointers[i];
@@ -1252,5 +1255,62 @@ static bool is_instruction_quadword(AsmNode *instruction) {
     case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type == ASM_TYPE_QUADWORD;
     default:
       return false;
+  }
+}
+
+
+void backend_symbol_table_init(AsmBackendSymbolTable *backend_symbol_table) {
+  HashTable *symbol_table = malloc(sizeof(HashTable));
+  hash_table_init(symbol_table);
+
+  Arena *backend_symbol_arena = malloc(sizeof(Arena));
+  arena_init(backend_symbol_arena, sizeof(AsmBackendSymbol), sizeof(AsmBackendSymbol) * 1000, true);
+
+  backend_symbol_table->symbol_arena = backend_symbol_arena;
+  backend_symbol_table->symbol_table = symbol_table;  
+}
+
+void backend_symbol_table_free(AsmBackendSymbolTable *backend_symbol_table) {
+  arena_free(backend_symbol_table->symbol_arena);
+  free(backend_symbol_table->symbol_table);
+}
+
+static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {
+  for (int i = 0; i < declaration_symbol_table->symbol_table->capacity; i++) {
+    if (&declaration_symbol_table->symbol_table->entries[i] == NULL || declaration_symbol_table->symbol_table->entries[i].key == NULL) {
+      continue;
+    } 
+    
+    HashTableEntry *declaration_symbol_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, declaration_symbol_table->symbol_table->entries[i].key);
+    
+    AsmBackendSymbol *asm_backend_symbol = arena_alloc(backend_symbol_table->symbol_arena);   
+    DeclarationSymbol *declaration_symbol = declaration_symbol_entry->value->structure;    
+
+    if (declaration_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
+      asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
+
+      switch (declaration_symbol->data.variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:   asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_LONGWORD; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  asm_backend_symbol->data.object_entry.assembly_type= ASM_TYPE_QUADWORD; break;
+        default:
+          fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type");
+          exit(1);
+      }
+
+      asm_backend_symbol->data.object_entry.is_static = !declaration_symbol->data.variable_symbol->is_automatic_storage_duration;      
+    } else {
+      asm_backend_symbol->type = ASM_SYMBOL_FUNCTION_ENTRY;
+      asm_backend_symbol->data.function_entry.is_defined = declaration_symbol->data.function_symbol->is_defined;
+    }
+    
+    HashValue *hash_value = malloc(sizeof(HashValue));
+    hash_value->type = HASH_STRUCT;
+    hash_value->structure = asm_backend_symbol;
+
+    HashTableEntry *hash_entry = malloc(sizeof(HashTableEntry));
+    hash_entry->key = declaration_symbol_entry->key;
+    hash_entry->value = hash_value;
+
+    hash_table_add_entry(backend_symbol_table->symbol_table, hash_entry);    
   }
 }

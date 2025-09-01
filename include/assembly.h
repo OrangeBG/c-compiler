@@ -2,8 +2,9 @@
 #define ASSEMBLY
 
 #include "../include/intermediate_rep.h"
-#include "../include/hash_table.h"
 #include "../include/declaration_symbol.h"
+#include "arena.h"
+#include "hash_table.h"
 
 typedef struct AsmNode AsmNode;
 
@@ -81,6 +82,24 @@ typedef struct {
   AsmNode **asm_pointers;
 } AsmNodePointers;
 
+typedef enum {
+  ASM_SYMBOL_OBJECT_ENTRY,
+  ASM_SYMBOL_FUNCTION_ENTRY
+} AsmBackendSymbolType;
+
+typedef struct {
+  AsmBackendSymbolType type;
+  union {
+    struct ObjectEntry { AsmType assembly_type; bool is_static; } object_entry;
+    struct FunctionEntry { bool is_defined; } function_entry;
+  } data;
+} AsmBackendSymbol;
+
+typedef struct {
+  HashTable *symbol_table;
+  Arena *symbol_arena;
+} AsmBackendSymbolTable;
+
 typedef struct AsmNode {
   AsmNodeType type;
   union {
@@ -108,7 +127,9 @@ typedef struct AsmNode {
   } data;
 } AsmNode;
 
-AsmNode *generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table);
+AsmNode *generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table);
 void print_assembly(AsmNode *asm_node);
+void backend_symbol_table_init(AsmBackendSymbolTable *backend_symbol_table);
+void backend_symbol_table_free(AsmBackendSymbolTable *backend_symbol_table);
 
 #endif
