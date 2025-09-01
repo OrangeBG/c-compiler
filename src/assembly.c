@@ -426,7 +426,7 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
     } else {
       source_operand->data.operand_stack.address = stack_offset;
       source_operand->type = ASM_OPERAND_STACK;
-      stack_offset *= 8;
+      stack_offset += 8;
     }
     
     AsmNode *destination_pseudo_register = arena_alloc(asm_arena);
