@@ -1243,7 +1243,6 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   type_node->type = AST_TYPE;
   type_node->data.type.type = expect_type_specifier(parser);
 
-  parser->current_token_index++;
   expect(parser, TOKEN_CLOSE_PAREN);
 
   AstNode *expression_node = arena_alloc(parser->node_arena);
