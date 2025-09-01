@@ -1,4 +1,7 @@
 # Bugs
+	- The following casts are broken:
+		- long gg = (long)5;
+		- long gg = (int)5;
     - This declaration doesn't work: int result = j == -1 && i == 11;
 	- The following test is not producing an error when it should. Foo is declared twice with different parameters:
 		int main(void) {

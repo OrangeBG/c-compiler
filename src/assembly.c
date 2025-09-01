@@ -309,6 +309,15 @@ void asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symb
          asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, declaration_symbols, stack_offset);        
         }
         break;
+      case ASM_INSTRUCTION_MOVSX:
+        if (instruction->data.instruction_movsx.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_movsx.source, &stack_location_table, declaration_symbols, stack_offset);
+        }
+
+        if (instruction->data.instruction_movsx.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_movsx.destination, &stack_location_table, declaration_symbols, stack_offset);
+        }
+        break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, declaration_symbols, stack_offset);        
@@ -1034,7 +1043,7 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
 
       switch (ir_operand->data.value_constant.type) {
         case IR_TYPE_INT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
-        //TODO: Assigning long to int here. Don't think that's right
+        //TODO: Assigning long to int here. Don't think that's right. Read top of pg 266
         case IR_TYPE_LONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
       }
       break;
@@ -1077,6 +1086,14 @@ void print_assembly(AsmNode *node) {
       print_assembly(node->data.instruction_mov.source);
       printf(") Dest( ");
       print_assembly(node->data.instruction_mov.destination);
+      printf(")\n");
+      break;
+    case ASM_INSTRUCTION_MOVSX:
+      printf("MOVSX -> ");
+      printf("Src( ");
+      print_assembly(node->data.instruction_movsx.source);
+      printf(") Dest( ");
+      print_assembly(node->data.instruction_movsx.destination);
       printf(")\n");
       break;
     case ASM_INSTRUCTION_RET:
