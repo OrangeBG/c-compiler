@@ -1331,3 +1331,33 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
     hash_table_add_entry(backend_symbol_table->symbol_table, hash_entry);    
   }
 }
+
+void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
+  printf("Backend Symbol Table\n");
+  
+  for (int i = 0; i < backend_symbol_table->symbol_table->capacity; i++) {
+    if (backend_symbol_table->symbol_table->entries[i].key == NULL) {
+      continue;
+    }
+    
+    printf("index: %d\tkey: %s \t", i, backend_symbol_table->symbol_table->entries[i].key);    
+    
+    HashValue *hash_value = backend_symbol_table->symbol_table->entries[i].value;
+    AsmBackendSymbol *symbol = hash_value->structure;
+
+    if (symbol->type == ASM_SYMBOL_OBJECT_ENTRY) {
+      printf("type: Object Entry\t");
+      printf("assembly_type: ");
+
+      switch (symbol->data.object_entry.assembly_type) {
+        case ASM_TYPE_QUADWORD:    printf("Quadword\t"); break;
+        case ASM_TYPE_LONGWORD:    printf("Longword\t"); break;
+      }      
+
+      printf("is_static: %d\n", symbol->data.object_entry.is_static);
+    } else {
+      printf("type: Function\t");
+      printf("is_defined: %d\n", symbol->data.function_entry.is_defined);
+    }
+  }
+}

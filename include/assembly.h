@@ -131,5 +131,6 @@ AsmNode *generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
 void print_assembly(AsmNode *asm_node);
 void backend_symbol_table_init(AsmBackendSymbolTable *backend_symbol_table);
 void backend_symbol_table_free(AsmBackendSymbolTable *backend_symbol_table);
+void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table);
 
 #endif
