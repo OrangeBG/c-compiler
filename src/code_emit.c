@@ -131,7 +131,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_BINARY:
       switch (asm_node->data.instruction_binary.binary_op) {
         case ASM_BINARY_ADD:                  fprintf(file, "\taddl\t"); break;
-        case ASM_BINARY_SUB:                  fprintf(file, "\tsubl\t"); break;
+        case ASM_BINARY_SUB:                  fprintf(file, "\tsub"); asm_node->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD ? fprintf(file, "q\t") : fprintf(file, "l\t"); break;
         case ASM_BINARY_MULT:                 fprintf(file, "\timull\t"); break;        
         case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tandl\t"); break;
         case ASM_BINARY_BITWISE_OR:           fprintf(file, "\torl\t"); break;

@@ -1,19 +1,9 @@
-int test_fun(int test, int b, int c, int d, int e, int f, int g, int h, int i, int j) {
+int test_fun(void) {
     int x = 3;
 
-    if (x == 4) {
-        b = 20;
-    }
-
-    {
-        x += c;
-    }
-
-    j = e + 10;
-    
     return x;
 }
 
 int main(void) {
-    return test_fun(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    return test_fun();
 }
