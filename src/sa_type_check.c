@@ -404,7 +404,8 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       return ast_expression_type->data.type.type;
     }
     case AST_EXPRESSION_CAST: {
-      Types expression_type = expression_type_check(node, declaration_table, function_declaration_node, ast_arena);
+      //@Bug: I think this is not right. Use the following as an example: long gg = (long)5;. Expression type returned is int
+      Types expression_type = expression_type_check(node->data.cast_expression.expression, declaration_table, function_declaration_node, ast_arena);
 
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
