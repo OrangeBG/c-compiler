@@ -21,8 +21,8 @@ void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instructio
 void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset); 
-void     asm_replace_pseudo_register(AsmNode *instruction, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset); 
+void     asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
+void     asm_replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
@@ -81,8 +81,8 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
     }
     
     int stack_offset = 0;
-    asm_pseudo_register_pass(top_level_node, declaration_symbol_table->symbol_table, &stack_offset);
-
+    asm_pseudo_register_pass(top_level_node, backend_symbol_table, &stack_offset);
+    
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
       fprintf(stderr, "ERROR - Assembler: First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
       exit(1);
@@ -292,7 +292,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, A
     asm_add_instruction_to_function(function, new_destination_mov_instruction);
 }
 
-void asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symbols, int *stack_offset) {
+void asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
   
@@ -302,53 +302,53 @@ void asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symb
     switch(instruction->type) {
       case ASM_INSTRUCTION_MOV:        
         if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.source, &stack_location_table, declaration_symbols, stack_offset);
+         asm_replace_pseudo_register(instruction->data.instruction_mov.source, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, &stack_location_table, declaration_symbols, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_mov.destination, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_MOVSX:
         if (instruction->data.instruction_movsx.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_movsx.source, &stack_location_table, declaration_symbols, stack_offset);
+         asm_replace_pseudo_register(instruction->data.instruction_movsx.source, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_movsx.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_movsx.destination, &stack_location_table, declaration_symbols, stack_offset);
+         asm_replace_pseudo_register(instruction->data.instruction_movsx.destination, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, &stack_location_table, declaration_symbols, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_unary.operand, instruction->data.instruction_unary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, &stack_location_table, declaration_symbols, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_1, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
 
         if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, &stack_location_table, declaration_symbols, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_IDIV:
         if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, &stack_location_table, declaration_symbols, stack_offset);        
+         asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, instruction->data.instruction_idiv.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_CMP:
         if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, &stack_location_table, declaration_symbols, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_1, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }        
 
         if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, &stack_location_table, declaration_symbols, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }        
         break;
       case ASM_INSTRUCTION_PUSH:
         if (instruction->data.instruction_push.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          asm_replace_pseudo_register(instruction->data.instruction_push.operand, &stack_location_table, declaration_symbols, stack_offset);
+          asm_replace_pseudo_register(instruction->data.instruction_push.operand, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       default:
@@ -357,7 +357,7 @@ void asm_pseudo_register_pass(AsmNode *asm_function, HashTable *declaration_symb
   }
 }
 
-void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_location_table, HashTable *declaration_symbols, int *stack_offset) {
+void asm_replace_pseudo_register(AsmNode *pseudo_register, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
   if (table_entry != NULL && table_entry->key != NULL) {
@@ -367,12 +367,18 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
     return;
   }
 
-  HashTableEntry *existing_declaration_symbol = hash_table_get_entry(declaration_symbols, pseudo_register->data.operand_pseudo_register.identifier);
+  HashTableEntry *existing_backend_symbol = hash_table_get_entry(backend_symbol_table->symbol_table, pseudo_register->data.operand_pseudo_register.identifier);
 
-  if (existing_declaration_symbol != NULL && existing_declaration_symbol->key != NULL) {    
-    DeclarationSymbol *symbol = existing_declaration_symbol->value->structure;    
+  if (existing_backend_symbol != NULL && existing_backend_symbol->key != NULL) {    
+    AsmBackendSymbol *symbol = existing_backend_symbol->value->structure;    
 
-    if (symbol->data.variable_symbol->is_automatic_storage_duration) {
+    if (symbol->type == ASM_SYMBOL_FUNCTION_ENTRY) {
+      fprintf(stderr, "ERROR - Assembler: ASM backend function symbol '%s' found when attempting to resolve pseudo registers. \n", existing_backend_symbol->key);
+      exit(1);
+    }
+    
+
+    if (!symbol->data.object_entry.is_static) {
       goto process_pseudo_register;
     }
     
@@ -382,8 +388,14 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, HashTable *stack_loca
   }
 
   process_pseudo_register:
+      int allocated_bytes = 4;
+
+      if (instruction_type == ASM_TYPE_QUADWORD) {
+        allocated_bytes = 8;
+      }
+  
       HashValue value = {
-        .integer = *stack_offset += 4,
+        .integer = *stack_offset += allocated_bytes,
         .type = HASH_INT
       };
   
