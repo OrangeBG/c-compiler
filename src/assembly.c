@@ -158,6 +158,7 @@ void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction,
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = idiv_instruction->data.instruction_idiv.operand;
+  mov_instruction->data.instruction_mov.assembly_type = idiv_instruction->data.instruction_idiv.assembly_type;
 
   AsmNode *destination = arena_alloc(asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
@@ -170,6 +171,7 @@ void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction,
   AsmNode *new_idiv_instruction = arena_alloc(asm_arena);
   new_idiv_instruction->type = ASM_INSTRUCTION_IDIV;
   new_idiv_instruction->data.instruction_idiv.operand = destination;
+  new_idiv_instruction->data.instruction_idiv.assembly_type = idiv_instruction->data.instruction_idiv.assembly_type;
 
   asm_add_instruction_to_function(function, new_idiv_instruction);
 }
@@ -178,6 +180,7 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_2;
+  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_binary.assembly_type;
   
   AsmNode *destination = arena_alloc(asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
@@ -192,6 +195,7 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
   mull_instruction->data.instruction_binary.binary_op = ASM_BINARY_MULT;
   mull_instruction->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
   mull_instruction->data.instruction_binary.operand_2 = destination;
+  mull_instruction->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
 
   asm_add_instruction_to_function(function, mull_instruction);
 
@@ -199,6 +203,7 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
   mov_instruction_2->type = ASM_INSTRUCTION_MOV;
   mov_instruction_2->data.instruction_mov.source = destination;
   mov_instruction_2->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
+  mov_instruction_2->data.instruction_mov.assembly_type = instruction->data.instruction_binary.assembly_type;
 
   asm_add_instruction_to_function(function, mov_instruction_2);
 }
@@ -207,6 +212,7 @@ void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *ins
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_1;
+  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_binary.assembly_type;
 
   AsmNode *destination = arena_alloc(asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
@@ -220,6 +226,7 @@ void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *ins
   binary_instruction->type = ASM_INSTRUCTION_BINARY;
   binary_instruction->data.instruction_binary.operand_1 = destination;
   binary_instruction->data.instruction_binary.operand_2 = instruction->data.instruction_binary.operand_2;
+  binary_instruction->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
 
   asm_add_instruction_to_function(function, binary_instruction);
 }
@@ -232,6 +239,7 @@ void asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instructi
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_2;
+  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_cmp.assembly_type;
   mov_instruction->data.instruction_mov.destination = r11_register;
 
   asm_add_instruction_to_function(function, mov_instruction);
@@ -244,6 +252,7 @@ void asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instructi
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = eax_register;
   cmp_instruction->data.instruction_cmp.operand_2 = r11_register;
+  cmp_instruction->data.instruction_cmp.assembly_type = instruction->data.instruction_cmp.assembly_type;
 
   asm_add_instruction_to_function(function, cmp_instruction);
 }
@@ -256,6 +265,7 @@ void asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction, A
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_1;
+  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_cmp.assembly_type;
   mov_instruction->data.instruction_mov.destination = r10_register;
 
   asm_add_instruction_to_function(function, mov_instruction);
@@ -264,6 +274,7 @@ void asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction, A
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = r10_register;
   cmp_instruction->data.instruction_cmp.operand_2 = instruction->data.instruction_cmp.operand_2;
+  cmp_instruction->data.instruction_cmp.assembly_type = instruction->data.instruction_cmp.assembly_type;
   
   asm_add_instruction_to_function(function, cmp_instruction);
 }
@@ -272,6 +283,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, A
     AsmNode *new_source_mov_instruction = arena_alloc(asm_arena);
     new_source_mov_instruction->type = ASM_INSTRUCTION_MOV;
     new_source_mov_instruction->data.instruction_mov.source = instruction->data.instruction_mov.source;
+    new_source_mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_mov.assembly_type;
 
     AsmNode *new_destination = arena_alloc(asm_arena);
     new_destination->type = ASM_OPERAND_REGISTER;
@@ -289,6 +301,7 @@ void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, A
     new_destination_mov_instruction->type = ASM_INSTRUCTION_MOV;
     new_destination_mov_instruction->data.instruction_mov.source = new_source;
     new_destination_mov_instruction->data.instruction_mov.destination = instruction->data.instruction_mov.destination;
+    new_destination_mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_mov.assembly_type;
 
     asm_add_instruction_to_function(function, new_destination_mov_instruction);
 }
