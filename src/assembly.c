@@ -44,6 +44,7 @@ void     asm_init_node_pointer(AsmNodePointers *asm_node_pointer);
 static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static bool is_instruction_quadword(AsmNode *instruction); 
 static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
+static int round_stack_offset(int stack_offset); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
@@ -88,8 +89,8 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
       exit(1);
     } 
 
-    //Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls.
-    stack_offset = ((stack_offset + 15) / 16) * 16;
+    stack_offset = round_stack_offset(stack_offset);
+
     top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_binary.operand_1->data.operand_imm.value = stack_offset;    
 
     AsmNode *new_function = asm_resolve_instructions(top_level_node, asm_arena);
@@ -377,7 +378,6 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, AsmType instruction_t
       exit(1);
     }
     
-
     if (!symbol->data.object_entry.is_static) {
       goto process_pseudo_register;
     }
@@ -388,14 +388,15 @@ void asm_replace_pseudo_register(AsmNode *pseudo_register, AsmType instruction_t
   }
 
   process_pseudo_register:
-      int allocated_bytes = 4;
-
       if (instruction_type == ASM_TYPE_QUADWORD) {
-        allocated_bytes = 8;
+        *stack_offset += 8;
+        *stack_offset = round_stack_offset(*stack_offset);
+      } else {
+        *stack_offset += 4;
       }
   
       HashValue value = {
-        .integer = *stack_offset += allocated_bytes,
+        .integer = *stack_offset,
         .type = HASH_INT
       };
   
@@ -1372,4 +1373,9 @@ void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
       printf("is_defined: %d\n", symbol->data.function_entry.is_defined);
     }
   }
+}
+
+static int round_stack_offset(int stack_offset) {
+  //%RBP is always 16 byte aligned. Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls. Alignment is required by the System V ABI.
+  return ((stack_offset + 15) / 16) * 16;
 }
