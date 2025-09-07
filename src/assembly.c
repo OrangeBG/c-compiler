@@ -21,6 +21,7 @@ void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instructio
 void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+void     asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
@@ -142,6 +143,9 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
       //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
       asm_resolve_idiv_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
       continue;
+    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_MOVSX) {      
+      asm_resolve_movsx_instruction(new_function, instruction_ptr->asm_pointers[i], asm_arena); 
+      continue;
     }
 
     AsmNode *new_instruction = arena_alloc(asm_arena); 
@@ -152,6 +156,56 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
   }
 
   return new_function;
+}
+
+void asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena) {
+  //MOVSX instructions cannot have a memory address as a destination or an immediate value as a source
+  if (movsx_instruction->data.instruction_movsx.source->type != ASM_OPERAND_IMM && movsx_instruction->data.instruction_movsx.destination->type != ASM_OPERAND_STACK) {
+    return;
+  }
+
+  AsmNode *new_movsx = arena_alloc(asm_arena);
+  new_movsx->type = ASM_INSTRUCTION_MOVSX;
+
+  if (movsx_instruction->data.instruction_movsx.source->type == ASM_OPERAND_IMM) {
+    AsmNode *r10_register = arena_alloc(asm_arena);
+    r10_register->type = ASM_OPERAND_REGISTER;
+    r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
+
+    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    r10_mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
+    r10_mov_instruction->data.instruction_mov.source = movsx_instruction->data.instruction_movsx.source;
+    r10_mov_instruction->data.instruction_mov.destination = r10_register;
+
+    asm_add_instruction_to_function(function, r10_mov_instruction);
+    
+    new_movsx->data.instruction_movsx.source = r10_mov_instruction;
+  } else {
+    new_movsx->data.instruction_movsx.source = movsx_instruction->data.instruction_movsx.source;
+  }
+
+  if (movsx_instruction->data.instruction_movsx.destination->type == ASM_OPERAND_STACK) {
+    AsmNode *r11_register = arena_alloc(asm_arena);
+    r11_register->type = ASM_OPERAND_REGISTER;
+    r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
+
+    new_movsx->data.instruction_movsx.destination = r11_register;
+
+    asm_add_instruction_to_function(function, new_movsx);
+
+    AsmNode *r11_mov_instruction = arena_alloc(asm_arena);
+    r11_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    r11_mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
+    r11_mov_instruction->data.instruction_mov.source = r11_register;
+    r11_mov_instruction->data.instruction_mov.destination = movsx_instruction->data.instruction_movsx.destination;
+
+    asm_add_instruction_to_function(function, r11_mov_instruction);
+
+  } else {
+    new_movsx->data.instruction_movsx.destination = movsx_instruction->data.instruction_movsx.destination;
+    asm_add_instruction_to_function(function, new_movsx);
+  }
 }
 
 void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena) {
