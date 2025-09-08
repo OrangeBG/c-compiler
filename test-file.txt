@@ -1,13 +1,7 @@
-int h = 43;
-long l;
-long b = 30405060433;
-
-int test_fun(void) {
-    int x = 3;
-
-    return x;
-}
-
 int main(void) {
-    return test_fun();
+    int a = 1;
+    int b = 2;
+    int c = a++;
+    int d = b--;
+    return (a == 2 && b == 1 && c == 1 && d == 2);
 }

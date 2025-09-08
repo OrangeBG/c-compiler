@@ -33,7 +33,7 @@ void sa_type_check(AstNode *ast_nodes, DeclarationSymbolTable *declaration_table
       continue;
     }
 
-    fprintf(stderr, "ERROR - SA Type Check: Unexpected declaration type");
+    fprintf(stderr, "ERROR - SA Type Check: Unexpected declaration type\n");
     exit(1);
   } 
 }
@@ -206,7 +206,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       function_and_variable_type_check(node->data.compound_statement.block, declaration_table, function_declaration_node, ast_arena);
       break;
     default:    
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check", node->type);
+      fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check\n", node->type);
       exit(1);
   }  
 }
@@ -294,7 +294,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       DeclarationSymbol *existing_variable_symbol = entry->value->structure;
 
       if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {        
-        fprintf(stderr, "ERROR - SA Type Check: Function redeclared as variable");
+        fprintf(stderr, "ERROR - SA Type Check: Function redeclared as variable\n");
         exit(1);
       }
     } else {
@@ -317,7 +317,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
           initial_value.long_value = 0; 
           break;
         default:
-          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'", variable_declaration_node->data.variable_declaration.type->data.type.type);
+          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n", variable_declaration_node->data.variable_declaration.type->data.type.type);
           exit(1);
       }
     } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
@@ -340,7 +340,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
           }
           break;
         default:
-          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'",variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type);
+          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type);
           exit(1);
       }
     } else {
@@ -476,7 +476,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
     case AST_EXPRESSION_FUNCTION_CALL: {
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_call_expression.identfier);
       if (entry == NULL && entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table", node->data.function_call_expression.identfier);
+        fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table\n", node->data.function_call_expression.identfier);
         exit(1);
       }
 
@@ -521,8 +521,15 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       node->data.conditional_expression.false_expression = implicit_expression_type_cast(node->data.conditional_expression.false_expression, false_expression_type, common_real_type, ast_arena);
       return common_real_type;
     }
+    case AST_EXPRESSION_PREFIX_INCREMENT:
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+    case AST_EXPRESSION_PREFIX_DECREMENT:
+    case AST_EXPRESSION_POSTFIX_DECREMENT: {
+      expression_type_check(node->data.increment_decrement_expression.expression, declaration_table, function_declaration_node, ast_arena);
+      break;
+    }
     default:
-      fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check", node->type);
+      fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check\n", node->type);
       exit(1);
   }
 }
@@ -561,7 +568,7 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
     case AST_EXPRESSION_CONDITIONAL:   cast_expression_type = expression->data.conditional_expression.expression_type; break;
     case AST_EXPRESSION_FUNCTION_CALL: cast_expression_type = expression->data.variable_expression.expression_type; break;
     default:
-      fprintf(stderr, "ERROR - Parser: Unsupported cast expression type '%d'", expression->type);
+      fprintf(stderr, "ERROR - Parser: Unsupported cast expression type '%d'\n", expression->type);
       exit(1);
   }
 
@@ -588,7 +595,7 @@ static DeclarationSymbolValueType convert_ast_declaration_type_to_symbol_type(As
     case AST_TYPE_LONG:   return DECLARATION_SYMBOL_TYPE_LONG; break;
     case AST_TYPE_VOID:   return DECLARATION_SYMBOL_TYPE_VOID; break;
     default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported AST Declaration Type '%d' when attempting to convert to Declaration Symbol Value Type", variable_declaration_node->data.variable_declaration.type->data.type.type);
+      fprintf(stderr, "ERROR - SA Type Check: Unsupported AST Declaration Type '%d' when attempting to convert to Declaration Symbol Value Type\n", variable_declaration_node->data.variable_declaration.type->data.type.type);
       exit(1);
   }
 }
