@@ -105,7 +105,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         }
 
         function_declaration_symbol->data.function_symbol->param_count++;
-        add_function_parameter_to_symbol_table(parameter_type, &node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+        add_function_parameter_to_symbol_table(parameter_type, node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
       }
 
       if (node->data.function_declaration.body_block != NULL) {
@@ -202,6 +202,9 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       function_and_variable_type_check(node->data.do_while_statement.statement_body, declaration_table, function_declaration_node, ast_arena);
       break;
     }
+    case AST_STATEMENT_COMPOUND:      
+      function_and_variable_type_check(node->data.compound_statement.block, declaration_table, function_declaration_node, ast_arena);
+      break;
     default:    
       fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check", node->type);
       exit(1);
@@ -363,6 +366,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.variable_expression.identifier);
 
       if (entry == NULL || entry->key == NULL) {
+        hash_table_print(declaration_table->symbol_table);
         fprintf(stderr, "ERROR - SA Type Check: Expression variable '%s' not found in declaration symbol table\n", node->data.variable_expression.identifier);
         exit(1);
       }
@@ -400,7 +404,8 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       return ast_expression_type->data.type.type;
     }
     case AST_EXPRESSION_CAST: {
-      Types expression_type = expression_type_check(node, declaration_table, function_declaration_node, ast_arena);
+      //@Bug: I think this is not right. Use the following as an example: long gg = (long)5;. Expression type returned is int
+      Types expression_type = expression_type_check(node->data.cast_expression.expression, declaration_table, function_declaration_node, ast_arena);
 
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
@@ -470,7 +475,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       return left_expression_type;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table, node->data.function_call_expression.identfier);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_call_expression.identfier);
       if (entry == NULL && entry->key == NULL) {
         fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table", node->data.function_call_expression.identfier);
         exit(1);
@@ -567,12 +572,13 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
 }
 
 static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table) {
-  if (parameter_type->data.type.type != AST_TYPE_FUNCTION) {
+  if (parameter_type->data.type.type == AST_TYPE_VOID) {
     return;
   }
 
   char *symbol_key = malloc(IDENTIFIER_BUFFER); 
-  snprintf(symbol_key, IDENTIFIER_BUFFER, "%s.%s", function_name, parameter_identifier);
+  snprintf(symbol_key, IDENTIFIER_BUFFER, "%s", parameter_identifier);
+
   //TODO: Should include Long type
   add_automatic_variable_declaration_symbol(declaration_table, DECLARATION_SYMBOL_TYPE_INT, symbol_key);
 }

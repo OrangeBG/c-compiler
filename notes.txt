@@ -1,4 +1,9 @@
+>> Running Assembly <<
 
+1. Build object file with GNU Assembler (supports AT&T format):  as -o hello.o hello.s
+2. Link the object file: gcc -no-pie -o test test.o
+3. Run binary
+4. Print results: echo $?
 
 >> IR <<
 - Three Address Code (TAC) intermediate representation: The operands of each instruction are constants or variables, not nested instructions. It's called 'three address code' because most of the instructions use at most three values: two source operands and a destination. 

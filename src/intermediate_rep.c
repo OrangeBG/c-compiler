@@ -9,6 +9,7 @@
 #define FUNCTION_CAPACITY 8
 #define FUNCTION_CALL_CAPACITY 8
 #define NODE_POINTER_CAPACITY 8
+#define FUNCTION_IDENTIFIER_INIT_CAPACITY 4
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
@@ -58,8 +59,9 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena);
 IRNode* ir_create_variable(char *identifier, Arena *node_arena);
 void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
-static IRType  get_node_type(IRNode *node); 
+static IRType  get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table); 
 static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node); 
+static void add_function_parameter_identifier(char *identifier, IRNode *function_node);  
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
@@ -208,9 +210,9 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_STATIC_VAR:
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
-      switch (ir_node->data.static_variable.type) {
-        case IR_TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.initial_value.int_value); break;
-        case IR_TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.initial_value.long_value); break;
+      switch (ir_node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
+        case DECLARATION_SYMBOL_TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
       }
 
       printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
@@ -251,6 +253,10 @@ IRNode* ir_function(AstNode *ast_function, IREmitStatus *emit_status, Arena *nod
   DeclarationSymbol *symbol = found_declaration_entry->value->structure;
   function->data.function.is_global = symbol->data.function_symbol->is_global;
 
+  for (int i = 0; i < ast_function->data.function_declaration.parameter_count; i++) {
+    add_function_parameter_identifier(ast_function->data.function_declaration.parameter_identifiers[i], function);
+  }
+    
   Arena postfix_arena;
   //@WARNING: Hardcoded postfix arena size
   //TODO: May be better to initialize outside of this function and instead reset the allocated arena
@@ -673,7 +679,7 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
 IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table) {
   IRNode *cast_expression = ir_emit_ast_node(cast_node->data.cast_expression.expression, function, emit_status, node_arena, declaration_symbol_table);
-  IRType expression_type = get_node_type(cast_expression); 
+  IRType expression_type = get_node_type(cast_expression, declaration_symbol_table); 
 
   if (cast_node->data.cast_expression.target_type->data.type.type == cast_node->data.cast_expression.expression_type->data.type.type) {
     return cast_expression;
@@ -796,20 +802,7 @@ void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_prog
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
     static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
-
-    if (declaration_symbol->data.variable_symbol->value_type == DECLARATION_SYMBOL_TYPE_INT) {
-      if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
-        static_node->data.static_variable.initial_value.int_value = 0;
-      } else {
-        static_node->data.static_variable.initial_value.int_value = declaration_symbol->data.variable_symbol->static_initial_value.int_value;
-      }
-    } else {
-      if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_TENTATIVE) {     
-        static_node->data.static_variable.initial_value.long_value = 0;
-      } else {
-        static_node->data.static_variable.initial_value.long_value = declaration_symbol->data.variable_symbol->static_initial_value.long_value;
-      }
-    } 
+    static_node->data.static_variable.static_variable_symbol = declaration_symbol->data.variable_symbol;
 
     ir_add_top_level_declaration_to_program(ir_program, static_node);    
   }
@@ -938,10 +931,27 @@ void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
   ir_node_pointer->node_pointers = NULL;
 }
 
-static IRType get_node_type(IRNode *node) {
+static IRType get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
-    case IR_VALUE_STATIC_VAR: return node->data.static_variable.type; break;
+    case IR_VALUE_STATIC_VAR: {
+      switch (node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
+      }
+    }
+    case IR_VALUE_VAR: {
+      //TODO: Error check to make sure we actually have a variable symbol.
+      //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
+      HashTableEntry *entry = hash_table_get_entry(declaration_symbol_table->symbol_table, node->data.value_var.identifier);
+      DeclarationSymbol *declaration_symbol = entry->value->structure;
+
+      switch (declaration_symbol->data.variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
+      }
+
+    }
     default:
       fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type", node->type);
       exit(1);
@@ -958,3 +968,15 @@ static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_
       exit(1);
   }
 }
+
+static void add_function_parameter_identifier(char *identifier, IRNode *function_node) {  
+  if (function_node->data.function.parameter_count == function_node->data.function.parameter_identifier_capacity) {
+    int size = function_node->data.function.parameter_identifier_capacity == 0 ? FUNCTION_IDENTIFIER_INIT_CAPACITY : function_node->data.function.parameter_identifier_capacity * 2;
+    function_node->data.function.parameter_identifier_capacity = size;
+    function_node->data.function.parameter_identifiers = realloc(function_node->data.function.parameter_identifiers, size * sizeof(char*));
+  }
+
+  function_node->data.function.parameter_identifiers[function_node->data.function.parameter_count] = identifier;
+  function_node->data.function.parameter_count++;
+}
+

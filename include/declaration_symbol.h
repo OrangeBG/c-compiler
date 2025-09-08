@@ -8,7 +8,7 @@
 typedef enum {
   DECLARATION_SYMBOL_TYPE_INT,
   DECLARATION_SYMBOL_TYPE_LONG,
-  DECLARATION_SYMBOL_TYPE_VOID
+  DECLARATION_SYMBOL_TYPE_VOID //TODO: Is this needed?
 } DeclarationSymbolValueType;
 
 typedef enum {
@@ -30,8 +30,8 @@ typedef struct {
 } FunctionSymbol;
 
 typedef union {
-    int int_value;
-    long long_value;
+  int int_value;
+  long long_value;
 } InitialValue;
 
 typedef struct {
@@ -52,8 +52,10 @@ typedef struct {
 
 typedef struct {
   HashTable *symbol_table;
+  //TODO: May not need to keep 3 separate arenas if I change the union to be the structs themselves rather than pointers to the struct.
   Arena *declaration_symbol_arena;
   Arena *variable_symbol_arena;
+  Arena *function_symbol_arena;
 } DeclarationSymbolTable;
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table);
@@ -62,5 +64,5 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key);  
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key);   
-
+void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
 #endif

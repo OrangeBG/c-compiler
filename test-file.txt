@@ -1,12 +1,9 @@
-int test;
-int test2 = 4;
-int test_4 = 4;
+int test_fun(void) {
+    int x = 3;
+
+    return x;
+}
 
 int main(void) {
-    static int a = 100;
-    int b = 200L;
-
-    int c = 3 + 4;
-
-	return a;
+    return test_fun();
 }

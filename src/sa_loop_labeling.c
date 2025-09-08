@@ -149,6 +149,9 @@ void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) 
       sa_label_loop(ast_node->data.assignement_expression.left_expression, label_stack, current_loop_id);
       sa_label_loop(ast_node->data.assignement_expression.right_expression, label_stack, current_loop_id);
       break;
+    case AST_STATEMENT_COMPOUND:
+      sa_label_loop(ast_node->data.compound_statement.block, label_stack, current_loop_id);
+      break;
     case AST_STATEMENT_GOTO: 
     case AST_STATEMENT_GOTO_LABEL: 
     case AST_STATEMENT_NULL:

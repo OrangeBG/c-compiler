@@ -28,7 +28,7 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); 
 static char* get_identifier_with_stack_offset(char *identifier, int stack_offset); 
 static void push_new_declaration_stack(Stack *declaration_stack); 
-static void resolve_function_parameter(AstNode *param_type_node, char **parameter_identifier, Stack *declaration_stack); 
+static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack); 
 
 void sa_variable_resolution(AstNode *ast_nodes) {
   Stack *declaration_stack = malloc(sizeof(Stack));
@@ -122,8 +122,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *param_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
-        char *identifier = &node->data.function_declaration.parameter_identifiers[i];
-        resolve_function_parameter(param_type, &identifier, declaration_stack);
+        resolve_function_parameter(param_type, node, i, declaration_stack);
       }
   
       if (node->data.function_declaration.body_block != NULL) {
@@ -259,6 +258,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
           entry = hash_table_get_entry(declaration_table, previous_stack_identifier);
           
           if (entry != NULL && entry->key != NULL) {
+            identifier = previous_stack_identifier;
             break;
           }
 
@@ -367,14 +367,16 @@ static void push_new_declaration_stack(Stack *declaration_stack) {
   stack_push(declaration_stack, new_stack_value);
 }
 
-static void resolve_function_parameter(AstNode *param_type_node, char **parameter_identifier, Stack *declaration_stack) {
+static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack) {
   if (param_type_node->data.type.type == AST_TYPE_VOID) {
     return;
   }
 
   StackValue *declaration_top_stack = stack_top(declaration_stack);
   HashTable *declaration_table = declaration_top_stack->data.hash_table;
-  char* converted_identifier = get_identifier_with_stack_offset(*parameter_identifier, declaration_stack->count);
+
+  char* converted_identifier = get_identifier_with_stack_offset(function_declaration_node->data.function_declaration.parameter_identifiers[identifier_idx], declaration_stack->count);
+
   HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
 
   if (existing_variable != NULL && existing_variable->key != NULL) {
@@ -383,7 +385,7 @@ static void resolve_function_parameter(AstNode *param_type_node, char **paramete
       exit(1);
     }      
 
-    *parameter_identifier = converted_identifier;
+    function_declaration_node->data.function_declaration.parameter_identifiers[identifier_idx] = converted_identifier;
 
     return;
   }
@@ -396,5 +398,6 @@ static void resolve_function_parameter(AstNode *param_type_node, char **paramete
 
   add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
 
-  *parameter_identifier = converted_identifier;
+  function_declaration_node->data.function_declaration.parameter_identifiers[identifier_idx] = converted_identifier;
+
 }

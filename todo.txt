@@ -1,4 +1,7 @@
 # Bugs
+	- The following casts are broken:
+		- long gg = (long)5;
+		- long gg = (int)5;
     - This declaration doesn't work: int result = j == -1 && i == 11;
 	- The following test is not producing an error when it should. Foo is declared twice with different parameters:
 		int main(void) {
@@ -30,6 +33,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- Assembly instruction resolution pass: Add the business checks into the function (look at movsx resolution example)
 	- Intemediate Rep: Clean up print function to better display IR instructions 
 	- Leaking memory in Type Checker
 	- Look into combining AST Types and the TypeCheck ValueType

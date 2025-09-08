@@ -98,7 +98,10 @@ int main(int argc, const char *argv[]) {
   arena_free(ast_arena);
 
   benchmarks[4] = clock();
-  AsmNode *asm_nodes = generate_assembly(ir, declaration_symbol_table.symbol_table);
+  AsmBackendSymbolTable backend_symbol_table;
+  backend_symbol_table_init(&backend_symbol_table);
+
+  AsmNode *asm_nodes = generate_assembly(ir, &declaration_symbol_table, &backend_symbol_table);
   benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
@@ -135,6 +138,7 @@ int main(int argc, const char *argv[]) {
     printf("Assembly : %f seconds\n", benchmarks[4]);
     printf("Total Compile Time: %f seconds\n", ((double) (total_benchmark_end - total_benchmark_start)) / CLOCKS_PER_SEC);
   }             
+  
   return 0;
 }
 
