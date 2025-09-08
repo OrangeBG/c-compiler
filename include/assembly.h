@@ -119,7 +119,8 @@ typedef struct AsmNode {
     struct AsmInstructionLabel { char *identifier; } instruction_label;
     struct AsmInstructionPush { AsmNode *operand; } instruction_push;
     struct AsmInstructionCall { char *identifier; } instruction_call;
-    struct AsmOperandImmediate { int value; } operand_imm;
+    //TODO: Assigning long to immediate value to support long constanta. May need to re work this when long long is supported. Read top of pg 266
+    struct AsmOperandImmediate { long value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;
     struct AsmOperandStack { int address; } operand_stack;

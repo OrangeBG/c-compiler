@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -22,6 +23,7 @@ void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instr
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena); 
+void     asm_resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
@@ -148,6 +150,8 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
       continue;
     }
 
+    asm_resolve_large_imm_operand(new_function, instruction_ptr->asm_pointers[i], asm_arena);
+
     AsmNode *new_instruction = arena_alloc(asm_arena); 
     new_instruction->type = instruction_ptr->asm_pointers[i]->type;
     new_instruction->data = instruction_ptr->asm_pointers[i]->data;
@@ -156,6 +160,74 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
   }
 
   return new_function;
+}
+
+void asm_resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+  //The quadword versions of binary arithmetic instructions (addq, imulq, and subq) can’t handle immediate values that don’t fit into an int,
+  //and neither can cmpq or pushq. If the source of any of these instructions is a constant outside the range of int, we’ll need to copy it into R10 before we can use it.
+
+  if (instruction->type == ASM_INSTRUCTION_BINARY && instruction->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD && instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_IMM && (instruction->data.instruction_binary.operand_1->data.operand_imm.value > INT_MAX || instruction->data.instruction_binary.operand_1->data.operand_imm.value < INT_MIN )) {
+    AsmNode *r10_register = arena_alloc(asm_arena);
+    r10_register->type = ASM_OPERAND_REGISTER;
+    r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
+
+    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    r10_mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_1;
+    r10_mov_instruction->data.instruction_mov.destination = r10_register;
+
+    asm_add_instruction_to_function(function, r10_mov_instruction);
+
+    AsmNode *stack_mov = arena_alloc(asm_arena);
+    stack_mov->type = ASM_INSTRUCTION_MOV;
+    stack_mov->data.instruction_mov.source = r10_register;
+    stack_mov->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
+
+    asm_add_instruction_to_function(function, stack_mov);
+    return;
+  }
+
+  if (instruction->type == ASM_INSTRUCTION_CMP && instruction->data.instruction_cmp.assembly_type == ASM_TYPE_QUADWORD && instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_IMM && (instruction->data.instruction_cmp.operand_1->data.operand_imm.value > INT_MAX || instruction->data.instruction_cmp.operand_1->data.operand_imm.value < INT_MIN )) {
+    AsmNode *r10_register = arena_alloc(asm_arena);
+    r10_register->type = ASM_OPERAND_REGISTER;
+    r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
+
+    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    r10_mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_1;
+    r10_mov_instruction->data.instruction_mov.destination = r10_register;
+
+    asm_add_instruction_to_function(function, r10_mov_instruction);
+
+    AsmNode *stack_mov = arena_alloc(asm_arena);
+    stack_mov->type = ASM_INSTRUCTION_MOV;
+    stack_mov->data.instruction_mov.source = r10_register;
+    stack_mov->data.instruction_mov.destination = instruction->data.instruction_cmp.operand_2;
+
+    asm_add_instruction_to_function(function, stack_mov);
+    return;
+  }
+
+  if (instruction->type == ASM_INSTRUCTION_PUSH && instruction->data.instruction_push.operand->type == ASM_OPERAND_IMM && (instruction->data.instruction_push.operand->data.operand_imm.value > INT_MAX || instruction->data.instruction_push.operand->data.operand_imm.value < INT_MIN )) {
+    AsmNode *r10_register = arena_alloc(asm_arena);
+    r10_register->type = ASM_OPERAND_REGISTER;
+    r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
+
+    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
+    r10_mov_instruction->data.instruction_mov.source = instruction->data.instruction_push.operand;
+    r10_mov_instruction->data.instruction_mov.destination = r10_register;
+
+    asm_add_instruction_to_function(function, r10_mov_instruction);
+
+    AsmNode *stack_mov = arena_alloc(asm_arena);
+    stack_mov->type = ASM_INSTRUCTION_MOV;
+    stack_mov->data.instruction_mov.source = r10_register;
+    stack_mov->data.instruction_mov.destination = instruction->data.instruction_push.operand;
+
+    asm_add_instruction_to_function(function, stack_mov);
+    return;
+  }
 }
 
 void asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena) {
@@ -201,7 +273,6 @@ void asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction
     r11_mov_instruction->data.instruction_mov.destination = movsx_instruction->data.instruction_movsx.destination;
 
     asm_add_instruction_to_function(function, r11_mov_instruction);
-
   } else {
     new_movsx->data.instruction_movsx.destination = movsx_instruction->data.instruction_movsx.destination;
     asm_add_instruction_to_function(function, new_movsx);
@@ -1123,7 +1194,6 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
 
       switch (ir_operand->data.value_constant.type) {
         case IR_TYPE_INT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
-        //TODO: Assigning long to int here. Don't think that's right. Read top of pg 266
         case IR_TYPE_LONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
       }
       break;
