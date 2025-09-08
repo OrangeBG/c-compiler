@@ -366,7 +366,6 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.variable_expression.identifier);
 
       if (entry == NULL || entry->key == NULL) {
-        hash_table_print(declaration_table->symbol_table);
         fprintf(stderr, "ERROR - SA Type Check: Expression variable '%s' not found in declaration symbol table\n", node->data.variable_expression.identifier);
         exit(1);
       }
