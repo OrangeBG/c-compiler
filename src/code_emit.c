@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
-#include "assembly.h"
 
 char* get_8_byte_register(AsmRegisterType register_type); 
 char* get_4_byte_register(AsmRegisterType register_type); 
 char* get_1_byte_register(AsmRegisterType register_type); 
+void print_instruction_suffix(FILE *file, AsmType type); 
 
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
@@ -37,18 +37,25 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       for (int i = 0; i < asm_node->data.function.instruction_count; i++) {
         save_assembly_file(asm_node->data.function.instruction_pointers->asm_pointers[i], file);
       }
+
+      fprintf(file, "\n");
       break;
     case ASM_STATIC_VARIABLE:
       if (asm_node->data.static_variable.is_global) {
-        fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
+        fprintf(file, "\t.globl %s\n", asm_node->data.static_variable.identifier);
       }
 
-      //TODO: Need to rework
-      // if (asm_node->data.static_variable.initial_value == 0) {        
-      //   fprintf(file, "\t.bss\n");
-      // } else {
-      //   fprintf(file, "\t.data\n");
-      // }
+      switch (asm_node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+          break;
+        case DECLARATION_SYMBOL_TYPE_LONG: 
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+          break;
+        default:
+          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
+          exit(1);
+      }      
 
       #ifdef __linux__
         fprintf(file, "\t.align 4\n");
@@ -58,22 +65,46 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.balign 4\n");
       #endif 
 
-      //TODO: Need to rework
-      // if (asm_node->data.static_variable.initial_value == 0) {        
-      //   fprintf(file, "\t.zero 4\n");
-      // } else {
-      //   fprintf(file, "\t.long %d\n", asm_node->data.static_variable.initial_value);
-      // }
+      fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
+
+      switch (asm_node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); 
+          break;
+        case DECLARATION_SYMBOL_TYPE_LONG: 
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); 
+          break;
+        default:
+          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
+          exit(1);
+      }      
+
+      fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_MOV:
-      fprintf(file, "\tmovl\t");
+      fprintf(file, "\tmov");
+
+      print_instruction_suffix(file, asm_node->data.instruction_mov.assembly_type);      
+      fprintf(file, "\t");
+      
       save_assembly_file(asm_node->data.instruction_mov.source, file);
       fprintf(file, ", ");
       save_assembly_file(asm_node->data.instruction_mov.destination, file);      
       fprintf(file, "\n");
       break;
+    case ASM_INSTRUCTION_MOVSX:
+      fprintf(file, "\tmovslq\t");
+      save_assembly_file(asm_node->data.instruction_movsx.source, file);
+      fprintf(file, ", ");
+      save_assembly_file(asm_node->data.instruction_movsx.destination, file);      
+      fprintf(file, "\n");
+      break;
     case ASM_INSTRUCTION_CMP:
-      fprintf(file, "\tcmpl\t");
+      fprintf(file, "\tcmp");
+
+      print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type);
+      fprintf(file, "\t");
+      
       save_assembly_file(asm_node->data.instruction_cmp.operand_1, file);
       fprintf(file, ", ");
       save_assembly_file(asm_node->data.instruction_cmp.operand_2, file);
@@ -121,34 +152,50 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       break;
     case ASM_INSTRUCTION_UNARY:
       if (asm_node->data.instruction_unary.unary_op == ASM_UNARY_NEG) {
-        fprintf(file, "\tnegl\t");
+        fprintf(file, "\tneg");
       } else {
-        fprintf(file, "\tnotl\t");
+        fprintf(file, "\tnot");
       }
+
+      print_instruction_suffix(file, asm_node->data.instruction_unary.assembly_type);
+      fprintf(file, "\t");
+      
       save_assembly_file(asm_node->data.instruction_unary.operand, file);
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_BINARY:
       switch (asm_node->data.instruction_binary.binary_op) {
-        case ASM_BINARY_ADD:                  fprintf(file, "\taddl\t"); break;
-        case ASM_BINARY_SUB:                  fprintf(file, "\tsub"); asm_node->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD ? fprintf(file, "q\t") : fprintf(file, "l\t"); break;
-        case ASM_BINARY_MULT:                 fprintf(file, "\timull\t"); break;        
-        case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tandl\t"); break;
-        case ASM_BINARY_BITWISE_OR:           fprintf(file, "\torl\t"); break;
-        case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txorl\t"); break;
-        case ASM_BINARY_BITWISE_LEFT_SHIFT:   fprintf(file, "\tshll\t"); break;
-        case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshrl\t"); break;
+        case ASM_BINARY_ADD:                  fprintf(file, "\tadd"); break;
+        case ASM_BINARY_SUB:                  fprintf(file, "\tsub"); break;
+        case ASM_BINARY_MULT:                 fprintf(file, "\timul"); break;        
+        case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tand"); break;
+        case ASM_BINARY_BITWISE_OR:           fprintf(file, "\tor"); break;
+        case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txor"); break;
+        case ASM_BINARY_BITWISE_LEFT_SHIFT:   fprintf(file, "\tshl"); break;
+        case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshr"); break;
       }
+
+      print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type);
+      fprintf(file, "\t");
+      
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
       fprintf(file, ", ");
       save_assembly_file(asm_node->data.instruction_binary.operand_2, file);
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_CDQ:
-      fprintf(file, "\tcdq\n");
+      if (asm_node->data.instruction_cdq.assembly_type == ASM_TYPE_LONGWORD) {
+        fprintf(file, "\tcdq\n");
+      } else {
+        fprintf(file, "\tcqo\n");
+      }
       break;
     case ASM_INSTRUCTION_IDIV:
-      fprintf(file, "\tidivl\t");
+      fprintf(file, "\tidiv");
+
+      print_instruction_suffix(file, asm_node->data.instruction_idiv.assembly_type);
+      fprintf(file, "\t");
+      
       save_assembly_file(asm_node->data.instruction_idiv.operand, file);
       fprintf(file, "\n");
       break;
@@ -173,7 +220,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_OPERAND_IMM:
-      fprintf(file, "$%d", asm_node->data.operand_imm.value);
+      fprintf(file, "$%ld", asm_node->data.operand_imm.value);
       break;
     case ASM_OPERAND_REGISTER: {
       char *operand_register = get_4_byte_register(asm_node->data.operand_register.op_register);
@@ -240,4 +287,13 @@ char* get_1_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R10: return "%r10b";
     case ASM_REGISTER_R11: return "%r11b";
   }
+}
+
+void print_instruction_suffix(FILE *file, AsmType type) {
+  if (type == ASM_TYPE_LONGWORD) {
+    fprintf(file, "l");
+    return;
+  }
+
+  fprintf(file, "q");
 }
