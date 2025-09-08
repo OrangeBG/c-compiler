@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
 #include "assembly.h"
+#include "declaration_symbol.h"
 
 char* get_8_byte_register(AsmRegisterType register_type); 
 char* get_4_byte_register(AsmRegisterType register_type); 
@@ -43,12 +44,17 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.globl %s\n", asm_node->data.function.name);
       }
 
-      //TODO: Need to rework
-      // if (asm_node->data.static_variable.initial_value == 0) {        
-      //   fprintf(file, "\t.bss\n");
-      // } else {
-      //   fprintf(file, "\t.data\n");
-      // }
+      switch (asm_node->data.static_variable.static_variable_symbol->value_type) {
+        case DECLARATION_SYMBOL_TYPE_INT:
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+          break;
+        case DECLARATION_SYMBOL_TYPE_LONG: 
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+          break;
+        default:
+          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
+          exit(1);
+      }      
 
       #ifdef __linux__
         fprintf(file, "\t.align 4\n");
@@ -58,7 +64,8 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.balign 4\n");
       #endif 
 
-      //TODO: Need to rework
+      fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
+
       // if (asm_node->data.static_variable.initial_value == 0) {        
       //   fprintf(file, "\t.zero 4\n");
       // } else {

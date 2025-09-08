@@ -1,3 +1,7 @@
+int h = 43;
+long l;
+long b = 30405060433;
+
 int test_fun(void) {
     int x = 3;
 
