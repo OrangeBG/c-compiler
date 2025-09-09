@@ -278,6 +278,13 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       node->data.variable_expression.identifier = identifier;
       break;
     }
+    case AST_TYPE:
+    case AST_EXPRESSION_CONSTANT:
+      break;
+    default:
+      fprintf(stderr, "ERROR - SA Variable Resolution: Unsupported AST Type '%d' when resolving node", node->type);
+      exit(1);
+      break;
   }
 } 
 
