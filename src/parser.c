@@ -51,7 +51,7 @@ static void       parse_factor_unary(Parser *parser, AstNode *factor_node);
 static void       parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
 static void       parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node); 
 static void       parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
-static void       parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier); 
+static void       parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
 static void       parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 static void       parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
 static Token*     current_token(const Parser *parser);
@@ -719,7 +719,6 @@ static void parse_statement(Parser *parser, AstNode **statement_node) {
   }
 
   switch (current_token(parser)->type) {
-    // case TOKEN_OPEN_BRACE: ast_block(parser, *statement_node); break;
     case TOKEN_OPEN_BRACE: parse_statement_compound_statement(parser, *statement_node); break;
     case TOKEN_SEMICOLON:  parse_statement_null(parser, *statement_node); break;
     case TOKEN_RETURN:     parse_statement_return(parser, *statement_node); break;
@@ -731,6 +730,11 @@ static void parse_statement(Parser *parser, AstNode **statement_node) {
     case TOKEN_DO:         parse_statement_do(parser, *statement_node); break;
     case TOKEN_FOR:        parse_statement_for(parser, *statement_node); break;
     default: {
+      if (current_token(parser)->type == TOKEN_IDENTIFIER && peek_next_token(parser) == TOKEN_COLON) {
+        parse_factor_goto_label(parser, *statement_node);
+        break;
+      }
+      
       parse_expression(parser, statement_node, 0);  
 
       //TODO: See if we add this in ast_expression() instead of doing this goto label check
@@ -975,9 +979,6 @@ static void parse_expression_assignment(Parser *parser, AstNode *assignment_expr
   //right-associative assignment
   expect(parser, TOKEN_EQUAL);
 
-  //TODO: @Test - This was previously:
-  // AstNode *right = ast_expression(parser, get_precedence(peek_next_token(parser)));
-  // That doesn't make sense since we consume the '=' token and not use the precedence of the next token
   AstNode *right = arena_alloc(parser->node_arena);
   parse_expression(parser, &right, get_precedence(assignment_token));
 
@@ -1108,7 +1109,6 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
       char *identifier = get_identifier(parser);
 
       switch(current_token(parser)->type) {
-        case TOKEN_COLON:      parse_factor_goto_label(parser, factor_node, identifier); break;
         case TOKEN_OPEN_PAREN: parse_factor_function_call(parser, factor_node, identifier); break;
         default:               parse_factor_variable_expression(parser, factor_node, identifier); break;
       }      
@@ -1251,7 +1251,9 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   factor_node->data.cast_expression.expression_type = NULL;
 }
 
-static void parse_factor_goto_label(Parser *parser, AstNode *factor_node, char *label_identifier) {
+static void parse_factor_goto_label(Parser *parser, AstNode *factor_node) {
+  char *label_identifier = get_identifier(parser);
+
   expect(parser, TOKEN_COLON);
   factor_node->type = AST_STATEMENT_GOTO_LABEL;
   factor_node->data.goto_label_statement.label = label_identifier;

@@ -220,6 +220,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.binary_expression.right_expression, declaration_stack);
       break;
     }
+    case AST_EXPRESSION_CONDITIONAL:
+      variable_resolve_node(node->data.conditional_expression.condition, declaration_stack);
+      variable_resolve_node(node->data.conditional_expression.true_expression, declaration_stack);
+      variable_resolve_node(node->data.conditional_expression.false_expression, declaration_stack);
+      break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT:
     case AST_EXPRESSION_PREFIX_INCREMENT:

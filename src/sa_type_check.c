@@ -205,6 +205,9 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
     case AST_STATEMENT_COMPOUND:      
       function_and_variable_type_check(node->data.compound_statement.block, declaration_table, function_declaration_node, ast_arena);
       break;
+    case AST_STATEMENT_GOTO_LABEL:
+    case AST_STATEMENT_GOTO:
+      break;
     default:    
       fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check\n", node->type);
       exit(1);

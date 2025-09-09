@@ -1,4 +1,5 @@
 # Bugs
+	- The following segfaults. An error is somewhere in the type checker when applying a cast to the conditional expression: long result = 1 ? l : i;
 	- The following casts are broken:
 		- long gg = (long)5;
 		- long gg = (int)5;
