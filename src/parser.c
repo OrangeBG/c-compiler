@@ -866,6 +866,7 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
     expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
   } else if (current_token(parser)->type == TOKEN_INT) {
+    expect(parser, TOKEN_INT);
     parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, AST_TYPE_INT);
   } else if (current_token(parser)->type == TOKEN_EXTERN) {
     fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'extern' storage class defined\n");
