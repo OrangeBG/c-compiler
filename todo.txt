@@ -1,4 +1,16 @@
 # Bugs
+	- The following segfaults:		
+		int main(void) {
+		    int a = 10;
+		    int b = 20;
+		    for (b = -20; b < 0; b = b + 1) {
+		        a = a - 1;
+		        if (a <= 0)
+		            break;
+		    }
+
+		    return a == 0 && b == -11;
+		}
 	- The following segfaults. An error is somewhere in the type checker when applying a cast to the conditional expression: long result = 1 ? l : i;
 	- The following casts are broken:
 		- long gg = (long)5;
