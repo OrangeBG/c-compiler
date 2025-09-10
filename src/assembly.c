@@ -721,13 +721,16 @@ void asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Ar
   AsmNode *source = asm_operand(ir_copy_instruction->data.instruction_copy.source, asm_arena);
   AsmNode *destination = asm_operand(ir_copy_instruction->data.instruction_copy.destination, asm_arena);
 
-  AsmType source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, declaration_symbol_table);
-
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = source;
   mov_instruction->data.instruction_mov.destination = destination;
-  mov_instruction->data.instruction_mov.assembly_type = source_type;
+
+  //TODO: This feels hacky. Find a better type of way to do this kind of check within the conversion function
+  if (ir_copy_instruction->data.instruction_copy.source->type == IR_VALUE_VAR && strncmp("tmp.", ir_copy_instruction->data.instruction_copy.source->data.value_var.identifier, 4) != 0) {
+    AsmType source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, declaration_symbol_table);
+    mov_instruction->data.instruction_mov.assembly_type = source_type;
+  }
 
   asm_add_instruction_to_function(asm_function, mov_instruction);
 }
