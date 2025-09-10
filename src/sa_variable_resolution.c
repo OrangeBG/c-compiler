@@ -253,6 +253,15 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         identifier = node->data.variable_expression.identifier;
         entry = hash_table_get_entry(declaration_table, identifier);
       }
+
+      if (entry != NULL && entry->key != NULL) {
+        Declaration *declaration = entry->value->structure;
+
+        //If the found entry record is a shadowed function that shares the same name as the variable, reset the entry record
+        if (declaration->declaration_type == DECLARATION_TYPE_FUNCTION) {
+          entry = NULL;
+        }
+      }
       
       if (entry == NULL || entry->key == NULL) {
         //Check if there is a parent declared variable by traversing backwards from the current stack offset.
@@ -280,9 +289,14 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
     }
     case AST_TYPE:
     case AST_EXPRESSION_CONSTANT:
+    case AST_STATEMENT_NULL:
+    case AST_STATEMENT_CONTINUE:
+    case AST_STATEMENT_BREAK:
+    case AST_STATEMENT_GOTO:
+    case AST_STATEMENT_GOTO_LABEL:
       break;
     default:
-      fprintf(stderr, "ERROR - SA Variable Resolution: Unsupported AST Type '%d' when resolving node", node->type);
+      fprintf(stderr, "ERROR - SA Variable Resolution: Unsupported AST Type '%d' when resolving node\n", node->type);
       exit(1);
       break;
   }
