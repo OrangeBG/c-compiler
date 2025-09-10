@@ -235,7 +235,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_CAST:
-      variable_resolve_node(node->data.cast_expression.target_type, declaration_stack);
+      variable_resolve_node(node->data.cast_expression.expression, declaration_stack);
       break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
