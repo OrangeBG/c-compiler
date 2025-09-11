@@ -1,4 +1,12 @@
 # Bugs
+	- The following errors in the type checker:
+		{
+			int a = 3;
+		}
+
+		{
+			int a = 4;
+		}
 	- The following segfaults:
 		int a(void) {
 		    return 1;
@@ -23,11 +31,13 @@
 
 		    return a == 0 && b == -11;
 		}
-	- The following segfaults. An error is somewhere in the type checker when applying a cast to the conditional expression: long result = 1 ? l : i;
-	- The following casts are broken:
-		- long gg = (long)5;
-		- long gg = (int)5;
-    - This declaration doesn't work: int result = j == -1 && i == 11;
+	- The following segfaults. An error is somewhere in the type checker when applying a cast to the conditional expression: 
+		int i = 3;
+		int l = 3;
+
+		long result = 1 ? l : i;
+
+		return result;
 	- The following test is not producing an error when it should. Foo is declared twice with different parameters:
 		int main(void) {
 		    int foo(int help);
