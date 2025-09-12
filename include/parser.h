@@ -76,13 +76,17 @@ typedef enum {
 typedef enum {
   AST_TYPE_VOID,
   AST_TYPE_INT,
+  AST_TYPE_UINT,
   AST_TYPE_LONG,
+  AST_TYPE_ULONG,
   AST_TYPE_FUNCTION
 } Types;
 
 typedef enum {
   AST_CONSTANT_TYPE_INT,
-  AST_CONSTANT_TYPE_LONG
+  AST_CONSTANT_TYPE_UINT,
+  AST_CONSTANT_TYPE_LONG,
+  AST_CONSTANT_TYPE_ULONG
 } ConstantType;
 
 typedef struct {
@@ -110,7 +114,8 @@ typedef struct AstNode {
     struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
     struct BreakStatement { int label_id; } break_statement;
     struct ContinueStatement { int label_id; } continue_statement;
-    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; AstNode *expression_type; } constant_expression;
+    //TODO: Look into making the constant values into a union
+    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; AstNode *expression_type; } constant_expression;
     struct VariableExpression { char *identifier; AstNode *expression_type; } variable_expression;
     struct UnaryExpression { UnaryOpType op_type; AstNode *expression; AstNode *expression_type; } unary_expression;
     struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } binary_expression;

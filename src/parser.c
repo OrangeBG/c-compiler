@@ -156,8 +156,13 @@ void print_ast(const AstNode *node, int whitespace) {
       switch (node->data.type.type) {
         case AST_TYPE_VOID:     printf("void"); break;
         case AST_TYPE_INT:      printf("int"); break;
+        case AST_TYPE_UINT:     printf("uint"); break;
         case AST_TYPE_LONG:     printf("long"); break;
+        case AST_TYPE_ULONG:    printf("ulong"); break;
         case AST_TYPE_FUNCTION: printf("function"); break;
+        default:
+          fprintf(stderr, "ERROR - Parser: Could not find AST Type when printing\n");
+          exit(1);
       }
       printf(")\n");      
       break;
@@ -289,8 +294,18 @@ void print_ast(const AstNode *node, int whitespace) {
         case AST_CONSTANT_TYPE_INT:
           printf("Constant(Int (%d))\n", node->data.constant_expression.int_value);
           break;
+        case AST_CONSTANT_TYPE_UINT:
+          printf("Constant(UInt (%d))\n", node->data.constant_expression.uint_value);
+          break;
         case AST_CONSTANT_TYPE_LONG:
           printf("Constant(Long(%ld))\n", node->data.constant_expression.long_value);
+          break;
+        case AST_CONSTANT_TYPE_ULONG:
+          printf("Constant(ULong(%ld))\n", node->data.constant_expression.ulong_value);
+          break;
+        default:
+          fprintf(stderr, "ERROR - Parser: Could not find constant type when printing\n");
+          exit(1);
           break;
       }
       break;
@@ -423,7 +438,9 @@ void print_ast(const AstNode *node, int whitespace) {
 
         switch (node->data.cast_expression.target_type->data.type.type) {
           case AST_TYPE_INT:   printf("int\n"); break;
+          case AST_TYPE_UINT:  printf("uint\n"); break;
           case AST_TYPE_LONG:  printf("long\n"); break;
+          case AST_TYPE_ULONG:  printf("ulong\n"); break;
           default:            
             printf("ERROR - Parser: Unsupported cast node type to print %d\n", node->type);
         }
@@ -664,7 +681,7 @@ static void parse_block(Parser *parser, AstNode *block_node) {
     }
 
     //TODO: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
-    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_LONG || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
+    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_LONG || current_token(parser)->type == TOKEN_UNSIGNED || current_token(parser)->type == TOKEN_SIGNED || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
       AstNode *declaration_node = arena_alloc(parser->node_arena);
       parse_declaration(parser, declaration_node);
       block_node->data.block.block_count++;
@@ -1089,6 +1106,8 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
   switch(current_token(parser)->type) {
     case TOKEN_CONSTANT_INT:
     case TOKEN_CONSTANT_LONG:
+    case TOKEN_CONSTANT_UNSIGNED_INT:
+    case TOKEN_CONSTANT_UNSIGNED_LONG:
       parse_factor_constant(parser, factor_node, current_token(parser)->type); break;
     case TOKEN_NEGATION:
     case TOKEN_BITWISE_NOT:
@@ -1145,6 +1164,26 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     factor_node->data.constant_expression.int_value = (int)constant_value;
 
     expression_type->data.type.type = AST_TYPE_INT;  
+    
+    factor_node->data.constant_expression.expression_type = expression_type;
+    return;
+  }
+
+  if (constant_type == TOKEN_CONSTANT_UNSIGNED_INT && constant_value >= 0  && constant_value < UINT_MAX) {
+    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_UINT;
+    factor_node->data.constant_expression.uint_value = (unsigned int)constant_value;
+
+    expression_type->data.type.type = AST_TYPE_UINT;  
+    
+    factor_node->data.constant_expression.expression_type = expression_type;
+    return;
+  }
+
+  if (constant_type == TOKEN_CONSTANT_UNSIGNED_LONG && constant_value >= 0  && constant_value < ULONG_MAX) {
+    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_ULONG;
+    factor_node->data.constant_expression.ulong_value = (unsigned long)constant_value;
+
+    expression_type->data.type.type = AST_TYPE_ULONG;  
     
     factor_node->data.constant_expression.expression_type = expression_type;
     return;
@@ -1388,26 +1427,51 @@ static Types expect_type_specifier(Parser *parser) {
     expect(parser, TOKEN_VOID);
     return AST_TYPE_VOID;
   }
+
+  if (current_token(parser)->type == TOKEN_UNSIGNED) {
+    if (peek_next_token(parser) == TOKEN_UNSIGNED) {
+      fprintf(stderr, "ERROR - Parser: Unsigned type specified twice. Line %d\n", current_token(parser)->line);
+      exit(1);
+    }
+    
+    if (peek_next_token(parser) == TOKEN_SIGNED) {
+      fprintf(stderr, "ERROR - Parser: Signed type specified after unsigned. Line %d\n", current_token(parser)->line);
+      exit(1);
+    }
+  }
+
+  if (current_token(parser)->type == TOKEN_SIGNED) {
+    if (peek_next_token(parser) == TOKEN_SIGNED) {
+      fprintf(stderr, "ERROR - Parser: Signed type specified twice. Line %d\n", current_token(parser)->line);
+      exit(1);
+    }
+
+    if (peek_next_token(parser) == TOKEN_UNSIGNED) {
+      fprintf(stderr, "ERROR - Parser: Unsigned type specified after signed. Line %d\n", current_token(parser)->line);
+      exit(1);
+    }
+  }
+
+  if ((current_token(parser)->type == TOKEN_UNSIGNED && peek_next_token(parser) == TOKEN_LONG) || (current_token(parser)->type == TOKEN_LONG && peek_next_token(parser) == TOKEN_UNSIGNED)) {
+    parser->current_token_index += 2;
+    return AST_TYPE_ULONG;
+  }
+
+  if (current_token(parser)->type == TOKEN_UNSIGNED) {
+    parser->current_token_index++;
+    return AST_TYPE_UINT;
+  }   
   
-  Types type;
-
   if (current_token(parser)->type == TOKEN_LONG) {
-    expect(parser, TOKEN_LONG);
-    type = AST_TYPE_LONG;
-  } else if (current_token(parser)->type == TOKEN_INT) {
-    expect(parser, TOKEN_INT);
-    type = AST_TYPE_INT;
-  } else {
-    fprintf(stderr, "ERROR - Parser: Found '%d' Token type instead of type specifiers\n", current_token(parser)->type);
-    exit(1);
-  }
+    parser->current_token_index++;
+    return AST_TYPE_LONG;
+  }   
 
-  if (current_token(parser)->type == TOKEN_LONG) {  
-    expect(parser, TOKEN_LONG);
-    return  AST_TYPE_LONG;
-  } else if (current_token(parser)->type == TOKEN_INT) {
-    expect(parser, TOKEN_INT);
-  }
-
-  return type;
+  if (current_token(parser)->type == TOKEN_INT) {
+    parser->current_token_index++;
+    return AST_TYPE_INT;
+  }   
+  
+  fprintf(stderr, "ERROR - Parser: Type specifier not found. Line %d\n", current_token(parser)->line);
+  exit(1);
 }

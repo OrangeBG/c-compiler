@@ -68,6 +68,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- Add line numbers when printing errors
 	- Assembly instruction resolution pass: Add the business checks into the function (look at movsx resolution example)
 	- Intemediate Rep: Clean up print function to better display IR instructions 
 	- Leaking memory in Type Checker
