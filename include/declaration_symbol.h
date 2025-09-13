@@ -7,7 +7,9 @@
 
 typedef enum {
   DECLARATION_SYMBOL_TYPE_INT,
+  DECLARATION_SYMBOL_TYPE_UINT,
   DECLARATION_SYMBOL_TYPE_LONG,
+  DECLARATION_SYMBOL_TYPE_ULONG,
   DECLARATION_SYMBOL_TYPE_VOID //TODO: Is this needed?
 } DeclarationSymbolValueType;
 
@@ -32,6 +34,8 @@ typedef struct {
 typedef union {
   int int_value;
   long long_value;
+  unsigned int uint_value;
+  unsigned long ulong_value;
 } InitialValue;
 
 typedef struct {

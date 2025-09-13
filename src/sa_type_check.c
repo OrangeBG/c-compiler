@@ -18,6 +18,7 @@ static DeclarationSymbolValueType convert_ast_declaration_type_to_symbol_type(As
 static Types    expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena); 
 static Types    get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
+static size_t get_type_size(Types type); 
  
 void sa_type_check(AstNode *ast_nodes, DeclarationSymbolTable *declaration_table, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
@@ -319,8 +320,14 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         case AST_TYPE_INT:
           initial_value.int_value = 0; 
           break;
+        case AST_TYPE_UINT:
+          initial_value.uint_value = 0;
+          break;
         case AST_TYPE_LONG:
           initial_value.long_value = 0; 
+          break;
+        case AST_TYPE_ULONG:
+          initial_value.ulong_value = 0;
           break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n", variable_declaration_node->data.variable_declaration.type->data.type.type);
@@ -330,19 +337,49 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
       Types constant_expression_type = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type;
 
+      //TODO: Find a better way to organize this logic
       switch(variable_declaration_node->data.variable_declaration.type->data.type.type) {
         case AST_TYPE_INT:
           if (constant_expression_type == AST_TYPE_LONG) {
             initial_value.int_value = (int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          } else if (constant_expression_type == AST_TYPE_UINT) {
+            initial_value.int_value = (int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.uint_value;
+          } else if (constant_expression_type == AST_TYPE_ULONG) {
+            initial_value.int_value = (int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.ulong_value;
           } else {
             initial_value.int_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
           }
           break;
         case AST_TYPE_LONG:
-          if (constant_expression_type == AST_TYPE_LONG) {
+          if (constant_expression_type == AST_TYPE_INT) {
             initial_value.long_value = (long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          } else if (constant_expression_type == AST_TYPE_UINT) {
+            initial_value.long_value = (long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.uint_value;
+          } else if (constant_expression_type == AST_TYPE_ULONG) {
+            initial_value.long_value = (long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.ulong_value;
           } else {
             initial_value.long_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          }
+        case AST_TYPE_UINT:
+          if (constant_expression_type == AST_TYPE_LONG) {
+            initial_value.uint_value = (unsigned int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          } else if (constant_expression_type == AST_TYPE_INT) {
+            initial_value.uint_value = (unsigned int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          } else if (constant_expression_type == AST_TYPE_ULONG) {
+            initial_value.uint_value = (unsigned int)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.ulong_value;
+          } else {
+            initial_value.uint_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.uint_value;
+          }
+          break;
+        case AST_TYPE_ULONG:
+          if (constant_expression_type == AST_TYPE_LONG) {
+            initial_value.ulong_value = (unsigned long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.long_value;
+          } else if (constant_expression_type == AST_TYPE_INT) {
+            initial_value.ulong_value = (unsigned long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.int_value;
+          } else if (constant_expression_type == AST_TYPE_UINT) {
+            initial_value.ulong_value = (unsigned long)variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.uint_value;
+          } else {
+            initial_value.ulong_value = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.ulong_value;
           }
           break;
         default:
@@ -350,7 +387,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
           exit(1);
       }
     } else {
-      fprintf(stderr, "ERROR - SA Type Check: Non-constance initializer on local staic variable '%s'\n", variable_declaration_node->data.variable_declaration.name);
+      fprintf(stderr, "ERROR - SA Type Check: Non-constant initializer on local static variable '%s'\n", variable_declaration_node->data.variable_declaration.name);
       exit(1);
     }
 
@@ -387,8 +424,13 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       ast_expression_type->type = AST_TYPE;
       
       switch (symbol->data.variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:   ast_expression_type->data.type.type = AST_TYPE_INT; break;
-        case DECLARATION_SYMBOL_TYPE_LONG:  ast_expression_type->data.type.type = AST_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_INT:    ast_expression_type->data.type.type = AST_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:   ast_expression_type->data.type.type = AST_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_UINT:   ast_expression_type->data.type.type = AST_TYPE_UINT; break;
+        case DECLARATION_SYMBOL_TYPE_ULONG:  ast_expression_type->data.type.type = AST_TYPE_ULONG; break;
+        default:
+          fprintf(stderr, "ERROR - Type Check: Could not resolve value type in variable symbol");
+          exit(1);
       }
 
       node->data.variable_expression.expression_type = ast_expression_type;
@@ -400,8 +442,13 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       ast_expression_type->type = AST_TYPE;
       
       switch (node->data.constant_expression.constant_type) {
-        case AST_CONSTANT_TYPE_INT:   ast_expression_type->data.type.type = AST_TYPE_INT; break;
-        case AST_CONSTANT_TYPE_LONG:  ast_expression_type->data.type.type = AST_TYPE_LONG; break;
+        case AST_CONSTANT_TYPE_INT:          ast_expression_type->data.type.type = AST_TYPE_INT; break;
+        case AST_CONSTANT_TYPE_LONG:         ast_expression_type->data.type.type = AST_TYPE_LONG; break;
+        case AST_CONSTANT_TYPE_UINT:   ast_expression_type->data.type.type = AST_TYPE_UINT; break;
+        case AST_CONSTANT_TYPE_ULONG:  ast_expression_type->data.type.type = AST_TYPE_ULONG; break;
+        default:
+          fprintf(stderr, "ERROR - Type Check: Could not resolve value type in variable symbol");
+          exit(1);
       }
 
       node->data.constant_expression.expression_type = ast_expression_type;
@@ -509,6 +556,11 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       switch (existing_symbol->data.function_symbol->value_type) {
         case DECLARATION_SYMBOL_TYPE_INT:   ast_expression_type_node->data.type.type = AST_TYPE_INT; break;
         case DECLARATION_SYMBOL_TYPE_LONG:  ast_expression_type_node->data.type.type = AST_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_UINT:   ast_expression_type_node->data.type.type = AST_TYPE_UINT; break;
+        case DECLARATION_SYMBOL_TYPE_ULONG:  ast_expression_type_node->data.type.type = AST_TYPE_ULONG; break;
+        default:
+          fprintf(stderr, "ERROR - Type Check: Could not resolve function symbol value type\n");
+          exit(1);
       }
 
       node->data.function_call_expression.expression_type = ast_expression_type_node;
@@ -543,9 +595,35 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
 static Types get_common_real_type(Types type_1, Types type_2) {
   if (type_1 == type_2) {
     return type_1;
-  }
+  }  
 
-  return AST_TYPE_LONG;
+  if (get_type_size(type_1) == get_type_size(type_2)) {
+    //If signed type
+    //TODO: Will need to add more signed types here
+    if (type_1 == AST_TYPE_INT || type_1 == AST_TYPE_LONG) {
+      return type_2;
+    }
+
+    return type_1;
+  }  
+
+  if (get_type_size(type_1) > get_type_size(type_2)) {
+    return type_1;
+  } 
+
+  return type_2;
+}
+
+static size_t get_type_size(Types type) {
+  switch(type) {
+    case AST_TYPE_INT:    return sizeof(int);
+    case AST_TYPE_UINT:   return sizeof(unsigned int);
+    case AST_TYPE_LONG:   return sizeof(long);
+    case AST_TYPE_ULONG:  return sizeof(unsigned long);
+    default:
+      fprintf(stderr, "ERROR - Type Check: Unsupported type when attempting to get AST type size");
+      exit(1);
+  }
 }
 
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena) {
@@ -598,7 +676,9 @@ static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char
 static DeclarationSymbolValueType convert_ast_declaration_type_to_symbol_type(AstNode *variable_declaration_node) {
   switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
     case AST_TYPE_INT:    return DECLARATION_SYMBOL_TYPE_INT; break;
+    case AST_TYPE_UINT:   return DECLARATION_SYMBOL_TYPE_UINT; break;
     case AST_TYPE_LONG:   return DECLARATION_SYMBOL_TYPE_LONG; break;
+    case AST_TYPE_ULONG:   return DECLARATION_SYMBOL_TYPE_ULONG; break;
     case AST_TYPE_VOID:   return DECLARATION_SYMBOL_TYPE_VOID; break;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported AST Declaration Type '%d' when attempting to convert to Declaration Symbol Value Type\n", variable_declaration_node->data.variable_declaration.type->data.type.type);

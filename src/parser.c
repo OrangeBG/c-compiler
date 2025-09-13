@@ -1458,7 +1458,12 @@ static Types expect_type_specifier(Parser *parser) {
   }
 
   if (current_token(parser)->type == TOKEN_UNSIGNED) {
-    parser->current_token_index++;
+
+    if (peek_next_token(parser) == TOKEN_INT) {
+      parser->current_token_index += 2;
+    } else {
+      parser->current_token_index++;
+    }
     return AST_TYPE_UINT;
   }   
   
