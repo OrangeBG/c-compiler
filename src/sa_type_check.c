@@ -617,8 +617,8 @@ static Types get_common_real_type(Types type_1, Types type_2) {
 static size_t get_type_size(Types type) {
   switch(type) {
     case AST_TYPE_INT:    return sizeof(int);
-    case AST_TYPE_UINT:   return sizeof(unsigned int);
     case AST_TYPE_LONG:   return sizeof(long);
+    case AST_TYPE_UINT:   return sizeof(unsigned int);
     case AST_TYPE_ULONG:  return sizeof(unsigned long);
     default:
       fprintf(stderr, "ERROR - Type Check: Unsupported type when attempting to get AST type size");

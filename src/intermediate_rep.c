@@ -62,6 +62,7 @@ void    ir_init_node_pointer(IRNodePointer *ir_node_pointer);
 static IRType  get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table); 
 static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node); 
 static void add_function_parameter_identifier(char *identifier, IRNode *function_node);  
+static size_t get_type_size(IRType type); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
@@ -691,7 +692,9 @@ IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStat
 
   switch (expression_type) {
     case IR_TYPE_INT:  declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_INT; break;
+    case IR_TYPE_UINT:  declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_UINT; break;
     case IR_TYPE_LONG: declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
+    case IR_TYPE_ULONG: declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_ULONG; break;
     default: {
       fprintf(stderr, "ERROR - IR: Unsupported IR Type '%d' when attempting to convert casted value to Declaration Symbol Type\n", expression_type);
       exit(1);
@@ -700,35 +703,42 @@ IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStat
 
   add_automatic_variable_declaration_symbol(declaration_symbol_table, declaration_symbol_value_type, temp_destination);
 
-  IRNode *var_destination_node = arena_alloc(node_arena);
-  var_destination_node->type = IR_VALUE_VAR;
-  var_destination_node->data.value_var.identifier = temp_destination; 
   
-  switch (expression_type) {
-    case IR_TYPE_INT: {
-      IRNode *truncate_instruction = arena_alloc(node_arena);
-      truncate_instruction->type = IR_INSTRUCTION_TRUNCATE;
-      truncate_instruction->data.instruction_truncate.destination = var_destination_node;
-      truncate_instruction->data.instruction_truncate.source = cast_expression;
 
-      ir_add_instruction_to_function(function, truncate_instruction);
-      break;
-    }
-    case IR_TYPE_LONG: {
-      IRNode *sign_extend_instruction = arena_alloc(node_arena);
-      sign_extend_instruction->type = IR_INSTRUCTION_SIGN_EXTEND;
-      sign_extend_instruction->data.instruction_sign_extend.destination = var_destination_node;
-      sign_extend_instruction->data.instruction_sign_extend.source = cast_expression;
 
-      ir_add_instruction_to_function(function, sign_extend_instruction);
-      break;
-    }
-    default:
-      fprintf(stderr, "ERROR - IR: Unsupported cast expression type '%d'", expression_type);
-      exit(1);
-  }
+
+
+
   
-  return var_destination_node;
+  // IRNode *var_destination_node = arena_alloc(node_arena);
+  // var_destination_node->type = IR_VALUE_VAR;
+  // var_destination_node->data.value_var.identifier = temp_destination; 
+  
+  // switch (expression_type) {
+  //   case IR_TYPE_INT: {
+  //     IRNode *truncate_instruction = arena_alloc(node_arena);
+  //     truncate_instruction->type = IR_INSTRUCTION_TRUNCATE;
+  //     truncate_instruction->data.instruction_truncate.destination = var_destination_node;
+  //     truncate_instruction->data.instruction_truncate.source = cast_expression;
+
+  //     ir_add_instruction_to_function(function, truncate_instruction);
+  //     break;
+  //   }
+  //   case IR_TYPE_LONG: {
+  //     IRNode *sign_extend_instruction = arena_alloc(node_arena);
+  //     sign_extend_instruction->type = IR_INSTRUCTION_SIGN_EXTEND;
+  //     sign_extend_instruction->data.instruction_sign_extend.destination = var_destination_node;
+  //     sign_extend_instruction->data.instruction_sign_extend.source = cast_expression;
+
+  //     ir_add_instruction_to_function(function, sign_extend_instruction);
+  //     break;
+  //   }
+  //   default:
+  //     fprintf(stderr, "ERROR - IR: Unsupported cast expression type '%d'", expression_type);
+  //     exit(1);
+  // }
+  
+  // return var_destination_node;
 }
 
 IRNode* ir_emit_jump(char *label, IRNode *function, Arena *node_arena) {
@@ -936,8 +946,13 @@ static IRType get_node_type(IRNode *node, DeclarationSymbolTable *declaration_sy
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
     case IR_VALUE_STATIC_VAR: {
       switch (node->data.static_variable.static_variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
-        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_INT:    return IR_TYPE_INT; break;
+        case DECLARATION_SYMBOL_TYPE_LONG:   return IR_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_UINT:   return IR_TYPE_UINT; break;
+        case DECLARATION_SYMBOL_TYPE_ULONG:  return IR_TYPE_ULONG; break;
+        default:
+          fprintf(stderr, "ERROR - IR: Unsupported static value type '%d' for get_node_type", node->data.static_variable.static_variable_symbol->value_type);
+          exit(1);
       }
     }
     case IR_VALUE_VAR: {
@@ -949,6 +964,11 @@ static IRType get_node_type(IRNode *node, DeclarationSymbolTable *declaration_sy
       switch (declaration_symbol->data.variable_symbol->value_type) {
         case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
         case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
+        case DECLARATION_SYMBOL_TYPE_UINT:   return IR_TYPE_UINT; break;
+        case DECLARATION_SYMBOL_TYPE_ULONG:  return IR_TYPE_ULONG; break;
+        default:
+          fprintf(stderr, "ERROR - IR: Unsupported variable value type '%d' for get_node_type", declaration_symbol->data.variable_symbol->value_type);
+          exit(1);
       }
 
     }
@@ -980,3 +1000,14 @@ static void add_function_parameter_identifier(char *identifier, IRNode *function
   function_node->data.function.parameter_count++;
 }
 
+static size_t get_type_size(IRType type) {
+  switch(type) {
+    case IR_TYPE_INT:    return sizeof(int);
+    case IR_TYPE_UINT:   return sizeof(unsigned int);
+    case IR_TYPE_LONG:   return sizeof(long);
+    case IR_TYPE_ULONG:  return sizeof(unsigned long);
+    default:
+      fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type when attempting to get IRType size");
+      exit(1);
+  }
+}
