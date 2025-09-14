@@ -1,3 +1,4 @@
 int main(void) {
-    static unsigned int u = 4294967299L;
+    //static unsigned int u = 4294967299L;
+    int y = (int)9;
 }

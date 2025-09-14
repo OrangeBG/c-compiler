@@ -394,7 +394,7 @@ static void push_new_declaration_stack(Stack *declaration_stack) {
 }
 
 static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack) {
-  if (param_type_node->data.type.type == AST_TYPE_VOID) {
+  if (param_type_node->data.type.type == TYPE_VOID) {
     return;
   }
 

@@ -46,10 +46,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
 
       switch (asm_node->data.static_variable.static_variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:
+        case TYPE_INT:
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
           break;
-        case DECLARATION_SYMBOL_TYPE_LONG: 
+        case TYPE_LONG: 
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
           break;
         default:
@@ -68,10 +68,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
       switch (asm_node->data.static_variable.static_variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:
+        case TYPE_INT:
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); 
           break;
-        case DECLARATION_SYMBOL_TYPE_LONG: 
+        case TYPE_LONG: 
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); 
           break;
         default:

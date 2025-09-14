@@ -682,8 +682,8 @@ void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variabl
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 
   switch (ir_static_variable->data.static_variable.static_variable_symbol->value_type) {
-    case DECLARATION_SYMBOL_TYPE_INT:   asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD; break;
-    case DECLARATION_SYMBOL_TYPE_LONG:  asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD; break;
+    case TYPE_INT:   asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD; break;
+    case TYPE_LONG:  asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD; break;
     default:
       fprintf(stderr, "ERROR: Assembler - Could not assign alignment value to static variable '%s'", ir_static_variable->data.static_variable.identifier);
       exit(1);
@@ -1196,8 +1196,8 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
       asm_operand->type = ASM_OPERAND_IMM;
 
       switch (ir_operand->data.value_constant.type) {
-        case IR_TYPE_INT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
-        case IR_TYPE_LONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
+        case TYPE_INT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
+        case TYPE_LONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
       }
       break;
     case IR_VALUE_VAR:
@@ -1390,8 +1390,8 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
         switch (ir_node->data.value_constant.type) {
-          case IR_TYPE_INT: return ASM_TYPE_LONGWORD;
-          case IR_TYPE_LONG: return ASM_TYPE_QUADWORD;
+          case TYPE_INT: return ASM_TYPE_LONGWORD;
+          case TYPE_LONG: return ASM_TYPE_QUADWORD;
         }
       break;
     case IR_VALUE_VAR: {
@@ -1401,8 +1401,8 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
 
       switch (declaration_symbol->data.variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:  return ASM_TYPE_LONGWORD;
-        case DECLARATION_SYMBOL_TYPE_LONG: return ASM_TYPE_QUADWORD;
+        case TYPE_INT:  return ASM_TYPE_LONGWORD;
+        case TYPE_LONG: return ASM_TYPE_QUADWORD;
       }
 
       fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
@@ -1460,8 +1460,8 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
       asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
 
       switch (declaration_symbol->data.variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:   asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_LONGWORD; break;
-        case DECLARATION_SYMBOL_TYPE_LONG:  asm_backend_symbol->data.object_entry.assembly_type= ASM_TYPE_QUADWORD; break;
+        case TYPE_INT:   asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_LONGWORD; break;
+        case TYPE_LONG:  asm_backend_symbol->data.object_entry.assembly_type= ASM_TYPE_QUADWORD; break;
         default:
           fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type");
           exit(1);

@@ -26,7 +26,7 @@ void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_ta
   free(declaration_symbol_table->symbol_table);
 }
 
-DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, DeclarationSymbolValueType function_value_type, int parameter_count, bool is_global, bool is_defined) {
+DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, bool is_global, bool is_defined) {
   FunctionSymbol *function_symbol = arena_alloc(declaration_symbol_table->function_symbol_arena);
 
   function_symbol->value_type = function_value_type;
@@ -51,7 +51,7 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
   return function_declaration_symbol;
 }
 
-void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key) {  
+void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key) {  
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->value_type = value_type;
   variable_symbol->is_automatic_storage_duration = true;
@@ -72,7 +72,7 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
   hash_table_add_entry(declaration_symbol_table->symbol_table, entry); 
 }
 
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
@@ -95,7 +95,7 @@ void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_
   hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
 }
 
-void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key) {
+void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key) {
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
@@ -136,11 +136,11 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       printf("\tvalue_type: ");
 
       switch (symbol->data.variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:     printf("int\n"); break;
-        case DECLARATION_SYMBOL_TYPE_LONG:    printf("long\n"); break;
-        case DECLARATION_SYMBOL_TYPE_UINT:    printf("uint\n"); break;
-        case DECLARATION_SYMBOL_TYPE_ULONG:   printf("ulong\n"); break;
-        case DECLARATION_SYMBOL_TYPE_VOID:    printf("void\n"); break;
+        case TYPE_INT:     printf("int\n"); break;
+        case TYPE_LONG:    printf("long\n"); break;
+        case TYPE_UINT:    printf("uint\n"); break;
+        case TYPE_ULONG:   printf("ulong\n"); break;
+        case TYPE_VOID:    printf("void\n"); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type);
           exit(1);
@@ -163,10 +163,10 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       printf("\tstatic_initial_value: ");
 
       switch (symbol->data.variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:    printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
-        case DECLARATION_SYMBOL_TYPE_UINT:   printf("%d\n", symbol->data.variable_symbol->static_initial_value.uint_value); break;
-        case DECLARATION_SYMBOL_TYPE_LONG:   printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
-        case DECLARATION_SYMBOL_TYPE_ULONG:  printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
+        case TYPE_INT:    printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
+        case TYPE_UINT:   printf("%d\n", symbol->data.variable_symbol->static_initial_value.uint_value); break;
+        case TYPE_LONG:   printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
+        case TYPE_ULONG:  printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type);
           exit(1);
@@ -179,11 +179,11 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       printf("\tvalue_type: ");
 
       switch (symbol->data.function_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:    printf("int\n"); break;
-        case DECLARATION_SYMBOL_TYPE_UINT:    printf("uint\n"); break;
-        case DECLARATION_SYMBOL_TYPE_LONG:   printf("long\n"); break;
-        case DECLARATION_SYMBOL_TYPE_ULONG:   printf("ulong\n"); break;
-        case DECLARATION_SYMBOL_TYPE_VOID:   printf("void\n"); break;
+        case TYPE_INT:    printf("int\n"); break;
+        case TYPE_UINT:    printf("uint\n"); break;
+        case TYPE_LONG:   printf("long\n"); break;
+        case TYPE_ULONG:   printf("ulong\n"); break;
+        case TYPE_VOID:   printf("void\n"); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported function value type '%d' when attempting to print\n", symbol->data.function_symbol->value_type);
           exit(1);
