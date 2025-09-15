@@ -1391,7 +1391,6 @@ static int get_precedence(TokenType token_type) {
 }
 
 static bool is_type_identifier_token(TokenType token_type) {
-  //@Bug: Need to add unsigned types 
   switch(token_type) {
     case TOKEN_INT:
     case TOKEN_LONG:
