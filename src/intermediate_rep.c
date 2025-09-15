@@ -39,6 +39,9 @@ IRNode* ir_emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, A
 IRNode* ir_emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, Arena *node_arena); 
 IRNode* ir_emit_label(char* label, IRNode *function, Arena *node_arena);
 IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+IRNode* ir_emit_truncate(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+IRNode* ir_emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+IRNode* ir_emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
 IRNode* ir_emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table); 
 IRNode* ir_emit_conditional_expression(AstNode *condition_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table);
 IRNode* ir_emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_status, Arena *node_arena);
@@ -59,8 +62,7 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena);
 IRNode* ir_create_variable(char *identifier, Arena *node_arena);
 void    ir_add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 void    ir_init_node_pointer(IRNodePointer *ir_node_pointer); 
-static IRType  get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table); 
-static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node); 
+static Types  get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table); 
 static void add_function_parameter_identifier(char *identifier, IRNode *function_node);  
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
@@ -200,8 +202,13 @@ void print_intermediate_ret(IRNode *ir_node) {
     break;
     case IR_VALUE_CONSTANT:
       switch (ir_node->data.value_constant.type) {
-        case IR_TYPE_INT:    printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
-        case IR_TYPE_LONG:   printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
+        case TYPE_INT:    printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
+        case TYPE_LONG:   printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
+        case TYPE_UINT:    printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
+        case TYPE_ULONG:   printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
+        default:
+          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type);
+          exit(1);
       }
       break;
     case IR_VALUE_VAR:
@@ -211,8 +218,13 @@ void print_intermediate_ret(IRNode *ir_node) {
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
       switch (ir_node->data.static_variable.static_variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
-        case DECLARATION_SYMBOL_TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
+        case TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
+        case TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
+        case TYPE_UINT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
+        case TYPE_ULONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+        default:
+          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type);
+          exit(1);
       }
 
       printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
@@ -518,7 +530,7 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
   destination->data.value_var.identifier = destination_name;
 
   if (binary_node->data.binary_expression.op_type == AST_BINARY_AND || binary_node->data.binary_expression.op_type == AST_BINARY_OR) {
-    add_automatic_variable_declaration_symbol(declaration_symbol_table, DECLARATION_SYMBOL_TYPE_INT, destination_name);    
+    add_automatic_variable_declaration_symbol(declaration_symbol_table, TYPE_INT, destination_name);    
 
     char *label_name = ir_create_temp_label(emit_status);
 
@@ -564,8 +576,7 @@ IRNode* ir_emit_binary_expression(AstNode *binary_node, IRNode *function, IREmit
     return destination;
   }
 
-  DeclarationSymbolValueType declaration_value_type = convert_ast_type_to_symbol_type(binary_node->data.binary_expression.expression_type);
-  add_automatic_variable_declaration_symbol(declaration_symbol_table, declaration_value_type, destination_name);
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, binary_node->data.binary_expression.expression_type->data.type.type, destination_name);
 
   IRBinaryOpType binary_op_type;
 
@@ -679,55 +690,28 @@ IRNode* ir_emit_function_call_expression(AstNode *function_call_node, IRNode *fu
 
 IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table) {
   IRNode *cast_expression = ir_emit_ast_node(cast_node->data.cast_expression.expression, function, emit_status, node_arena, declaration_symbol_table);
-  IRType expression_type = get_node_type(cast_expression, declaration_symbol_table); 
+  Types expression_type = get_node_type(cast_expression, declaration_symbol_table); 
+  Types target_type = cast_node->data.cast_expression.target_type->data.type.type;
 
-  if (cast_node->data.cast_expression.target_type->data.type.type == cast_node->data.cast_expression.expression_type->data.type.type) {
+  if (expression_type == target_type) {
     return cast_expression;
   }
 
   char *temp_destination = ir_create_temp_register(emit_status);
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, expression_type, temp_destination);
 
-  DeclarationSymbolValueType declaration_symbol_value_type;
+  IRNode *var_destination_node = ir_create_variable(temp_destination, node_arena);
 
-  switch (expression_type) {
-    case IR_TYPE_INT:  declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_INT; break;
-    case IR_TYPE_LONG: declaration_symbol_value_type = DECLARATION_SYMBOL_TYPE_LONG; break;
-    default: {
-      fprintf(stderr, "ERROR - IR: Unsupported IR Type '%d' when attempting to convert casted value to Declaration Symbol Type\n", expression_type);
-      exit(1);
-    }
-  }
+  if (get_type_size(target_type) == get_type_size(expression_type)) {
+    ir_emit_copy(cast_expression, var_destination_node, function, node_arena);
+  } else if (get_type_size(target_type) < get_type_size(expression_type)) {
+    ir_emit_truncate(cast_expression, var_destination_node, function, node_arena);    
+  } else if (is_type_signed(expression_type)) {
+    ir_emit_sign_extend(cast_expression, var_destination_node, function, node_arena);
+  } else {
+    ir_emit_zero_extend(cast_expression, var_destination_node, function, node_arena);
+  }  
 
-  add_automatic_variable_declaration_symbol(declaration_symbol_table, declaration_symbol_value_type, temp_destination);
-
-  IRNode *var_destination_node = arena_alloc(node_arena);
-  var_destination_node->type = IR_VALUE_VAR;
-  var_destination_node->data.value_var.identifier = temp_destination; 
-  
-  switch (expression_type) {
-    case IR_TYPE_INT: {
-      IRNode *truncate_instruction = arena_alloc(node_arena);
-      truncate_instruction->type = IR_INSTRUCTION_TRUNCATE;
-      truncate_instruction->data.instruction_truncate.destination = var_destination_node;
-      truncate_instruction->data.instruction_truncate.source = cast_expression;
-
-      ir_add_instruction_to_function(function, truncate_instruction);
-      break;
-    }
-    case IR_TYPE_LONG: {
-      IRNode *sign_extend_instruction = arena_alloc(node_arena);
-      sign_extend_instruction->type = IR_INSTRUCTION_SIGN_EXTEND;
-      sign_extend_instruction->data.instruction_sign_extend.destination = var_destination_node;
-      sign_extend_instruction->data.instruction_sign_extend.source = cast_expression;
-
-      ir_add_instruction_to_function(function, sign_extend_instruction);
-      break;
-    }
-    default:
-      fprintf(stderr, "ERROR - IR: Unsupported cast expression type '%d'", expression_type);
-      exit(1);
-  }
-  
   return var_destination_node;
 }
 
@@ -781,6 +765,39 @@ IRNode* ir_emit_copy(IRNode *source, IRNode *destination, IRNode *function, Aren
   ir_add_instruction_to_function(function, copy_instruction);
 
   return copy_instruction;
+}
+
+IRNode* ir_emit_truncate(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *truncate_instruction = arena_alloc(node_arena);
+  truncate_instruction->type = IR_INSTRUCTION_TRUNCATE;
+  truncate_instruction->data.instruction_copy.source = source;
+  truncate_instruction->data.instruction_copy.destination = destination;      
+
+  ir_add_instruction_to_function(function, truncate_instruction);
+
+  return truncate_instruction;
+}
+
+IRNode* ir_emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *sign_extend_instruction = arena_alloc(node_arena);
+  sign_extend_instruction->type = IR_INSTRUCTION_TRUNCATE;
+  sign_extend_instruction->data.instruction_sign_extend.source = source;
+  sign_extend_instruction->data.instruction_sign_extend.destination = destination;      
+
+  ir_add_instruction_to_function(function, sign_extend_instruction);
+
+  return sign_extend_instruction;
+}
+
+IRNode* ir_emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *zero_extend_instruction = arena_alloc(node_arena);
+  zero_extend_instruction->type = IR_INSTRUCTION_TRUNCATE;
+  zero_extend_instruction->data.instruction_sign_extend.source = source;
+  zero_extend_instruction->data.instruction_sign_extend.destination = destination;      
+
+  ir_add_instruction_to_function(function, zero_extend_instruction);
+
+  return zero_extend_instruction;
 }
 
 void ir_emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  Arena *node_arena) {
@@ -864,6 +881,7 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena) {
   IRNode *constant = arena_alloc(node_arena);
   constant->type = IR_VALUE_CONSTANT;
   constant->data.value_constant.value.int_value = value;
+  constant->data.value_constant.type = TYPE_INT;
 
   return constant;
 }
@@ -871,16 +889,23 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena) {
 IRNode* ir_create_ast_constant(AstNode *ast_constant, Arena *node_arena) {
   IRNode *constant = arena_alloc(node_arena);
   constant->type = IR_VALUE_CONSTANT;
+  constant->data.value_constant.type = ast_constant->data.constant_expression.expression_type->data.type.type;
 
   switch (ast_constant->data.constant_expression.expression_type->data.type.type) {
-    case AST_TYPE_INT:
+    case TYPE_INT:
       constant->data.value_constant.value.int_value = ast_constant->data.constant_expression.int_value;
       break;
-    case AST_TYPE_LONG:
-      constant->data.value_constant.value.int_value = ast_constant->data.constant_expression.long_value;
+    case TYPE_UINT:
+      constant->data.value_constant.value.uint_value = ast_constant->data.constant_expression.uint_value;
+      break;      
+    case TYPE_LONG:
+      constant->data.value_constant.value.long_value = ast_constant->data.constant_expression.long_value;
+      break;
+    case TYPE_ULONG:
+      constant->data.value_constant.value.ulong_value = ast_constant->data.constant_expression.ulong_value;
       break;
     default:
-      fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)", ast_constant->data.constant_expression.expression_type->data.type.type);
+      fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)\n", ast_constant->data.constant_expression.expression_type->data.type.type);
       exit(1);
   }
 
@@ -931,40 +956,20 @@ void ir_init_node_pointer(IRNodePointer *ir_node_pointer) {
   ir_node_pointer->node_pointers = NULL;
 }
 
-static IRType get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table) {
+static Types get_node_type(IRNode *node, DeclarationSymbolTable *declaration_symbol_table) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
-    case IR_VALUE_STATIC_VAR: {
-      switch (node->data.static_variable.static_variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
-        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
-      }
-    }
+    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type;
     case IR_VALUE_VAR: {
       //TODO: Error check to make sure we actually have a variable symbol.
       //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
       HashTableEntry *entry = hash_table_get_entry(declaration_symbol_table->symbol_table, node->data.value_var.identifier);
       DeclarationSymbol *declaration_symbol = entry->value->structure;
 
-      switch (declaration_symbol->data.variable_symbol->value_type) {
-        case DECLARATION_SYMBOL_TYPE_INT:   return IR_TYPE_INT; break;
-        case DECLARATION_SYMBOL_TYPE_LONG:  return IR_TYPE_LONG; break;
-      }
-
+      return declaration_symbol->data.variable_symbol->value_type;
     }
     default:
-      fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type", node->type);
-      exit(1);
-  }
-}
-
-static DeclarationSymbolValueType convert_ast_type_to_symbol_type(AstNode *type_node) {
-  switch (type_node->data.type.type) {
-    case AST_TYPE_INT:    return DECLARATION_SYMBOL_TYPE_INT; break;
-    case AST_TYPE_LONG:   return DECLARATION_SYMBOL_TYPE_LONG; break;
-    case AST_TYPE_VOID:   return DECLARATION_SYMBOL_TYPE_VOID; break;
-    default:
-      fprintf(stderr, "ERROR - Intermediate Rep: Unsupported AST Declaration Type '%d' when attempting to convert to Declaration Symbol Value Type", type_node->data.variable_declaration.type->data.type.type);
+      fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type\n", node->type);
       exit(1);
   }
 }
@@ -979,4 +984,3 @@ static void add_function_parameter_identifier(char *identifier, IRNode *function
   function_node->data.function.parameter_identifiers[function_node->data.function.parameter_count] = identifier;
   function_node->data.function.parameter_count++;
 }
-

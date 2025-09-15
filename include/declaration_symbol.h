@@ -3,15 +3,8 @@
 
 #include "../include/hash_table.h"
 #include "../include/arena.h"
+#include "../include/types.h"
 #include <stdbool.h>
-
-typedef enum {
-  DECLARATION_SYMBOL_TYPE_INT,
-  DECLARATION_SYMBOL_TYPE_UINT,
-  DECLARATION_SYMBOL_TYPE_LONG,
-  DECLARATION_SYMBOL_TYPE_ULONG,
-  DECLARATION_SYMBOL_TYPE_VOID //TODO: Is this needed?
-} DeclarationSymbolValueType;
 
 typedef enum {
   DECLARATION_SYMBOL_VARIABLE,
@@ -27,7 +20,7 @@ typedef enum {
 typedef struct {
   bool is_defined;
   bool is_global;
-  DeclarationSymbolValueType value_type;
+  Types value_type;
   int param_count;
 } FunctionSymbol;
 
@@ -39,7 +32,7 @@ typedef union {
 } InitialValue;
 
 typedef struct {
-  DeclarationSymbolValueType value_type;
+  Types value_type;
   bool is_automatic_storage_duration;
   InitialValueType static_initial_type;
   InitialValue static_initial_value;
@@ -64,9 +57,9 @@ typedef struct {
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table);
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
-DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, DeclarationSymbolValueType function_value_type, int parameter_count, bool is_global, bool is_defined); 
-void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key);  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
-void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, DeclarationSymbolValueType value_type, char *symbol_key);   
+DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, bool is_global, bool is_defined); 
+void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key);  
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
+void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
 #endif

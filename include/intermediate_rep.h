@@ -3,6 +3,7 @@
 
 #include "declaration_symbol.h"
 #include "parser.h"
+#include "types.h"
 
 typedef struct IRNode IRNode;
 
@@ -19,6 +20,7 @@ typedef enum {
   IR_INSTRUCTION_LABEL,
   IR_INSTRUCTION_FUNCTION_CALL,
   IR_INSTRUCTION_SIGN_EXTEND,
+  IR_INSTRUCTION_ZERO_EXTEND,
   IR_INSTRUCTION_TRUNCATE,
   IR_VALUE_CONSTANT,
   IR_VALUE_VAR,
@@ -51,10 +53,12 @@ typedef enum {
 } IRBinaryOpType;
 
 
-typedef enum {
-  IR_TYPE_INT,
-  IR_TYPE_LONG,
-} IRType;
+// typedef enum {
+//   IR_TYPE_INT,
+//   IR_TYPE_UINT,
+//   IR_TYPE_LONG,
+//   IR_TYPE_ULONG
+// } IRType;
 
 typedef struct {
   int capacity;
@@ -77,8 +81,9 @@ typedef struct IRNode {
   struct IRInstructionJumpIfNotZero { IRNode *condition; char *target; } instruction_jump_if_not_zero;
   struct IRInstructionLabel { char *identifier; } instruction_label;
   struct IRInstructionSignExtend { IRNode *source; IRNode *destination; } instruction_sign_extend;
+  struct IRInstructionZeroExtend { IRNode *source; IRNode *destination; } instruction_zero_extend;
   struct IRInstructionTruncate { IRNode *source; IRNode *destination; } instruction_truncate;
-  struct IRValueConstant { IRType type; union { int int_value; long long_value; } value; } value_constant;
+  struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
  } data; 

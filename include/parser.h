@@ -3,6 +3,7 @@
 
 #include "../include/lexer.h"
 #include "../include/arena.h"
+#include "../include/types.h"
 #include <stdbool.h>
 
 typedef struct AstNode AstNode;
@@ -73,14 +74,14 @@ typedef enum {
   AST_STORAGE_CLASS_EXTERN
 } StorageClassType;
 
-typedef enum {
-  AST_TYPE_VOID,
-  AST_TYPE_INT,
-  AST_TYPE_UINT,
-  AST_TYPE_LONG,
-  AST_TYPE_ULONG,
-  AST_TYPE_FUNCTION
-} Types;
+// typedef enum {
+//   AST_TYPE_VOID,
+//   AST_TYPE_INT,
+//   AST_TYPE_UINT,
+//   AST_TYPE_LONG,
+//   AST_TYPE_ULONG,
+//   AST_TYPE_FUNCTION
+// } Types;
 
 typedef enum {
   AST_CONSTANT_TYPE_INT,
