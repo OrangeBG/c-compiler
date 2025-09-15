@@ -4,7 +4,6 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
-#include "types.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -882,6 +881,7 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena) {
   IRNode *constant = arena_alloc(node_arena);
   constant->type = IR_VALUE_CONSTANT;
   constant->data.value_constant.value.int_value = value;
+  constant->data.value_constant.type = TYPE_INT;
 
   return constant;
 }
@@ -889,14 +889,20 @@ IRNode* ir_create_int_constant(int value, Arena *node_arena) {
 IRNode* ir_create_ast_constant(AstNode *ast_constant, Arena *node_arena) {
   IRNode *constant = arena_alloc(node_arena);
   constant->type = IR_VALUE_CONSTANT;
+  constant->data.value_constant.type = ast_constant->data.constant_expression.expression_type->data.type.type;
 
-  //TODO: Include unsigned types
   switch (ast_constant->data.constant_expression.expression_type->data.type.type) {
     case TYPE_INT:
       constant->data.value_constant.value.int_value = ast_constant->data.constant_expression.int_value;
       break;
+    case TYPE_UINT:
+      constant->data.value_constant.value.uint_value = ast_constant->data.constant_expression.uint_value;
+      break;      
     case TYPE_LONG:
-      constant->data.value_constant.value.int_value = ast_constant->data.constant_expression.long_value;
+      constant->data.value_constant.value.long_value = ast_constant->data.constant_expression.long_value;
+      break;
+    case TYPE_ULONG:
+      constant->data.value_constant.value.ulong_value = ast_constant->data.constant_expression.ulong_value;
       break;
     default:
       fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)\n", ast_constant->data.constant_expression.expression_type->data.type.type);

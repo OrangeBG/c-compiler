@@ -83,7 +83,7 @@ typedef struct IRNode {
   struct IRInstructionSignExtend { IRNode *source; IRNode *destination; } instruction_sign_extend;
   struct IRInstructionZeroExtend { IRNode *source; IRNode *destination; } instruction_zero_extend;
   struct IRInstructionTruncate { IRNode *source; IRNode *destination; } instruction_truncate;
-  struct IRValueConstant { Types type; union { int int_value; long long_value; } value; } value_constant;
+  struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
  } data; 
