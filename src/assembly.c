@@ -88,7 +88,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
     asm_pseudo_register_pass(top_level_node, backend_symbol_table, &stack_offset);
     
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
-      fprintf(stderr, "ERROR - Assembler: First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
+      fprintf(stderr, "ERROR - Assembler: First instruction is not Binary Instruction for the '%s' function\n", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
       exit(1);
     } 
 
@@ -685,7 +685,7 @@ void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variabl
     case TYPE_INT:   asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD; break;
     case TYPE_LONG:  asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD; break;
     default:
-      fprintf(stderr, "ERROR: Assembler - Could not assign alignment value to static variable '%s'", ir_static_variable->data.static_variable.identifier);
+      fprintf(stderr, "ERROR: Assembler - Could not assign alignment value to static variable '%s'\n", ir_static_variable->data.static_variable.identifier);
       exit(1);
   }  
 }
@@ -844,7 +844,7 @@ void asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction
       binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_RIGHT_SHIFT;
       break;
     default:
-      fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation");
+      fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation\n");
       exit(1);
       break;
   }
@@ -1405,12 +1405,12 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
         case TYPE_LONG: return ASM_TYPE_QUADWORD;
       }
 
-      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
+      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
       exit(1);
       break;
     }
     default:
-      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
+      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
       exit(1);
   }
 }
@@ -1463,7 +1463,7 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
         case TYPE_INT:   asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_LONGWORD; break;
         case TYPE_LONG:  asm_backend_symbol->data.object_entry.assembly_type= ASM_TYPE_QUADWORD; break;
         default:
-          fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type");
+          fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type\n");
           exit(1);
       }
 
