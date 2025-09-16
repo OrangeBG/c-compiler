@@ -7,8 +7,8 @@
 #include "../include/hash_table.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
-#include "intermediate_rep.h"
-#include "types.h"
+#include "../include/intermediate_rep.h"
+#include "../include/types.h"
 
 #define NODE_POINTER_CAPACITY 8
 #define ALIGNMENT_QUADWORD 8
@@ -33,7 +33,8 @@ void     asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instructi
 void     asm_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
-void     asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
+void     asm_instruction_binary_signed_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
+void     asm_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
 void     asm_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena); 
 void     asm_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
 void     asm_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
@@ -51,6 +52,7 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
 static bool is_instruction_quadword(AsmNode *instruction); 
 static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
 static int round_stack_offset(int stack_offset); 
+static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
@@ -643,7 +645,11 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
             asm_instruction_binary_relational(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
           case IR_BINARY_DIVIDE:
           case IR_BINARY_REMAINDER:
-            asm_instruction_binary_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table);            
+            if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, declaration_symbol_table)) {
+              asm_instruction_binary_signed_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table);            
+            } else {
+              asm_instruction_binary_unsigned_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
+            }
             break;
         }
           break;
@@ -946,7 +952,7 @@ void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relatio
   asm_add_instruction_to_function(asm_function, set_cc_instruction);
 }
 
-void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
+void asm_instruction_binary_signed_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
   AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
   AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
@@ -999,6 +1005,69 @@ void asm_instruction_binary_division(AsmNode *asm_function, const IRNode *ir_bin
   asm_add_instruction_to_function(asm_function, mov_instruction_2);
 }
  
+void asm_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
+  AsmNode *source_1 = asm_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
+  AsmNode *source_2 = asm_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
+  AsmNode *destination_node = asm_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
+
+  AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, declaration_symbol_table);
+  
+  AsmNode *mov_instruction_1 = arena_alloc(asm_arena);
+  mov_instruction_1->type = ASM_INSTRUCTION_MOV;
+  mov_instruction_1->data.instruction_mov.source = source_1;
+  mov_instruction_1->data.instruction_mov.assembly_type = source_1_type;
+
+  AsmNode *ax_register = arena_alloc(asm_arena);
+  ax_register->type = ASM_OPERAND_REGISTER;
+  ax_register->data.operand_register.op_register = ASM_REGISTER_AX;  
+
+  mov_instruction_1->data.instruction_mov.destination = ax_register;
+
+  asm_add_instruction_to_function(asm_function, mov_instruction_1);
+
+  AsmNode *imm_operand = arena_alloc(asm_arena);
+  imm_operand->type = ASM_OPERAND_IMM;
+  imm_operand->data.operand_imm.value = 0;
+
+  AsmNode *dx_register = arena_alloc(asm_arena);
+  dx_register->type = ASM_OPERAND_REGISTER;
+  dx_register->data.operand_register.op_register = ASM_REGISTER_DX;
+
+  AsmNode *mov_instruction_2 = arena_alloc(asm_arena);
+  mov_instruction_2->type = ASM_INSTRUCTION_MOV;
+  mov_instruction_2->data.instruction_mov.source = imm_operand;
+  mov_instruction_2->data.instruction_mov.destination = dx_register;
+
+  asm_add_instruction_to_function(asm_function, mov_instruction_2);
+  
+  
+  AsmNode *div_instruction = arena_alloc(asm_arena);
+  div_instruction->type = ASM_INSTRUCTION_DIV;
+  div_instruction->data.instruction_idiv.operand = source_2;
+  div_instruction->data.instruction_idiv.assembly_type = source_1_type;
+
+  asm_add_instruction_to_function(asm_function, div_instruction);
+
+  AsmNode *mov_instruction_3 = arena_alloc(asm_arena);
+  mov_instruction_3->type = ASM_INSTRUCTION_MOV;
+  mov_instruction_3->data.instruction_mov.destination = destination_node;
+  mov_instruction_3->data.instruction_mov.assembly_type = source_1_type;
+
+  AsmNode *mov_destination_2 = arena_alloc(asm_arena);
+  mov_destination_2->type = ASM_OPERAND_REGISTER;
+  
+  if (ir_binary_instruction->data.instruction_binary.op_type == IR_BINARY_DIVIDE) {
+    mov_destination_2->data.operand_register.op_register = ASM_REGISTER_AX;
+  } else {
+    //IR_BINARY_REMAINDER
+    mov_destination_2->data.operand_register.op_register = ASM_REGISTER_DX;
+  }
+
+  mov_instruction_3->data.instruction_mov.source = mov_destination_2;
+
+  asm_add_instruction_to_function(asm_function, mov_instruction_3);
+}
+
 void asm_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source_node = asm_operand(ir_unary_instruction->data.unary.source, asm_arena);
   AsmNode *destination_node = asm_operand(ir_unary_instruction->data.unary.destination, asm_arena);
@@ -1405,8 +1474,12 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
         switch (ir_node->data.value_constant.type) {
-          case TYPE_INT: return ASM_TYPE_LONGWORD;
-          case TYPE_LONG: return ASM_TYPE_QUADWORD;
+          case TYPE_INT:
+          case TYPE_UINT:
+            return ASM_TYPE_LONGWORD;
+          case TYPE_LONG:
+          case TYPE_ULONG:
+            return ASM_TYPE_QUADWORD;
         }
       break;
     case IR_VALUE_VAR: {
@@ -1416,8 +1489,12 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
 
       switch (declaration_symbol->data.variable_symbol->value_type) {
-        case TYPE_INT:  return ASM_TYPE_LONGWORD;
-        case TYPE_LONG: return ASM_TYPE_QUADWORD;
+        case TYPE_INT:
+        case TYPE_UINT:
+          return ASM_TYPE_LONGWORD;
+        case TYPE_LONG:
+        case TYPE_ULONG:
+          return ASM_TYPE_QUADWORD;
       }
 
       fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
@@ -1533,4 +1610,37 @@ void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
 static int round_stack_offset(int stack_offset) {
   //%RBP is always 16 byte aligned. Round stack offset of the stack frame to the next multiple of 16 makes it easier to maintain the correct stack alignment during function calls. Alignment is required by the System V ABI.
   return ((stack_offset + 15) / 16) * 16;
+}
+
+static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+  Types value_type;
+  switch (ir_node->type) {
+    case IR_VALUE_CONSTANT:
+      value_type = ir_node->data.value_constant.type;
+      break;
+    case IR_VALUE_VAR: {
+      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
+      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+      value_type = declaration_symbol->data.variable_symbol->value_type;
+      break;
+    }
+    case IR_VALUE_STATIC_VAR:
+      value_type = ir_node->data.static_variable.static_variable_symbol->value_type;
+      break;
+    default:
+      fprintf(stderr, "ERROR: Assembly - Unsupported IR node type '%d' when attempting to find if IR Value is signed", ir_node->type);
+      exit(1);
+  }
+
+  switch (value_type) {
+    case TYPE_UINT:
+    case TYPE_ULONG:
+      return false;
+    case TYPE_INT:
+    case TYPE_LONG:
+      return true;
+    default:
+      fprintf(stderr, "ERROR: Assembly - Unsupported value type '%d' when attempting to find if IR Value is signed", value_type);
+      exit(1);
+  }  
 }
