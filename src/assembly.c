@@ -7,6 +7,8 @@
 #include "../include/hash_table.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
+#include "intermediate_rep.h"
+#include "types.h"
 
 #define NODE_POINTER_CAPACITY 8
 #define ALIGNMENT_QUADWORD 8
@@ -40,6 +42,7 @@ void     asm_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction
 void     asm_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
 void     asm_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table);
 void     asm_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena); 
+void     asm_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena);
 void     asm_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena); 
 void     asm_add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 void     asm_add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
@@ -665,6 +668,9 @@ void asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, 
         case IR_INSTRUCTION_SIGN_EXTEND:
           asm_instruction_sign_extend(asm_function, current_ir_node, asm_arena);
           break;
+        case IR_INSTRUCTION_ZERO_EXTEND:
+          asm_instruction_zero_extend(asm_function, current_ir_node, asm_arena);
+          break;
         case IR_INSTRUCTION_TRUNCATE:
           asm_instruction_truncate(asm_function, current_ir_node, asm_arena);
           break;
@@ -1171,6 +1177,15 @@ void asm_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_i
   movsx_instruction->data.instruction_movsx.destination = asm_operand(ir_sign_extend_instruction->data.instruction_sign_extend.destination, asm_arena); 
 
   asm_add_instruction_to_function(asm_function, movsx_instruction);
+}
+
+void asm_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena) {
+  AsmNode *mov_zero_extend_instruction = arena_alloc(asm_arena);
+  mov_zero_extend_instruction->type = ASM_INSTRUCTION_MOV_ZERO_EXTEND;
+  mov_zero_extend_instruction->data.instruction_mov_zero_extend.source = asm_operand(ir_zero_extend_instruction->data.instruction_sign_extend.source, asm_arena); 
+  mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination = asm_operand(ir_zero_extend_instruction->data.instruction_sign_extend.destination, asm_arena); 
+
+  asm_add_instruction_to_function(asm_function, mov_zero_extend_instruction);
 }
 
 void asm_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena) {

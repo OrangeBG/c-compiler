@@ -1,4 +1,8 @@
 int main(void) {
     //static unsigned int u = 4294967299L;
-    int y = (int)9;
+    unsigned int a = 4;
+
+    unsigned int b = a / 2;
+
+    return b;
 }

@@ -14,10 +14,12 @@ typedef enum {
   ASM_STATIC_VARIABLE,
   ASM_INSTRUCTION_MOV,
   ASM_INSTRUCTION_MOVSX,
+  ASM_INSTRUCTION_MOV_ZERO_EXTEND,
   ASM_INSTRUCTION_RET,
   ASM_INSTRUCTION_UNARY,
   ASM_INSTRUCTION_BINARY,
   ASM_INSTRUCTION_IDIV,
+  ASM_INSTRUCTION_DIV,
   ASM_INSTRUCTION_CDQ,
   ASM_INSTRUCTION_CMP,
   ASM_INSTRUCTION_JMP,
@@ -68,7 +70,11 @@ typedef enum {
   ASM_CONDITION_GREATER,
   ASM_CONDITION_GREATER_EQUAL,
   ASM_CONDITION_LESS,
-  ASM_CONDITION_LESS_EQUAL
+  ASM_CONDITION_LESS_EQUAL,
+  ASM_CONDITION_ABOVE,
+  ASM_CONDITION_ABOVE_EQUAL,
+  ASM_CONDITION_BELOW,
+  ASM_CONDITION_BELOW_EQUAL
 } AsmConditionCode;
 
 typedef enum {
@@ -108,9 +114,11 @@ typedef struct AsmNode {
     struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol *static_variable_symbol; } static_variable;
     struct AsmInstructionMov { AsmType assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionMovsx { AsmNode *source; AsmNode *destination; } instruction_movsx;
+    struct AsmInstructionMovZeroExtend { AsmNode *source; AsmNode *destination; } instruction_mov_zero_extend;
     struct AsmInstructionUnary { AsmType assembly_type; AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
     struct AsmInstructionBinary { AsmType assembly_type; AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
     struct AsmInstructionIdiv { AsmType assembly_type; AsmNode *operand; } instruction_idiv;
+    struct AsmInstructionDiv { AsmType assembly_type; AsmNode *operand; } instruction_div;
     struct AsmInstructionCmp { AsmType assembly_type; AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
     struct AsmInstructionCdq { AsmType assembly_type; } instruction_cdq;
     struct AsmInstructionJmp { char *identifier; } instruction_jmp;
@@ -119,7 +127,7 @@ typedef struct AsmNode {
     struct AsmInstructionLabel { char *identifier; } instruction_label;
     struct AsmInstructionPush { AsmNode *operand; } instruction_push;
     struct AsmInstructionCall { char *identifier; } instruction_call;
-    //TODO: Assigning long to immediate value to support long constanta. May need to re work this when long long is supported. Read top of pg 266
+    //TODO: Assigning long to immediate value to support long constants. May need to rework this when long long is supported. Read top of pg 266
     struct AsmOperandImmediate { long value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;

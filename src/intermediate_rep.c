@@ -202,10 +202,10 @@ void print_intermediate_ret(IRNode *ir_node) {
     break;
     case IR_VALUE_CONSTANT:
       switch (ir_node->data.value_constant.type) {
-        case TYPE_INT:    printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
-        case TYPE_LONG:   printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
-        case TYPE_UINT:    printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
-        case TYPE_ULONG:   printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
+        case TYPE_INT:     printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
+        case TYPE_LONG:    printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
+        case TYPE_UINT:    printf("Constant(type = uint, value = %d)", ir_node->data.value_constant.value.uint_value); break;
+        case TYPE_ULONG:   printf("Constant(type = ulong, value = %ld)", ir_node->data.value_constant.value.ulong_value); break;          
         default:
           fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type);
           exit(1);
@@ -698,7 +698,7 @@ IRNode* ir_emit_cast_expression(AstNode *cast_node, IRNode *function, IREmitStat
   }
 
   char *temp_destination = ir_create_temp_register(emit_status);
-  add_automatic_variable_declaration_symbol(declaration_symbol_table, expression_type, temp_destination);
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, target_type, temp_destination);
 
   IRNode *var_destination_node = ir_create_variable(temp_destination, node_arena);
 
