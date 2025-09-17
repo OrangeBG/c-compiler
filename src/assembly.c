@@ -158,8 +158,8 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
     asm_resolve_large_imm_operand(new_function, instruction, asm_arena);
 
     AsmNode *new_instruction = arena_alloc(asm_arena); 
-    new_instruction->type = instruction_ptr->asm_pointers[i]->type;
-    new_instruction->data = instruction_ptr->asm_pointers[i]->data;
+    new_instruction->type = instruction->type;
+    new_instruction->data = instruction->data;
 
     asm_add_instruction_to_function(new_function, new_instruction);
   }
