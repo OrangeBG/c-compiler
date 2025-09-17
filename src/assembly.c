@@ -18,15 +18,14 @@ void     asm_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_are
 void     asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
 AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena); 
 AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena);
-void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
-void asm_resolve_div_instructions(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena); 
-void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+void     asm_resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
+void asm_resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena); 
+void     asm_resolve_mov_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+void     asm_resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+void     asm_resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+void     asm_resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena); 
-void     asm_resolve_mov_zero_extend_instructions(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena);
+void     asm_resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena);
 void     asm_resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
@@ -124,48 +123,39 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
   
   AsmNodePointers *instruction_ptr = function->data.function.instruction_pointers;
 
-  //TODO: Do the instruction type check, but move the business logic to each resolve function.
   for (int i = 0; i < function->data.function.instruction_count; i++) {
     AsmNodeType instruction_type = instruction_ptr->asm_pointers[i]->type;
+    AsmNode *instruction = instruction_ptr->asm_pointers[i];
 
-    if (instruction_type == ASM_INSTRUCTION_MOV && instruction_ptr->asm_pointers[i]->data.instruction_mov.destination->type == ASM_OPERAND_STACK && instruction_ptr->asm_pointers[i]->data.instruction_mov.source->type == ASM_OPERAND_STACK) {
-      //MOV instructions cannot have both a source and destination as memory addresses
-      asm_resolve_mov_memory_addresses(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
-    } else if (instruction_type == ASM_INSTRUCTION_CMP && instruction_ptr->asm_pointers[i]->data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instruction_ptr->asm_pointers[i]->data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
-      //CMP instructions cannot have both a source and destination as memory addresses
-      asm_resolve_cmp_memory_addresses(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;      
-    } else if (instruction_type == ASM_INSTRUCTION_CMP && instruction_ptr->asm_pointers[i]->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
-      //CMP instructions cannot have a constant as the second operand.
-      //TODO: Investigate if this is also needed for sub, add, and imul instructions
-      asm_resolve_cmp_constant_in_operand_2(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && (instruction_ptr->asm_pointers[i]->data.instruction_binary.binary_op == ASM_BINARY_ADD || instruction_ptr->asm_pointers[i]->data.instruction_binary.binary_op == ASM_BINARY_SUB)  && (instruction_ptr->asm_pointers[i]->data.instruction_binary.operand_1->type == ASM_OPERAND_STACK && instruction_ptr->asm_pointers[i]->data.instruction_binary.operand_2->type == ASM_OPERAND_STACK)) {
-      //ADD and SUB instructions cannot have both a source and destination as memory addresses
-      asm_resolve_binary_add_sub_memory_addresses(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
-    } else if (instruction_type == ASM_INSTRUCTION_BINARY && instruction_ptr->asm_pointers[i]->data.instruction_binary.binary_op == ASM_BINARY_MULT && instruction_ptr->asm_pointers[i]->data.instruction_binary.operand_2->type == ASM_OPERAND_STACK) {
-      //MUL instructions cannot use a memory address as its destination
-      asm_resolve_binary_mul_memory_addresses(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
-    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_IDIV && instruction_ptr->asm_pointers[i]->data.instruction_idiv.operand->type == ASM_OPERAND_IMM) {
-      //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
-      asm_resolve_idiv_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
-    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_DIV && instruction_ptr->asm_pointers[i]->data.instruction_div.operand->type == ASM_OPERAND_IMM) {
-      //DIV instructions need to be copied into a scratch buffer if the operand is a constant
-      asm_resolve_div_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
-    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_MOVSX) {      
-      asm_resolve_movsx_instruction(new_function, instruction_ptr->asm_pointers[i], asm_arena); 
-      continue;
-    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_MOV_ZERO_EXTEND) {
-      asm_resolve_mov_zero_extend_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
-      continue;
+    switch (instruction_type) {
+      case ASM_INSTRUCTION_MOV:
+        asm_resolve_mov_instruction(new_function, instruction, asm_arena);
+        continue;
+      case ASM_INSTRUCTION_MOVSX:        
+        asm_resolve_movsx_instruction(new_function, instruction, asm_arena); 
+        continue;
+      case ASM_INSTRUCTION_MOV_ZERO_EXTEND:        
+        asm_resolve_mov_zero_extend_instruction(new_function, instruction, asm_arena); 
+        continue;
+      case ASM_INSTRUCTION_CMP:
+        asm_resolve_cmp_instruction(new_function, instruction, asm_arena);
+        continue;
+      case ASM_INSTRUCTION_BINARY:
+        if (instruction->data.instruction_binary.binary_op == ASM_BINARY_ADD || instruction->data.instruction_binary.binary_op == ASM_BINARY_SUB) {
+          asm_resolve_binary_add_sub_instruction(new_function, instruction, asm_arena);
+        } else if (instruction->data.instruction_binary.binary_op == ASM_BINARY_MULT) {
+          asm_resolve_binary_mul_instruction(new_function, instruction, asm_arena);
+        }
+        continue;
+      case ASM_INSTRUCTION_IDIV:
+        asm_resolve_idiv_instruction(new_function, instruction, asm_arena);
+        continue;
+      case ASM_INSTRUCTION_DIV:
+        asm_resolve_div_instruction(new_function, instruction, asm_arena);
+        continue;      
     }
 
-    asm_resolve_large_imm_operand(new_function, instruction_ptr->asm_pointers[i], asm_arena);
+    asm_resolve_large_imm_operand(new_function, instruction, asm_arena);
 
     AsmNode *new_instruction = arena_alloc(asm_arena); 
     new_instruction->type = instruction_ptr->asm_pointers[i]->type;
@@ -294,7 +284,12 @@ void asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction
   }
 }
 
-void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena) {
+void asm_resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena) {
+  //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
+  if (idiv_instruction->data.instruction_idiv.operand->type != ASM_OPERAND_IMM) {
+    return;
+  }
+
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = idiv_instruction->data.instruction_idiv.operand;
@@ -316,7 +311,12 @@ void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction,
   asm_add_instruction_to_function(function, new_idiv_instruction);
 }
 
-void asm_resolve_div_instructions(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena) {
+void asm_resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena) {
+  //DIV instructions need to be copied into a scratch buffer if the operand is a constant
+  if (div_instruction->data.instruction_div.operand->type != ASM_OPERAND_IMM) {
+    return;
+  }
+  
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = div_instruction->data.instruction_div.operand;
@@ -338,7 +338,7 @@ void asm_resolve_div_instructions(AsmNode *function, AsmNode *div_instruction, A
   asm_add_instruction_to_function(function, new_div_instruction);
 }
 
-void asm_resolve_mov_zero_extend_instructions(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
+void asm_resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
   if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_REGISTER) {
     AsmNode *mov_instruction = arena_alloc(asm_arena);
     mov_instruction->type = ASM_INSTRUCTION_MOV;    mov_instruction->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
@@ -374,7 +374,12 @@ void asm_resolve_mov_zero_extend_instructions(AsmNode *function, AsmNode *mov_ze
   }
 }
 
-void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+void asm_resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+  //MUL instructions cannot use a memory address as its destination
+  if (instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_STACK) {
+    return;
+  }
+  
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_2;
@@ -406,7 +411,12 @@ void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruc
   asm_add_instruction_to_function(function, mov_instruction_2);
 }
 
-void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+void asm_resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+  //ADD and SUB instructions cannot have both a source and destination as memory addresses
+  if (instruction->data.instruction_binary.operand_1->type != ASM_OPERAND_STACK || instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_STACK) {
+    return;
+  }
+
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_1;
@@ -427,6 +437,63 @@ void asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *ins
   binary_instruction->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
 
   asm_add_instruction_to_function(function, binary_instruction);
+}
+
+
+void asm_resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+  //CMP instructions cannot have both a source and destination as memory addresses
+  if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
+    AsmNode *r10_register = arena_alloc(asm_arena);
+    r10_register->type = ASM_OPERAND_REGISTER;
+    r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
+
+    AsmNode *mov_instruction = arena_alloc(asm_arena);
+    mov_instruction->type = ASM_INSTRUCTION_MOV;
+    mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_1;
+    mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_cmp.assembly_type;
+    mov_instruction->data.instruction_mov.destination = r10_register;
+
+    asm_add_instruction_to_function(function, mov_instruction);
+
+    AsmNode *cmp_instruction = arena_alloc(asm_arena);
+    cmp_instruction->type = ASM_INSTRUCTION_CMP;
+    cmp_instruction->data.instruction_cmp.operand_1 = r10_register;
+    cmp_instruction->data.instruction_cmp.operand_2 = instruction->data.instruction_cmp.operand_2;
+    cmp_instruction->data.instruction_cmp.assembly_type = instruction->data.instruction_cmp.assembly_type;
+
+    asm_add_instruction_to_function(function, cmp_instruction);
+
+    return;
+  }
+
+  //CMP instructions cannot have a constant as the second operand.
+  //TODO: Investigate if this is also needed for sub, add, and imul instructions
+  if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
+    AsmNode *r11_register = arena_alloc(asm_arena);
+    r11_register->type = ASM_OPERAND_REGISTER;
+    r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
+
+    AsmNode *mov_instruction = arena_alloc(asm_arena);
+    mov_instruction->type = ASM_INSTRUCTION_MOV;
+    mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_2;
+    mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_cmp.assembly_type;
+    mov_instruction->data.instruction_mov.destination = r11_register;
+
+    asm_add_instruction_to_function(function, mov_instruction);
+
+    AsmNode *eax_register = arena_alloc(asm_arena);
+    eax_register->type = ASM_OPERAND_REGISTER;
+    eax_register->data.operand_register.op_register = ASM_REGISTER_AX;
+
+    AsmNode *cmp_instruction = arena_alloc(asm_arena);
+    cmp_instruction->type = ASM_INSTRUCTION_CMP;
+    cmp_instruction->data.instruction_cmp.operand_1 = eax_register;
+    cmp_instruction->data.instruction_cmp.operand_2 = r11_register;
+    cmp_instruction->data.instruction_cmp.assembly_type = instruction->data.instruction_cmp.assembly_type;
+
+    asm_add_instruction_to_function(function, cmp_instruction);
+    return;
+  }
 }
 
 void asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
@@ -455,29 +522,13 @@ void asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instructi
   asm_add_instruction_to_function(function, cmp_instruction);
 }
 
-void asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
-  AsmNode *r10_register = arena_alloc(asm_arena);
-  r10_register->type = ASM_OPERAND_REGISTER;
-  r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
 
-  AsmNode *mov_instruction = arena_alloc(asm_arena);
-  mov_instruction->type = ASM_INSTRUCTION_MOV;
-  mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_1;
-  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_cmp.assembly_type;
-  mov_instruction->data.instruction_mov.destination = r10_register;
+void asm_resolve_mov_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+    //MOV instructions cannot have both a source and destination as memory addresses
+    if (instruction->data.instruction_mov.destination->type != ASM_OPERAND_STACK || instruction->data.instruction_mov.source->type != ASM_OPERAND_STACK) {
+      return;
+    }
 
-  asm_add_instruction_to_function(function, mov_instruction);
-
-  AsmNode *cmp_instruction = arena_alloc(asm_arena);
-  cmp_instruction->type = ASM_INSTRUCTION_CMP;
-  cmp_instruction->data.instruction_cmp.operand_1 = r10_register;
-  cmp_instruction->data.instruction_cmp.operand_2 = instruction->data.instruction_cmp.operand_2;
-  cmp_instruction->data.instruction_cmp.assembly_type = instruction->data.instruction_cmp.assembly_type;
-  
-  asm_add_instruction_to_function(function, cmp_instruction);
-}
-
-void asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
     AsmNode *new_source_mov_instruction = arena_alloc(asm_arena);
     new_source_mov_instruction->type = ASM_INSTRUCTION_MOV;
     new_source_mov_instruction->data.instruction_mov.source = instruction->data.instruction_mov.source;
