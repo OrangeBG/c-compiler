@@ -19,12 +19,14 @@ void     asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_var
 AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena); 
 AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena);
 void     asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
+void asm_resolve_div_instructions(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena); 
 void     asm_resolve_mov_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_cmp_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_cmp_constant_in_operand_2(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_add_sub_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena); 
+void     asm_resolve_mov_zero_extend_instructions(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena);
 void     asm_resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 void     asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 void     asm_replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
@@ -122,6 +124,7 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
   
   AsmNodePointers *instruction_ptr = function->data.function.instruction_pointers;
 
+  //TODO: Do the instruction type check, but move the business logic to each resolve function.
   for (int i = 0; i < function->data.function.instruction_count; i++) {
     AsmNodeType instruction_type = instruction_ptr->asm_pointers[i]->type;
 
@@ -150,8 +153,15 @@ AsmNode* asm_resolve_instructions(AsmNode *function, Arena *asm_arena) {
       //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
       asm_resolve_idiv_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
       continue;
+    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_DIV && instruction_ptr->asm_pointers[i]->data.instruction_div.operand->type == ASM_OPERAND_IMM) {
+      //DIV instructions need to be copied into a scratch buffer if the operand is a constant
+      asm_resolve_div_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
+      continue;
     } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_MOVSX) {      
       asm_resolve_movsx_instruction(new_function, instruction_ptr->asm_pointers[i], asm_arena); 
+      continue;
+    } else if (instruction_ptr->asm_pointers[i]->type == ASM_INSTRUCTION_MOV_ZERO_EXTEND) {
+      asm_resolve_mov_zero_extend_instructions(new_function, instruction_ptr->asm_pointers[i], asm_arena);
       continue;
     }
 
@@ -304,6 +314,64 @@ void asm_resolve_idiv_instructions(AsmNode *function, AsmNode *idiv_instruction,
   new_idiv_instruction->data.instruction_idiv.assembly_type = idiv_instruction->data.instruction_idiv.assembly_type;
 
   asm_add_instruction_to_function(function, new_idiv_instruction);
+}
+
+void asm_resolve_div_instructions(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena) {
+  AsmNode *mov_instruction = arena_alloc(asm_arena);
+  mov_instruction->type = ASM_INSTRUCTION_MOV;
+  mov_instruction->data.instruction_mov.source = div_instruction->data.instruction_div.operand;
+  mov_instruction->data.instruction_mov.assembly_type = div_instruction->data.instruction_div.assembly_type;
+
+  AsmNode *destination = arena_alloc(asm_arena);
+  destination->type = ASM_OPERAND_REGISTER;
+  destination->data.operand_register.op_register = ASM_REGISTER_R10;    
+
+  mov_instruction->data.instruction_mov.destination = destination;
+
+  asm_add_instruction_to_function(function, mov_instruction);
+
+  AsmNode *new_div_instruction = arena_alloc(asm_arena);
+  new_div_instruction->type = ASM_INSTRUCTION_DIV;
+  new_div_instruction->data.instruction_div.operand = destination;
+  new_div_instruction->data.instruction_div.assembly_type = div_instruction->data.instruction_div.assembly_type;
+
+  asm_add_instruction_to_function(function, new_div_instruction);
+}
+
+void asm_resolve_mov_zero_extend_instructions(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
+  if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_REGISTER) {
+    AsmNode *mov_instruction = arena_alloc(asm_arena);
+    mov_instruction->type = ASM_INSTRUCTION_MOV;    mov_instruction->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
+    mov_instruction->data.instruction_mov.destination = mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination;
+    
+    asm_add_instruction_to_function(function, mov_instruction);
+
+    return;
+  }
+  
+  if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_IMM) {
+    AsmNode *r11_register = arena_alloc(asm_arena);
+    r11_register->type = ASM_OPERAND_REGISTER;
+    r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
+
+    AsmNode *mov_instruction_1 = arena_alloc(asm_arena);
+    mov_instruction_1->type = ASM_INSTRUCTION_MOV;
+    mov_instruction_1->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
+    mov_instruction_1->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
+    mov_instruction_1->data.instruction_mov.destination = r11_register;
+
+    asm_add_instruction_to_function(function, mov_instruction_1);
+
+    AsmNode *mov_instruction_2 = arena_alloc(asm_arena);
+    mov_instruction_2->type = ASM_INSTRUCTION_MOV;
+    mov_instruction_2->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
+    mov_instruction_2->data.instruction_mov.source = r11_register;
+    mov_instruction_2->data.instruction_mov.destination = mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination;
+
+    asm_add_instruction_to_function(function, mov_instruction_2);
+
+    return;
+  }
 }
 
 void asm_resolve_binary_mul_memory_addresses(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
@@ -462,6 +530,15 @@ void asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *back
          asm_replace_pseudo_register(instruction->data.instruction_movsx.destination, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
+      case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
+        if (instruction->data.instruction_mov_zero_extend.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_mov_zero_extend.source, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+
+        if (instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_mov_zero_extend.destination, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+        break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          asm_replace_pseudo_register(instruction->data.instruction_unary.operand, instruction->data.instruction_unary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
@@ -479,6 +556,11 @@ void asm_pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *back
       case ASM_INSTRUCTION_IDIV:
         if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          asm_replace_pseudo_register(instruction->data.instruction_idiv.operand, instruction->data.instruction_idiv.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        }
+        break;
+      case ASM_INSTRUCTION_DIV:
+        if (instruction->data.instruction_div.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+         asm_replace_pseudo_register(instruction->data.instruction_div.operand, instruction->data.instruction_div.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_CMP:
@@ -694,8 +776,14 @@ void asm_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variabl
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 
   switch (ir_static_variable->data.static_variable.static_variable_symbol->value_type) {
-    case TYPE_INT:   asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD; break;
-    case TYPE_LONG:  asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD; break;
+    case TYPE_INT:
+    case TYPE_UINT:
+      asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD;
+      break;
+    case TYPE_LONG:
+    case TYPE_ULONG:
+      asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD;
+      break;
     default:
       fprintf(stderr, "ERROR: Assembler - Could not assign alignment value to static variable '%s'\n", ir_static_variable->data.static_variable.identifier);
       exit(1);
@@ -931,13 +1019,15 @@ void asm_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relatio
 
   AsmConditionCode relational_op;
 
+  bool is_signed_condition = is_signed_ir_value_node(ir_relational_instruction->data.instruction_binary.destination, declaration_symbol_table);
+
   switch (ir_relational_instruction->data.instruction_binary.op_type) {
     case IR_BINARY_EQUAL:              relational_op = ASM_CONDITION_EQUAL; break;
     case IR_BINARY_NOT_EQUAL:          relational_op = ASM_CONDITION_NOT_EQUAL; break;
-    case IR_BINARY_GREATER_THAN:       relational_op = ASM_CONDITION_GREATER; break;
-    case IR_BINARY_GREATER_OR_EQUAL:   relational_op = ASM_CONDITION_GREATER_EQUAL; break;
-    case IR_BINARY_LESS_THAN:          relational_op = ASM_CONDITION_LESS; break;
-    case IR_BINARY_LESS_OR_EQUAL:      relational_op = ASM_CONDITION_LESS_EQUAL; break;      
+    case IR_BINARY_GREATER_THAN:       relational_op = is_signed_condition ? ASM_CONDITION_GREATER : ASM_CONDITION_ABOVE; break;
+    case IR_BINARY_GREATER_OR_EQUAL:   relational_op = is_signed_condition ? ASM_CONDITION_GREATER_EQUAL : ASM_CONDITION_ABOVE_EQUAL; break;
+    case IR_BINARY_LESS_THAN:          relational_op = is_signed_condition ? ASM_CONDITION_LESS : ASM_CONDITION_BELOW; break;
+    case IR_BINARY_LESS_OR_EQUAL:      relational_op = is_signed_condition ? ASM_CONDITION_LESS_EQUAL : ASM_CONDITION_BELOW_EQUAL; break;      
     default:
       fprintf(stderr, "Binary Relational OP type %d is not found", ir_relational_instruction->data.instruction_binary.op_type);
       exit(1);
@@ -1282,6 +1372,11 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
       switch (ir_operand->data.value_constant.type) {
         case TYPE_INT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
         case TYPE_LONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
+        case TYPE_UINT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.uint_value; break;
+        case TYPE_ULONG: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.ulong_value; break;         
+        default:
+          fprintf(stderr, "ERROR - Assembler: Constant value type %d not found in asm_operand\n", ir_operand->type);
+          exit(1);      
       }
       break;
     case IR_VALUE_VAR:
@@ -1289,7 +1384,7 @@ AsmNode* asm_operand(IRNode *ir_operand, Arena *asm_arena) {
       asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
       break;
     default:
-      fprintf(stderr, "ERROR - Assembler: Binary operand value type %d not found in asm_binary_operand\n", ir_operand->type);
+      fprintf(stderr, "ERROR - Assembler: Operand type %d not found in asm_operand\n", ir_operand->type);
       exit(1);      
   }  
 
@@ -1373,6 +1468,11 @@ void print_assembly(AsmNode *node) {
       print_assembly(node->data.instruction_idiv.operand);
       printf("\n");
       break;
+    case ASM_INSTRUCTION_DIV:
+      printf("DIV Instruction\n");
+      print_assembly(node->data.instruction_div.operand);
+      printf("\n");
+      break;
     case ASM_INSTRUCTION_JMP:
       printf("JMP -> Identifier( %s )\n", node->data.instruction_jmp.identifier);      
       break;
@@ -1385,6 +1485,10 @@ void print_assembly(AsmNode *node) {
         case ASM_CONDITION_GREATER_EQUAL:  printf("Greater or Equal"); break;
         case ASM_CONDITION_LESS:           printf("Less"); break;
         case ASM_CONDITION_LESS_EQUAL:     printf("Less or Equal"); break;
+        case ASM_CONDITION_ABOVE:          printf("Above"); break;
+        case ASM_CONDITION_ABOVE_EQUAL:    printf("Above or Equal"); break;
+        case ASM_CONDITION_BELOW:          printf("Below"); break;
+        case ASM_CONDITION_BELOW_EQUAL:    printf("Below or Equal"); break;
       }
       printf(" )\n");
       break;
@@ -1399,6 +1503,10 @@ void print_assembly(AsmNode *node) {
         case ASM_CONDITION_GREATER_EQUAL:  printf("Greater or Equal"); break;
         case ASM_CONDITION_LESS:           printf("Less"); break;
         case ASM_CONDITION_LESS_EQUAL:     printf("Less or Equal"); break;
+        case ASM_CONDITION_ABOVE:          printf("Above"); break;
+        case ASM_CONDITION_ABOVE_EQUAL:    printf("Above or Equal"); break;
+        case ASM_CONDITION_BELOW:          printf("Below"); break;
+        case ASM_CONDITION_BELOW_EQUAL:    printf("Below or Equal"); break;
       }
       printf(" )\n");
       break;
@@ -1419,7 +1527,7 @@ void print_assembly(AsmNode *node) {
       printf("Pseudo Register %s ", node->data.operand_pseudo_register.identifier);
       break;
     case ASM_OPERAND_IMM:
-      printf("IMM %d ", node->data.operand_imm.value);
+      printf("IMM %ld ", node->data.operand_imm.value);
       break;
     case ASM_OPERAND_STACK:
       printf("Stack %d ", node->data.operand_stack.address);
@@ -1480,6 +1588,10 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
           case TYPE_LONG:
           case TYPE_ULONG:
             return ASM_TYPE_QUADWORD;
+          default:
+            fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Constant Type\n", ir_node->type);
+            exit(1);
+            break;        
         }
       break;
     case IR_VALUE_VAR: {
@@ -1495,11 +1607,11 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
         case TYPE_LONG:
         case TYPE_ULONG:
           return ASM_TYPE_QUADWORD;
+        default:
+          fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Variable Type\n", ir_node->type);
+          exit(1);
+          break;        
       }
-
-      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
-      exit(1);
-      break;
     }
     default:
       fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
@@ -1552,8 +1664,14 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
       asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
 
       switch (declaration_symbol->data.variable_symbol->value_type) {
-        case TYPE_INT:   asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_LONGWORD; break;
-        case TYPE_LONG:  asm_backend_symbol->data.object_entry.assembly_type= ASM_TYPE_QUADWORD; break;
+        case TYPE_INT:   
+        case TYPE_UINT:
+          asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_LONGWORD;
+          break;
+        case TYPE_LONG:  
+        case TYPE_ULONG:
+          asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_QUADWORD;
+          break;
         default:
           fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type\n");
           exit(1);
