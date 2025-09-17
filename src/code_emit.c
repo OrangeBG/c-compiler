@@ -49,8 +49,14 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case TYPE_INT:
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
           break;
+        case TYPE_UINT:
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+          break;
         case TYPE_LONG: 
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+          break;
+        case TYPE_ULONG: 
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
           break;
         default:
           fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
@@ -71,8 +77,14 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case TYPE_INT:
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); 
           break;
+        case TYPE_UINT:
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); 
+          break;
         case TYPE_LONG: 
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); 
+          break;
+        case TYPE_ULONG: 
+          asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); 
           break;
         default:
           fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
@@ -123,6 +135,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
         case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
         case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
+        case ASM_CONDITION_ABOVE:         fprintf(file, "a"); break;
+        case ASM_CONDITION_ABOVE_EQUAL:   fprintf(file, "ae"); break;
+        case ASM_CONDITION_BELOW:         fprintf(file, "b"); break;
+        case ASM_CONDITION_BELOW_EQUAL:   fprintf(file, "be"); break;
       }
       fprintf(file, "\tL%s\n", asm_node->data.instruction_jmp_cc.identifier);
       break;
@@ -136,6 +152,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
         case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
         case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
+        case ASM_CONDITION_ABOVE:         fprintf(file, "a"); break;
+        case ASM_CONDITION_ABOVE_EQUAL:   fprintf(file, "ae"); break;
+        case ASM_CONDITION_BELOW:         fprintf(file, "b"); break;
+        case ASM_CONDITION_BELOW_EQUAL:   fprintf(file, "be"); break;
       }
       fprintf(file, "\t");
       //1 Byte name registers for set cc
@@ -197,6 +217,15 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\t");
       
       save_assembly_file(asm_node->data.instruction_idiv.operand, file);
+      fprintf(file, "\n");
+      break;
+    case ASM_INSTRUCTION_DIV:
+      fprintf(file, "\tdiv");
+
+      print_instruction_suffix(file, asm_node->data.instruction_div.assembly_type);
+      fprintf(file, "\t");
+      
+      save_assembly_file(asm_node->data.instruction_div.operand, file);
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_RET:
