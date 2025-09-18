@@ -437,7 +437,7 @@ void add_identifier_token(Lexer *lexer, char *file) {
 }
 
 TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file) { 
-  if (lexer->current_index - lexer->start_index == start + length && memcmp(&file[lexer->start_index + 1], rest, length) == 0) {
+  if (lexer->current_index - lexer->start_index == (start + length) - 1 && memcmp(&file[lexer->start_index + start], rest, length) == 0) {
     return type;
   }
 
@@ -445,45 +445,43 @@ TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer
 }
 
 TokenType get_identifier_type(Lexer *lexer, char *file) {
-  //TODO: Need to support the rest of the keywords
-  //TODO: Having start point be at the current index seems wrong
   switch (file[lexer->start_index]) {
-    case 'b': return check_keyword(0, 4, "reak", TOKEN_BREAK, lexer, file);
-    case 'c': return check_keyword(0, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
-    case 'd': return check_keyword(0, 1, "o", TOKEN_DO, lexer, file);
+    case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK, lexer, file);
+    case 'c': return check_keyword(1, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
+    case 'd': return check_keyword(1, 1, "o", TOKEN_DO, lexer, file);
     case 'e': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {
-          case 'l': return check_keyword(0, 3, "lse", TOKEN_ELSE, lexer, file);
-          case 'x': return check_keyword(0, 5, "xtern", TOKEN_EXTERN, lexer, file);
+          case 'l': return check_keyword(2, 2, "se", TOKEN_ELSE, lexer, file);
+          case 'x': return check_keyword(2, 4, "tern", TOKEN_EXTERN, lexer, file);
         }
       }
     }
-    case 'f': return check_keyword(0, 2, "or", TOKEN_FOR, lexer, file);
-    case 'g': return check_keyword(0, 3, "oto", TOKEN_GOTO, lexer, file);
+    case 'f': return check_keyword(1, 2, "or", TOKEN_FOR, lexer, file);
+    case 'g': return check_keyword(1, 3, "oto", TOKEN_GOTO, lexer, file);
     case 'i': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {
-          case 'n': return check_keyword(0, 2, "nt", TOKEN_INT, lexer, file);
-          case 'f': return check_keyword(0, 1, "f", TOKEN_IF, lexer, file);
+          case 'n': return check_keyword(2, 1, "t", TOKEN_INT, lexer, file);
+          case 'f': return TOKEN_IF;
         }
       } 
       break;
      }
-    case 'l': return check_keyword(0, 3, "ong", TOKEN_LONG, lexer, file);
-    case 'r': return check_keyword(0, 5, "eturn", TOKEN_RETURN, lexer, file);
+    case 'l': return check_keyword(1, 3, "ong", TOKEN_LONG, lexer, file);
+    case 'r': return check_keyword(1, 5, "eturn", TOKEN_RETURN, lexer, file);
     case 's': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {
-          case 'i': return check_keyword(0, 5, "igned", TOKEN_SIGNED, lexer, file);
-          case 't': return check_keyword(0, 5, "tatic", TOKEN_STATIC, lexer, file);
+          case 'i': return check_keyword(2, 4, "gned", TOKEN_SIGNED, lexer, file);
+          case 't': return check_keyword(2, 4, "atic", TOKEN_STATIC, lexer, file);
         }
       } 
       break;
     }
-    case 'u': return check_keyword(0, 7, "nsigned", TOKEN_UNSIGNED, lexer, file);
-    case 'v': return check_keyword(0, 3, "oid", TOKEN_VOID, lexer, file);
-    case 'w': return check_keyword(0, 4, "hile", TOKEN_WHILE, lexer, file);
+    case 'u': return check_keyword(1, 7, "nsigned", TOKEN_UNSIGNED, lexer, file);
+    case 'v': return check_keyword(1, 3, "oid", TOKEN_VOID, lexer, file);
+    case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE, lexer, file);
   }
 
   return TOKEN_IDENTIFIER;
