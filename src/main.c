@@ -91,27 +91,28 @@ int main(int argc, const char *argv[]) {
   if (print_debug) {
     printf("\n>> ASSEMBLY PRINT <<\n\n");
     print_assembly(asm_nodes);
+  }
 
-    FILE *assembly_file;
-    assembly_file = fopen("assembly.asm", "w+");
+  FILE *assembly_file;
+  assembly_file = fopen("assembly.asm", "w+");
 
-    save_assembly_file(asm_nodes, assembly_file);
+  save_assembly_file(asm_nodes, assembly_file);
 
-    #ifdef __x86_64__
-      system("clang -c assembly.asm -o assembly.o");
-      // system("clang assembly.o -o assembly");   
-    #else 
-      system("clang -arch x86_64 -c assembly.asm -o assembly.o");
-    #endif
+  #ifdef __x86_64__
+    system("clang -c assembly.asm -o assembly.o");
+  #else 
+    system("clang -arch x86_64 -c assembly.asm -o assembly.o");
+  #endif
     
+  if (print_debug) {
     printf("\n>> CODE EMIT PRINT <<\n\n");
     rewind(assembly_file);
     print_code_emit(assembly_file);
-    
-    fclose(assembly_file);
   }
-  
-  return 0;
+    
+  fclose(assembly_file);  
+
+  return EXIT_SUCCESS;
 }
 
 char* load_file(const char *file_path) {
