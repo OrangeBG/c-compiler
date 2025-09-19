@@ -19,25 +19,6 @@
 		int main(void) {
 		    return a() + b(2);
 		}	
-	- The following segfaults:		
-		int main(void) {
-		    int a = 10;
-		    int b = 20;
-		    for (b = -20; b < 0; b = b + 1) {
-		        a = a - 1;
-		        if (a <= 0)
-		            break;
-		    }
-
-		    return a == 0 && b == -11;
-		}
-	- The following segfaults. An error is somewhere in the type checker when applying a cast to the conditional expression: 
-		int i = 3;
-		int l = 3;
-
-		long result = 1 ? l : i;
-
-		return result;
 	- The following test is not producing an error when it should. Foo is declared twice with different parameters:
 		int main(void) {
 		    int foo(int help);
@@ -54,14 +35,6 @@
 		    b = a;
 
 		    return foo(45);
-		}
-	- Assembler error with the following. It comes from having a function call in the binary expression in caller():
-		int fun(int a, int b, int c, int d, int e, int f, int g, int h) {
-			return a + h;
-		}
-
-		int caller(int arg) {
-			return arg + fun(1, 2, 3, 4, 5, 6, 7, 8);
 		}
 
 # Incomplete

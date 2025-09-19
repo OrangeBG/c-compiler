@@ -81,7 +81,6 @@ int main(int argc, const char *argv[]) {
     print_intermediate_ret(ir);
   }
 
-  //TODO: Can we free the lexer tokens after this?
   arena_free(ast_arena);
 
   AsmBackendSymbolTable backend_symbol_table;
