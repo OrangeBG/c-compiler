@@ -43,24 +43,15 @@ int main(int argc, const char *argv[]) {
     #endif
   }
 
-  double benchmarks[5];
-  double total_benchmark_start = (double)clock();
-
-  benchmarks[0] = (double)clock();
-  
   Lexer lexer = init_lexer();
   load_tokens(&lexer, file);
-
-  benchmarks[0] = ((double) (clock() - benchmarks[0])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> LEXER PRINT <<\n\n");
     print_tokens(&lexer, file);
   }
 
-  benchmarks[1] = clock();
   Arena *ast_arena = parse_ast(lexer.tokens, lexer.token_count, file);
-  benchmarks[1] = ((double) (clock() - benchmarks[1])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> AST PRINT <<\n\n");
@@ -68,7 +59,6 @@ int main(int argc, const char *argv[]) {
     print_ast(program_node, 0);
   }
 
-  benchmarks[2] = clock();
   AstNode *program_node = arena_get_by_index(ast_arena, 0);
   sa_variable_resolution(program_node);
 
@@ -77,7 +67,6 @@ int main(int argc, const char *argv[]) {
   
   sa_type_check(program_node, &declaration_symbol_table, ast_arena);
   sa_loop_labeling(program_node);
-  benchmarks[2] = ((double) (clock() - benchmarks[2])) / CLOCKS_PER_SEC;
 
   if (print_debug) {
     printf("\n>> SEMANTIC PRINT <<\n\n");
@@ -85,10 +74,8 @@ int main(int argc, const char *argv[]) {
     print_ast(program_node, 0);
   }
 
-  benchmarks[3] = clock();
   IRNode *ir = generate_intermediate_rep(program_node, &declaration_symbol_table);
-  benchmarks[3] = ((double) (clock() - benchmarks[3])) / CLOCKS_PER_SEC;
-  
+
   if (print_debug) {
     printf("\n>> IR PRINT <<\n\n");
     print_intermediate_ret(ir);
@@ -97,13 +84,10 @@ int main(int argc, const char *argv[]) {
   //TODO: Can we free the lexer tokens after this?
   arena_free(ast_arena);
 
-  benchmarks[4] = clock();
   AsmBackendSymbolTable backend_symbol_table;
   backend_symbol_table_init(&backend_symbol_table);
 
   AsmNode *asm_nodes = generate_assembly(ir, &declaration_symbol_table, &backend_symbol_table);
-  benchmarks[4] = ((double) (clock() - benchmarks[4])) / CLOCKS_PER_SEC;
-
   if (print_debug) {
     printf("\n>> ASSEMBLY PRINT <<\n\n");
     print_assembly(asm_nodes);
@@ -126,18 +110,6 @@ int main(int argc, const char *argv[]) {
     
     fclose(assembly_file);
   }
-
-  if (print_debug) {
-    double total_benchmark_end = (double)clock();
-
-    printf("\n>> BENCHMARKS <<\n");
-    printf("Lexer    : %f seconds\n", benchmarks[0]);
-    printf("Parser   : %f seconds\n", benchmarks[1]);
-    printf("Semantic : %f seconds\n", benchmarks[2]);
-    printf("Int. Rep.: %f seconds\n", benchmarks[3]);
-    printf("Assembly : %f seconds\n", benchmarks[4]);
-    printf("Total Compile Time: %f seconds\n", ((double) (total_benchmark_end - total_benchmark_start)) / CLOCKS_PER_SEC);
-  }             
   
   return 0;
 }
