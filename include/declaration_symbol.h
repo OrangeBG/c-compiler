@@ -22,6 +22,7 @@ typedef struct {
   bool is_global;
   Types value_type;
   int param_count;
+  Types *param_types;
 } FunctionSymbol;
 
 typedef union {
@@ -57,9 +58,10 @@ typedef struct {
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table);
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
-DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, bool is_global, bool is_defined); 
+DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, Types *param_types, bool is_global, bool is_defined); 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key);  
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
+
 #endif

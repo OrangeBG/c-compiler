@@ -17,6 +17,7 @@ int main(int argc, const char *argv[]) {
   char* file;
   bool print_debug = true;
    
+  //@Temporary: These arguments are to support immediate testing while developing the compiler
   if (argc == 1) {
     file = load_file("../test-file.txt");
   } else if (argc == 2) {

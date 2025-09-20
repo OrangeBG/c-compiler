@@ -26,13 +26,14 @@ void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_ta
   free(declaration_symbol_table->symbol_table);
 }
 
-DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, bool is_global, bool is_defined) {
+DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, Types *param_types, bool is_global, bool is_defined) {
   FunctionSymbol *function_symbol = arena_alloc(declaration_symbol_table->function_symbol_arena);
 
   function_symbol->value_type = function_value_type;
   function_symbol->is_defined = is_defined;
   function_symbol->is_global = is_global;
   function_symbol->param_count = parameter_count;
+  function_symbol->param_types = param_types;
 
   DeclarationSymbol *function_declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
   function_declaration_symbol->symbol_type = DECLARATION_SYMBOL_FUNCTION;
