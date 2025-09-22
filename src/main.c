@@ -11,7 +11,7 @@
 #include "../include/sa_loop_labeling.h"
 #include "../include/sa_type_check.h"
 
-char* load_file(const char *file_path); 
+static char* load_file(const char *file_path); 
 
 int main(int argc, const char *argv[]) {  
   char* file;
@@ -115,7 +115,7 @@ int main(int argc, const char *argv[]) {
   return EXIT_SUCCESS;
 }
 
-char* load_file(const char *file_path) {
+static char* load_file(const char *file_path) {
   FILE* file = fopen(file_path, "rb");
 
   if (file == NULL) {

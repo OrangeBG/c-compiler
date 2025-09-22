@@ -72,14 +72,14 @@ const char* TokenTypeStr[] = {
   "TOKEN_EOF"
 };
 
-bool is_alpha_char(char character);
-bool is_numeric_char(char character);
-bool peek_next(Lexer *lexer, char *file, char find_character); 
-void add_token(TokenType type, Lexer *lexer);
-void add_number_token(Lexer *lexer, char *file); 
-void add_identifier_token(Lexer *lexer, char *file); 
-TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file); 
-TokenType get_identifier_type(Lexer *lexer, char *file); 
+static bool is_alpha_char(char character);
+static bool is_numeric_char(char character);
+static bool peek_next(Lexer *lexer, char *file, char find_character); 
+static void add_token(TokenType type, Lexer *lexer);
+static void add_number_token(Lexer *lexer, char *file); 
+static void add_identifier_token(Lexer *lexer, char *file); 
+static TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file); 
+static TokenType get_identifier_type(Lexer *lexer, char *file); 
  
 Lexer init_lexer() {
   Lexer lexer = {
@@ -349,7 +349,7 @@ void print_tokens(Lexer *lexer, char *file) {
   }
 }
 
-void add_token(TokenType type, Lexer *lexer) {  
+static void add_token(TokenType type, Lexer *lexer) {  
   if (lexer->token_count == lexer->token_capacity) {
     int size = lexer->token_capacity == 0 ? TOKEN_ARRAY_START_SIZE : lexer->token_capacity * 2;
     lexer->token_capacity = size;
@@ -367,7 +367,7 @@ void add_token(TokenType type, Lexer *lexer) {
   lexer->token_count++;
 }
 
-bool is_alpha_char(char character) {
+static bool is_alpha_char(char character) {
   if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')) {
     return true;
   }
@@ -375,7 +375,7 @@ bool is_alpha_char(char character) {
   return false;
 }
 
-bool is_numeric_char(char character) {
+static bool is_numeric_char(char character) {
   if (character >= '0' && character <= '9') {
     return true;
   } 
@@ -383,7 +383,7 @@ bool is_numeric_char(char character) {
   return false;
 }
 
-void add_number_token(Lexer *lexer, char *file) {
+static void add_number_token(Lexer *lexer, char *file) {
   while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
     lexer->current_index++;
   }
@@ -426,7 +426,7 @@ void add_number_token(Lexer *lexer, char *file) {
   add_token(TOKEN_CONSTANT_INT, lexer); 
 }
 
-void add_identifier_token(Lexer *lexer, char *file) {
+static void add_identifier_token(Lexer *lexer, char *file) {
   while (file[lexer->current_index + 1] != '\0' && (is_alpha_char(file[lexer->current_index + 1]) || is_numeric_char(file[lexer->current_index + 1]) || file[lexer->current_index + 1] == '_')) {
     lexer->current_index++;
   }
@@ -436,7 +436,7 @@ void add_identifier_token(Lexer *lexer, char *file) {
   add_token(type, lexer);
 }
 
-TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file) { 
+static TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file) { 
   if (lexer->current_index - lexer->start_index == (start + length) - 1 && memcmp(&file[lexer->start_index + start], rest, length) == 0) {
     return type;
   }
@@ -444,7 +444,7 @@ TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer
   return TOKEN_IDENTIFIER;
 }
 
-TokenType get_identifier_type(Lexer *lexer, char *file) {
+static TokenType get_identifier_type(Lexer *lexer, char *file) {
   switch (file[lexer->start_index]) {
     case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK, lexer, file);
     case 'c': return check_keyword(1, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
@@ -487,7 +487,7 @@ TokenType get_identifier_type(Lexer *lexer, char *file) {
   return TOKEN_IDENTIFIER;
 }
 
-bool peek_next(Lexer *lexer, char *file, char find_character) {
+static bool peek_next(Lexer *lexer, char *file, char find_character) {
   if (file[lexer->current_index + 1] == '\0') {
     return false;
   }

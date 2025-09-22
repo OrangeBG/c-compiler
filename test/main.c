@@ -4,8 +4,8 @@
 #include <string.h>
 #include <stdbool.h>
 
-DIR* get_directory(char *file_path);
-void run_directory_tests(DIR* directory, char *test_folder_name, bool is_negative_test);
+static DIR* get_directory(char *file_path);
+static void run_directory_tests(DIR* directory, char *test_folder_name, bool is_negative_test);
  
 int main(int argc, char** argv) {
   #ifdef _WIN32
@@ -25,14 +25,14 @@ int main(int argc, char** argv) {
   return 0;
 }
 
-DIR* get_directory(char *file_path) {
+static DIR* get_directory(char *file_path) {
   DIR *directory;
   directory = opendir(file_path);
 
   return directory;
 }
 
-void run_directory_tests(DIR* directory, char *test_folder_name, bool is_negative_test) {
+static void run_directory_tests(DIR* directory, char *test_folder_name, bool is_negative_test) {
   struct dirent *en;
 
   if (directory) {

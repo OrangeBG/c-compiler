@@ -2,7 +2,7 @@
 #include "../include/sa_loop_labeling.h"
 #include "../include/stack.h"
 
-void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id); 
+static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id); 
 
 void sa_loop_labeling(AstNode *ast_nodes) {
   Stack loop_label_stack;
@@ -12,7 +12,7 @@ void sa_loop_labeling(AstNode *ast_nodes) {
   sa_label_loop(ast_nodes, &loop_label_stack, &starting_loop_id);
 }
 
-void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) {
+static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id) {
   switch (ast_node->type) {
     case AST_STATEMENT_WHILE: {
       StackValue loop_stack_value = {

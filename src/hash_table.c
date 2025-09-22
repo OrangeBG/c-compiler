@@ -8,9 +8,9 @@
 #define HASH_TABLE_INITIAL_CAPACITY 8
 #define HASH_TABLE_MAX_LOAD 0.75
 
-uint32_t        hash_key(char *key);
-void            hash_table_expand(HashTable *table, int new_capacity); 
-HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key); 
+static uint32_t        hash_key(char *key);
+static void            hash_table_expand(HashTable *table, int new_capacity); 
+static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key); 
 
 void hash_table_init(HashTable *table) {
   table->capacity = 0;
@@ -77,7 +77,7 @@ void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
   table->count++;
 }
 
-void hash_table_expand(HashTable *table, int new_capacity) {
+static void hash_table_expand(HashTable *table, int new_capacity) {
   HashTableEntry *new_entries = malloc(sizeof(HashTableEntry) * new_capacity);
 
   for (int i = 0; i < new_capacity; i++) {
@@ -116,7 +116,7 @@ HashTableEntry* hash_table_get_entry(HashTable *table, char *key) {
 }
 
 //Uses FNV-1A hash algorithm
-uint32_t hash_key(char *key) {
+static uint32_t hash_key(char *key) {
   int key_length = strlen(key);
   uint32_t hash = 2166136261u;
 
@@ -129,7 +129,7 @@ uint32_t hash_key(char *key) {
 }
 
 //Using Linear probing
-HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
+static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
   uint32_t hash = hash_key(key);
   int index = hash % capacity;
   

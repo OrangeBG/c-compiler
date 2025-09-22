@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
 
-char* get_8_byte_register(AsmRegisterType register_type); 
-char* get_4_byte_register(AsmRegisterType register_type); 
-char* get_1_byte_register(AsmRegisterType register_type); 
-void print_instruction_suffix(FILE *file, AsmType type); 
+static char* get_8_byte_register(AsmRegisterType register_type); 
+static char* get_4_byte_register(AsmRegisterType register_type); 
+static char* get_1_byte_register(AsmRegisterType register_type); 
+static void print_instruction_suffix(FILE *file, AsmType type); 
 
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
@@ -275,7 +275,7 @@ void print_code_emit(FILE *file) {
   }
 }
 
-char* get_8_byte_register(AsmRegisterType register_type) {
+static char* get_8_byte_register(AsmRegisterType register_type) {
   switch(register_type) {
     case ASM_REGISTER_AX:  return "%rax";
     case ASM_REGISTER_DX:  return "%rdx";
@@ -289,7 +289,7 @@ char* get_8_byte_register(AsmRegisterType register_type) {
   }
 }
 
-char* get_4_byte_register(AsmRegisterType register_type) {
+static char* get_4_byte_register(AsmRegisterType register_type) {
   switch(register_type) {
     case ASM_REGISTER_AX:  return "%eax";
     case ASM_REGISTER_DX:  return "%edx";
@@ -304,7 +304,7 @@ char* get_4_byte_register(AsmRegisterType register_type) {
   }
 }
 
-char* get_1_byte_register(AsmRegisterType register_type) {
+static char* get_1_byte_register(AsmRegisterType register_type) {
   switch(register_type) {
     case ASM_REGISTER_AX:  return "%al";
     case ASM_REGISTER_DX:  return "%dl";
@@ -318,7 +318,7 @@ char* get_1_byte_register(AsmRegisterType register_type) {
   }
 }
 
-void print_instruction_suffix(FILE *file, AsmType type) {
+static void print_instruction_suffix(FILE *file, AsmType type) {
   if (type == ASM_TYPE_LONGWORD) {
     fprintf(file, "l");
     return;
