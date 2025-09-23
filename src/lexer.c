@@ -32,6 +32,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_CONTINUE",
   "TOKEN_DECREMENT",
   "TOKEN_DO",
+  "TOKEN_DOUBLE",
   "TOKEN_ELSE",
   "TOKEN_EQUAL",
   "TOKEN_EXTERN",
@@ -448,7 +449,20 @@ static TokenType get_identifier_type(Lexer *lexer, char *file) {
   switch (file[lexer->start_index]) {
     case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK, lexer, file);
     case 'c': return check_keyword(1, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
-    case 'd': return check_keyword(1, 1, "o", TOKEN_DO, lexer, file);
+    case 'd': {
+      if (lexer->current_index - lexer->start_index > 0) {
+        switch (file[lexer->start_index + 1]) {
+          case 'o': { 
+            if ((lexer->current_index + 1) - lexer->start_index > 0) {
+              switch (file[lexer->start_index + 2]) {
+                case 'u': return check_keyword(3, 3, "ble", TOKEN_DOUBLE, lexer, file);              
+              }
+            }
+            return check_keyword(2, 0, "", TOKEN_DO, lexer, file);
+          }
+        }
+      }
+    }
     case 'e': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {
