@@ -75,6 +75,7 @@ const char* TokenTypeStr[] = {
 
 static bool is_alpha_char(char character);
 static bool is_numeric_char(char character);
+static bool is_valid_post_constant_character(char character);
 static bool peek_next(Lexer *lexer, char *file, char find_character); 
 static void add_token(TokenType type, Lexer *lexer);
 static void add_number_token(Lexer *lexer, char *file); 
@@ -111,8 +112,15 @@ void load_tokens(Lexer *lexer, char *file) {
 
     if (is_numeric_char(cur_char)) {
       add_number_token(lexer, file);
+
       lexer->start_index = lexer->current_index + 1;
       lexer->current_index = lexer->start_index;
+
+      if (!is_valid_post_constant_character(file[lexer->current_index])) {
+        fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
+        exit(1);
+      }
+
       continue;
     }
 
@@ -384,45 +392,68 @@ static bool is_numeric_char(char character) {
   return false;
 }
 
+static bool is_valid_post_constant_character(char character) {
+  if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_' || character == '.' || is_numeric_char(character)) {
+    return false;
+  }
+
+  return true;
+}
+
 static void add_number_token(Lexer *lexer, char *file) {
   while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
     lexer->current_index++;
   }
 
-  if ((file[lexer->current_index + 1] == 'U' || file[lexer->current_index + 1] == 'u' || file[lexer->current_index + 1] == 'L' || file[lexer->current_index + 1] == 'l') && (file[lexer->current_index + 2] == 'U' || file[lexer->current_index + 2] == 'u' || file[lexer->current_index + 2] == 'L' || file[lexer->current_index + 2] == 'l')) {
-    add_token(TOKEN_CONSTANT_UNSIGNED_LONG, lexer);
-    lexer->current_index += 2;
-    if (is_alpha_char(file[lexer->current_index + 1])) {
-      fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
-      exit(1);
-    } 
-    return;
-  }
-
   if (file[lexer->current_index + 1] == 'L' || file[lexer->current_index + 1] == 'l') {
-    add_token(TOKEN_CONSTANT_LONG, lexer);
-    lexer->current_index++;
-    if (is_alpha_char(file[lexer->current_index + 1])) {
-      fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
-      exit(1);
-    } 
+    if (file[lexer->current_index + 2] == 'U' || file[lexer->current_index + 2] == 'u') {
+      add_token(TOKEN_CONSTANT_UNSIGNED_LONG, lexer);
+      lexer->current_index += 2;
+    } else {    
+      add_token(TOKEN_CONSTANT_LONG, lexer);
+      lexer->current_index++;
+    }
     return;
   }
 
   if (file[lexer->current_index + 1] == 'U' || file[lexer->current_index + 1] == 'u') {
-    add_token(TOKEN_CONSTANT_UNSIGNED_INT, lexer);
-    lexer->current_index++;
-    if (is_alpha_char(file[lexer->current_index + 1])) {
-      fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
-      exit(1);
-    } 
+    if (file[lexer->current_index + 2] == 'L' || file[lexer->current_index + 2] == 'l') {
+      add_token(TOKEN_CONSTANT_UNSIGNED_LONG, lexer);
+      lexer->current_index += 2;
+    } else {
+      add_token(TOKEN_CONSTANT_UNSIGNED_INT, lexer);
+      lexer->current_index++;
+    }
+
     return;
   }
 
-  if (is_alpha_char(file[lexer->current_index + 1])) {
-    fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
-    exit(1);
-  } 
+  if (file[lexer->current_index + 1] == '.') {
+    while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
+      lexer->current_index++;
+    }
+
+    if (file[lexer->current_index + 1] == 'E' || file[lexer->current_index + 1] == 'e') {
+      lexer->current_index++;
+    }
+
+    if (file[lexer->current_index + 1] == '+' || file[lexer->current_index + 1] == '-') {
+      lexer->current_index++;
+    }
+
+    if (!is_numeric_char(file[lexer->current_index + 1])) {
+      fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in number (line %d)\n", file[lexer->current_index + 1], lexer->line);
+      exit(1);
+    }
+
+    while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
+      lexer->current_index++;
+    }
+    
+
+
+    lexer->current_index++;
+  }
 
   add_token(TOKEN_CONSTANT_INT, lexer); 
 }
