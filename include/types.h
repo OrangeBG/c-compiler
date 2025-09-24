@@ -10,6 +10,7 @@ typedef enum {
   TYPE_UINT,
   TYPE_LONG,
   TYPE_ULONG,
+  TYPE_DOUBLE,
   TYPE_FUNCTION
 } Types;
 

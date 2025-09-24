@@ -681,7 +681,7 @@ static void parse_block(Parser *parser, AstNode *block_node) {
     }
 
     //TODO: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
-    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_LONG || current_token(parser)->type == TOKEN_UNSIGNED || current_token(parser)->type == TOKEN_SIGNED || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
+    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_LONG || current_token(parser)->type == TOKEN_DOUBLE || current_token(parser)->type == TOKEN_UNSIGNED || current_token(parser)->type == TOKEN_SIGNED || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
       AstNode *declaration_node = arena_alloc(parser->node_arena);
       parse_declaration(parser, declaration_node);
       block_node->data.block.block_count++;
@@ -1428,55 +1428,61 @@ static Types expect_type_specifier(Parser *parser) {
     return TYPE_VOID;
   }
 
-  if (current_token(parser)->type == TOKEN_UNSIGNED) {
-    if (peek_next_token(parser) == TOKEN_UNSIGNED) {
-      fprintf(stderr, "ERROR - Parser: Unsigned type specified twice. Line %d\n", current_token(parser)->line);
+  TokenType type_specifiers[4];
+  int type_specifier_count = 0;
+  int unsigned_count = 0;
+  int signed_count = 0;
+
+  while(true) {
+    switch (current_token(parser)->type) {
+      case TOKEN_UNSIGNED:
+      case TOKEN_SIGNED:
+      case TOKEN_INT:
+      case TOKEN_LONG:
+      case TOKEN_DOUBLE: {
+        if (current_token(parser)->type == TOKEN_UNSIGNED) {
+          unsigned_count++;
+        } else if (current_token(parser)->type == TOKEN_UNSIGNED) {
+          signed_count++;
+        }
+        
+        type_specifiers[type_specifier_count] = current_token(parser)->type;
+        type_specifier_count++;
+        parser->current_token_index++;
+        continue;
+      }
+    }
+
+    break;    
+  }
+
+  for (int i = 0; i < type_specifier_count; i++) {
+    if (current_token(parser)->type == TOKEN_UNSIGNED && (unsigned_count > 1 || signed_count > 0)) {
+      fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
       exit(1);
+    }
+
+    if (current_token(parser)->type == TOKEN_SIGNED && (signed_count > 1 || unsigned_count > 0)) {
+      fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
+      exit(1);
+    }
+
+    if (type_specifiers[i] == TOKEN_DOUBLE) {
+      if (type_specifier_count > 1) {
+        fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. Line %d\n", current_token(parser)->line);
+        exit(1);
+      } else {
+        return TYPE_DOUBLE;
+      }
     }
     
-    if (peek_next_token(parser) == TOKEN_SIGNED) {
-      fprintf(stderr, "ERROR - Parser: Signed type specified after unsigned. Line %d\n", current_token(parser)->line);
-      exit(1);
-    }
-  }
-
-  if (current_token(parser)->type == TOKEN_SIGNED) {
-    if (peek_next_token(parser) == TOKEN_SIGNED) {
-      fprintf(stderr, "ERROR - Parser: Signed type specified twice. Line %d\n", current_token(parser)->line);
-      exit(1);
+    if (type_specifiers[i] == TOKEN_LONG) {
+      return unsigned_count ? TYPE_ULONG : TYPE_LONG;
     }
 
-    if (peek_next_token(parser) == TOKEN_UNSIGNED) {
-      fprintf(stderr, "ERROR - Parser: Unsigned type specified after signed. Line %d\n", current_token(parser)->line);
-      exit(1);
-    }
-  }
-
-  if ((current_token(parser)->type == TOKEN_UNSIGNED && peek_next_token(parser) == TOKEN_LONG) || (current_token(parser)->type == TOKEN_LONG && peek_next_token(parser) == TOKEN_UNSIGNED)) {
-    parser->current_token_index += 2;
-    return TYPE_ULONG;
-  }
-
-  if (current_token(parser)->type == TOKEN_UNSIGNED) {
-
-    if (peek_next_token(parser) == TOKEN_INT) {
-      parser->current_token_index += 2;
-    } else {
-      parser->current_token_index++;
-    }
-    return TYPE_UINT;
-  }   
-  
-  if (current_token(parser)->type == TOKEN_LONG) {
-    parser->current_token_index++;
-    return TYPE_LONG;
+    return unsigned_count ? TYPE_UINT : TYPE_INT;    
   }   
 
-  if (current_token(parser)->type == TOKEN_INT) {
-    parser->current_token_index++;
-    return TYPE_INT;
-  }   
-  
   fprintf(stderr, "ERROR - Parser: Type specifier not found. Line %d\n", current_token(parser)->line);
   exit(1);
 }

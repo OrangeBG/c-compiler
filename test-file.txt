@@ -1,8 +1,4 @@
 int main(void) {
-    int breaker = 4LU;
-    double b = 4;
-    donm {
-
-    }
+    unsigned int b = 4;
     return b;
 }
