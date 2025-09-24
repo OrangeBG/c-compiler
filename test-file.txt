@@ -1,8 +1,8 @@
 int main(void) {
-    //static unsigned int u = 4294967299L;
-    unsigned int a = 4U;
+    int breaker = 4LU;
+    double b = 4;
+    donm {
 
-    unsigned int b = a / 2U;
-
+    }
     return b;
 }
