@@ -30,6 +30,7 @@ typedef union {
   long long_value;
   unsigned int uint_value;
   unsigned long ulong_value;
+  double double_value;
 } InitialValue;
 
 typedef struct {
