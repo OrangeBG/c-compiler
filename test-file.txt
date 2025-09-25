@@ -1,4 +1,4 @@
-int main(void) {
-    unsigned int b = 4;
+double main(void) {
+    double b = 4.4;
     return b;
 }

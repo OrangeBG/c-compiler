@@ -22,6 +22,10 @@ typedef enum {
   IR_INSTRUCTION_SIGN_EXTEND,
   IR_INSTRUCTION_ZERO_EXTEND,
   IR_INSTRUCTION_TRUNCATE,
+  IR_INSTRUCTION_DOUBLE_TO_INT,
+  IR_INSTRUCTION_DOUBLE_TO_UINT,
+  IR_INSTRUCTION_INT_TO_DOUBLE,
+  IR_INSTRUCTION_UINT_TO_DOUBLE,
   IR_VALUE_CONSTANT,
   IR_VALUE_VAR,
   IR_VALUE_STATIC_VAR
@@ -52,14 +56,6 @@ typedef enum {
   IR_BINARY_GREATER_OR_EQUAL,
 } IRBinaryOpType;
 
-
-// typedef enum {
-//   IR_TYPE_INT,
-//   IR_TYPE_UINT,
-//   IR_TYPE_LONG,
-//   IR_TYPE_ULONG
-// } IRType;
-
 typedef struct {
   int capacity;
   int count;
@@ -83,7 +79,11 @@ typedef struct IRNode {
   struct IRInstructionSignExtend { IRNode *source; IRNode *destination; } instruction_sign_extend;
   struct IRInstructionZeroExtend { IRNode *source; IRNode *destination; } instruction_zero_extend;
   struct IRInstructionTruncate { IRNode *source; IRNode *destination; } instruction_truncate;
-  struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; } value; } value_constant;
+  struct IRInstructionDoubleToInt { IRNode *source; IRNode *destination; } instruction_double_to_int;
+  struct IRInstructionDoubleToUInt { IRNode *source; IRNode *destination; } instruction_double_to_uint;
+  struct IRInstructionIntToDouble { IRNode *source; IRNode *destination; } instruction_int_to_double;
+  struct IRInstructionUIntToDouble { IRNode *source; IRNode *destination; } instruction_uint_to_double;
+  struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
  } data; 

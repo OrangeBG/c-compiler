@@ -42,6 +42,10 @@ static IRNode* emit_copy(IRNode *source, IRNode *destination, IRNode *function, 
 static IRNode* emit_truncate(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
 static IRNode* emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
 static IRNode* emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+static IRNode* emit_double_to_int(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+static IRNode* emit_double_to_uint(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+static IRNode* emit_int_to_double(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
+static IRNode* emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena); 
 static IRNode* emit_declaration(AstNode *declaration_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table); 
 static IRNode* emit_conditional_expression(AstNode *condition_node, IRNode *function, IREmitStatus *emit_status, Arena *node_arena, DeclarationSymbolTable *declaration_symbol_table);
 static IRNode* emit_postfix_expression(AstNode *postfix_node, IREmitStatus *emit_status, Arena *node_arena);
@@ -206,6 +210,7 @@ void print_intermediate_ret(IRNode *ir_node) {
         case TYPE_LONG:    printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
         case TYPE_UINT:    printf("Constant(type = uint, value = %d)", ir_node->data.value_constant.value.uint_value); break;
         case TYPE_ULONG:   printf("Constant(type = ulong, value = %ld)", ir_node->data.value_constant.value.ulong_value); break;          
+        case TYPE_DOUBLE:  printf("Constant(type = double, value = %f)", ir_node->data.value_constant.value.double_value); break;          
         default:
           fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type);
           exit(1);
@@ -218,10 +223,11 @@ void print_intermediate_ret(IRNode *ir_node) {
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
       switch (ir_node->data.static_variable.static_variable_symbol->value_type) {
-        case TYPE_INT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
-        case TYPE_LONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
-        case TYPE_UINT:  printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_ULONG: printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+        case TYPE_INT:    printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
+        case TYPE_LONG:   printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
+        case TYPE_UINT:   printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
+        case TYPE_ULONG:  printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+        case TYPE_DOUBLE: printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
         default:
           fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type);
           exit(1);
@@ -704,6 +710,14 @@ static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, IREmit
 
   if (get_type_size(target_type) == get_type_size(expression_type)) {
     emit_copy(cast_expression, var_destination_node, function, node_arena);
+  } else if (expression_type == TYPE_DOUBLE && target_type == TYPE_INT) {
+    emit_double_to_int(cast_expression, var_destination_node, function, node_arena);
+  } else if (expression_type == TYPE_DOUBLE && target_type == TYPE_UINT) {
+    emit_double_to_uint(cast_expression, var_destination_node, function, node_arena);
+  } else if (expression_type == TYPE_INT && target_type == TYPE_DOUBLE) {
+    emit_int_to_double(cast_expression, var_destination_node, function, node_arena);
+  } else if (expression_type == TYPE_UINT && target_type == TYPE_DOUBLE) {
+    emit_uint_to_double(cast_expression, var_destination_node, function, node_arena);
   } else if (get_type_size(target_type) < get_type_size(expression_type)) {
     emit_truncate(cast_expression, var_destination_node, function, node_arena);    
   } else if (is_type_signed(expression_type)) {
@@ -798,6 +812,50 @@ static IRNode* emit_zero_extend(IRNode *source, IRNode *destination, IRNode *fun
   add_instruction_to_function(function, zero_extend_instruction);
 
   return zero_extend_instruction;
+}
+
+static IRNode* emit_double_to_int(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *double_to_int_instruction = arena_alloc(node_arena);
+  double_to_int_instruction->type = IR_INSTRUCTION_DOUBLE_TO_INT;
+  double_to_int_instruction->data.instruction_double_to_int.source = source;
+  double_to_int_instruction->data.instruction_double_to_int.destination = destination;      
+
+  add_instruction_to_function(function, double_to_int_instruction);
+
+  return double_to_int_instruction;
+}
+
+static IRNode* emit_double_to_uint(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *double_to_uint_instruction = arena_alloc(node_arena);
+  double_to_uint_instruction->type = IR_INSTRUCTION_DOUBLE_TO_UINT;
+  double_to_uint_instruction->data.instruction_double_to_uint.source = source;
+  double_to_uint_instruction->data.instruction_double_to_uint.destination = destination;      
+
+  add_instruction_to_function(function, double_to_uint_instruction);
+
+  return double_to_uint_instruction;
+}
+
+static IRNode* emit_int_to_double(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *int_to_double_instruction = arena_alloc(node_arena);
+  int_to_double_instruction->type = IR_INSTRUCTION_INT_TO_DOUBLE;
+  int_to_double_instruction->data.instruction_int_to_double.source = source;
+  int_to_double_instruction->data.instruction_int_to_double.destination = destination;      
+
+  add_instruction_to_function(function, int_to_double_instruction);
+
+  return int_to_double_instruction;
+}
+
+static IRNode* emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, Arena *node_arena) {
+  IRNode *uint_to_double_instruction = arena_alloc(node_arena);
+  uint_to_double_instruction->type = IR_INSTRUCTION_UINT_TO_DOUBLE;
+  uint_to_double_instruction->data.instruction_int_to_double.source = source;
+  uint_to_double_instruction->data.instruction_int_to_double.destination = destination;      
+
+  add_instruction_to_function(function, uint_to_double_instruction);
+
+  return uint_to_double_instruction;
 }
 
 static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  Arena *node_arena) {
@@ -903,6 +961,9 @@ static IRNode* create_ast_constant(AstNode *ast_constant, Arena *node_arena) {
       break;
     case TYPE_ULONG:
       constant->data.value_constant.value.ulong_value = ast_constant->data.constant_expression.ulong_value;
+      break;
+    case TYPE_DOUBLE:
+      constant->data.value_constant.value.double_value = ast_constant->data.constant_expression.double_value;
       break;
     default:
       fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)\n", ast_constant->data.constant_expression.expression_type->data.type.type);
