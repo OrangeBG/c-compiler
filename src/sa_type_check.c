@@ -434,7 +434,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
         case AST_CONSTANT_TYPE_UINT:   ast_expression_type->data.type.type = TYPE_UINT; break;
         case AST_CONSTANT_TYPE_ULONG:  ast_expression_type->data.type.type = TYPE_ULONG; break;
         default:
-          fprintf(stderr, "ERROR - Type Check: Could not resolve value type in variable symbol");
+          fprintf(stderr, "ERROR - Type Check: Could not resolve value type in variable symbol\n");
           exit(1);
       }
 
