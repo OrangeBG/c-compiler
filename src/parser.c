@@ -159,9 +159,10 @@ void print_ast(const AstNode *node, int whitespace) {
         case TYPE_UINT:     printf("uint"); break;
         case TYPE_LONG:     printf("long"); break;
         case TYPE_ULONG:    printf("ulong"); break;
+        case TYPE_DOUBLE:   printf("double"); break;
         case TYPE_FUNCTION: printf("function"); break;
         default:
-          fprintf(stderr, "ERROR - Parser: Could not find AST Type when printing\n");
+          fprintf(stderr, "ERROR - Parser: Could not find AST Type '%d' when printing\n", node->data.type.type);
           exit(1);
       }
       printf(")\n");      
@@ -303,6 +304,9 @@ void print_ast(const AstNode *node, int whitespace) {
         case AST_CONSTANT_TYPE_ULONG:
           printf("Constant(ULong(%ld))\n", node->data.constant_expression.ulong_value);
           break;
+        case AST_CONSTANT_TYPE_DOUBLE:
+          printf("Constant(Double(%f))\n", node->data.constant_expression.double_value);
+          break;
         default:
           fprintf(stderr, "ERROR - Parser: Could not find constant type when printing\n");
           exit(1);
@@ -437,10 +441,11 @@ void print_ast(const AstNode *node, int whitespace) {
         printf("Cast(type=");
 
         switch (node->data.cast_expression.target_type->data.type.type) {
-          case TYPE_INT:   printf("int\n"); break;
-          case TYPE_UINT:  printf("uint\n"); break;
-          case TYPE_LONG:  printf("long\n"); break;
+          case TYPE_INT:    printf("int\n"); break;
+          case TYPE_UINT:   printf("uint\n"); break;
+          case TYPE_LONG:   printf("long\n"); break;
           case TYPE_ULONG:  printf("ulong\n"); break;
+          case TYPE_DOUBLE: printf("double\n"); break;
           default:            
             printf("ERROR - Parser: Unsupported cast node type to print %d\n", node->type);
         }
@@ -1106,6 +1111,7 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
   switch(current_token(parser)->type) {
     case TOKEN_CONSTANT_INT:
     case TOKEN_CONSTANT_LONG:
+    case TOKEN_CONSTANT_FLOAT:
     case TOKEN_CONSTANT_UNSIGNED_INT:
     case TOKEN_CONSTANT_UNSIGNED_LONG:
       parse_factor_constant(parser, factor_node, current_token(parser)->type); break;
@@ -1166,6 +1172,19 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     expression_type->data.type.type = TYPE_INT;  
     
     factor_node->data.constant_expression.expression_type = expression_type;
+
+    return;
+  }
+
+  //Floating points constants can't go out of range since a double supports positive and negative infinity
+  if (constant_type == TOKEN_CONSTANT_FLOAT) {
+    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_DOUBLE;
+    factor_node->data.constant_expression.double_value = (double)constant_value;
+
+    expression_type->data.type.type = TYPE_DOUBLE;  
+    
+    factor_node->data.constant_expression.expression_type = expression_type;
+
     return;
   }
 
@@ -1176,6 +1195,7 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     expression_type->data.type.type = TYPE_UINT;  
     
     factor_node->data.constant_expression.expression_type = expression_type;
+
     return;
   }
 
@@ -1186,6 +1206,7 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     expression_type->data.type.type = TYPE_ULONG;  
     
     factor_node->data.constant_expression.expression_type = expression_type;
+
     return;
   }
 
