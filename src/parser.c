@@ -1155,6 +1155,7 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
   strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
 
   char *end_ptr;
+  //@BUG: Does not support float values
   long constant_value = strtol(slice, &end_ptr, BASE_TEN);
 
   if (constant_value < LONG_MIN || constant_value > LONG_MAX) {

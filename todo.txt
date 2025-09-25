@@ -1,4 +1,5 @@
 # Bugs
+	- parse_factor_constant() in the parser does not support doubles when parsing the string to a value
 	- The following errors in the type checker:
 		{
 			int a = 3;
