@@ -19,8 +19,8 @@ static Types    get_common_real_type(Types type_1, Types type_2);
 static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
 static long     convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node); 
 static int      convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node); 
-static ulong    convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node); 
-static uint     convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node); 
+static unsigned long    convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node); 
+static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node); 
 static double   convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
 
 void sa_type_check(AstNode *ast_nodes, DeclarationSymbolTable *declaration_table, Arena *ast_arena) {
@@ -633,30 +633,30 @@ static int convert_variable_declaration_constant_to_int(AstNode *variable_declar
   }
 }
 
-static uint convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node) {
+static unsigned int convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node) {
   AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
 
   switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (uint)constant_expression->data.constant_expression.int_value;
+    case AST_CONSTANT_TYPE_INT:    return (unsigned int)constant_expression->data.constant_expression.int_value;
     case AST_CONSTANT_TYPE_UINT:   return constant_expression->data.constant_expression.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (uint)constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (uint)constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (uint)constant_expression->data.constant_expression.long_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_expression->data.constant_expression.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_expression->data.constant_expression.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_expression->data.constant_expression.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
       exit(1);
   }
 }
 
-static ulong convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node) {
+static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node) {
   AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
 
   switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (ulong)constant_expression->data.constant_expression.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (ulong)constant_expression->data.constant_expression.uint_value;
+    case AST_CONSTANT_TYPE_INT:    return (unsigned long)constant_expression->data.constant_expression.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (unsigned long)constant_expression->data.constant_expression.uint_value;
     case AST_CONSTANT_TYPE_ULONG:  return constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (ulong)constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (ulong)constant_expression->data.constant_expression.long_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_expression->data.constant_expression.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_expression->data.constant_expression.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
       exit(1);
