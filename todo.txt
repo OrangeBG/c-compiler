@@ -46,6 +46,7 @@
 # Testing Needed
 
 # Investigate
+	- In IR, for expressions where temp registers are being created, it's being added as an automatic variable declaration. Check if that is always true or if there needs to be a static check.
 	- Look into why I'm adding the following in the parser (2 of them were found and tagged with TODOs): postfix_constant->data.constant_expression.int_value = 1;
 
 # Features

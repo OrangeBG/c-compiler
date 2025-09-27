@@ -501,6 +501,8 @@ static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, IREm
   //TODO: Warning, setting hard buffer limit
   char *destination_name = create_temp_register(emit_status);
 
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, unary_node->data.unary_expression.expression_type->data.type.type, destination_name);
+
   IRNode *destination = arena_alloc(node_arena);
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
@@ -674,6 +676,8 @@ static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode
   ir_function_call->data.instruction_function_call.args = NULL;
 
   char *destination_name = create_temp_register(emit_status);
+
+  add_automatic_variable_declaration_symbol(declaration_symbol_table, function_call_node->data.function_call_expression.expression_type->data.type.type, destination_name);
 
   IRNode *destination = arena_alloc(node_arena);
   destination->type = IR_VALUE_VAR;
