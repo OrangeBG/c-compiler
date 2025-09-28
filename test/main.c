@@ -14,13 +14,17 @@ int main(int argc, char** argv) {
     system("clear");
   #endif
 
-  printf(">> RUNNING VALID TESTS <<\n");
-  DIR * valid_directory = get_directory("../valid-tests");
-  run_directory_tests(valid_directory, "valid-tests", false);
+  if (argc == 1 || strcmp(argv[1],  "-v") == 0) {
+    printf(">> RUNNING VALID TESTS <<\n");
+    DIR * valid_directory = get_directory("../valid-tests");
+    run_directory_tests(valid_directory, "valid-tests", false);
+  }
 
-  printf("\n\n>> RUNNING INVALID TESTS <<\n");
-  DIR * invalid_directory = get_directory("../invalid-tests");
-  run_directory_tests(invalid_directory, "invalid-tests", true);
+  if (argc == 1 || strcmp(argv[1],  "-i") == 0) {
+    printf("\n\n>> RUNNING INVALID TESTS <<\n");
+    DIR * invalid_directory = get_directory("../invalid-tests");
+    run_directory_tests(invalid_directory, "invalid-tests", true);
+  }
 
   return 0;
 }
