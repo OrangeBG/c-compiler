@@ -10,6 +10,7 @@
 #include "../include/sa_variable_resolution.h"
 #include "../include/sa_loop_labeling.h"
 #include "../include/sa_type_check.h"
+#include "../include/sa_goto_check.h"
 
 static char* load_file(const char *file_path); 
 
@@ -68,6 +69,7 @@ int main(int argc, const char *argv[]) {
   
   sa_type_check(program_node, &declaration_symbol_table, ast_arena);
   sa_loop_labeling(program_node);
+  sa_goto_check(program_node);
 
   if (print_debug) {
     printf("\n>> SEMANTIC PRINT <<\n\n");
