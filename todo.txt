@@ -25,6 +25,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- add hash table free function. I think hash tables are leaking memory.
 	- Add line numbers when printing errors
 	- Assembly instruction resolution pass: Add the business checks into the function (look at movsx resolution example)
 	- Intemediate Rep: Clean up print function to better display IR instructions 
@@ -50,6 +51,7 @@
 	- Look into why I'm adding the following in the parser (2 of them were found and tagged with TODOs): postfix_constant->data.constant_expression.int_value = 1;
 
 # Features
+	- GOTO Check: Need to add VLA check to goto statements when arrays are added to the compiler. Reference C17 ISO: 6.8.6 Jump statements
 	- Add generic dynamic array grow function
 	- Add Typedef support: Refer to pg 108 - Sandler Nora.
 	- Add switch statements support: Refer to pg 159 - Sandler Nora.

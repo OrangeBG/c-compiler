@@ -1,4 +1,26 @@
-double main(void) {
-    double b = 4.4;
-    return b;
+int main(void) {
+    goto test;
+    {
+        test:
+    }
+    return 0;
 }
+
+//int main(void) {
+//  int n = 7;
+//  int j  = 4;
+//
+//  goto lab5; // invalid: going INTO scope of VLA.
+//  {
+//  double a[n] = {};
+//  a[j] = 4.4;
+//  lab3:
+//  a[j] = 3.3;
+//  goto lab4; // valid: going WITHIN scope of VLA.
+//  a[j] = 5.5;
+//  lab4:
+//  a[j] = 6.6;
+//  lab5:
+//  }
+//  goto lab5; // invalid: going INTO scope of VLA.
+//}
