@@ -754,6 +754,12 @@ static void parse_statement(Parser *parser, AstNode **statement_node) {
     default: {
       if (current_token(parser)->type == TOKEN_IDENTIFIER && peek_next_token(parser) == TOKEN_COLON) {
         parse_factor_goto_label(parser, *statement_node);
+
+        if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
+          //TODO: This is not a requirement for C23
+          fprintf(stderr, "ERROR - Parser: Label must have a following statement (line %d)\n", current_token(parser)->line);
+          exit(1);
+        }
         break;
       }
       
