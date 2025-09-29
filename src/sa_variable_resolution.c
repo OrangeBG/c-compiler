@@ -129,6 +129,8 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         variable_resolve_node(node->data.function_declaration.body_block, declaration_stack);
       }
 
+      //Need to pop twice since we also add a separate stack for the function paramaters
+      stack_pop(declaration_stack);
       stack_pop(declaration_stack);
       break;
     }

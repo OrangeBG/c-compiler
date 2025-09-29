@@ -52,7 +52,7 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
         }
 
         if (((GotoStatus*)entry->value->structure)->has_label == false) {
-          fprintf(stderr, "ERROR - SA GOTO CHECK: Undefined goto '%s' label", entry->key);
+          fprintf(stderr, "ERROR - SA GOTO CHECK: Undefined goto '%s' label\n", entry->key);
           exit(1);
         }        
 
