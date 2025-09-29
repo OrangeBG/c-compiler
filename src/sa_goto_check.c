@@ -80,7 +80,7 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       }
 
       if (((GotoStatus*)existing_goto_entry->value->structure)->has_label) {
-        fprintf(stderr, "ERROR - SA GOTO CHECK: Duplicate '%s' label not allowed", ast_node->data.goto_label_statement.label); 
+        fprintf(stderr, "ERROR - SA GOTO CHECK: Duplicate '%s' label not allowed\n", ast_node->data.goto_label_statement.label); 
         exit(1);
       }
       
@@ -98,7 +98,7 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       break;
     }
     default:
-      fprintf(stderr, "ERROR - SA GOTO CHECK: Unresolved AST node type %d", ast_node->type);
+      fprintf(stderr, "ERROR - SA GOTO CHECK: Unresolved AST node type %d\n", ast_node->type);
       exit(1);
   }
 }
