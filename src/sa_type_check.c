@@ -227,11 +227,9 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table) {
   InitialValueType initial_value_type; 
   InitialValue initial_value;
-  Types value_type;
 
   if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
-    value_type = variable_declaration_node->data.variable_declaration.type->data.type.type; 
 
     switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
       case TYPE_INT:     initial_value.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node); break;
@@ -266,8 +264,8 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
       exit(1);
     }
 
-    if (value_type != existing_variable_symbol->data.variable_symbol->value_type) {
-      fprintf(stderr, "ERROR: SA Type Check: Previously declared '%s' variable has type of '%d'\n", variable_declaration_node->data.variable_declaration.name, existing_variable_symbol->data.variable_symbol->value_type);
+    if (variable_declaration_node->data.variable_declaration.type->data.type.type != existing_variable_symbol->data.variable_symbol->value_type) {
+      fprintf(stderr, "ERROR: SA Type Check: Previously declared '%s' variable has type of '%s'\n", variable_declaration_node->data.variable_declaration.name, get_type_string(existing_variable_symbol->data.variable_symbol->value_type));
       exit(1);
     }
 
