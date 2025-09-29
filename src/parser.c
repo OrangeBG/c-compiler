@@ -1486,17 +1486,17 @@ static Types expect_type_specifier(Parser *parser) {
     break;    
   }
 
+  if (unsigned_count > 1 || signed_count > 0) {
+    fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
+    exit(1);
+  }
+
+  if (signed_count > 1 || unsigned_count > 0) {
+    fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
+    exit(1);
+  }
+
   for (int i = 0; i < type_specifier_count; i++) {
-    if (current_token(parser)->type == TOKEN_UNSIGNED && (unsigned_count > 1 || signed_count > 0)) {
-      fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
-      exit(1);
-    }
-
-    if (current_token(parser)->type == TOKEN_SIGNED && (signed_count > 1 || unsigned_count > 0)) {
-      fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
-      exit(1);
-    }
-
     if (type_specifiers[i] == TOKEN_DOUBLE) {
       if (type_specifier_count > 1) {
         fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. Line %d\n", current_token(parser)->line);
