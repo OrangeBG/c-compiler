@@ -29,6 +29,7 @@ static void add_declaration_to_table(Declaration *declaration, char* identifier_
 static char* get_identifier_with_stack_offset(char *identifier, int stack_offset); 
 static void push_new_declaration_stack(Stack *declaration_stack); 
 static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack); 
+static void print_declaration_stack(Stack *declaration_stack);
 
 void sa_variable_resolution(AstNode *ast_nodes) {
   Stack *declaration_stack = malloc(sizeof(Stack));
@@ -50,11 +51,6 @@ void sa_variable_resolution(AstNode *ast_nodes) {
 }
 
 static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
-  if (declaration_stack->count == 0) {
-    fprintf(stderr, "ERROR - SA Variable Resolution: Declaration stack reached a 0 count");
-    exit(1);
-  }
-
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
@@ -92,8 +88,6 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       break;
     }
     case AST_FUNCTION_DECLARATION: {
-      push_new_declaration_stack(declaration_stack);
-
       StackValue *declaration_top_stack = stack_top(declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
       
@@ -112,7 +106,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         new_declaration->declaration_type = DECLARATION_TYPE_FUNCTION;
         new_declaration->from_current_scope = true;
         new_declaration->has_linkage = true;
-        new_declaration->stack_declaration_offset = declaration_stack->count;
+        new_declaration->stack_declaration_offset = declaration_stack->count - 1;
 
         add_declaration_to_table(new_declaration, function_identifier, declaration_table);
       }
@@ -129,8 +123,6 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         variable_resolve_node(node->data.function_declaration.body_block, declaration_stack);
       }
 
-      //Need to pop twice since we also add a separate stack for the function paramaters
-      stack_pop(declaration_stack);
       stack_pop(declaration_stack);
       break;
     }
@@ -311,7 +303,7 @@ static void resolve_file_scope_variable_declaration(char *identifier, enum Decla
   file_scope_declaration->declaration_type = declaration_type;
   file_scope_declaration->from_current_scope = true;
   file_scope_declaration->has_linkage = true;
-  file_scope_declaration->stack_declaration_offset = 1;
+  file_scope_declaration->stack_declaration_offset = 0;
 
   add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
 }
@@ -422,10 +414,33 @@ static void resolve_function_parameter(AstNode *param_type_node, AstNode *functi
   file_scope_declaration->declaration_type = DECLARATION_TYPE_VARIABLE;
   file_scope_declaration->from_current_scope = true;
   file_scope_declaration->has_linkage = true;
-  file_scope_declaration->stack_declaration_offset = declaration_stack->count;
+  file_scope_declaration->stack_declaration_offset = declaration_stack->count - 1;
 
   add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
 
   function_declaration_node->data.function_declaration.parameter_identifiers[identifier_idx] = converted_identifier;
+}
 
+static void print_declaration_stack(Stack *declaration_stack) {
+  if (declaration_stack->count == 0) {
+    printf("Stack Count is 0");
+    return;
+  }
+  
+  for (int i = 0; i < declaration_stack->count; i++) {
+    printf("Stack Offset: %d\n", i);
+
+    HashTable *declaration_hash_table = declaration_stack->stack[i].data.hash_table;
+
+    for (int j = 0; j < declaration_hash_table->capacity; j++) {
+      if (&declaration_hash_table->entries[j] == NULL || declaration_hash_table->entries[j].key == NULL) {
+        continue;
+      }  
+
+      Declaration *declaration = declaration_hash_table->entries[j].value->structure;
+
+      printf("\t- key: %s\n", declaration_hash_table->entries[j].key);
+      printf("\t\ttype: %d, from_current_scope: %d, has_linkage: %d, offset:%d \n", declaration->declaration_type, declaration->from_current_scope,  declaration->has_linkage, declaration->stack_declaration_offset);
+    }
+  }
 }
