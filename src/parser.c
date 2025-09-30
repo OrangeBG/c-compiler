@@ -1486,12 +1486,12 @@ static Types expect_type_specifier(Parser *parser) {
     break;    
   }
 
-  if (unsigned_count > 1 || signed_count > 0) {
+  if (unsigned_count >= 1 && signed_count > 0) {
     fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
     exit(1);
   }
 
-  if (signed_count > 1 || unsigned_count > 0) {
+  if (signed_count >= 1 && unsigned_count > 0) {
     fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
     exit(1);
   }
