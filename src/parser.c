@@ -1510,7 +1510,9 @@ static Types expect_type_specifier(Parser *parser) {
       return unsigned_count ? TYPE_ULONG : TYPE_LONG;
     }
 
-    return unsigned_count ? TYPE_UINT : TYPE_INT;    
+    if (type_specifiers[i] == TOKEN_INT) {
+      return unsigned_count ? TYPE_UINT : TYPE_INT;
+    }
   }   
 
   fprintf(stderr, "ERROR - Parser: Type specifier not found. Line %d\n", current_token(parser)->line);
