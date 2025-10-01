@@ -1472,7 +1472,7 @@ static Types expect_type_specifier(Parser *parser) {
       case TOKEN_DOUBLE: {
         if (current_token(parser)->type == TOKEN_UNSIGNED) {
           unsigned_count++;
-        } else if (current_token(parser)->type == TOKEN_UNSIGNED) {
+        } else if (current_token(parser)->type == TOKEN_SIGNED) {
           signed_count++;
         }
         
