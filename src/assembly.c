@@ -9,6 +9,7 @@
 #include "../include/declaration_symbol.h"
 #include "../include/intermediate_rep.h"
 #include "../include/types.h"
+#include "lexer.h"
 
 #define NODE_POINTER_CAPACITY 8
 #define ALIGNMENT_QUADWORD 8
@@ -21,7 +22,7 @@ typedef enum {
 
 static void         emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
-static AsmNode*     emit_static_constant(AsmNode *asm_function, IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table);  
+static AsmNode*     emit_static_constant(IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table);  
 static void         emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
 static void         emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
@@ -31,20 +32,20 @@ static void         emit_instruction_binary_signed_division(AsmNode *asm_functio
 static void         emit_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena); 
 static void         emit_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
-static void         emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
-static void         emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table); 
+static void         emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
 static void         emit_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
 static void         emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
-static void         emit_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations); 
-static void         emit_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations);
-static void         emit_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
+static void         emit_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table);
+static void         emit_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
 static void         pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 static void         replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
-static AsmNode*     create_operand(IRNode *ir_operand, Arena *asm_arena);
+static AsmNode*     create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table);
 static AsmNode*     resolve_instructions(AsmNode *function, Arena *asm_arena); 
 static ResolveType  resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
 static ResolveType  resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena); 
@@ -793,10 +794,10 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
           emit_instruction_jump(asm_function, current_ir_node, asm_arena);
           break;
         case IR_INSTRUCTION_JUMP_IF_ZERO:
-          emit_instruction_jump_if_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
+          emit_instruction_jump_if_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           break;
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:
-          emit_instruction_jump_if_not_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table);
+          emit_instruction_jump_if_not_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           break;
         case IR_INSTRUCTION_COPY:
           emit_instruction_copy(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
@@ -808,13 +809,13 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
           emit_instruction_function_call(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           break;
         case IR_INSTRUCTION_SIGN_EXTEND:
-          emit_instruction_sign_extend(asm_function, current_ir_node, asm_arena, top_level_declarations);
+          emit_instruction_sign_extend(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_ZERO_EXTEND:
-          emit_instruction_zero_extend(asm_function, current_ir_node, asm_arena, top_level_declarations);
+          emit_instruction_zero_extend(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
           break;
         case IR_INSTRUCTION_TRUNCATE:
-          emit_instruction_truncate(asm_function, current_ir_node, asm_arena, top_level_declarations);
+          emit_instruction_truncate(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
           break;
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
@@ -844,7 +845,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
   }  
 }
 
-static AsmNode* emit_static_constant(AsmNode *asm_function, IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {  
+static AsmNode* emit_static_constant(IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {  
   static int constant_label_counter = 0;
 
   char *constant_label= malloc(64);
@@ -906,8 +907,8 @@ static void emit_instruction_label(AsmNode *asm_function, IRNode *ir_label_instr
 }
 
 static void emit_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source = create_operand(ir_copy_instruction->data.instruction_copy.source, asm_arena);
-  AsmNode *destination = create_operand(ir_copy_instruction->data.instruction_copy.destination, asm_arena);
+  AsmNode *source = create_operand(ir_copy_instruction->data.instruction_copy.source, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination = create_operand(ir_copy_instruction->data.instruction_copy.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
@@ -931,12 +932,12 @@ static void emit_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruc
   add_instruction_to_function(asm_function, jmp_instruction); 
 }
 
-static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
+static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
   
-  AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, asm_arena);
+  AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, asm_arena, top_level_declarations, declaration_symbol_table);
   AsmNode *cmp_instruction = arena_alloc(asm_arena);
 
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
@@ -959,12 +960,12 @@ static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump
   add_instruction_to_function(asm_function, jmp_instruction);
 }
 
-static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table) {
+static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
   
-  AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, asm_arena);
+  AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, asm_arena, top_level_declarations, declaration_symbol_table);
   AsmNode *cmp_instruction = arena_alloc(asm_arena);
 
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
@@ -988,9 +989,9 @@ static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_
 }
 
 static void emit_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
-  AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
-  AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
+  AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, declaration_symbol_table);
   
@@ -1042,8 +1043,8 @@ static void emit_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_ins
 }
 
 static void emit_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source = create_operand(ir_unary_not_instruction->data.unary.source, asm_arena);
-  AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.unary.destination, asm_arena);
+  AsmNode *source = create_operand(ir_unary_not_instruction->data.unary.source, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.unary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmType source_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.unary.source, declaration_symbol_table);
   AsmType destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.unary.destination, declaration_symbol_table);
@@ -1078,9 +1079,9 @@ static void emit_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_n
 }
 
 static void emit_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source_1 = create_operand(ir_relational_instruction->data.instruction_binary.source_1, asm_arena);
-  AsmNode *source_2 = create_operand(ir_relational_instruction->data.instruction_binary.source_2, asm_arena);
-  AsmNode *destination_node = create_operand(ir_relational_instruction->data.instruction_binary.destination, asm_arena);
+  AsmNode *source_1 = create_operand(ir_relational_instruction->data.instruction_binary.source_1, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *source_2 = create_operand(ir_relational_instruction->data.instruction_binary.source_2, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_relational_instruction->data.instruction_binary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, declaration_symbol_table);
   AsmType destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, declaration_symbol_table);
@@ -1131,9 +1132,9 @@ static void emit_instruction_binary_relational(AsmNode *asm_function, IRNode *ir
 }
 
 static void emit_instruction_binary_signed_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
-  AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
-  AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
+  AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, declaration_symbol_table);
   
@@ -1184,9 +1185,9 @@ static void emit_instruction_binary_signed_division(AsmNode *asm_function, const
 }
  
 static void emit_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena);
-  AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena);
-  AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena);
+  AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, declaration_symbol_table);
   
@@ -1247,8 +1248,8 @@ static void emit_instruction_binary_unsigned_division(AsmNode *asm_function, con
 }
 
 static void emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
-  AsmNode *source_node = create_operand(ir_unary_instruction->data.unary.source, asm_arena);
-  AsmNode *destination_node = create_operand(ir_unary_instruction->data.unary.destination, asm_arena);
+  AsmNode *source_node = create_operand(ir_unary_instruction->data.unary.source, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_unary_instruction->data.unary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmType source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.unary.source, declaration_symbol_table);
 
@@ -1279,7 +1280,7 @@ static void emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instr
 static void emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
-    AsmNode *source_node = create_operand(ir_return_instruction->data.instruction_ret.value, asm_arena);
+    AsmNode *source_node = create_operand(ir_return_instruction->data.instruction_ret.value, asm_arena, top_level_declarations, declaration_symbol_table);
 
     AsmNode *destination_node = arena_alloc(asm_arena);
     destination_node->type = ASM_OPERAND_REGISTER;
@@ -1320,7 +1321,7 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
   int stack_arg_count = 0;
 
   for (int i = 0; i < arg_count; i++) {
-    AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena);
+    AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena, top_level_declarations, declaration_symbol_table);
 
     if (i < 6) {
       AsmNode *mov_instruction = arena_alloc(asm_arena);
@@ -1397,7 +1398,7 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
   }
 
   //retrieve return value 
-  AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, asm_arena);
+  AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, asm_arena, top_level_declarations, declaration_symbol_table);
 
   AsmNode *dest_register = arena_alloc(asm_arena);
   dest_register->type = ASM_OPERAND_REGISTER;
@@ -1417,30 +1418,30 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
   add_instruction_to_function(asm_function, mov_instruction);  
 }
 
-static void emit_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations) {
+static void emit_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *movsx_instruction = arena_alloc(asm_arena);
   movsx_instruction->type = ASM_INSTRUCTION_MOVSX;
-  movsx_instruction->data.instruction_movsx.source = create_operand(ir_sign_extend_instruction->data.instruction_sign_extend.source, asm_arena); 
-  movsx_instruction->data.instruction_movsx.destination = create_operand(ir_sign_extend_instruction->data.instruction_sign_extend.destination, asm_arena); 
+  movsx_instruction->data.instruction_movsx.source = create_operand(ir_sign_extend_instruction->data.instruction_sign_extend.source, asm_arena, top_level_declarations, declaration_symbol_table); 
+  movsx_instruction->data.instruction_movsx.destination = create_operand(ir_sign_extend_instruction->data.instruction_sign_extend.destination, asm_arena, top_level_declarations, declaration_symbol_table); 
 
   add_instruction_to_function(asm_function, movsx_instruction);
 }
 
-static void emit_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations) {
+static void emit_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *mov_zero_extend_instruction = arena_alloc(asm_arena);
   mov_zero_extend_instruction->type = ASM_INSTRUCTION_MOV_ZERO_EXTEND;
-  mov_zero_extend_instruction->data.instruction_mov_zero_extend.source = create_operand(ir_zero_extend_instruction->data.instruction_sign_extend.source, asm_arena); 
-  mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination = create_operand(ir_zero_extend_instruction->data.instruction_sign_extend.destination, asm_arena); 
+  mov_zero_extend_instruction->data.instruction_mov_zero_extend.source = create_operand(ir_zero_extend_instruction->data.instruction_sign_extend.source, asm_arena, top_level_declarations, declaration_symbol_table); 
+  mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination = create_operand(ir_zero_extend_instruction->data.instruction_sign_extend.destination, asm_arena, top_level_declarations, declaration_symbol_table); 
 
   add_instruction_to_function(asm_function, mov_zero_extend_instruction);
 }
 
-static void emit_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations) {
+static void emit_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;
   mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
-  mov_instruction->data.instruction_mov.source = create_operand(ir_truncate_instruction->data.instruction_truncate.source, asm_arena); 
-  mov_instruction->data.instruction_mov.destination = create_operand(ir_truncate_instruction->data.instruction_truncate.destination, asm_arena); 
+  mov_instruction->data.instruction_mov.source = create_operand(ir_truncate_instruction->data.instruction_truncate.source, asm_arena, top_level_declarations, declaration_symbol_table); 
+  mov_instruction->data.instruction_mov.destination = create_operand(ir_truncate_instruction->data.instruction_truncate.destination, asm_arena, top_level_declarations, declaration_symbol_table); 
 
   add_instruction_to_function(asm_function, mov_instruction);
 }
@@ -1450,13 +1451,13 @@ static void add_instruction_to_function(AsmNode *function, AsmNode *instruction)
   function->data.function.instruction_count++;
 }
 
-static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena) {
+static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *asm_operand = arena_alloc(asm_arena);
 
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
       if (ir_operand->data.value_constant.type == TYPE_DOUBLE) {
-
+        return emit_static_constant(ir_operand, asm_arena, top_level_pointers, declaration_symbol_table); 
       }
       
       asm_operand->type = ASM_OPERAND_IMM;
