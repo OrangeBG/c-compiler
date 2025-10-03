@@ -21,6 +21,7 @@ typedef enum {
 
 static void         emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
+static AsmNode*     emit_static_constant(AsmNode *asm_function, IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table);  
 static void         emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
 static void         emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_unary_not(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
@@ -843,16 +844,38 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
   }  
 }
 
-static void emit_static_constant(AsmNode *asm_function, IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {  
+static AsmNode* emit_static_constant(AsmNode *asm_function, IRNode *ir_double_constant_node, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {  
+  static int constant_label_counter = 0;
+
+  char *constant_label= malloc(64);
+  snprintf(constant_label, 64, "_static_constant.%d", constant_label_counter); 
+  InitialValue initial_value = { .double_value = ir_double_constant_node->data.value_constant.value.double_value };  
+
+  add_static_variable_declaration_symbol(declaration_symbol_table, TYPE_DOUBLE, initial_value, constant_label, true, INITIAL_VALUE_INITIALIZED);  
+
+  HashTableEntry *entry = hash_table_get_entry(declaration_symbol_table->symbol_table, constant_label);
+
+  if (entry == NULL || entry->key == NULL) {
+    fprintf(stderr, "ERROR - Assembly: Could not find static constant label '%s' in symbol declaration table\n", constant_label);
+    exit(1);
+  }
+  
+  DeclarationSymbol *symbol = entry->value->structure;
+
   AsmNode *static_constant = arena_alloc(asm_arena);
   static_constant->type = ASM_STATIC_CONSTANT;
   //Set to 8 byte alignment to conform to the System V ABI  
   static_constant->data.static_constant.alignment = 8;
-  //TODO: Make unique identifier
-  static_constant->data.static_constant.identifier = "todo";
+  static_constant->data.static_constant.identifier = constant_label;
+  static_constant->data.static_constant.static_init = symbol->data.variable_symbol;
 
+  add_to_node_pointer(static_constant, top_level_pointers);  
   
+  AsmNode *data_operand = arena_alloc(asm_arena);
+  data_operand->type = ASM_OPERAND_DATA;
+  data_operand->data.operand_data.identifier = constant_label;
 
+  return data_operand;
 }
 
 static void emit_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena) {
