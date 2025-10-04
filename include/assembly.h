@@ -112,7 +112,7 @@ typedef enum {
 typedef struct {
   AsmBackendSymbolType type;
   union {
-    struct ObjectEntry { AsmType assembly_type; bool is_static; } object_entry;
+    struct ObjectEntry { AsmType assembly_type; bool is_static; bool is_constant; } object_entry;
     struct FunctionEntry { bool is_defined; } function_entry;
   } data;
 } AsmBackendSymbol;

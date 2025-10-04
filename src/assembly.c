@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
 #include "../include/intermediate_rep.h"
 #include "../include/types.h"
-#include "lexer.h"
 
 #define NODE_POINTER_CAPACITY 8
 #define ALIGNMENT_QUADWORD 8
@@ -61,6 +61,7 @@ static void         convert_declaration_table_to_backend_table(DeclarationSymbol
 static int          round_stack_offset(int stack_offset); 
 static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
 static bool         is_instruction_quadword(AsmNode *instruction); 
+static bool         is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
@@ -781,6 +782,17 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
           case IR_BINARY_LESS_OR_EQUAL:
             emit_instruction_binary_relational(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           case IR_BINARY_DIVIDE:
+            if (is_double_operand(current_ir_node->data.instruction_binary.source_1, declaration_symbol_table) &&
+                is_double_operand(current_ir_node->data.instruction_binary.source_2, declaration_symbol_table)) {
+              emit_instruction_binary(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
+            } else {
+              if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, declaration_symbol_table)) {
+                emit_instruction_binary_signed_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);            
+              } else {
+                emit_instruction_binary_unsigned_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
+              }
+            }             
+            break;
           case IR_BINARY_REMAINDER:
             if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, declaration_symbol_table)) {
               emit_instruction_binary_signed_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);            
@@ -849,7 +861,31 @@ static AsmNode* emit_static_constant(IRNode *ir_double_constant_node, Arena *asm
   static int constant_label_counter = 0;
 
   char *constant_label= malloc(64);
-  snprintf(constant_label, 64, "_static_constant.%d", constant_label_counter); 
+  snprintf(constant_label, 64, "static_constant.%d", constant_label_counter); 
+ 
+  //If we've created a static constant with the same value and alignment, reuse and return the same pointer
+  for (int i = 0; i < top_level_pointers->count; i++) {
+    if (top_level_pointers->asm_pointers[i]->type != ASM_STATIC_CONSTANT) {
+      continue;
+    }
+
+    if (top_level_pointers->asm_pointers[i]->data.static_constant.alignment != ALIGNMENT_QUADWORD) {
+      continue;
+    }
+
+    double ir_double = ir_double_constant_node->data.value_constant.value.double_value;
+    double top_level_double = top_level_pointers->asm_pointers[i]->data.static_constant.static_init->static_initial_value.double_value; 
+
+    //0.0 and -0.0 should be treated independantly. A new top level entry should be made for both if they are both declared
+    if (ir_double == 0.0 && top_level_double == 0.0 && signbit(ir_double) == signbit(top_level_double)) {
+      return top_level_pointers->asm_pointers[i];
+    } else if (ir_double == top_level_double) {
+      return top_level_pointers->asm_pointers[i];
+    }    
+  }
+
+  constant_label_counter++;
+
   InitialValue initial_value = { .double_value = ir_double_constant_node->data.value_constant.value.double_value };  
 
   add_static_variable_declaration_symbol(declaration_symbol_table, TYPE_DOUBLE, initial_value, constant_label, true, INITIAL_VALUE_INITIALIZED);  
@@ -866,7 +902,7 @@ static AsmNode* emit_static_constant(IRNode *ir_double_constant_node, Arena *asm
   AsmNode *static_constant = arena_alloc(asm_arena);
   static_constant->type = ASM_STATIC_CONSTANT;
   //Set to 8 byte alignment to conform to the System V ABI  
-  static_constant->data.static_constant.alignment = 8;
+  static_constant->data.static_constant.alignment = ALIGNMENT_QUADWORD;
   static_constant->data.static_constant.identifier = constant_label;
   static_constant->data.static_constant.static_init = symbol->data.variable_symbol;
 
@@ -1032,6 +1068,9 @@ static void emit_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_ins
     case IR_BINARY_BITWISE_RIGHT_SHIFT:
       binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_RIGHT_SHIFT;
       break;
+    case IR_BINARY_DIVIDE:
+      binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_DIV_DOUBLE;
+      break;      
     default:
       fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation\n");
       exit(1);
@@ -1763,7 +1802,13 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
           break;
         case TYPE_LONG:  
         case TYPE_ULONG:
+        case TYPE_DOUBLE:
           asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_QUADWORD;
+
+          if (declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE) {
+            //TODO: Confirm that this is always the case
+            asm_backend_symbol->data.object_entry.is_constant = true;
+          }
           break;
         default:
           fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type\n");
@@ -1854,4 +1899,20 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
       fprintf(stderr, "ERROR: Assembly - Unsupported value type '%d' when attempting to find if IR Value is signed", value_type);
       exit(1);
   }  
+}
+
+static bool is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+  switch (ir_node->type) {
+    case IR_VALUE_CONSTANT:
+      return ir_node->data.value_constant.type == TYPE_DOUBLE ? true : false;
+    case IR_VALUE_VAR: {
+      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
+      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+
+      return declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE ? true : false;
+    }    
+    default:
+      fprintf(stderr, "ERROR - Assembler: Could not resolve IR type when determining if node is a double\n");
+      exit(1);
+  }
 }
