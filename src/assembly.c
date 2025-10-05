@@ -42,6 +42,7 @@ static void         emit_instruction_sign_extend(AsmNode *asm_function, IRNode *
 static void         emit_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table);
 static void         emit_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         emit_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
+static void         emit_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table);
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
@@ -840,6 +841,9 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
         case IR_INSTRUCTION_INT_TO_DOUBLE:
           emit_instruction_cvtsi2sd(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
           break;
+        case IR_INSTRUCTION_DOUBLE_TO_INT:
+          emit_instruction_cvttsd2si(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
+          break;
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
         exit(1);
@@ -1561,6 +1565,19 @@ static void emit_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_to_d
   add_instruction_to_function(asm_function, cvtsi2sd_instruction);
 }
 
+static void emit_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table) {
+  AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.source, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.destination, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmType destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, declaration_symbol_table);
+
+  AsmNode *cvttsd2si_instruction = arena_alloc(asm_arena);
+  cvttsd2si_instruction->type = ASM_INSTRUCTION_CVTTSD2SI;
+  cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand = source_node;
+  cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand = destination_node;
+  cvttsd2si_instruction->data.instruction_cvttsd2si.destination_assembly_type = destination_type;
+
+  add_instruction_to_function(asm_function, cvttsd2si_instruction);
+}
 static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *asm_operand = arena_alloc(asm_arena);
 
