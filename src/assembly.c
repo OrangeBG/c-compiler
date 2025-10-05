@@ -1632,6 +1632,9 @@ void print_assembly(AsmNode *node) {
     case ASM_STATIC_VARIABLE:
       printf("Static Variable %s\n", node->data.static_variable.identifier);
       break;
+    case ASM_STATIC_CONSTANT:
+      printf("Static Constant %s\n", node->data.static_constant.identifier);
+      break;
     case ASM_INSTRUCTION_MOV:
       printf("MOV -> ");
       printf("Src( ");
@@ -1808,6 +1811,8 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
           case TYPE_LONG:
           case TYPE_ULONG:
             return ASM_TYPE_QUADWORD;
+          case TYPE_DOUBLE:
+            return ASM_TYPE_DOUBLE;
           default:
             fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Constant Type\n", ir_node->type);
             exit(1);
