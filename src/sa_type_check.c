@@ -89,8 +89,9 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           }
         }
 
-        if (!existing_function_symbol->data.function_symbol->is_defined) {
-          existing_function_symbol->data.function_symbol->is_defined = node->data.function_declaration.body_block != NULL;
+        if (!existing_function_symbol->data.function_symbol->is_defined && node->data.function_declaration.body_block != NULL) {
+          existing_function_symbol->data.function_symbol->is_defined = true;
+          function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
         }
 
         break;
@@ -135,6 +136,10 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.function_call_expression.identfier);
           exit(1);
         }
+      }
+
+      if (node->data.function_call_expression.expression_type == NULL) { 
+        expression_type_check(node, declaration_table, function_declaration_node, ast_arena);
       }
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {

@@ -7,6 +7,7 @@ size_t get_type_size(Types type) {
     case TYPE_UINT:   return sizeof(unsigned int);
     case TYPE_LONG:   return sizeof(long);
     case TYPE_ULONG:  return sizeof(unsigned long);
+    case TYPE_DOUBLE: return sizeof(double);
     default:
       fprintf(stderr, "ERROR - Types: Unsupported type when attempting to get Type size\n");
       exit(1);
