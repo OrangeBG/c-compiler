@@ -996,10 +996,10 @@ static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
   //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
-  if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
+  //if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
     AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, declaration_symbol_table);
     cmp_instruction->data.instruction_cmp.assembly_type = source_type;
-  }
+  //}
 
   add_instruction_to_function(asm_function, cmp_instruction);
   
@@ -1024,10 +1024,10 @@ static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
   //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
-  if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
+  //if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
     AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, declaration_symbol_table);
     cmp_instruction->data.instruction_cmp.assembly_type = source_type;
-  }
+  //}
 
   add_instruction_to_function(asm_function, cmp_instruction);
   
@@ -1381,21 +1381,28 @@ static void emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_ins
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
     AsmNode *source_node = create_operand(ir_return_instruction->data.instruction_ret.value, asm_arena, top_level_declarations, declaration_symbol_table);
+    AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, declaration_symbol_table);
 
     AsmNode *destination_node = arena_alloc(asm_arena);
     destination_node->type = ASM_OPERAND_REGISTER;
-    destination_node->data.operand_register.op_register = ASM_REGISTER_AX;  
+
+    if (source_type == ASM_TYPE_DOUBLE) {
+      destination_node->data.operand_register.op_register = ASM_REGISTER_XMM0;  
+    } else {
+      destination_node->data.operand_register.op_register = ASM_REGISTER_AX;  
+    }
 
     AsmNode *mov_node = arena_alloc(asm_arena);
     mov_node->type = ASM_INSTRUCTION_MOV;
     mov_node->data.instruction_mov.source = source_node;
     mov_node->data.instruction_mov.destination = destination_node;
+    mov_node->data.instruction_mov.assembly_type = source_type;
 
-    //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
-    if (source_node->type != ASM_OPERAND_PSEUDO_REGISTER) {
-      AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, declaration_symbol_table);
-      mov_node->data.instruction_mov.assembly_type = source_type;
-    }
+    // //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+    // //if (source_node->type != ASM_OPERAND_PSEUDO_REGISTER) {
+    //   AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, declaration_symbol_table);
+    //   mov_node->data.instruction_mov.assembly_type = source_type;
+    // //}
 
     add_instruction_to_function(asm_function, mov_node);
   }
@@ -1510,10 +1517,10 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
   mov_instruction->data.instruction_mov.destination = assembly_destination;
 
   //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
-  if (assembly_destination->type != ASM_OPERAND_PSEUDO_REGISTER) {
+  //if (assembly_destination->type != ASM_OPERAND_PSEUDO_REGISTER) {
     AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, declaration_symbol_table);
     mov_instruction->data.instruction_mov.assembly_type = destination_type;
-  }
+  //}
   
   add_instruction_to_function(asm_function, mov_instruction);  
 }
@@ -1578,6 +1585,7 @@ static void emit_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_
 
   add_instruction_to_function(asm_function, cvttsd2si_instruction);
 }
+
 static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *asm_operand = arena_alloc(asm_arena);
 
@@ -1599,10 +1607,20 @@ static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePoin
           exit(1);      
       }
       break;
-    case IR_VALUE_VAR:
+    case IR_VALUE_VAR: {
+      // HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_operand->data.value_var.identifier);
+      //
+      // if (variable_hash_entry == NULL || variable_hash_entry->key == NULL) {
+      //   fprintf(stderr, "ERROR - Assembler: Var value type %s not found in declaration symbol table\n", ir_operand->data.static_variable.identifier);
+      //   exit(1);
+      // }
+      
+      //DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+
       asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
       asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
       break;
+    }
     default:
       fprintf(stderr, "ERROR - Assembler: Operand type %d not found in asm_operand\n", ir_operand->type);
       exit(1);      
@@ -1659,6 +1677,7 @@ void print_assembly(AsmNode *node) {
       switch (node->data.instruction_unary.unary_op) {
         case ASM_UNARY_NEG: printf("NEG )"); break;
         case ASM_UNARY_NOT: printf("NOT )"); break;
+        case ASM_UNARY_SHR: printf("SHR )"); break;
       }
 
       printf(" Operand( ");      
@@ -1670,6 +1689,7 @@ void print_assembly(AsmNode *node) {
         case ASM_BINARY_ADD:                  printf("ADD -> "); break;
         case ASM_BINARY_SUB:                  printf("SUB -> "); break;
         case ASM_BINARY_MULT:                 printf("MUL -> "); break;
+        case ASM_BINARY_DIV_DOUBLE:           printf("DBL DIV -> "); break;
         case ASM_BINARY_BITWISE_AND:          printf("AND -> "); break;
         case ASM_BINARY_BITWISE_OR:           printf("OR -> "); break;
         case ASM_BINARY_BITWISE_XOR:          printf("XOR -> "); break;
@@ -1744,7 +1764,30 @@ void print_assembly(AsmNode *node) {
       printf("LABEL -> %s\n", node->data.instruction_label.identifier);
       break;
     case ASM_OPERAND_REGISTER:
-      printf("Register %d ", node->data.operand_register.op_register);
+      printf("Register ");
+
+      switch (node->data.operand_register.op_register) {
+        case ASM_REGISTER_AX:    printf("AX"); break;
+        case ASM_REGISTER_CX:    printf("CX"); break;
+        case ASM_REGISTER_DX:    printf("DX"); break;
+        case ASM_REGISTER_DI:    printf("DI"); break;
+        case ASM_REGISTER_SI:    printf("SI"); break;
+        case ASM_REGISTER_R8:    printf("R8"); break;
+        case ASM_REGISTER_R9:    printf("R9"); break;
+        case ASM_REGISTER_R10:   printf("R10"); break;
+        case ASM_REGISTER_R11:   printf("R11"); break;
+        case ASM_REGISTER_SP:    printf("SP"); break;
+        case ASM_REGISTER_XMM0:  printf("XMM0"); break;
+        case ASM_REGISTER_XMM1:  printf("XMM1"); break;
+        case ASM_REGISTER_XMM2:  printf("XMM2"); break;
+        case ASM_REGISTER_XMM3:  printf("XMM3"); break;
+        case ASM_REGISTER_XMM4:  printf("XMM4"); break;
+        case ASM_REGISTER_XMM5:  printf("XMM5"); break;
+        case ASM_REGISTER_XMM6:  printf("XMM6"); break;
+        case ASM_REGISTER_XMM7:  printf("XMM7"); break;
+        case ASM_REGISTER_XMM14: printf("XMM14"); break;   
+        case ASM_REGISTER_XMM15: printf("XMM15"); break;
+      }
       break;
     case ASM_OPERAND_PSEUDO_REGISTER:
       printf("Pseudo Register %s ", node->data.operand_pseudo_register.identifier);
@@ -1832,6 +1875,8 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
         case TYPE_LONG:
         case TYPE_ULONG:
           return ASM_TYPE_QUADWORD;
+        case TYPE_DOUBLE:
+          return ASM_TYPE_DOUBLE;
         default:
           fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Variable Type\n", ir_node->type);
           exit(1);
