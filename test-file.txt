@@ -4,5 +4,14 @@ int main(void) {
 
     double c = 2.0 / b;
 
+    int i = 9;
+    i = ~i;
+
+    if (i == 10) {
+        return 10;
+    } else {
+        return 5;
+    }
+
     return 1;
 }

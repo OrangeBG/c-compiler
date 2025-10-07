@@ -22,9 +22,10 @@ typedef enum {
 
 static void         emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable);
-static AsmNode*     emit_static_constant(double source_double, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table);  
+static AsmNode*     emit_static_constant(double source_double, int alignment, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table);  
 static void         emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
 static void         emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_unary_negation_double(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_unary_not_integer(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_unary_not_double(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
@@ -33,8 +34,10 @@ static void         emit_instruction_binary_signed_division(AsmNode *asm_functio
 static void         emit_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
 static void         emit_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Arena *asm_arena); 
 static void         emit_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Arena *asm_arena); 
-static void         emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
-static void         emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, AsmType asm_source_type, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_jump_if_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmType asm_source_type, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations); 
+static void         emit_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);   
 static void         emit_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
 static void         emit_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Arena *asm_arena); 
 static void         emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations);
@@ -64,7 +67,7 @@ static void         convert_declaration_table_to_backend_table(DeclarationSymbol
 static int          round_stack_offset(int stack_offset); 
 static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
 static bool         is_instruction_quadword(AsmNode *instruction); 
-static bool         is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
+// static bool         is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
@@ -758,19 +761,27 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
       case IR_INSTRUCTION_RET:
         emit_instruction_return(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
         break;
-      case IR_INSTRUCTION_UNARY:
+      case IR_INSTRUCTION_UNARY: {
+        AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.unary.source, declaration_symbol_table);
+
         if (current_ir_node->data.unary.op_type != IR_UNARY_NOT) {
+          if (current_ir_node->data.unary.op_type != IR_UNARY_NEGATE && source_type == ASM_TYPE_DOUBLE) {
+            emit_instruction_unary_negation_double(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations); 
+            continue;
+          }
+
           emit_instruction_unary(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           continue;
         }
 
-        if (is_double_operand(current_ir_node->data.unary.source, declaration_symbol_table)) {
+        if (source_type == ASM_TYPE_DOUBLE) {
           emit_instruction_unary_not_double(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           continue;
         } 
 
         emit_instruction_unary_not_integer(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
         break;
+      }
       case IR_INSTRUCTION_BINARY:        
         switch (current_ir_node->data.instruction_binary.op_type) {
           case IR_BINARY_ADD:
@@ -790,9 +801,11 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
           case IR_BINARY_LESS_THAN:
           case IR_BINARY_LESS_OR_EQUAL:
             emit_instruction_binary_relational(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
-          case IR_BINARY_DIVIDE:
-            if (is_double_operand(current_ir_node->data.instruction_binary.source_1, declaration_symbol_table) &&
-                is_double_operand(current_ir_node->data.instruction_binary.source_2, declaration_symbol_table)) {
+          case IR_BINARY_DIVIDE: {
+            AsmType source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, declaration_symbol_table);
+            AsmType source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, declaration_symbol_table);
+
+            if (source_1_type == ASM_TYPE_DOUBLE && source_2_type == ASM_TYPE_DOUBLE) {
               emit_instruction_binary(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
             } else {
               if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, declaration_symbol_table)) {
@@ -802,6 +815,7 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
               }
             }             
             break;
+          }
           case IR_BINARY_REMAINDER:
             if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, declaration_symbol_table)) {
               emit_instruction_binary_signed_division(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);            
@@ -814,12 +828,26 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
         case IR_INSTRUCTION_JUMP:
           emit_instruction_jump(asm_function, current_ir_node, asm_arena);
           break;
-        case IR_INSTRUCTION_JUMP_IF_ZERO:
-          emit_instruction_jump_if_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
+        case IR_INSTRUCTION_JUMP_IF_ZERO: {
+          AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_zero.condition, declaration_symbol_table);
+
+          if (source_type == ASM_TYPE_DOUBLE) {
+            emit_instruction_jump_if_zero_double(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
+          } else {
+            emit_instruction_jump_if_zero_integer(asm_function, current_ir_node, source_type, asm_arena, declaration_symbol_table, top_level_declarations);
+          }
           break;
-        case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:
-          emit_instruction_jump_if_not_zero(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
+        }
+        case IR_INSTRUCTION_JUMP_IF_NOT_ZERO: {
+          AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_not_zero.condition, declaration_symbol_table);
+
+          if (source_type == ASM_TYPE_DOUBLE) {
+            emit_instruction_jump_if_not_zero_double(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
+          } else {
+            emit_instruction_jump_if_not_zero_integer(asm_function, current_ir_node, source_type, asm_arena, declaration_symbol_table, top_level_declarations);
+          }
           break;
+        }
         case IR_INSTRUCTION_COPY:
           emit_instruction_copy(asm_function, current_ir_node, asm_arena, declaration_symbol_table, top_level_declarations);
           break;
@@ -872,7 +900,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
   }  
 }
 
-static AsmNode* emit_static_constant(double source_double, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {  
+static AsmNode* emit_static_constant(double source_double, int alignment, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {  
   static int constant_label_counter = 0;
 
   char *constant_label= malloc(64);
@@ -916,8 +944,7 @@ static AsmNode* emit_static_constant(double source_double, Arena *asm_arena, Asm
 
   AsmNode *static_constant = arena_alloc(asm_arena);
   static_constant->type = ASM_STATIC_CONSTANT;
-  //Set to 8 byte alignment to conform to the System V ABI  
-  static_constant->data.static_constant.alignment = ALIGNMENT_QUADWORD;
+  static_constant->data.static_constant.alignment = alignment;
   static_constant->data.static_constant.identifier = constant_label;
   static_constant->data.static_constant.static_init = symbol->data.variable_symbol;
 
@@ -983,7 +1010,7 @@ static void emit_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruc
   add_instruction_to_function(asm_function, jmp_instruction); 
 }
 
-static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
+static void emit_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, AsmType asm_source_type, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
@@ -995,11 +1022,13 @@ static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
-  //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
-  //if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
-    AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, declaration_symbol_table);
-    cmp_instruction->data.instruction_cmp.assembly_type = source_type;
-  //}
+  // //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+  // //if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
+  //   AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, declaration_symbol_table);
+  //   cmp_instruction->data.instruction_cmp.assembly_type = source_type;
+  // //}
+
+  cmp_instruction->data.instruction_cmp.assembly_type = asm_source_type;
 
   add_instruction_to_function(asm_function, cmp_instruction);
   
@@ -1011,7 +1040,41 @@ static void emit_instruction_jump_if_zero(AsmNode *asm_function, IRNode *ir_jump
   add_instruction_to_function(asm_function, jmp_instruction);
 }
 
-static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
+static void emit_instruction_jump_if_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
+
+  //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
+  AsmNode *register_xmm_14 = arena_alloc(asm_arena);
+  register_xmm_14->type = ASM_OPERAND_REGISTER;
+  register_xmm_14->data.operand_register.op_register = ASM_REGISTER_XMM14;
+
+  AsmNode *binary = arena_alloc(asm_arena);
+  binary->type = ASM_INSTRUCTION_BINARY;
+  binary->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
+  binary->data.instruction_binary.binary_op =  ASM_BINARY_BITWISE_XOR;
+  binary->data.instruction_binary.operand_1 = register_xmm_14;
+  binary->data.instruction_binary.operand_2 = register_xmm_14;
+
+  add_instruction_to_function(asm_function, binary);
+
+  AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, asm_arena, top_level_declarations, declaration_symbol_table);
+
+  AsmNode *cmp = arena_alloc(asm_arena);
+  cmp->type = ASM_INSTRUCTION_CMP;
+  cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
+  cmp->data.instruction_cmp.operand_1 = condition;
+  cmp->data.instruction_cmp.operand_2 = register_xmm_14;
+
+  add_instruction_to_function(asm_function, cmp);
+
+  AsmNode *jmp_instruction = arena_alloc(asm_arena);
+  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
+  jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_EQUAL;
+  jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target;
+
+  add_instruction_to_function(asm_function, jmp_instruction);
+}
+
+static void emit_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmType source_asm_type, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   AsmNode *imm = arena_alloc(asm_arena);
   imm->type = ASM_OPERAND_IMM;
   imm->data.operand_imm.value = 0;
@@ -1023,11 +1086,13 @@ static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_
   cmp_instruction->data.instruction_cmp.operand_1 = imm;
   cmp_instruction->data.instruction_cmp.operand_2 = condition;
   
-  //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
-  //if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
-    AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, declaration_symbol_table);
-    cmp_instruction->data.instruction_cmp.assembly_type = source_type;
-  //}
+  // //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
+  // //if (condition->type != ASM_OPERAND_PSEUDO_REGISTER) {
+  //   AsmType source_type = convert_ir_value_to_asm_type(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, declaration_symbol_table);
+  //   cmp_instruction->data.instruction_cmp.assembly_type = source_type;
+  // //}
+
+  cmp_instruction->data.instruction_cmp.assembly_type = source_asm_type;
 
   add_instruction_to_function(asm_function, cmp_instruction);
   
@@ -1035,6 +1100,39 @@ static void emit_instruction_jump_if_not_zero(AsmNode *asm_function, IRNode *ir_
   jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
   jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_NOT_EQUAL;
   jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.target;
+
+  add_instruction_to_function(asm_function, jmp_instruction);
+}
+
+static void emit_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {  
+  //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
+  AsmNode *register_xmm_14 = arena_alloc(asm_arena);
+  register_xmm_14->type = ASM_OPERAND_REGISTER;
+  register_xmm_14->data.operand_register.op_register = ASM_REGISTER_XMM14;
+
+  AsmNode *binary = arena_alloc(asm_arena);
+  binary->type = ASM_INSTRUCTION_BINARY;
+  binary->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
+  binary->data.instruction_binary.binary_op =  ASM_BINARY_BITWISE_XOR;
+  binary->data.instruction_binary.operand_1 = register_xmm_14;
+  binary->data.instruction_binary.operand_2 = register_xmm_14;
+
+  add_instruction_to_function(asm_function, binary);
+
+  AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.condition, asm_arena, top_level_declarations, declaration_symbol_table);
+
+  AsmNode *cmp = arena_alloc(asm_arena);
+  cmp->type = ASM_INSTRUCTION_CMP;
+  cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
+  cmp->data.instruction_cmp.operand_1 = condition;
+  cmp->data.instruction_cmp.operand_2 = register_xmm_14;
+
+  add_instruction_to_function(asm_function, cmp);
+
+  AsmNode *jmp_instruction = arena_alloc(asm_arena);
+  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
+  jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_NOT_EQUAL;
+  jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.target;
 
   add_instruction_to_function(asm_function, jmp_instruction);
 }
@@ -1377,6 +1475,30 @@ static void emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instr
   add_instruction_to_function(asm_function, unary_instruction);
 }
 
+static void emit_instruction_unary_negation_double(AsmNode *asm_function, IRNode *ir_unary_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
+  AsmNode *source_node = create_operand(ir_unary_instruction->data.unary.source, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_unary_instruction->data.unary.destination, asm_arena, top_level_declarations, declaration_symbol_table);
+
+  AsmNode *mov_node = arena_alloc(asm_arena);
+  mov_node->type = ASM_INSTRUCTION_MOV;
+  mov_node->data.instruction_mov.source = source_node;
+  mov_node->data.instruction_mov.destination = destination_node;
+  mov_node->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
+
+  add_instruction_to_function(asm_function, mov_node);
+
+  AsmNode *data_node = emit_static_constant(-0.0, 16, asm_arena, top_level_declarations, declaration_symbol_table); 
+
+  AsmNode *binary_node = arena_alloc(asm_arena);
+  binary_node->type = ASM_INSTRUCTION_BINARY;
+  binary_node->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
+  binary_node->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_XOR;
+  binary_node->data.instruction_binary.operand_1 = data_node;
+  binary_node->data.instruction_binary.operand_2 = source_node;
+
+  add_instruction_to_function(asm_function, binary_node);
+}
+
 static void emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
@@ -1592,7 +1714,7 @@ static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePoin
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
       if (ir_operand->data.value_constant.type == TYPE_DOUBLE) {
-        return emit_static_constant(ir_operand->data.value_constant.value.double_value, asm_arena, top_level_pointers, declaration_symbol_table); 
+        return emit_static_constant(ir_operand->data.value_constant.value.double_value, 8, asm_arena, top_level_pointers, declaration_symbol_table); 
       }
       
       asm_operand->type = ASM_OPERAND_IMM;
@@ -2039,18 +2161,18 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
   }  
 }
 
-static bool is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
-  switch (ir_node->type) {
-    case IR_VALUE_CONSTANT:
-      return ir_node->data.value_constant.type == TYPE_DOUBLE ? true : false;
-    case IR_VALUE_VAR: {
-      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
-      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+// static bool is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+//   switch (ir_node->type) {
+//     case IR_VALUE_CONSTANT:
+//       return ir_node->data.value_constant.type == TYPE_DOUBLE ? true : false;
+//     case IR_VALUE_VAR: {
+//       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
+//       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
 
-      return declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE ? true : false;
-    }    
-    default:
-      fprintf(stderr, "ERROR - Assembler: Could not resolve IR type when determining if node is a double\n");
-      exit(1);
-  }
-}
+//       return declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE ? true : false;
+//     }    
+//     default:
+//       fprintf(stderr, "ERROR - Assembler: Could not resolve IR type when determining if node is a double\n");
+//       exit(1);
+//   }
+// }
