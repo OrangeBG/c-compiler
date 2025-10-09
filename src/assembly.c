@@ -47,6 +47,7 @@ static void         emit_instruction_truncate(AsmNode *asm_function, IRNode *ir_
 static void         emit_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         emit_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table);
 static void         emit_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir_uint_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
+static void         emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
@@ -879,6 +880,8 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
 
           if (type == TYPE_UINT) {
             emit_instruction_uint_to_double(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
+          } else {
+            emit_instruction_ulong_to_double(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table); 
           }
           
           break;
@@ -1722,7 +1725,6 @@ static void emit_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_
 static void emit_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir_uint_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table) {
   AsmNode *source_node = create_operand(ir_uint_to_double_instruction->data.instruction_uint_to_double.source, asm_arena, top_level_declarations, declaration_symbol_table);
   AsmNode *destination_node = create_operand(ir_uint_to_double_instruction->data.instruction_uint_to_double.destination, asm_arena, top_level_declarations, declaration_symbol_table);
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_uint_to_double_instruction->data.instruction_uint_to_double.destination, declaration_symbol_table);
 
   AsmNode *ax_register = arena_alloc(asm_arena);
   ax_register->type = ASM_OPERAND_REGISTER;
@@ -1742,6 +1744,136 @@ static void emit_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir_ui
   cvtsi2sd->data.instruction_cvtsi2sd.destination_operand = destination_node;
 
   add_instruction_to_function(asm_function, cvtsi2sd);
+}
+
+static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table) {
+  AsmNode *source_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmNode *destination_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.destination, asm_arena, top_level_declarations, declaration_symbol_table);
+
+  AsmNode *imm_0 = arena_alloc(asm_arena);
+  imm_0->type = ASM_OPERAND_IMM;
+  imm_0->data.operand_imm.value = 0;
+  
+  AsmNode *cmp = arena_alloc(asm_arena);
+  cmp->type = ASM_INSTRUCTION_CMP;
+  cmp->data.instruction_cmp.operand_1 = imm_0;
+  cmp->data.instruction_cmp.operand_2 = source_node;
+
+  add_instruction_to_function(asm_function, cmp);
+
+  static int label1 = 0;
+
+  char *label_1_name = malloc(32);
+  snprintf(label_1_name, 32, "%ULongToDbl_CC.d", label1++); 
+
+  AsmNode *jmp_cc_instruction = arena_alloc(asm_arena);
+  jmp_cc_instruction->type = ASM_INSTRUCTION_JMPCC;
+  jmp_cc_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_LESS;
+  jmp_cc_instruction->data.instruction_jmp_cc.identifier = label_1_name;
+
+  add_instruction_to_function(asm_function, jmp_cc_instruction);
+
+  AsmNode *cvtsi2sd = arena_alloc(asm_arena);
+  cvtsi2sd->type = ASM_INSTRUCTION_CVTSI2SD;
+  cvtsi2sd->data.instruction_cvtsi2sd.source_assembly_type = ASM_TYPE_QUADWORD;
+  cvtsi2sd->data.instruction_cvtsi2sd.source_operand = source_node;
+  cvtsi2sd->data.instruction_cvtsi2sd.destination_operand = destination_node;
+
+  add_instruction_to_function(asm_function, cvtsi2sd);
+
+  static int label2 = 0;
+
+  char *label_2_name = malloc(32);
+  snprintf(label_2_name, 32, "%ULongToDbl.d", label2++); 
+
+  AsmNode *jmp = arena_alloc(asm_arena);
+  jmp->type = ASM_INSTRUCTION_JMP;
+  jmp->data.instruction_jmp.identifier = label_2_name;
+
+  add_instruction_to_function(asm_function, jmp);
+
+  AsmNode *label_1_node = arena_alloc(asm_arena);
+  label_1_node->type = ASM_INSTRUCTION_LABEL;
+  label_1_node->data.instruction_label.identifier = label_1_name;
+
+  add_instruction_to_function(asm_function, label_1_node);
+
+  AsmNode *ax_register = arena_alloc(asm_arena);
+  ax_register->type = ASM_OPERAND_REGISTER;
+  ax_register->data.operand_register.op_register = ASM_REGISTER_AX;
+
+  AsmNode *cx_register = arena_alloc(asm_arena);
+  ax_register->type = ASM_OPERAND_REGISTER;
+  ax_register->data.operand_register.op_register = ASM_REGISTER_CX;
+
+  AsmNode *mov_1 = arena_alloc(asm_arena);
+  mov_1->type = ASM_INSTRUCTION_MOV;
+  mov_1->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
+  mov_1->data.instruction_mov.source = source_node;
+  mov_1->data.instruction_mov.destination = ax_register;
+
+  add_instruction_to_function(asm_function, mov_1);
+
+  AsmNode *mov_2 = arena_alloc(asm_arena);
+  mov_2->type = ASM_INSTRUCTION_MOV;
+  mov_2->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
+  mov_2->data.instruction_mov.source = ax_register;
+  mov_2->data.instruction_mov.destination = cx_register;
+
+  add_instruction_to_function(asm_function, mov_2);
+
+  AsmNode *unary = arena_alloc(asm_arena);
+  unary->type = ASM_INSTRUCTION_UNARY;
+  unary->data.instruction_unary.assembly_type = ASM_TYPE_QUADWORD;
+  unary->data.instruction_unary.unary_op = ASM_UNARY_SHR;
+  unary->data.instruction_unary.operand = cx_register;
+
+  add_instruction_to_function(asm_function, unary);
+
+  AsmNode *imm_1 = arena_alloc(asm_arena);
+  imm_1->type = ASM_OPERAND_IMM;
+  imm_1->data.operand_imm.value = 1;
+
+  AsmNode *binary_1 = arena_alloc(asm_arena);
+  binary_1->type = ASM_INSTRUCTION_BINARY;
+  binary_1->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
+  binary_1->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_AND;
+  binary_1->data.instruction_binary.operand_1 = imm_1;
+  binary_1->data.instruction_binary.operand_2 = ax_register;
+
+  add_instruction_to_function(asm_function, binary_1);
+  
+  AsmNode *binary_2 = arena_alloc(asm_arena);
+  binary_2->type = ASM_INSTRUCTION_BINARY;
+  binary_2->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
+  binary_2->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_OR;
+  binary_2->data.instruction_binary.operand_1 = ax_register;
+  binary_2->data.instruction_binary.operand_2 = cx_register;
+
+  add_instruction_to_function(asm_function, binary_2);
+
+  AsmNode *cvtsi2sd_2 = arena_alloc(asm_arena);
+  cvtsi2sd_2->type = ASM_INSTRUCTION_CVTSI2SD;
+  cvtsi2sd_2->data.instruction_cvtsi2sd.source_assembly_type = ASM_TYPE_QUADWORD;
+  cvtsi2sd_2->data.instruction_cvtsi2sd.source_operand = cx_register;
+  cvtsi2sd_2->data.instruction_cvtsi2sd.destination_operand = destination_node;
+
+  add_instruction_to_function(asm_function, cvtsi2sd_2);
+  
+  AsmNode *binary_3 = arena_alloc(asm_arena);
+  binary_3->type = ASM_INSTRUCTION_BINARY;
+  binary_3->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
+  binary_3->data.instruction_binary.binary_op = ASM_BINARY_ADD;
+  binary_3->data.instruction_binary.operand_1 = destination_node;
+  binary_3->data.instruction_binary.operand_2 = destination_node;
+
+  add_instruction_to_function(asm_function, binary_3);
+
+  AsmNode *label_2_node = arena_alloc(asm_arena);
+  label_2_node->type = ASM_INSTRUCTION_LABEL;
+  label_2_node->data.instruction_label.identifier = label_2_name;
+
+  add_instruction_to_function(asm_function, label_2_node);
 }
 
 static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {
@@ -2214,6 +2346,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
       exit(1);
   }  
 }
+
 
 // static bool is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
 //   switch (ir_node->type) {
