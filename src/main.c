@@ -95,24 +95,23 @@ int main(int argc, const char *argv[]) {
     print_assembly(asm_nodes);
   }
 
-  //@Temporary: Commented until assembly changes are done
-  // FILE *assembly_file;
-  // assembly_file = fopen("assembly.asm", "w+");
-  // save_assembly_file(asm_nodes, assembly_file);
+  FILE *assembly_file;
+  assembly_file = fopen("assembly.asm", "w+");
+  save_assembly_file(asm_nodes, assembly_file);
 
-  // #ifdef __x86_64__
-  //   system("clang -c assembly.asm -o assembly.o");
-  // #else 
-  //   system("clang -arch x86_64 -c assembly.asm -o assembly.o");
-  // #endif
+  #ifdef __x86_64__
+    system("clang -c assembly.asm -o assembly.o");
+  #else 
+    system("clang -arch x86_64 -c assembly.asm -o assembly.o");
+  #endif
     
-  // if (print_debug) {
-  //   printf("\n>> CODE EMIT PRINT <<\n\n");
-  //   rewind(assembly_file);
-  //   print_code_emit(assembly_file);
-  // }
+  if (print_debug) {
+    printf("\n>> CODE EMIT PRINT <<\n\n");
+    rewind(assembly_file);
+    print_code_emit(assembly_file);
+  }
     
-  // fclose(assembly_file);  
+  fclose(assembly_file);  
 
   return EXIT_SUCCESS;
 }

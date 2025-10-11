@@ -1,20 +1,17 @@
-int stat_1 = 5;
-
 int main(void) {
-    //double a = 4.5;
-    //double b = 2.6;
+    double a = 4.5;
+    double b = 2.6;
 
-    //double c = 2.0 / b;
+    double c = 2.0 / b;
 
-    //int i = 9;
-    //i = ~i;
+    int i = 9;
+    i = ~i;
 
-    //if (i == 10) {
-    //    return 10;
-    //} else {
-    //    return 5;
-    //}
+    if (i == 10) {
+        return 10;
+    } else {
+        return 5;
+    }
 
-
-    return stat_1;
+    return 0;
 }
