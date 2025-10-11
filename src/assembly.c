@@ -719,28 +719,47 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
 
   //Parameter instructions
   int stack_offset = 16;
+  int general_register_count = 0;
+  int floating_point_register_count = 0;
 
   for (int i = 0; i < ir_function->data.function.parameter_count; i++) {    
+    HashTableEntry *parameter_variable_symbol_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_function->data.function.parameter_identifiers[i]);
+
+    if (parameter_variable_symbol_entry == NULL || parameter_variable_symbol_entry->key == NULL) {
+      fprintf(stderr, "ERROR: Assembler - Could not find '%s' function parameter identifier in symbol table", ir_function->data.function.identifier);
+      exit(1);
+    }
+
+    Types parameter_type = ((DeclarationSymbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type;
+    
     AsmNode *source_operand = arena_alloc(asm_arena);
 
-    if (i == 0) {
-      source_operand->data.operand_register.op_register = ASM_REGISTER_DI;
+    if (parameter_type != TYPE_DOUBLE && general_register_count < 6) {
+      switch (general_register_count) {
+        case 0:   source_operand->data.operand_register.op_register = ASM_REGISTER_DI; break;
+        case 1:   source_operand->data.operand_register.op_register = ASM_REGISTER_SI; break;
+        case 2:   source_operand->data.operand_register.op_register = ASM_REGISTER_DX; break;
+        case 3:   source_operand->data.operand_register.op_register = ASM_REGISTER_CX; break;
+        case 4:   source_operand->data.operand_register.op_register = ASM_REGISTER_R8; break;
+        case 5:   source_operand->data.operand_register.op_register = ASM_REGISTER_R9; break;
+      }
+    
       source_operand->type = ASM_OPERAND_REGISTER;
-    } else if (i == 1) {
-      source_operand->data.operand_register.op_register = ASM_REGISTER_SI;
+      general_register_count++;
+    } else if (parameter_type == TYPE_DOUBLE && floating_point_register_count < 8) {
+      switch (general_register_count) {
+        case 0:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM0; break;
+        case 1:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM1; break;
+        case 2:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM2; break;
+        case 3:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM3; break;
+        case 4:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM4; break;
+        case 5:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM5; break;
+        case 6:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM6; break;
+        case 7:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM7; break;
+      }
+    
       source_operand->type = ASM_OPERAND_REGISTER;
-    } else if (i == 2) {
-      source_operand->data.operand_register.op_register = ASM_REGISTER_DX;
-      source_operand->type = ASM_OPERAND_REGISTER;
-    } else if (i == 3) {
-      source_operand->data.operand_register.op_register = ASM_REGISTER_CX;
-      source_operand->type = ASM_OPERAND_REGISTER;
-    } else if (i == 4) {
-      source_operand->data.operand_register.op_register = ASM_REGISTER_R8;
-      source_operand->type = ASM_OPERAND_REGISTER;
-    } else if (i == 5) {
-      source_operand->data.operand_register.op_register = ASM_REGISTER_R9;
-      source_operand->type = ASM_OPERAND_REGISTER;
+      floating_point_register_count++;
     } else {
       source_operand->data.operand_stack.address = stack_offset;
       source_operand->type = ASM_OPERAND_STACK;
@@ -1667,16 +1686,23 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
 
   //retrieve return value 
   AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, asm_arena, top_level_declarations, declaration_symbol_table);
+  AsmType return_type = get_instruction_type(assembly_destination);
 
   AsmNode *dest_register = arena_alloc(asm_arena);
   dest_register->type = ASM_OPERAND_REGISTER;
-  dest_register->data.operand_register.op_register = ASM_REGISTER_AX;
+
+  if (return_type == ASM_TYPE_DOUBLE) {
+    dest_register->data.operand_register.op_register = ASM_REGISTER_XMM0;
+  } else {
+    dest_register->data.operand_register.op_register = ASM_REGISTER_AX;
+  }
   
   AsmNode *mov_instruction = arena_alloc(asm_arena);
   mov_instruction->type = ASM_INSTRUCTION_MOV;  
   mov_instruction->data.instruction_mov.source = dest_register;
   mov_instruction->data.instruction_mov.destination = assembly_destination;
 
+  //@NOTE: Can remove destination_type if I'm using asm type above?
   //@NOTE: Need to add these so that the convert function doesn't fail. However, need to investigate on whether at this point we do something for assembly_type's when the operand is a pseudo register
   //if (assembly_destination->type != ASM_OPERAND_PSEUDO_REGISTER) {
     AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, declaration_symbol_table);
