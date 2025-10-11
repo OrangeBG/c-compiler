@@ -49,6 +49,7 @@ static void         emit_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir
 static void         emit_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir_uint_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         emit_instruction_double_to_uint(AsmNode *asm_function, IRNode *ir_double_to_uint_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
+static void         emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_double_to_ulong_instruction, Arena *asm_arena, AsmNodePointers *top_level_declarations, DeclarationSymbolTable *declaration_symbol_table); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
@@ -893,7 +894,7 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Arena *asm
           if (type == TYPE_UINT) {
             emit_instruction_double_to_uint(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
           } else {
-
+            emit_instruction_double_to_ulong(asm_function, current_ir_node, asm_arena, top_level_declarations, declaration_symbol_table);
           }
         }
       default:
@@ -916,6 +917,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
       break;
     case TYPE_LONG:
     case TYPE_ULONG:
+    case TYPE_DOUBLE:
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD;
       break;
     default:
@@ -1922,9 +1924,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
       add_static_variable_declaration_symbol(declaration_symbol_table, TYPE_LONG, max_long_init, ".MAX_LONG", true, INITIAL_VALUE_INITIALIZED);       
     }
 
-    AsmNode *upper_bound_data = arena_alloc(asm_arena);
-    upper_bound_data->type = ASM_OPERAND_DATA;
-    upper_bound_data->data.operand_data.identifier = ".MAX_LONG";
+    AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, asm_arena, top_level_declarations, declaration_symbol_table);
 
     AsmNode *cmp = arena_alloc(asm_arena);
     cmp->type = ASM_INSTRUCTION_CMP;
@@ -1937,7 +1937,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
     static int label_1_index = 0;
 
     char *label_1_name = malloc(32);
-    snprintf(label_1_name, 32, "%.DblToULong_CC.d", label_1_index++); 
+    snprintf(label_1_name, 32, "%d.DblToULong_CC.d", label_1_index++); 
 
     AsmNode *jmp_cc = arena_alloc(asm_arena);
     jmp_cc->type = ASM_INSTRUCTION_JMPCC;
@@ -1955,10 +1955,10 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
     
     add_instruction_to_function(asm_function, cvttsd2si_1);
         
-    static int label2 = 0;
+    static int label_2_index = 0;
 
     char *label_2_name = malloc(32);
-    snprintf(label_2_name, 32, "%.DblToULong_end.d", label2++); 
+    snprintf(label_2_name, 32, "%d.DblToULong_end.d", label_2_index++); 
 
     AsmNode *jmp_end = arena_alloc(asm_arena);
     jmp_end->type = ASM_INSTRUCTION_JMP;
@@ -2002,8 +2002,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
 
     AsmNode *imm = arena_alloc(asm_arena);
     imm->type = ASM_OPERAND_IMM;
-    //TODO: Is being casted to unsigned
-    imm->data.operand_imm.value = 9223372036854775808;
+    imm->data.operand_imm.value = LONG_MAX;
     
     AsmNode *mov_2 = arena_alloc(asm_arena);
     mov_2->type = ASM_INSTRUCTION_MOV;
@@ -2013,8 +2012,20 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
 
     add_instruction_to_function(asm_function, mov_2);
 
+    AsmNode *binary_2 = arena_alloc(asm_arena);
+    binary_2->type = ASM_INSTRUCTION_BINARY;
+    binary_2->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
+    binary_2->data.instruction_binary.binary_op = ASM_BINARY_ADD;
+    binary_2->data.instruction_binary.operand_1 = ax_register;
+    binary_2->data.instruction_binary.operand_2 = destination_node;
+
+    add_instruction_to_function(asm_function, binary_2);
     
-    
+    AsmNode *label_2 = arena_alloc(asm_arena);
+    label_2->type = ASM_INSTRUCTION_LABEL;
+    label_2->data.instruction_label.identifier = label_2_name;
+
+    add_instruction_to_function(asm_function, label_2);    
 }
 
 static AsmNode* create_operand(IRNode *ir_operand, Arena *asm_arena, AsmNodePointers *top_level_pointers, DeclarationSymbolTable *declaration_symbol_table) {
