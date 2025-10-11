@@ -71,7 +71,7 @@ static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *de
 static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
 static int          round_stack_offset(int stack_offset); 
 static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
-static bool         is_instruction_quadword(AsmNode *instruction); 
+static AsmType      get_instruction_type(AsmNode *instruction); 
 // static bool         is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
@@ -1563,7 +1563,9 @@ static void emit_instruction_return(AsmNode *asm_function, IRNode *ir_return_ins
 
 static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Arena *asm_arena, DeclarationSymbolTable *declaration_symbol_table, AsmNodePointers *top_level_declarations) {
   //As per the System V ABI (Application Binary Interface), the first 6 arguments of a function call will be loaded into the following 'arg_registers' as ordered in the array. After that, any additional arguments will be added to the stack in reverse order to be processed in the order of how they are called.
-  AsmRegisterType arg_registers[] = { ASM_REGISTER_DI, ASM_REGISTER_SI, ASM_REGISTER_DX, ASM_REGISTER_CX, ASM_REGISTER_R8, ASM_REGISTER_R9 };
+  AsmRegisterType arg_general_registers[] = { ASM_REGISTER_DI, ASM_REGISTER_SI, ASM_REGISTER_DX, ASM_REGISTER_CX, ASM_REGISTER_R8, ASM_REGISTER_R9 };
+  AsmRegisterType arg_floating_point_registers[] = { ASM_REGISTER_XMM0, ASM_REGISTER_XMM1, ASM_REGISTER_XMM2, ASM_REGISTER_XMM3, ASM_REGISTER_XMM4, ASM_REGISTER_XMM5, ASM_REGISTER_XMM6, ASM_REGISTER_XMM7 }; 
+ 
   int arg_count = ir_function_call_instruction->data.instruction_function_call.arg_count;
   int stack_padding = 0;
    
@@ -1573,25 +1575,36 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
     emit_instruction_allocate_rsp_stack(asm_function, stack_padding, asm_arena);    
   }
 
+  int general_arg_count = 0;
+  int floating_point_arg_count = 0;
   int stack_arg_count = 0;
 
   for (int i = 0; i < arg_count; i++) {
     AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], asm_arena, top_level_declarations, declaration_symbol_table);
+    Types node_type = get_ir_node_type(ir_function_call_instruction, declaration_symbol_table);
 
-    if (i < 6) {
+    if ((node_type != TYPE_DOUBLE && general_arg_count < 6) || (node_type == TYPE_DOUBLE && floating_point_arg_count < 8)) {
       AsmNode *mov_instruction = arena_alloc(asm_arena);
       mov_instruction->type = ASM_INSTRUCTION_MOV;
       mov_instruction->data.instruction_mov.source = arg;
 
       AsmNode *destination = arena_alloc(asm_arena);
       destination->type = ASM_OPERAND_REGISTER;
-      destination->data.operand_register.op_register = arg_registers[i];      
+
+      if (node_type == TYPE_DOUBLE) {
+        destination->data.operand_register.op_register = arg_floating_point_registers[i];      
+        floating_point_arg_count++;
+      } else {
+        destination->data.operand_register.op_register = arg_general_registers[i];      
+        general_arg_count++;
+      }
 
       mov_instruction->data.instruction_mov.destination = destination;
 
       add_instruction_to_function(asm_function, mov_instruction);
     } else {
-      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || is_instruction_quadword(arg)) {
+      AsmType instruction_type = get_instruction_type(arg);
+      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || instruction_type == ASM_TYPE_QUADWORD || instruction_type == ASM_TYPE_DOUBLE) {
         AsmNode *push_instruction = arena_alloc(asm_arena);
         push_instruction->type = ASM_INSTRUCTION_PUSH;  
         push_instruction->data.instruction_push.operand = arg;
@@ -2348,16 +2361,17 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
   }
 }
 
-static bool is_instruction_quadword(AsmNode *instruction) {
+static AsmType get_instruction_type(AsmNode *instruction) {
   switch (instruction->type) {
-    case ASM_INSTRUCTION_MOV: return instruction->data.instruction_mov.assembly_type == ASM_TYPE_QUADWORD;
-    case ASM_INSTRUCTION_UNARY: return instruction->data.instruction_unary.assembly_type == ASM_TYPE_QUADWORD;
-    case ASM_INSTRUCTION_BINARY: return instruction->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD;
-    case ASM_INSTRUCTION_CMP: return instruction->data.instruction_cmp.assembly_type == ASM_TYPE_QUADWORD;
-    case ASM_INSTRUCTION_IDIV: return instruction->data.instruction_idiv.assembly_type == ASM_TYPE_QUADWORD;
-    case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type == ASM_TYPE_QUADWORD;
+    case ASM_INSTRUCTION_MOV: return instruction->data.instruction_mov.assembly_type;
+    case ASM_INSTRUCTION_UNARY: return instruction->data.instruction_unary.assembly_type;
+    case ASM_INSTRUCTION_BINARY: return instruction->data.instruction_binary.assembly_type;
+    case ASM_INSTRUCTION_CMP: return instruction->data.instruction_cmp.assembly_type;
+    case ASM_INSTRUCTION_IDIV: return instruction->data.instruction_idiv.assembly_type;
+    case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type;
     default:
-      return false;
+      fprintf(stderr, "ERROR - Assembler: Could not get instruction type for instruction %d", instruction->type);
+      exit(1);
   }
 }
 
