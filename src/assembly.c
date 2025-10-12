@@ -408,7 +408,29 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
     return INSTRUCTION_NOT_FIXED;
   }
 
+  AsmNode *source_node = cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand;
+
+  if (source_node->type == ASM_OPERAND_IMM) {
+    AsmNode *r10 = arena_alloc(asm_arena);
+    r10->type = ASM_OPERAND_REGISTER;
+    r10->data.operand_register.op_register = ASM_REGISTER_R10;
+
+    AsmNode *mov = arena_alloc(asm_arena);
+    mov->type = ASM_INSTRUCTION_MOV;
+    mov->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
+    mov->data.instruction_mov.source = cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand;
+    mov->data.instruction_mov.destination = r10;
+
+    add_instruction_to_function(function, mov);
+  }
   
+  AsmNode *destination_node = cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand;
+
+  if (destination_node->type != ASM_OPERAND_REGISTER) {
+    
+
+  }
+
 }
 
 static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
