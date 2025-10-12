@@ -67,6 +67,7 @@ static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_
 static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena);
 static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 static ResolveType  resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+static ResolveType  resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Arena *asm_arena); 
 static AsmType      convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
@@ -177,6 +178,9 @@ static AsmNode* resolve_instructions(AsmNode *function, Arena *asm_arena) {
         break;      
       case ASM_INSTRUCTION_CVTTSD2SI:
         resolve_type = resolve_cvttsd2si_instruction(new_function, instruction, asm_arena);        
+        break;
+      case ASM_INSTRUCTION_CVTSI2SD:
+        resolve_type = resolve_cvtsi2sd_instruction(new_function, instruction, asm_arena);
         break;
     }
 
@@ -423,14 +427,37 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
 
     add_instruction_to_function(function, mov);
   }
-  
-  AsmNode *destination_node = cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand;
 
-  if (destination_node->type != ASM_OPERAND_REGISTER) {
-    
+  if (cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand->type != ASM_OPERAND_REGISTER) {
+    AsmNode *xmm_15 = arena_alloc(asm_arena);
+    xmm_15->type = ASM_OPERAND_REGISTER;
+    xmm_15->data.operand_register.op_register = ASM_REGISTER_XMM15;
 
+    AsmNode *new_cvtsi2sd = arena_alloc(asm_arena);
+    new_cvtsi2sd->type = ASM_INSTRUCTION_CVTSI2SD;
+    new_cvtsi2sd->data.instruction_cvtsi2sd.source_assembly_type = ASM_TYPE_LONGWORD;
+    new_cvtsi2sd->data.instruction_cvtsi2sd.source_operand = source_node;
+    new_cvtsi2sd->data.instruction_cvtsi2sd.destination_operand = xmm_15;
+
+    add_instruction_to_function(function, new_cvtsi2sd);
+
+    AsmNode *mov = arena_alloc(asm_arena);
+    mov->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
+    mov->data.instruction_mov.source = xmm_15;
+    mov->data.instruction_mov.destination = cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand;
+
+    add_instruction_to_function(function, mov);
+  } else {
+    AsmNode *new_cvtsi2sd = arena_alloc(asm_arena);
+    new_cvtsi2sd->type = ASM_INSTRUCTION_CVTSI2SD;
+    new_cvtsi2sd->data.instruction_cvtsi2sd.source_assembly_type = ASM_TYPE_LONGWORD;
+    new_cvtsi2sd->data.instruction_cvtsi2sd.source_operand = source_node;
+    new_cvtsi2sd->data.instruction_cvtsi2sd.destination_operand = cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand;
+
+    add_instruction_to_function(function, new_cvtsi2sd);
   }
 
+  return INSTRUCTION_FIXED;
 }
 
 static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
@@ -543,7 +570,7 @@ static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode
 
 static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
   //CMP instructions cannot have both a source and destination as memory addresses
-  if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
+  if (instruction->data.instruction_cmp.assembly_type != ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_STACK && instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_STACK) {
     AsmNode *r10_register = arena_alloc(asm_arena);
     r10_register->type = ASM_OPERAND_REGISTER;
     r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
@@ -569,7 +596,7 @@ static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instructi
 
   //CMP instructions cannot have a constant as the second operand.
   //TODO: Investigate if this is also needed for sub, add, and imul instructions
-  if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
+  if (instruction->data.instruction_cmp.assembly_type != ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
     AsmNode *r11_register = arena_alloc(asm_arena);
     r11_register->type = ASM_OPERAND_REGISTER;
     r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
@@ -593,6 +620,30 @@ static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instructi
     cmp_instruction->data.instruction_cmp.assembly_type = instruction->data.instruction_cmp.assembly_type;
 
     add_instruction_to_function(function, cmp_instruction);
+    return INSTRUCTION_FIXED;
+  }
+
+  if (instruction->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_2->type != ASM_OPERAND_REGISTER) {
+    AsmNode *xmm_15 = arena_alloc(asm_arena);
+    xmm_15->type = ASM_OPERAND_REGISTER;
+    xmm_15->data.operand_register.op_register = ASM_REGISTER_XMM15;
+    
+    AsmNode *mov = arena_alloc(asm_arena);
+    mov->type = ASM_INSTRUCTION_MOV;
+    mov->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
+    mov->data.instruction_mov.source = instruction->data.instruction_cmp.operand_2;
+    mov->data.instruction_mov.destination = xmm_15;
+
+    add_instruction_to_function(function, mov);
+
+    AsmNode *cmp = arena_alloc(asm_arena);
+    cmp->type = ASM_INSTRUCTION_CMP;
+    cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
+    cmp->data.instruction_cmp.operand_1 = instruction->data.instruction_cmp.operand_1;
+    cmp->data.instruction_cmp.operand_2 = xmm_15;
+
+    add_instruction_to_function(function, cmp);
+
     return INSTRUCTION_FIXED;
   }
 
