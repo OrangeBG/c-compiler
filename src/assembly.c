@@ -66,6 +66,7 @@ static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *i
 static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena); 
 static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena);
 static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
+static ResolveType  resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
 static AsmType      convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
@@ -174,6 +175,9 @@ static AsmNode* resolve_instructions(AsmNode *function, Arena *asm_arena) {
       case ASM_INSTRUCTION_DIV:
         resolve_type = resolve_div_instruction(new_function, instruction, asm_arena);
         break;      
+      case ASM_INSTRUCTION_CVTTSD2SI:
+        resolve_type = resolve_cvttsd2si_instruction(new_function, instruction, asm_arena);        
+        break;
     }
 
     if (resolve_type == INSTRUCTION_FIXED) {
@@ -369,6 +373,42 @@ static ResolveType resolve_div_instruction(AsmNode *function, AsmNode *div_instr
   add_instruction_to_function(function, new_div_instruction);
 
   return INSTRUCTION_FIXED;
+}
+
+static ResolveType resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *cvttsd2si_instruction, Arena *asm_arena) {
+  if (cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_REGISTER) {
+    return INSTRUCTION_NOT_FIXED;
+  }
+
+  AsmNode *r11 = arena_alloc(asm_arena);
+  r11->type = ASM_OPERAND_REGISTER;
+  r11->data.operand_register.op_register = ASM_REGISTER_R11;
+
+  AsmNode *new_cvttsd2si = arena_alloc(asm_arena);
+  new_cvttsd2si->type = ASM_INSTRUCTION_CVTTSD2SI;
+  new_cvttsd2si->data.instruction_cvttsd2si.destination_assembly_type = ASM_TYPE_QUADWORD;
+  new_cvttsd2si->data.instruction_cvttsd2si.source_operand = cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand;
+  new_cvttsd2si->data.instruction_cvttsd2si.destination_operand = r11;
+
+  add_instruction_to_function(function, new_cvttsd2si);
+
+  AsmNode *mov = arena_alloc(asm_arena);
+  mov->type = ASM_INSTRUCTION_MOV;
+  mov->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
+  mov->data.instruction_mov.source = r11;
+  mov->data.instruction_mov.destination = cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand;
+
+  add_instruction_to_function(function, mov);
+  
+  return INSTRUCTION_FIXED;
+}
+
+static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Arena *asm_arena) {
+  if (cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand->type != ASM_OPERAND_IMM && cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_REGISTER) {
+    return INSTRUCTION_NOT_FIXED;
+  }
+
+  
 }
 
 static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
@@ -680,7 +720,7 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmType instructio
   }
 
   process_pseudo_register:
-      if (instruction_type == ASM_TYPE_QUADWORD) {
+      if (instruction_type == ASM_TYPE_QUADWORD || instruction_type == ASM_TYPE_DOUBLE) {
         *stack_offset += 8;
         *stack_offset = round_stack_offset(*stack_offset);
       } else {
