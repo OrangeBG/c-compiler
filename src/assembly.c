@@ -2411,6 +2411,20 @@ void print_assembly(AsmNode *node) {
     case ASM_INSTRUCTION_LABEL:
       printf("LABEL -> %s\n", node->data.instruction_label.identifier);
       break;
+    case ASM_INSTRUCTION_CVTTSD2SI:
+      printf("CVTTSD2SI -> Operand( ");
+      print_assembly(node->data.instruction_cvttsd2si.source_operand);
+      printf("), Operand( ");
+      print_assembly(node->data.instruction_cvttsd2si.destination_operand);
+      printf(")\n");
+      break;
+    case ASM_INSTRUCTION_CVTSI2SD:
+      printf("CVTSI2SD -> Operand( ");
+      print_assembly(node->data.instruction_cvtsi2sd.source_operand);
+      printf("), Operand( ");
+      print_assembly(node->data.instruction_cvtsi2sd.destination_operand);
+      printf(")\n");
+      break;
     case ASM_OPERAND_REGISTER:
       printf("Register ");
 
