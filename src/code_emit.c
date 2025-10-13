@@ -7,6 +7,7 @@ static char* get_1_byte_register(AsmRegisterType register_type);
 static char* get_xmm_register(AsmRegisterType register_type); 
 static void  print_instruction_suffix(FILE *file, AsmType type); 
 static void  print_static_initializer(FILE *file, Types value_type, InitialValue initial_value);
+static void  print_condition_code(FILE *file, AsmConditionCode condition_code); 
 
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
@@ -75,7 +76,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
-      emit_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->value_type, asm_node->data.static_variable.static_variable_symbol->static_initial_value);
+      print_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->value_type, asm_node->data.static_variable.static_variable_symbol->static_initial_value);
 
       fprintf(file, "\n");
       break;
@@ -92,7 +93,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s", asm_node->data.static_constant.identifier);
       
-      emit_static_initializer(file, asm_node->data.static_constant.static_init->value_type, asm_node->data.static_constant.static_init->static_initial_value);
+      print_static_initializer(file, asm_node->data.static_constant.static_init->value_type, asm_node->data.static_constant.static_init->static_initial_value);
 
       #if __APPLE__
         if (asm_node->data.static_constant.alignment == 16) {
@@ -122,7 +123,11 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_CMP:
-      fprintf(file, "\tcmp");
+      if (asm_node->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE) {
+        fprintf(file, "\tcomisd");
+      } else {
+        fprintf(file, "\tcmp");
+      }
 
       print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type);
       fprintf(file, "\t");
@@ -137,37 +142,14 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       break;
     case ASM_INSTRUCTION_JMPCC:
       fprintf(file, "\tj");
-
-      switch (asm_node->data.instruction_jmp_cc.condition_code) {
-        case ASM_CONDITION_EQUAL:         fprintf(file, "e"); break;
-        case ASM_CONDITION_NOT_EQUAL:     fprintf(file, "ne"); break;
-        case ASM_CONDITION_GREATER:       fprintf(file, "g"); break;
-        case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
-        case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
-        case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
-        case ASM_CONDITION_ABOVE:         fprintf(file, "a"); break;
-        case ASM_CONDITION_ABOVE_EQUAL:   fprintf(file, "ae"); break;
-        case ASM_CONDITION_BELOW:         fprintf(file, "b"); break;
-        case ASM_CONDITION_BELOW_EQUAL:   fprintf(file, "be"); break;
-      }
+      print_condition_code(file, asm_node->data.instruction_jmp_cc.condition_code);
       fprintf(file, "\tL%s\n", asm_node->data.instruction_jmp_cc.identifier);
       break;
     case ASM_INSTRUCTION_SETCC:
       fprintf(file, "\tset");
-
-      switch (asm_node->data.instruction_set_cc.condition_code) {
-        case ASM_CONDITION_EQUAL:         fprintf(file, "e"); break;
-        case ASM_CONDITION_NOT_EQUAL:     fprintf(file, "ne"); break;
-        case ASM_CONDITION_GREATER:       fprintf(file, "g"); break;
-        case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
-        case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
-        case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
-        case ASM_CONDITION_ABOVE:         fprintf(file, "a"); break;
-        case ASM_CONDITION_ABOVE_EQUAL:   fprintf(file, "ae"); break;
-        case ASM_CONDITION_BELOW:         fprintf(file, "b"); break;
-        case ASM_CONDITION_BELOW_EQUAL:   fprintf(file, "be"); break;
-      }
+      print_condition_code(file, asm_node->data.instruction_set_cc.condition_code);
       fprintf(file, "\t");
+
       //1 Byte name registers for set cc
       if (asm_node->data.instruction_set_cc.operand->type == ASM_OPERAND_REGISTER) {
         char *operand_register = get_1_byte_register(asm_node->data.instruction_set_cc.operand->data.operand_register.op_register);
@@ -199,14 +181,19 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_BINARY_SUB:                  fprintf(file, "\tsub"); break;
         case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tand"); break;
         case ASM_BINARY_BITWISE_OR:           fprintf(file, "\tor"); break;
-        case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txor"); break;
         case ASM_BINARY_BITWISE_LEFT_SHIFT:   fprintf(file, "\tshl"); break;
         case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshr"); break;
         case ASM_BINARY_DIV_DOUBLE:           fprintf(file, "\tdiv"); break;
         case ASM_BINARY_MULT:                 asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE ? fprintf(file, "\tmul") : fprintf(file, "\timul"); break;        
+        case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txor"); break;
       }
 
-      print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type);
+      if (asm_node->data.instruction_binary.binary_op == ASM_BINARY_BITWISE_XOR && asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
+        fprintf(file, "pd");
+      } else {
+        print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type);
+      }
+
       fprintf(file, "\t");
       
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
@@ -295,9 +282,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_OPERAND_DATA:
       fprintf(file, "%s(%%rip)", asm_node->data.operand_data.identifier);
       break;
-    // default:
-    //   fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
-    //   exit(1);
+    default:
+      fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
+      exit(1);
   }
 }
 
@@ -375,6 +362,21 @@ static void print_instruction_suffix(FILE *file, AsmType type) {
   }
 }
 
+static void print_condition_code(FILE *file, AsmConditionCode condition_code) {
+  switch (condition_code) {
+    case ASM_CONDITION_EQUAL:         fprintf(file, "e"); break;
+    case ASM_CONDITION_NOT_EQUAL:     fprintf(file, "ne"); break;
+    case ASM_CONDITION_GREATER:       fprintf(file, "g"); break;
+    case ASM_CONDITION_GREATER_EQUAL: fprintf(file, "ge"); break;
+    case ASM_CONDITION_LESS:          fprintf(file, "l"); break;
+    case ASM_CONDITION_LESS_EQUAL:    fprintf(file, "le"); break;
+    case ASM_CONDITION_ABOVE:         fprintf(file, "a"); break;
+    case ASM_CONDITION_ABOVE_EQUAL:   fprintf(file, "ae"); break;
+    case ASM_CONDITION_BELOW:         fprintf(file, "b"); break;
+    case ASM_CONDITION_BELOW_EQUAL:   fprintf(file, "be"); break;
+  }
+}
+
 static void print_static_initializer(FILE *file, Types value_type, InitialValue initial_value) {
   //TODO: Add double 
   switch (value_type) {
@@ -391,7 +393,7 @@ static void print_static_initializer(FILE *file, Types value_type, InitialValue 
       initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); 
       break;
     default:
-      fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", value_type);
+      fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", value_type);
       exit(1);
   }      
 }
