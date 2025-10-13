@@ -811,6 +811,24 @@ static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *b
           replace_pseudo_register(instruction->data.instruction_push.operand, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
+      case ASM_INSTRUCTION_CVTSI2SD:
+        if (instruction->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          replace_pseudo_register(instruction->data.instruction_cvtsi2sd.source_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+
+        if (instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          replace_pseudo_register(instruction->data.instruction_cvtsi2sd.destination_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+        break;
+      case ASM_INSTRUCTION_CVTTSD2SI:
+        if (instruction->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          replace_pseudo_register(instruction->data.instruction_cvttsd2si.source_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+
+        if (instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          replace_pseudo_register(instruction->data.instruction_cvttsd2si.destination_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+        break;
       default:
         break;
     }
