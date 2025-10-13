@@ -4,7 +4,9 @@
 static char* get_8_byte_register(AsmRegisterType register_type); 
 static char* get_4_byte_register(AsmRegisterType register_type); 
 static char* get_1_byte_register(AsmRegisterType register_type); 
-static void print_instruction_suffix(FILE *file, AsmType type); 
+static char* get_xmm_register(AsmRegisterType register_type); 
+static void  print_instruction_suffix(FILE *file, AsmType type); 
+static void  print_static_initializer(FILE *file, Types value_type, InitialValue initial_value);
 
 void save_assembly_file(AsmNode *asm_node, FILE *file) {
   switch (asm_node->type) {
@@ -73,25 +75,33 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
-      switch (asm_node->data.static_variable.static_variable_symbol->value_type) {
-        case TYPE_INT:
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); 
-          break;
-        case TYPE_UINT:
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); 
-          break;
-        case TYPE_LONG: 
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); 
-          break;
-        case TYPE_ULONG: 
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); 
-          break;
-        default:
-          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
-          exit(1);
-      }      
+      emit_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->value_type, asm_node->data.static_variable.static_variable_symbol->static_initial_value);
 
       fprintf(file, "\n");
+      break;
+    case ASM_STATIC_CONSTANT:
+      #ifdef __linux__         
+        fprintf(file, "\t.section .rodata\n");
+        fprintf(file, "\t.align %d\n", asm_node->data.static_constant.alignment);
+      #endif
+
+      #if __APPLE__
+        fprintf(file, "\t.literal%d\n", asm_node->data.static_constant.alignment);
+        fprintf(file, "\t.balign %d\n", asm_node->data.static_constant.alignment);
+      #endif
+
+      fprintf(file, "%s", asm_node->data.static_constant.identifier);
+      
+      emit_static_initializer(file, asm_node->data.static_constant.static_init->value_type, asm_node->data.static_constant.static_init->static_initial_value);
+
+      #if __APPLE__
+        if (asm_node->data.static_constant.alignment == 16) {
+          fprintf(file, "\t.quad 0\n");
+        }
+      #endif
+
+      fprintf(file, "\n");
+      
       break;
     case ASM_INSTRUCTION_MOV:
       fprintf(file, "\tmov");
@@ -187,12 +197,13 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       switch (asm_node->data.instruction_binary.binary_op) {
         case ASM_BINARY_ADD:                  fprintf(file, "\tadd"); break;
         case ASM_BINARY_SUB:                  fprintf(file, "\tsub"); break;
-        case ASM_BINARY_MULT:                 fprintf(file, "\timul"); break;        
         case ASM_BINARY_BITWISE_AND:          fprintf(file, "\tand"); break;
         case ASM_BINARY_BITWISE_OR:           fprintf(file, "\tor"); break;
         case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txor"); break;
         case ASM_BINARY_BITWISE_LEFT_SHIFT:   fprintf(file, "\tshl"); break;
         case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshr"); break;
+        case ASM_BINARY_DIV_DOUBLE:           fprintf(file, "\tdiv"); break;
+        case ASM_BINARY_MULT:                 asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE ? fprintf(file, "\tmul") : fprintf(file, "\timul"); break;        
       }
 
       print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type);
@@ -248,6 +259,28 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
       fprintf(file, "\n");
       break;
+    case ASM_INSTRUCTION_CVTSI2SD:
+      fprintf(file, "\tcvtsi2sd"); 
+
+      print_instruction_suffix(file, asm_node->data.instruction_cvtsi2sd.source_assembly_type);
+
+      fprintf(file, "\t"); 
+      save_assembly_file(asm_node->data.instruction_cvtsi2sd.source_operand, file);
+      fprintf(file, ", ");
+      save_assembly_file(asm_node->data.instruction_cvtsi2sd.destination_operand, file);
+      fprintf(file, "\n");
+      break;
+    case ASM_INSTRUCTION_CVTTSD2SI:
+      fprintf(file, "\tcvttsd2si"); 
+
+      print_instruction_suffix(file, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
+
+      fprintf(file, "\t"); 
+      save_assembly_file(asm_node->data.instruction_cvttsd2si.source_operand, file);
+      fprintf(file, ", ");
+      save_assembly_file(asm_node->data.instruction_cvttsd2si.destination_operand, file);
+      fprintf(file, "\n");
+      break;
     case ASM_OPERAND_IMM:
       fprintf(file, "$%ld", asm_node->data.operand_imm.value);
       break;
@@ -262,9 +295,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_OPERAND_DATA:
       fprintf(file, "%s(%%rip)", asm_node->data.operand_data.identifier);
       break;
-    default:
-      fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
-      exit(1);
+    // default:
+    //   fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
+    //   exit(1);
   }
 }
 
@@ -319,11 +352,46 @@ static char* get_1_byte_register(AsmRegisterType register_type) {
   }
 }
 
-static void print_instruction_suffix(FILE *file, AsmType type) {
-  if (type == ASM_TYPE_LONGWORD) {
-    fprintf(file, "l");
-    return;
+static char* get_xmm_register(AsmRegisterType register_type) {
+  switch(register_type) {
+    case ASM_REGISTER_XMM0:  return "%xmm0";
+    case ASM_REGISTER_XMM1:  return "%xmm1";
+    case ASM_REGISTER_XMM2:  return "%xmm2";
+    case ASM_REGISTER_XMM3:  return "%xmm3";
+    case ASM_REGISTER_XMM4:  return "%xmm4";
+    case ASM_REGISTER_XMM5:  return "%xmm5";
+    case ASM_REGISTER_XMM6:  return "%xmm6";
+    case ASM_REGISTER_XMM7:  return "%xmm7";
+    case ASM_REGISTER_XMM14: return "%xmm14";
+    case ASM_REGISTER_XMM15: return "%xmm15";
   }
+}
 
-  fprintf(file, "q");
+static void print_instruction_suffix(FILE *file, AsmType type) {
+  switch (type) {
+    case ASM_TYPE_LONGWORD:   fprintf(file, "l"); break;
+    case ASM_TYPE_QUADWORD:   fprintf(file, "q"); break;
+    case ASM_TYPE_DOUBLE:     fprintf(file, "sd"); break;
+  }
+}
+
+static void print_static_initializer(FILE *file, Types value_type, InitialValue initial_value) {
+  //TODO: Add double 
+  switch (value_type) {
+    case TYPE_INT:
+      initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.int_value); 
+      break;
+    case TYPE_UINT:
+      initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.uint_value); 
+      break;
+    case TYPE_LONG: 
+      initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.long_value); 
+      break;
+    case TYPE_ULONG: 
+      initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); 
+      break;
+    default:
+      fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", value_type);
+      exit(1);
+  }      
 }
