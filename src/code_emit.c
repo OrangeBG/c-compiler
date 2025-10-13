@@ -91,7 +91,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.balign %d\n", asm_node->data.static_constant.alignment);
       #endif
 
-      fprintf(file, "%s", asm_node->data.static_constant.identifier);
+      fprintf(file, "%s:\n", asm_node->data.static_constant.identifier);
       
       print_static_initializer(file, asm_node->data.static_constant.static_init->value_type, asm_node->data.static_constant.static_init->static_initial_value);
 
@@ -378,20 +378,12 @@ static void print_condition_code(FILE *file, AsmConditionCode condition_code) {
 }
 
 static void print_static_initializer(FILE *file, Types value_type, InitialValue initial_value) {
-  //TODO: Add double 
   switch (value_type) {
-    case TYPE_INT:
-      initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.int_value); 
-      break;
-    case TYPE_UINT:
-      initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.uint_value); 
-      break;
-    case TYPE_LONG: 
-      initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.long_value); 
-      break;
-    case TYPE_ULONG: 
-      initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); 
-      break;
+    case TYPE_INT:    initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.int_value); break;
+    case TYPE_UINT:   initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.uint_value); break;
+    case TYPE_LONG:   initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.long_value); break;
+    case TYPE_ULONG:  initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); break;
+    case TYPE_DOUBLE: fprintf(file, "\t.double %a", initial_value.double_value); break;
     default:
       fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", value_type);
       exit(1);
