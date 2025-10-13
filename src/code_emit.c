@@ -272,6 +272,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "$%ld", asm_node->data.operand_imm.value);
       break;
     case ASM_OPERAND_REGISTER: {
+      //TODO: Check to see if we only pull 32 bit registers here
       char *operand_register = get_4_byte_register(asm_node->data.operand_register.op_register);
       fprintf(file, "%s", operand_register);
       break;
