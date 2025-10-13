@@ -10,18 +10,18 @@
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
 
-static void     function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena);
-static void     type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
-static void     type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
-static void     add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
-static Types    expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena); 
-static Types    get_common_real_type(Types type_1, Types type_2);
-static AstNode* implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
-static long     convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node); 
-static int      convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node); 
+static void             function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena);
+static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
+static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
+static void             add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
+static Types            expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena); 
+static Types            get_common_real_type(Types type_1, Types type_2);
+static AstNode*         implicit_expression_type_cast(AstNode *expression, Types expression_type, Types common_type, Arena *ast_arena); 
+static long             convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node); 
+static int              convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node); 
 static unsigned long    convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node); 
 static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node); 
-static double   convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
+static double           convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
 
 void sa_type_check(AstNode *ast_nodes, DeclarationSymbolTable *declaration_table, Arena *ast_arena) {
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
@@ -89,8 +89,9 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           }
         }
 
-        if (!existing_function_symbol->data.function_symbol->is_defined) {
-          existing_function_symbol->data.function_symbol->is_defined = node->data.function_declaration.body_block != NULL;
+        if (!existing_function_symbol->data.function_symbol->is_defined && node->data.function_declaration.body_block != NULL) {
+          existing_function_symbol->data.function_symbol->is_defined = true;
+          function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
         }
 
         break;
@@ -135,6 +136,10 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.function_call_expression.identfier);
           exit(1);
         }
+      }
+
+      if (node->data.function_call_expression.expression_type == NULL) { 
+        expression_type_check(node, declaration_table, function_declaration_node, ast_arena);
       }
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {

@@ -97,7 +97,6 @@ int main(int argc, const char *argv[]) {
 
   FILE *assembly_file;
   assembly_file = fopen("assembly.asm", "w+");
-
   save_assembly_file(asm_nodes, assembly_file);
 
   #ifdef __x86_64__

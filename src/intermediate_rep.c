@@ -126,7 +126,7 @@ void print_intermediate_ret(IRNode *ir_node) {
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_ret.value);
           printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_UNARY) {      
-          struct IRInstructionUnary* unary = &function->instruction_ptrs->node_pointers[i]->data.unary;
+          struct IRInstructionUnary* unary = &function->instruction_ptrs->node_pointers[i]->data.instruction_unary;
 
           switch (unary->op_type) {
             case IR_UNARY_NEGATE:     printf("Negate, "); break;
@@ -517,9 +517,9 @@ static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, IREm
 
   IRNode *unary_instruction = arena_alloc(node_arena);         
   unary_instruction->type = IR_INSTRUCTION_UNARY;
-  unary_instruction->data.unary.op_type = unary_op_type;
-  unary_instruction->data.unary.source = source;
-  unary_instruction->data.unary.destination = destination;
+  unary_instruction->data.instruction_unary.op_type = unary_op_type;
+  unary_instruction->data.instruction_unary.source = source;
+  unary_instruction->data.instruction_unary.destination = destination;
 
   add_instruction_to_function(function, unary_instruction);
 

@@ -264,6 +264,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       break;
     default:
       fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
+      exit(1);
   }
 }
 

@@ -12,6 +12,7 @@ typedef enum {
   ASM_PROGRAM,
   ASM_FUNCTION,
   ASM_STATIC_VARIABLE,
+  ASM_STATIC_CONSTANT,
   ASM_INSTRUCTION_MOV,
   ASM_INSTRUCTION_MOVSX,
   ASM_INSTRUCTION_MOV_ZERO_EXTEND,
@@ -111,7 +112,7 @@ typedef enum {
 typedef struct {
   AsmBackendSymbolType type;
   union {
-    struct ObjectEntry { AsmType assembly_type; bool is_static; } object_entry;
+    struct ObjectEntry { AsmType assembly_type; bool is_static; bool is_constant; } object_entry;
     struct FunctionEntry { bool is_defined; } function_entry;
   } data;
 } AsmBackendSymbol;

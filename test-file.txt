@@ -1,26 +1,17 @@
 int main(void) {
-    goto test;
-    {
-        test:
+    double a = 4.5;
+    double b = 2.6;
+
+    double c = 2.0 / b;
+
+    int i = 9;
+    i = ~i;
+
+    if (i == 10) {
+        return 10;
+    } else {
+        return 5;
     }
+
     return 0;
 }
-
-//int main(void) {
-//  int n = 7;
-//  int j  = 4;
-//
-//  goto lab5; // invalid: going INTO scope of VLA.
-//  {
-//  double a[n] = {};
-//  a[j] = 4.4;
-//  lab3:
-//  a[j] = 3.3;
-//  goto lab4; // valid: going WITHIN scope of VLA.
-//  a[j] = 5.5;
-//  lab4:
-//  a[j] = 6.6;
-//  lab5:
-//  }
-//  goto lab5; // invalid: going INTO scope of VLA.
-//}
