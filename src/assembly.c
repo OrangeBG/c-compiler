@@ -1206,6 +1206,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   static_constant->data.static_constant.static_init = symbol->data.variable_symbol;
 
   add_to_node_pointer(static_constant, assembly->top_level_declarations);  
+  add_to_node_pointer(static_constant, assembly->static_constants);
   
   AsmNode *data_operand = arena_alloc(assembly->asm_arena);
   data_operand->type = ASM_OPERAND_DATA;
