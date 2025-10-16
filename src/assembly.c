@@ -1234,10 +1234,10 @@ static void emit_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruc
   mov_instruction->data.instruction_mov.destination = destination;
 
   //TODO: This feels hacky. Find a better type of way to do this kind of check within the conversion function
-  if (ir_copy_instruction->data.instruction_copy.source->type == IR_VALUE_VAR && strncmp("tmp.", ir_copy_instruction->data.instruction_copy.source->data.value_var.identifier, 4) != 0) {
+  //if (ir_copy_instruction->data.instruction_copy.source->type == IR_VALUE_VAR && strncmp("tmp.", ir_copy_instruction->data.instruction_copy.source->data.value_var.identifier, 4) != 0) {
     AsmType source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, declaration_symbol_table);
     mov_instruction->data.instruction_mov.assembly_type = source_type;
-  }
+  //}
 
   add_instruction_to_function(asm_function, mov_instruction);
 }
