@@ -125,7 +125,7 @@ typedef struct {
 typedef struct AsmNode {
   AsmNodeType type;
   union {
-    struct AsmProgram { AsmNodePointers *top_level_pointers; int top_level_count; } program;
+    struct AsmProgram { AsmNodePointers *top_level_pointers; int top_level_count; AsmNodePointers *static_constant_pointers; } program;
     struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
     struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol *static_variable_symbol; } static_variable;
     struct AsmStaticConstant { char *identifier; int alignment; VariableSymbol *static_init; } static_constant;
