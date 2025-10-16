@@ -1151,10 +1151,19 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Arena 
     double top_level_double = top_level_pointers->asm_pointers[i]->data.static_constant.static_init->static_initial_value.double_value; 
 
     //0.0 and -0.0 should be treated independantly. A new top level entry should be made for both if they are both declared
+    //TODO: Look into de-duplicating the data alloc that happend here and below when a top level declaration is new
     if (ir_double == 0.0 && top_level_double == 0.0 && signbit(ir_double) == signbit(top_level_double)) {
-      return top_level_pointers->asm_pointers[i];
+      AsmNode *data = arena_alloc(asm_arena);
+      data->type = ASM_OPERAND_DATA;
+      data->data.operand_data.identifier = top_level_pointers->asm_pointers[i]->data.static_constant.identifier;
+
+      return data;
     } else if (ir_double == top_level_double) {
-      return top_level_pointers->asm_pointers[i];
+      AsmNode *data = arena_alloc(asm_arena);
+      data->type = ASM_OPERAND_DATA;
+      data->data.operand_data.identifier = top_level_pointers->asm_pointers[i]->data.static_constant.identifier;
+
+      return data;
     }    
   }
 
