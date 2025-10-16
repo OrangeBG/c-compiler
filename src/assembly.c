@@ -75,6 +75,7 @@ static void         convert_declaration_table_to_backend_table(DeclarationSymbol
 static int          round_stack_offset(int stack_offset); 
 static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
 static AsmType      get_instruction_type(AsmNode *instruction); 
+static void         print_assembly_type(AsmType type); 
 // static bool         is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
@@ -2321,6 +2322,7 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_INSTRUCTION_MOV:
       printf("MOV -> ");
+      print_assembly_type(node->data.instruction_mov.assembly_type);
       printf("Src( ");
       print_assembly(node->data.instruction_mov.source);
       printf(") Dest( ");
@@ -2339,7 +2341,9 @@ void print_assembly(AsmNode *node) {
       printf("RET -> \n");
       break;
     case ASM_INSTRUCTION_UNARY:
-      printf("UNARY -> Operator( ");
+      printf("UNARY -> ");
+      print_assembly_type(node->data.instruction_unary.assembly_type);
+      printf("Operator( ");
       switch (node->data.instruction_unary.unary_op) {
         case ASM_UNARY_NEG: printf("NEG )"); break;
         case ASM_UNARY_NOT: printf("NOT )"); break;
@@ -2362,6 +2366,8 @@ void print_assembly(AsmNode *node) {
         case ASM_BINARY_BITWISE_LEFT_SHIFT:   printf("SHL -> "); break;
         case ASM_BINARY_BITWISE_RIGHT_SHIFT:  printf("SHR -> "); break;
       }
+
+      print_assembly_type(node->data.instruction_binary.assembly_type);
       printf("Src( ");
       print_assembly(node->data.instruction_binary.operand_1);
       printf(") Dest(");
@@ -2370,15 +2376,21 @@ void print_assembly(AsmNode *node) {
       printf("\n");
       break;
     case ASM_INSTRUCTION_CDQ:
-      printf("CDQ Instruction\n");
+      printf("CDQ Instruction");
+      print_assembly_type(node->data.instruction_cdq.assembly_type);
+      printf("\n");
       break;
     case ASM_INSTRUCTION_IDIV:
-      printf("IDIV Instruction\n");
+      printf("IDIV Instruction ");
+      print_assembly_type(node->data.instruction_idiv.assembly_type);
+      printf("\n");
       print_assembly(node->data.instruction_idiv.operand);
       printf("\n");
       break;
     case ASM_INSTRUCTION_DIV:
-      printf("DIV Instruction\n");
+      printf("DIV Instruction");
+      print_assembly_type(node->data.instruction_div.assembly_type);
+      printf("\n");
       print_assembly(node->data.instruction_div.operand);
       printf("\n");
       break;
@@ -2420,7 +2432,9 @@ void print_assembly(AsmNode *node) {
       printf(" )\n");
       break;
     case ASM_INSTRUCTION_CMP:
-      printf("CMP -> Operand( "); 
+      printf("CMP -> "); 
+      print_assembly_type(node->data.instruction_cmp.assembly_type);
+      printf("Operand( ");
       print_assembly(node->data.instruction_cmp.operand_1);
       printf("), Operand( ");
       print_assembly(node->data.instruction_cmp.operand_2);
@@ -2430,14 +2444,18 @@ void print_assembly(AsmNode *node) {
       printf("LABEL -> %s\n", node->data.instruction_label.identifier);
       break;
     case ASM_INSTRUCTION_CVTTSD2SI:
-      printf("CVTTSD2SI -> Operand( ");
+      printf("CVTTSD2SI -> ");
+      print_assembly_type(node->data.instruction_cvttsd2si.destination_assembly_type);
+      printf("Operand( ");
       print_assembly(node->data.instruction_cvttsd2si.source_operand);
       printf("), Operand( ");
       print_assembly(node->data.instruction_cvttsd2si.destination_operand);
       printf(")\n");
       break;
     case ASM_INSTRUCTION_CVTSI2SD:
-      printf("CVTSI2SD -> Operand( ");
+      printf("CVTSI2SD -> ");
+      print_assembly_type(node->data.instruction_cvtsi2sd.source_assembly_type);
+      printf("Operand( ");
       print_assembly(node->data.instruction_cvtsi2sd.source_operand);
       printf("), Operand( ");
       print_assembly(node->data.instruction_cvtsi2sd.destination_operand);
@@ -2493,6 +2511,17 @@ void print_assembly(AsmNode *node) {
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
       exit(1);
       break;
+  }
+}
+
+static void print_assembly_type(AsmType type) {
+  switch(type) {
+    case ASM_TYPE_QUADWORD: printf("Type(Quadword) "); return;
+    case ASM_TYPE_LONGWORD: printf("Type(Longword) "); return;
+    case ASM_TYPE_DOUBLE:   printf("Type(Double) "); return;
+    default:
+      fprintf(stderr, "ERROR - Assembler: AsmType '%d' not supported for assembly type printing\n", type);
+      exit(1);
   }
 }
 
