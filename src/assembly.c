@@ -1028,6 +1028,7 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Assembly *
           case IR_BINARY_LESS_THAN:
           case IR_BINARY_LESS_OR_EQUAL:
             emit_instruction_binary_relational(asm_function, current_ir_node, assembly);
+            break;
           case IR_BINARY_DIVIDE: {
             AsmType source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, assembly->declaration_symbol_table);
             AsmType source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, assembly->declaration_symbol_table);
@@ -2769,6 +2770,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
       return false;
     case TYPE_INT:
     case TYPE_LONG:
+    case TYPE_DOUBLE:
       return true;
     default:
       fprintf(stderr, "ERROR: Assembly - Unsupported value type '%d' when attempting to find if IR Value is signed", value_type);

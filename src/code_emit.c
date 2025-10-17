@@ -277,9 +277,23 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       break;
     case ASM_OPERAND_REGISTER: {
       //TODO: Check to see if we only pull 32 bit registers here
-      char *operand_register = get_4_byte_register(asm_node->data.operand_register.op_register);
-      fprintf(file, "%s", operand_register);
-      break;
+      switch(asm_node->data.operand_register.op_register) {
+        case ASM_REGISTER_XMM0:  fprintf(file, "%%xmm0"); return;
+        case ASM_REGISTER_XMM1:  fprintf(file, "%%xmm1"); return;
+        case ASM_REGISTER_XMM2:  fprintf(file, "%%xmm2"); return;
+        case ASM_REGISTER_XMM3:  fprintf(file, "%%xmm3"); return;
+        case ASM_REGISTER_XMM4:  fprintf(file, "%%xmm4"); return;
+        case ASM_REGISTER_XMM5:  fprintf(file, "%%xmm5"); return;
+        case ASM_REGISTER_XMM6:  fprintf(file, "%%xmm6"); return;
+        case ASM_REGISTER_XMM7:  fprintf(file, "%%xmm7"); return;
+        case ASM_REGISTER_XMM14: fprintf(file, "%%xmm14"); return;
+        case ASM_REGISTER_XMM15: fprintf(file, "%%xmm15"); return;
+        default: {
+          char *operand_register = get_4_byte_register(asm_node->data.operand_register.op_register);
+          fprintf(file, "%s", operand_register);
+          return;
+        }        
+      }
     }
     case ASM_OPERAND_STACK:
       fprintf(file, "-%d(%%rbp)", asm_node->data.operand_stack.address);
