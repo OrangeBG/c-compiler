@@ -38,8 +38,8 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       #endif
 
       //Function prologue
-      fprintf(file, "\tpushq\t%%rbp\n");
-      fprintf(file, "\tmovq\t%%rsp, %%rbp\n");
+      fprintf(file, "\tpushq\t\t%%rbp\n");
+      fprintf(file, "\tmovq\t\t%%rsp, %%rbp\n");
 
       for (int i = 0; i < asm_node->data.function.instruction_count; i++) {
         save_assembly_file(asm_node->data.function.instruction_pointers->asm_pointers[i], file);
@@ -112,7 +112,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tmov");
 
       print_instruction_suffix(file, asm_node->data.instruction_mov.assembly_type);      
-      fprintf(file, "\t");
+      fprintf(file, "\t\t");
       
       save_assembly_file(asm_node->data.instruction_mov.source, file);
       fprintf(file, ", ");
@@ -120,7 +120,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_MOVSX:
-      fprintf(file, "\tmovslq\t");
+      fprintf(file, "\tmovslq\t\t");
       save_assembly_file(asm_node->data.instruction_movsx.source, file);
       fprintf(file, ", ");
       save_assembly_file(asm_node->data.instruction_movsx.destination, file);      
@@ -134,7 +134,11 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
 
       print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type);
-      fprintf(file, "\t");
+      if (asm_node->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE) {
+        fprintf(file, "\t");
+      } else {
+        fprintf(file, "\t\t");
+      }
       
       save_assembly_file(asm_node->data.instruction_cmp.operand_1, file);
       fprintf(file, ", ");
@@ -142,17 +146,17 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_JMP:
-      fprintf(file, "\tjmp\tL%s\n", asm_node->data.instruction_label.identifier);
+      fprintf(file, "\tjmp\t\tL%s\n", asm_node->data.instruction_label.identifier);
       break;
     case ASM_INSTRUCTION_JMPCC:
       fprintf(file, "\tj");
       print_condition_code(file, asm_node->data.instruction_jmp_cc.condition_code);
-      fprintf(file, "\tL%s\n", asm_node->data.instruction_jmp_cc.identifier);
+      fprintf(file, "\t\tL%s\n", asm_node->data.instruction_jmp_cc.identifier);
       break;
     case ASM_INSTRUCTION_SETCC:
       fprintf(file, "\tset");
       print_condition_code(file, asm_node->data.instruction_set_cc.condition_code);
-      fprintf(file, "\t");
+      fprintf(file, "\t\t");
 
       //1 Byte name registers for set cc
       if (asm_node->data.instruction_set_cc.operand->type == ASM_OPERAND_REGISTER) {
@@ -174,7 +178,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
 
       print_instruction_suffix(file, asm_node->data.instruction_unary.assembly_type);
-      fprintf(file, "\t");
+      fprintf(file, "\t\t");
       
       save_assembly_file(asm_node->data.instruction_unary.operand, file);
       fprintf(file, "\n");
@@ -198,7 +202,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type);
       }
 
-      fprintf(file, "\t");
+      fprintf(file, "\t\t");
       
       save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
       fprintf(file, ", ");
@@ -216,7 +220,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tidiv");
 
       print_instruction_suffix(file, asm_node->data.instruction_idiv.assembly_type);
-      fprintf(file, "\t");
+      fprintf(file, "\t\t");
       
       save_assembly_file(asm_node->data.instruction_idiv.operand, file);
       fprintf(file, "\n");
@@ -225,22 +229,22 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tdiv");
 
       print_instruction_suffix(file, asm_node->data.instruction_div.assembly_type);
-      fprintf(file, "\t");
+      fprintf(file, "\t\t");
       
       save_assembly_file(asm_node->data.instruction_div.operand, file);
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_RET:
       //Function epilogue
-      fprintf(file, "\tmovq\t%%rbp, %%rsp\n");
-      fprintf(file, "\tpopq\t%%rbp\n");
+      fprintf(file, "\tmovq\t\t%%rbp, %%rsp\n");
+      fprintf(file, "\tpopq\t\t%%rbp\n");
       fprintf(file, "\tret\n");
       break;
     case ASM_INSTRUCTION_CALL:
-      fprintf(file, "\tcall\t%s\n", asm_node->data.instruction_call.identifier);
+      fprintf(file, "\tcall\t\t%s\n", asm_node->data.instruction_call.identifier);
       break;
     case ASM_INSTRUCTION_PUSH:
-      fprintf(file, "\tpush\t"); 
+      fprintf(file, "\tpush\t\t"); 
 
       if (asm_node->data.instruction_push.operand->type == ASM_OPERAND_REGISTER) {
         char *operand_register = get_8_byte_register(asm_node->data.instruction_push.operand->data.operand_register.op_register);
@@ -255,7 +259,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       print_instruction_suffix(file, asm_node->data.instruction_cvtsi2sd.source_assembly_type);
 
-      fprintf(file, "\t"); 
+      fprintf(file, "\t\t"); 
       save_assembly_file(asm_node->data.instruction_cvtsi2sd.source_operand, file);
       fprintf(file, ", ");
       save_assembly_file(asm_node->data.instruction_cvtsi2sd.destination_operand, file);

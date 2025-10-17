@@ -59,3 +59,4 @@
 	- Add switch statements support: Refer to pg 159 - Sandler Nora.
 	- Add procedure link table calling support for linux pg 201 - Sandler Nora
 	- Look into implementing Global Offset Table - pg 221 - Sandler Nora
+	- Implement NaN - pg 342
