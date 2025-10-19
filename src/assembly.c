@@ -2734,9 +2734,10 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
           asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_QUADWORD;
           break;
         case TYPE_DOUBLE:
-            //TODO: Confirm that this is always the case
-            asm_backend_symbol->data.object_entry.is_constant = true;
-            asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_DOUBLE;
+          //TODO: Confirm that this is always the case
+          asm_backend_symbol->data.object_entry.is_constant = true;
+          asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_DOUBLE;
+          break;
         default:
           fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type\n");
           exit(1);
