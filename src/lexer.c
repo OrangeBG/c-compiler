@@ -111,7 +111,7 @@ void load_tokens(Lexer *lexer, char *file) {
       continue;
     } 
 
-    if (is_numeric_char(cur_char)) {
+    if (is_numeric_char(cur_char) || cur_char == '.') {
       add_constant_token(lexer, file);
 
       lexer->start_index = lexer->current_index + 1;
@@ -429,7 +429,7 @@ static void add_constant_token(Lexer *lexer, char *file) {
     return;
   }
 
-  if (file[lexer->current_index + 1] == '.') {
+  if (file[lexer->current_index + 1] == '.' || file[lexer->current_index + 1] == 'e' || file[lexer->current_index + 1] == 'E') {
     lexer->current_index++;
 
     while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
