@@ -66,7 +66,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
           asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
           break;
         default:
-          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found", asm_node->data.static_variable.static_variable_symbol->value_type);
+          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", asm_node->data.static_variable.static_variable_symbol->value_type);
           exit(1);
       }      
 
