@@ -978,6 +978,25 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Assembly *
     mov_instruction->data.instruction_mov.source = source_operand;
     mov_instruction->data.instruction_mov.destination = destination_pseudo_register;
 
+    //TODO: Am doing this type of check in a few places in the assembler.
+    switch (parameter_type) {
+      case TYPE_INT:
+      case TYPE_UINT:
+        mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
+        break;
+      case TYPE_LONG:
+      case TYPE_ULONG:
+        mov_instruction->data.instruction_mov.assembly_type =  ASM_TYPE_QUADWORD;
+        break;
+      case TYPE_DOUBLE:
+        mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
+        break;
+      default:
+        fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Constant Type\n", parameter_type);
+        exit(1);
+        break;        
+      }
+
     add_instruction_to_function(asm_function, mov_instruction);
   }
 
@@ -1802,6 +1821,7 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
       AsmNode *mov_instruction = arena_alloc(assembly->asm_arena);
       mov_instruction->type = ASM_INSTRUCTION_MOV;
       mov_instruction->data.instruction_mov.source = arg;
+      mov_instruction->data.instruction_mov.assembly_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
 
       AsmNode *destination = arena_alloc(assembly->asm_arena);
       destination->type = ASM_OPERAND_REGISTER;
@@ -1818,8 +1838,8 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
 
       add_instruction_to_function(asm_function, mov_instruction);
     } else {
-      AsmType instruction_type = get_instruction_type(arg);
-      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || instruction_type == ASM_TYPE_QUADWORD || instruction_type == ASM_TYPE_DOUBLE) {
+      //AsmType instruction_type = get_instruction_type(arg);
+      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || get_instruction_type(arg) == ASM_TYPE_QUADWORD || get_instruction_type(arg) == ASM_TYPE_DOUBLE) {
         AsmNode *push_instruction = arena_alloc(assembly->asm_arena);
         push_instruction->type = ASM_INSTRUCTION_PUSH;  
         push_instruction->data.instruction_push.operand = arg;
@@ -1831,7 +1851,8 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
         AsmNode *mov_instruction = arena_alloc(assembly->asm_arena);
         mov_instruction->type = ASM_INSTRUCTION_MOV;  
         mov_instruction->data.instruction_mov.source = arg;
-        mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
+        //mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
+        mov_instruction->data.instruction_mov.assembly_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
 
         add_instruction_to_function(asm_function, mov_instruction);
 
@@ -1882,7 +1903,30 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
 
   //retrieve return value 
   AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
-  AsmType return_type = get_instruction_type(assembly_destination);
+
+  //TODO: @Cleanup - This needs a clean up. Do a conversion function from declaration symbol to asm type. Check to see if entry is found or else throw exception. Don't assume that found entry is a function symbol
+  // AsmType return_type = get_instruction_type(assembly_destination);
+
+  HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function_call_instruction->data.instruction_function_call.identifier);
+  DeclarationSymbol *declaration_symbol = entry->value->structure;
+  
+  AsmType return_type;
+
+  switch (declaration_symbol->data.function_symbol->value_type) {
+    case TYPE_INT:   
+    case TYPE_UINT:
+      return_type = ASM_TYPE_LONGWORD;
+      break;
+    case TYPE_LONG:  
+    case TYPE_ULONG:
+      return_type = ASM_TYPE_QUADWORD;
+      break;
+    case TYPE_DOUBLE:
+        return_type = ASM_TYPE_DOUBLE;
+    default:
+      fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to assembly type for function calls\n");
+      exit(1);
+  }
 
   AsmNode *dest_register = arena_alloc(assembly->asm_arena);
   dest_register->type = ASM_OPERAND_REGISTER;
@@ -2574,6 +2618,15 @@ static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declarati
 
       return declaration_symbol->data.variable_symbol->value_type;
     }
+    case IR_INSTRUCTION_FUNCTION_CALL: {
+      //TODO: Add some error checking
+      HashTableEntry *function_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.instruction_function_call.identifier);
+     
+      DeclarationSymbol *declaration_symbol = function_hash_entry->value->structure;
+
+      return declaration_symbol->data.function_symbol->value_type;
+      break;
+    }
     default:
       fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to get node Type\n", ir_node->type);
       exit(1);
@@ -2633,8 +2686,9 @@ static AsmType get_instruction_type(AsmNode *instruction) {
     case ASM_INSTRUCTION_CMP: return instruction->data.instruction_cmp.assembly_type;
     case ASM_INSTRUCTION_IDIV: return instruction->data.instruction_idiv.assembly_type;
     case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type;
+    //case ASM_OPERAND_IMM: return ASM_TYPE_LONGWORD;
     default:
-      fprintf(stderr, "ERROR - Assembler: Could not get instruction type for instruction %d", instruction->type);
+      fprintf(stderr, "ERROR - Assembler: Could not get instruction type for ASM instruction '%d'\n", instruction->type);
       exit(1);
   }
 }
@@ -2677,14 +2731,12 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
           break;
         case TYPE_LONG:  
         case TYPE_ULONG:
-        case TYPE_DOUBLE:
           asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_QUADWORD;
-
-          if (declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE) {
+          break;
+        case TYPE_DOUBLE:
             //TODO: Confirm that this is always the case
             asm_backend_symbol->data.object_entry.is_constant = true;
-          }
-          break;
+            asm_backend_symbol->data.object_entry.assembly_type = ASM_TYPE_DOUBLE;
         default:
           fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to backend assembly type\n");
           exit(1);
