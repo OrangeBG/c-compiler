@@ -23,6 +23,11 @@ typedef struct Parser {
   char* file;
   Arena* node_arena;
 } Parser;
+
+typedef struct Specifier {
+  StorageClassType storage_class_type;
+  Types specifier_type;
+} Specifier;
  
 static void       parse_program(Parser *parser, AstNode *program_node);
 static void       parse_declaration(Parser *parser, AstNode *declaration_node); 
@@ -54,6 +59,8 @@ static void       parse_factor_cast_expression(Parser *parser, AstNode *factor_n
 static void       parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
 static void       parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 static void       parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
+static Specifier  parse_specifier(Parser *parser);
+static Types      expect_type_specifier(Parser *parser); 
 static Token*     current_token(const Parser *parser);
 static Token*     previous_token(const Parser *parser);
 static TokenType  peek_next_token(const Parser *parser); 
@@ -67,7 +74,6 @@ static bool       is_type_identifier_token(TokenType token_type);
 static int        get_precedence(TokenType token_type);
 static void       add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 static void       add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
-static Types      expect_type_specifier(Parser *parser); 
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -550,25 +556,15 @@ static void parse_program(Parser *parser, AstNode *program_node) {
 }
 
 static void parse_declaration(Parser *parser, AstNode *declaration_node) {
-  StorageClassType storage_class_type = AST_STORAGE_CLASS_NONE;
-
-  if (current_token(parser)->type == TOKEN_EXTERN) {
-    storage_class_type = AST_STORAGE_CLASS_EXTERN;
-    expect(parser, TOKEN_EXTERN);
-  } else if (current_token(parser)->type == TOKEN_STATIC) {
-    storage_class_type = AST_STORAGE_CLASS_STATIC;
-    expect(parser, TOKEN_STATIC);
-  }
-  
-  Types type_specifier = expect_type_specifier(parser);
+  Specifier specifier = parse_specifier(parser);
 
   //Variable Declaration -> int c; or int c = 0; 
   if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
-    parse_variable_declaration(parser, declaration_node, storage_class_type, type_specifier);
+    parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
     return;
   }
 
-  parse_function_declaration(parser, declaration_node, storage_class_type, type_specifier);
+  parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
 }
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {
@@ -896,6 +892,9 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
   } else if (current_token(parser)->type == TOKEN_INT) {
     expect(parser, TOKEN_INT);
     parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, TYPE_INT);
+  } else if (current_token(parser)->type == TOKEN_LONG) {
+    expect(parser, TOKEN_LONG);
+    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, TYPE_LONG);
   } else if (current_token(parser)->type == TOKEN_DOUBLE) {
     expect(parser, TOKEN_DOUBLE);
     parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, TYPE_DOUBLE);
@@ -1367,6 +1366,105 @@ static void parse_factor_function_call(Parser *parser, AstNode *factor_node, cha
 
   expect(parser, TOKEN_CLOSE_PAREN);
 } 
+
+static Specifier parse_specifier(Parser *parser) {
+  Specifier specifier;
+
+  if (current_token(parser)->type == TOKEN_VOID) {
+    expect(parser, TOKEN_VOID);
+
+    specifier.specifier_type = TYPE_VOID;
+    specifier.storage_class_type = AST_STORAGE_CLASS_NONE;
+
+    return specifier;
+  }
+
+  TokenType type_specifiers[4];
+  int type_specifier_count = 0;
+  int unsigned_count = 0;
+  int signed_count = 0;
+
+  while(true) {
+    switch (current_token(parser)->type) {
+      case TOKEN_STATIC:
+        specifier.storage_class_type = AST_STORAGE_CLASS_STATIC;
+        parser->current_token_index++;
+        continue;
+      case TOKEN_EXTERN:
+        specifier.storage_class_type = AST_STORAGE_CLASS_EXTERN;
+        parser->current_token_index++;
+        continue;
+      case TOKEN_UNSIGNED:
+      case TOKEN_SIGNED:
+      case TOKEN_INT:
+      case TOKEN_LONG:
+      case TOKEN_DOUBLE: {
+        if (current_token(parser)->type == TOKEN_UNSIGNED) {
+          unsigned_count++;
+        } else if (current_token(parser)->type == TOKEN_SIGNED) {
+          signed_count++;
+        }
+        
+        type_specifiers[type_specifier_count] = current_token(parser)->type;
+        type_specifier_count++;
+        parser->current_token_index++;
+        continue;
+      }
+    }
+
+    break;    
+  }
+
+  if (unsigned_count >= 1 && signed_count > 0) {
+    fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
+    exit(1);
+  }
+
+  if (signed_count >= 1 && unsigned_count > 0) {
+    fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
+    exit(1);
+  }
+
+  for (int i = 0; i < type_specifier_count; i++) {
+    if (type_specifiers[i] == TOKEN_DOUBLE) {
+      if (type_specifier_count > 1) {
+        fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. Line %d\n", current_token(parser)->line);
+        exit(1);
+      } else {
+        specifier.specifier_type = TYPE_DOUBLE;
+        return specifier;
+      }
+    }
+    
+    if (type_specifiers[i] == TOKEN_LONG) {
+      if (unsigned_count) {
+        specifier.specifier_type = TYPE_ULONG;
+      } else {
+        specifier.specifier_type = TYPE_LONG;
+      }
+      
+      return specifier;
+    }
+
+    if (type_specifiers[i] == TOKEN_INT ) {
+      if (unsigned_count) {
+        specifier.specifier_type = TYPE_UINT;
+      } else {
+        specifier.specifier_type = TYPE_INT;
+      }
+
+      return specifier;        
+    }
+  }
+
+  if (unsigned_count) {
+    specifier.specifier_type = TYPE_UINT;
+  } else {
+    specifier.specifier_type = TYPE_INT;
+  }
+
+  return specifier;
+}
 
 static int get_precedence(TokenType token_type) {
   switch (token_type) {
