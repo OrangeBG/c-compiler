@@ -1535,6 +1535,7 @@ static bool is_type_identifier_token(TokenType token_type) {
   switch(token_type) {
     case TOKEN_INT:
     case TOKEN_LONG:
+    case TOKEN_DOUBLE:
     case TOKEN_UNSIGNED:
     case TOKEN_SIGNED:
       return true;
