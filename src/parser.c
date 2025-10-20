@@ -59,8 +59,7 @@ static void       parse_factor_cast_expression(Parser *parser, AstNode *factor_n
 static void       parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
 static void       parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 static void       parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
-static Specifier  parse_specifier(Parser *parser);
-static Types      expect_type_specifier(Parser *parser); 
+static Specifier  parse_specifier(Parser *parser, bool error_if_storage_class_found);
 static Token*     current_token(const Parser *parser);
 static Token*     previous_token(const Parser *parser);
 static TokenType  peek_next_token(const Parser *parser); 
@@ -556,7 +555,7 @@ static void parse_program(Parser *parser, AstNode *program_node) {
 }
 
 static void parse_declaration(Parser *parser, AstNode *declaration_node) {
-  Specifier specifier = parse_specifier(parser);
+  Specifier specifier = parse_specifier(parser, false);
 
   //Variable Declaration -> int c; or int c = 0; 
   if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
@@ -594,10 +593,11 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   AstNode *parameter_type = arena_alloc(parser->node_arena);
   parameter_type->type = AST_TYPE;
 
-  Types parameter_type_specifier = expect_type_specifier(parser);
-  parameter_type->data.type.type = parameter_type_specifier;
+  Specifier parameter_specifier = parse_specifier(parser, true);
 
-  if (parameter_type_specifier != TYPE_VOID) {
+  parameter_type->data.type.type = parameter_specifier.specifier_type;
+
+  if (parameter_specifier.specifier_type != TYPE_VOID) {
     char *identifier = get_identifier(parser);
     add_function_parameter_identifier(identifier, function_node);
   }
@@ -610,10 +610,10 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
     AstNode *next_parameter_type = arena_alloc(parser->node_arena);
     next_parameter_type->type = AST_TYPE;
     
-    Types next_parameter_type_specifier = expect_type_specifier(parser);
-    next_parameter_type->data.type.type = next_parameter_type_specifier;
+    Specifier next_parameter_specifier = parse_specifier(parser, true);
+    next_parameter_type->data.type.type = next_parameter_specifier.specifier_type;
 
-    if (next_parameter_type_specifier != TYPE_VOID) {
+    if (next_parameter_specifier.specifier_type != TYPE_VOID) {
       char *identifier = get_identifier(parser);
       add_function_parameter_identifier(identifier, function_node);
     }
@@ -1308,7 +1308,9 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
 
   AstNode *type_node = arena_alloc(parser->node_arena);
   type_node->type = AST_TYPE;
-  type_node->data.type.type = expect_type_specifier(parser);
+
+  Specifier specifier = parse_specifier(parser, true);
+  type_node->data.type.type = specifier.specifier_type; 
 
   expect(parser, TOKEN_CLOSE_PAREN);
 
@@ -1367,7 +1369,7 @@ static void parse_factor_function_call(Parser *parser, AstNode *factor_node, cha
   expect(parser, TOKEN_CLOSE_PAREN);
 } 
 
-static Specifier parse_specifier(Parser *parser) {
+static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_found) {
   Specifier specifier;
 
   if (current_token(parser)->type == TOKEN_VOID) {
@@ -1387,10 +1389,20 @@ static Specifier parse_specifier(Parser *parser) {
   while(true) {
     switch (current_token(parser)->type) {
       case TOKEN_STATIC:
+        if (error_if_storage_class_found) {
+          fprintf(stderr, "ERROR - Parser: Declared type cannot contain 'static' storage class (line %d)\n", current_token(parser)->line);
+          exit(1);
+        }
+        
         specifier.storage_class_type = AST_STORAGE_CLASS_STATIC;
         parser->current_token_index++;
         continue;
       case TOKEN_EXTERN:
+        if (error_if_storage_class_found) {
+          fprintf(stderr, "ERROR - Parser: Declared type cannot contain 'extern' storage class (line %d)\n", current_token(parser)->line);
+          exit(1);
+        }
+
         specifier.storage_class_type = AST_STORAGE_CLASS_EXTERN;
         parser->current_token_index++;
         continue;
@@ -1553,68 +1565,3 @@ static void add_function_parameter_type(AstNode *function_parameter_type, AstNod
   function_type->data.type.function_param_type_count++;
 }   
 
-static Types expect_type_specifier(Parser *parser) {
-  if (current_token(parser)->type == TOKEN_VOID) {
-    expect(parser, TOKEN_VOID);
-    return TYPE_VOID;
-  }
-
-  TokenType type_specifiers[4];
-  int type_specifier_count = 0;
-  int unsigned_count = 0;
-  int signed_count = 0;
-
-  while(true) {
-    switch (current_token(parser)->type) {
-      case TOKEN_UNSIGNED:
-      case TOKEN_SIGNED:
-      case TOKEN_INT:
-      case TOKEN_LONG:
-      case TOKEN_DOUBLE: {
-        if (current_token(parser)->type == TOKEN_UNSIGNED) {
-          unsigned_count++;
-        } else if (current_token(parser)->type == TOKEN_SIGNED) {
-          signed_count++;
-        }
-        
-        type_specifiers[type_specifier_count] = current_token(parser)->type;
-        type_specifier_count++;
-        parser->current_token_index++;
-        continue;
-      }
-    }
-
-    break;    
-  }
-
-  if (unsigned_count >= 1 && signed_count > 0) {
-    fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
-    exit(1);
-  }
-
-  if (signed_count >= 1 && unsigned_count > 0) {
-    fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
-    exit(1);
-  }
-
-  for (int i = 0; i < type_specifier_count; i++) {
-    if (type_specifiers[i] == TOKEN_DOUBLE) {
-      if (type_specifier_count > 1) {
-        fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. Line %d\n", current_token(parser)->line);
-        exit(1);
-      } else {
-        return TYPE_DOUBLE;
-      }
-    }
-    
-    if (type_specifiers[i] == TOKEN_LONG) {
-      return unsigned_count ? TYPE_ULONG : TYPE_LONG;
-    }
-
-    if (type_specifiers[i] == TOKEN_INT ) {
-      return unsigned_count ? TYPE_UINT : TYPE_INT;
-    }
-  }
-
-  return unsigned_count > 0 ? TYPE_UINT : TYPE_INT;
-}
