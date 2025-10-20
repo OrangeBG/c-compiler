@@ -27,6 +27,7 @@ typedef struct Parser {
 typedef struct Specifier {
   StorageClassType storage_class_type;
   Types specifier_type;
+  bool specifier_type_found;
 } Specifier;
  
 static void       parse_program(Parser *parser, AstNode *program_node);
@@ -885,25 +886,13 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
 
   AstNode *dec_or_exp = arena_alloc(parser->node_arena);
 
-  //TODO: This will not work when we introduce declaration types other than 'int'
-  if (current_token(parser)->type == TOKEN_SEMICOLON) {
+  Specifier type_specifier = parse_specifier(parser, true);
+
+  if (type_specifier.specifier_type_found) {
+    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, type_specifier.specifier_type);
+  } else if (current_token(parser)->type == TOKEN_SEMICOLON) {
     expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
-  } else if (current_token(parser)->type == TOKEN_INT) {
-    expect(parser, TOKEN_INT);
-    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, TYPE_INT);
-  } else if (current_token(parser)->type == TOKEN_LONG) {
-    expect(parser, TOKEN_LONG);
-    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, TYPE_LONG);
-  } else if (current_token(parser)->type == TOKEN_DOUBLE) {
-    expect(parser, TOKEN_DOUBLE);
-    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, TYPE_DOUBLE);
-  } else if (current_token(parser)->type == TOKEN_EXTERN) {
-    fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'extern' storage class defined\n");
-    exit(1);
-  } else if (current_token(parser)->type == TOKEN_STATIC) {
-    fprintf(stderr, "ERROR - Parser: For loop initializer has invalid 'static' storage class defined\n");
-    exit(1);
   } else {
     parse_expression(parser, &dec_or_exp, 0);
     //TODO: Weird we do this for expressions but are handled in ast_declaration()
@@ -1426,6 +1415,8 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
 
     break;    
   }
+
+  specifier.specifier_type_found = type_specifier_count == 0 ? false : true;
 
   if (unsigned_count >= 1 && signed_count > 0) {
     fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
