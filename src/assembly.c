@@ -1922,7 +1922,8 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
       return_type = ASM_TYPE_QUADWORD;
       break;
     case TYPE_DOUBLE:
-        return_type = ASM_TYPE_DOUBLE;
+      return_type = ASM_TYPE_DOUBLE;
+      break;
     default:
       fprintf(stderr, "ERROR - ASSEMBLER: Could not resolve declaration symbol type when attempting to convert to assembly type for function calls\n");
       exit(1);
