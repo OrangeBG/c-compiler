@@ -1375,6 +1375,8 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
   int unsigned_count = 0;
   int signed_count = 0;
 
+  specifier.storage_class_type = AST_STORAGE_CLASS_NONE;
+
   while(true) {
     switch (current_token(parser)->type) {
       case TOKEN_STATIC:
