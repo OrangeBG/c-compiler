@@ -1457,8 +1457,6 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       } else {
         specifier.specifier_type = TYPE_INT;
       }
-
-      return specifier;        
     }
   }
 
