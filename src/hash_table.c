@@ -82,6 +82,7 @@ static void hash_table_expand(HashTable *table, int new_capacity) {
 
   for (int i = 0; i < new_capacity; i++) {
     new_entries[i].key = NULL;
+    new_entries[i].value = NULL;
   }
 
   table->count = 0;
@@ -132,7 +133,7 @@ static uint32_t hash_key(char *key) {
 static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
   uint32_t hash = hash_key(key);
   int index = hash % capacity;
-  
+
   while (true) {
     HashTableEntry *entry = &entries[index]; 
 
