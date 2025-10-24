@@ -87,6 +87,12 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
             fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.function_declaration.name);
             exit(1);
           }
+
+          //We only want to add function param names for function definitions
+          if (node->data.function_declaration.body_block != NULL)
+          {
+            add_function_parameter_to_symbol_table(&node->data.function_declaration.function_type->data.type.function_param_types[i], node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+          }
         }
 
         if (!existing_function_symbol->data.function_symbol->is_defined && node->data.function_declaration.body_block != NULL) {
@@ -110,8 +116,12 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         if (parameter_type->data.type.type == TYPE_VOID) {
           continue;
         }
-        
-        add_function_parameter_to_symbol_table(parameter_type, node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+
+        //We only want to add function param names for function definitions
+        if (node->data.function_declaration.body_block != NULL)
+        {
+          add_function_parameter_to_symbol_table(parameter_type, node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+        }
       }
       
       DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.function_declaration.name, node->data.function_declaration.function_type->data.type.function_return_type->data.type.type, node->data.function_declaration.parameter_count, param_types, is_global, is_defined);
