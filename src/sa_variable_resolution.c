@@ -22,13 +22,13 @@ typedef struct {
   int stack_declaration_offset;
 } Declaration;
 
-static void variable_resolve_node(AstNode *node, Stack *declaration_stack); 
+static void variable_resolve_node(AstNode *node, Stack *declaration_stack, int function_count, int block_count); 
 static void resolve_file_scope_variable_declaration(char *identifier, enum DeclarationType declaration_type, HashTable *declaration_table);  
-static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count);   
+static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count, int function_count, int block_count);   
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); 
-static char* get_identifier_with_stack_offset(char *identifier, int stack_offset); 
+static char* get_identifier_with_stack_offset(char *identifier, int stack_offset, int function_count, int block_count); 
 static void push_new_declaration_stack(Stack *declaration_stack); 
-static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack); 
+static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack, int function_count); 
 static void print_declaration_stack(Stack *declaration_stack);
 
 void sa_variable_resolution(AstNode *ast_nodes) {
@@ -44,13 +44,20 @@ void sa_variable_resolution(AstNode *ast_nodes) {
 
   stack_push(declaration_stack, file_scope_stack);
 
+  int function_count = 0;
+
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
     AstNode *declaration_node = ast_nodes->data.program.declaration_ptrs->node_pointers[i];
-    variable_resolve_node(declaration_node, declaration_stack);
+
+    if (declaration_node->type == AST_FUNCTION_DECLARATION) {
+      function_count++;
+    }
+
+    variable_resolve_node(declaration_node, declaration_stack, function_count, 0);
   }
 }
 
-static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
+static void variable_resolve_node(AstNode *node, Stack *declaration_stack, int function_count, int block_count) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
@@ -60,7 +67,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       if (declaration_stack->count == 1) {
         identifier = node->data.variable_declaration.name;
       } else {
-        identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count);
+        identifier = get_identifier_with_stack_offset(node->data.variable_declaration.name, declaration_stack->count, function_count, block_count);
       }
 
       HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, identifier);
@@ -79,11 +86,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
           resolve_file_scope_variable_declaration(node->data.variable_declaration.name, DECLARATION_TYPE_VARIABLE, declaration_table);
         }
       } else {
-        resolve_local_scope_variable_declaration(node, DECLARATION_TYPE_VARIABLE, declaration_table, declaration_stack->count);   
+        resolve_local_scope_variable_declaration(node, DECLARATION_TYPE_VARIABLE, declaration_table, declaration_stack->count, function_count, block_count);   
       }
 
       if (node->data.variable_declaration.has_expression == true) {
-        variable_resolve_node(node->data.variable_declaration.init_expression, declaration_stack);
+        variable_resolve_node(node->data.variable_declaration.init_expression, declaration_stack, function_count, block_count);
       }      
       break;
     }
@@ -116,11 +123,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
       for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
         AstNode *param_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
-        resolve_function_parameter(param_type, node, i, declaration_stack);
+        resolve_function_parameter(param_type, node, i, declaration_stack, function_count);
       }
   
       if (node->data.function_declaration.body_block != NULL) {
-        variable_resolve_node(node->data.function_declaration.body_block, declaration_stack);
+        variable_resolve_node(node->data.function_declaration.body_block, declaration_stack, function_count, block_count);
       }
 
       stack_pop(declaration_stack);
@@ -138,7 +145,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
 
       for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
         AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
-        variable_resolve_node(argument_node, declaration_stack); 
+        variable_resolve_node(argument_node, declaration_stack, function_count, block_count); 
       }      
       break;      
     }
@@ -147,25 +154,25 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       
       for (int i = 0; i < node->data.block.block_count; i++) {   
         AstNode *block_item_node = node->data.block.block_ptrs->node_pointers[i];
-        variable_resolve_node(block_item_node, declaration_stack); 
-      }
+        variable_resolve_node(block_item_node, declaration_stack, function_count, block_count++); 
+       }
 
       stack_pop(declaration_stack);
 
       break;
     }
     case AST_STATEMENT_COMPOUND:
-      variable_resolve_node(node->data.compound_statement.block, declaration_stack);
+      variable_resolve_node(node->data.compound_statement.block, declaration_stack, function_count, block_count);
       break;
     case AST_STATEMENT_RETURN:
-      variable_resolve_node(node->data.return_statement.expression, declaration_stack);
+      variable_resolve_node(node->data.return_statement.expression, declaration_stack, function_count, block_count);
       break;
     case AST_STATEMENT_IF: {
-      variable_resolve_node(node->data.if_statement.condition_expression, declaration_stack);
-      variable_resolve_node(node->data.if_statement.then_statement, declaration_stack);
+      variable_resolve_node(node->data.if_statement.condition_expression, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.if_statement.then_statement, declaration_stack, function_count, block_count);
 
       if (node->data.if_statement.else_statement != NULL) {
-        variable_resolve_node(node->data.if_statement.else_statement, declaration_stack);
+        variable_resolve_node(node->data.if_statement.else_statement, declaration_stack, function_count, block_count);
       }
       break;
     }
@@ -173,30 +180,30 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       push_new_declaration_stack(declaration_stack);
 
       if (node->data.for_statement.for_loop_init != NULL) {
-        variable_resolve_node(node->data.for_statement.for_loop_init, declaration_stack);
+        variable_resolve_node(node->data.for_statement.for_loop_init, declaration_stack, function_count, block_count);
       }
 
       if (node->data.for_statement.condition_expression != NULL) {
-        variable_resolve_node(node->data.for_statement.condition_expression, declaration_stack);
+        variable_resolve_node(node->data.for_statement.condition_expression, declaration_stack, function_count, block_count);
       }
 
       if (node->data.for_statement.post_expression != NULL) {
-        variable_resolve_node(node->data.for_statement.post_expression, declaration_stack);
+        variable_resolve_node(node->data.for_statement.post_expression, declaration_stack, function_count, block_count);
       }
 
-      variable_resolve_node(node->data.for_statement.statement_body, declaration_stack);
+      variable_resolve_node(node->data.for_statement.statement_body, declaration_stack, function_count, block_count);
 
       stack_pop(declaration_stack);
       break;
     }
     case AST_STATEMENT_WHILE: {
-      variable_resolve_node(node->data.while_statement.condition, declaration_stack);
-      variable_resolve_node(node->data.while_statement.statement_body, declaration_stack);
+      variable_resolve_node(node->data.while_statement.condition, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.while_statement.statement_body, declaration_stack, function_count, block_count);
       break;
     }
     case AST_STATEMENT_DO_WHILE: {
-      variable_resolve_node(node->data.do_while_statement.condition, declaration_stack);
-      variable_resolve_node(node->data.do_while_statement.statement_body, declaration_stack);
+      variable_resolve_node(node->data.do_while_statement.condition, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.do_while_statement.statement_body, declaration_stack, function_count, block_count);
       break;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
@@ -205,31 +212,31 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
         exit(1);
       }
 
-      variable_resolve_node(node->data.assignement_expression.left_expression, declaration_stack);
-      variable_resolve_node(node->data.assignement_expression.right_expression, declaration_stack);
+      variable_resolve_node(node->data.assignement_expression.left_expression, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.assignement_expression.right_expression, declaration_stack, function_count, block_count);
       break;
     }
     case AST_EXPRESSION_BINARY: {
-      variable_resolve_node(node->data.binary_expression.left_expression, declaration_stack);
-      variable_resolve_node(node->data.binary_expression.right_expression, declaration_stack);
+      variable_resolve_node(node->data.binary_expression.left_expression, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.binary_expression.right_expression, declaration_stack, function_count, block_count);
       break;
     }
     case AST_EXPRESSION_CONDITIONAL:
-      variable_resolve_node(node->data.conditional_expression.condition, declaration_stack);
-      variable_resolve_node(node->data.conditional_expression.true_expression, declaration_stack);
-      variable_resolve_node(node->data.conditional_expression.false_expression, declaration_stack);
+      variable_resolve_node(node->data.conditional_expression.condition, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.conditional_expression.true_expression, declaration_stack, function_count, block_count);
+      variable_resolve_node(node->data.conditional_expression.false_expression, declaration_stack, function_count, block_count);
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT:
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT: 
-      variable_resolve_node(node->data.increment_decrement_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.increment_decrement_expression.expression, declaration_stack, function_count, block_count);
       break;
     case AST_EXPRESSION_UNARY:
-      variable_resolve_node(node->data.unary_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.unary_expression.expression, declaration_stack, function_count, block_count);
       break;
     case AST_EXPRESSION_CAST:
-      variable_resolve_node(node->data.cast_expression.expression, declaration_stack);
+      variable_resolve_node(node->data.cast_expression.expression, declaration_stack, function_count, block_count);
       break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
@@ -238,7 +245,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       //Check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
       char *found_period = (char*)memchr(node->data.variable_expression.identifier, '.', strlen(node->data.variable_expression.identifier));
       HashTableEntry *entry;
-      char *identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count);
+      char *identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, declaration_stack->count, function_count, block_count);
       
       entry = hash_table_get_entry(declaration_table, identifier);
 
@@ -259,14 +266,25 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack) {
       
       if (entry == NULL || entry->key == NULL) {
         //Check if there is a parent declared variable by traversing backwards from the current stack offset.
-        int stack_offset = declaration_stack->count - 1;
+        int stack_offset = declaration_stack->count;
+        int current_block_count = block_count;
+
+        bool entry_found = false;
 
         while (stack_offset > 0) {
-          char *previous_stack_identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, stack_offset);
-          entry = hash_table_get_entry(declaration_table, previous_stack_identifier);
+          for (int i = block_count; i >= 0; i--) {
+            char *previous_stack_identifier = get_identifier_with_stack_offset(node->data.variable_expression.identifier, stack_offset, function_count, i);
+
+            entry = hash_table_get_entry(declaration_table, previous_stack_identifier);
           
-          if (entry != NULL && entry->key != NULL) {
-            identifier = previous_stack_identifier;
+            if (entry != NULL && entry->key != NULL) {
+              identifier = previous_stack_identifier;
+              entry_found = true;
+              break;
+            }
+          }
+
+          if (entry_found) {
             break;
           }
 
@@ -308,10 +326,10 @@ static void resolve_file_scope_variable_declaration(char *identifier, enum Decla
   add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
 }
 
-static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count) {  
+static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, HashTable *declaration_table, int stack_count, int function_count, int block_count) {  
   char *identifier = ast_node->data.variable_declaration.name;
   char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_count);
+  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d.%d.%d", identifier, stack_count, function_count, block_count);
   HashTableEntry *table_entry = hash_table_get_entry(declaration_table, converted_identifier);
 
   if (table_entry != NULL && table_entry->key != NULL) {
@@ -331,7 +349,7 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
     file_scope_declaration->from_current_scope = true;
     file_scope_declaration->has_linkage = true;
 
-    add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
+    add_declaration_to_table(file_scope_declaration, converted_identifier, declaration_table);
 
     return;
   }
@@ -360,9 +378,9 @@ static void add_declaration_to_table(Declaration *declaration, char* identifier_
   hash_table_add_entry(declaration_table, entry);
 }
 
-static char* get_identifier_with_stack_offset(char *identifier, int stack_offset) {
+static char* get_identifier_with_stack_offset(char *identifier, int stack_offset, int function_count, int block_count) {
   char *converted_identifier = malloc(IDENTIFIER_BUFFER);
-  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d", identifier, stack_offset);
+  snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d.%d.%d", identifier, stack_offset, function_count, block_count);
 
   return converted_identifier;
 }
@@ -387,7 +405,7 @@ static void push_new_declaration_stack(Stack *declaration_stack) {
   stack_push(declaration_stack, new_stack_value);
 }
 
-static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack) {
+static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, Stack *declaration_stack, int function_count) {
   if (param_type_node->data.type.type == TYPE_VOID) {
     return;
   }
@@ -395,7 +413,7 @@ static void resolve_function_parameter(AstNode *param_type_node, AstNode *functi
   StackValue *declaration_top_stack = stack_top(declaration_stack);
   HashTable *declaration_table = declaration_top_stack->data.hash_table;
 
-  char* converted_identifier = get_identifier_with_stack_offset(function_declaration_node->data.function_declaration.parameter_identifiers[identifier_idx], declaration_stack->count);
+  char* converted_identifier = get_identifier_with_stack_offset(function_declaration_node->data.function_declaration.parameter_identifiers[identifier_idx], declaration_stack->count, function_count, 0);
 
   HashTableEntry *existing_variable = hash_table_get_entry(declaration_table, converted_identifier);
 
