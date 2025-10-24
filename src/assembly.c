@@ -1815,7 +1815,7 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
 
   for (int i = 0; i < arg_count; i++) {
     AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly);
-    Types node_type = get_ir_node_type(ir_function_call_instruction, assembly->declaration_symbol_table);
+    Types node_type = get_ir_node_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
 
     if ((node_type != TYPE_DOUBLE && general_arg_count < 6) || (node_type == TYPE_DOUBLE && floating_point_arg_count < 8)) {
       AsmNode *mov_instruction = arena_alloc(assembly->asm_arena);
