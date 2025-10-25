@@ -63,8 +63,16 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       for (int i = 0; i < ast_node->data.block.block_count; i++) {
         AstNode *block_item_node = ast_node->data.block.block_ptrs->node_pointers[i];
 
-        if (block_item_node->type == AST_BLOCK || block_item_node->type == AST_STATEMENT_COMPOUND || block_item_node->type == AST_STATEMENT_GOTO_LABEL || block_item_node->type == AST_STATEMENT_GOTO) {
-          check_ast_node(block_item_node, goto_statuses);
+        switch (block_item_node->type) {
+          case AST_BLOCK:
+          case AST_STATEMENT_COMPOUND:
+          case AST_STATEMENT_GOTO_LABEL:
+          case AST_STATEMENT_GOTO:
+          case AST_STATEMENT_IF:
+          case AST_STATEMENT_FOR:
+          case AST_STATEMENT_WHILE:
+          case AST_STATEMENT_DO_WHILE:
+            check_ast_node(block_item_node, goto_statuses);
         }
       }   
       break;      
@@ -97,9 +105,22 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
 
       break;
     }
-    default:
-      fprintf(stderr, "ERROR - SA GOTO CHECK: Unresolved AST node type %d\n", ast_node->type);
-      exit(1);
+    case AST_STATEMENT_IF: 
+      check_ast_node(ast_node->data.if_statement.then_statement, goto_statuses);
+
+      if (ast_node->data.if_statement.else_statement != NULL) {
+        check_ast_node(ast_node->data.if_statement.else_statement, goto_statuses);
+      }
+      break;
+    case AST_STATEMENT_FOR:
+      check_ast_node(ast_node->data.for_statement.statement_body, goto_statuses);
+      break;
+    case AST_STATEMENT_WHILE:
+      check_ast_node(ast_node->data.while_statement.statement_body, goto_statuses);
+      break;
+    case AST_STATEMENT_DO_WHILE:
+      check_ast_node(ast_node->data.do_while_statement.statement_body, goto_statuses);
+      break;
   }
 }
 

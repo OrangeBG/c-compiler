@@ -1,30 +1,11 @@
 # Bugs
 	- parse_factor_constant() in the parser does not support doubles when parsing the string to a value
-	- The following errors in the type checker:
-		{
-			int a = 3;
-		}
-
-		{
-			int a = 4;
-		}
-	- The following segfaults:
-		int a(void) {
-		    return 1;
-		}
-
-		int b(int a) {
-		    return a;
-		}
-
-		int main(void) {
-		    return a() + b(2);
-		}	
 
 # Incomplete
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- Add a global Goto bool in parser. If there are no goto statements, then bypass the sa_goto_check
 	- Hash Table: I'm performing a lot of hash_table_get_entry() queries and then doing immediate NULL checks on the entry. Add a function that does the check.
 	- Assembly: Load each register in the arena once and reference that in emit instructions
 	- add hash table free function. I think hash tables are leaking memory.
