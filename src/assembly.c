@@ -88,7 +88,7 @@ static void         print_assembly_type(AsmType type);
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
-  arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, false);
+  arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, true);
 
   AsmNodePointers *node_pointer = malloc(sizeof(AsmNodePointers));
   init_node_pointer(node_pointer);  
