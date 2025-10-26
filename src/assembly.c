@@ -90,8 +90,8 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, true);
 
-  AsmNodePointers *node_pointer = malloc(sizeof(AsmNodePointers));
-  init_node_pointer(node_pointer);  
+  AsmNodePointers *top_level_declarations = malloc(sizeof(AsmNodePointers));
+  init_node_pointer(top_level_declarations);  
 
   AsmNodePointers *static_constant_node_pointers = malloc(sizeof(AsmNodePointers));
   init_node_pointer(static_constant_node_pointers);  
@@ -99,23 +99,23 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
   AsmNode *program = arena_alloc(asm_arena);
   program->type = ASM_PROGRAM;
   program->data.program.top_level_count = 0;
-  program->data.program.top_level_pointers = node_pointer;
+  program->data.program.top_level_pointers = top_level_declarations;
   program->data.program.static_constant_pointers = static_constant_node_pointers;
 
   Assembly *assembly = arena_alloc(asm_arena);
   assembly->asm_arena = asm_arena;
   assembly->declaration_symbol_table = declaration_symbol_table;
-  assembly->top_level_declarations = node_pointer;
+  assembly->top_level_declarations = top_level_declarations;
   assembly->static_constants = static_constant_node_pointers;
 
   for (int i = 0; i < ir_nodes->data.program.top_level_count; i++) {
-    AsmNode *top_level_declaration = arena_alloc(asm_arena);
-    add_to_node_pointer(top_level_declaration, node_pointer);
+    AsmNode *declaration = arena_alloc(asm_arena);
+    add_to_node_pointer(declaration, top_level_declarations);
     
     if (ir_nodes->data.program.top_level_ptrs->node_pointers[i]->type == IR_FUNCTION) {
-      emit_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration, assembly);
+      emit_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], declaration, assembly);
     } else {
-      emit_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], top_level_declaration);
+      emit_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], declaration);
    }
     
     program->data.program.top_level_count++;
@@ -144,7 +144,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
 
     AsmNode *new_function = resolve_instructions(top_level_node, asm_arena);
 
-    top_level_node = new_function;
+    program->data.program.top_level_pointers->asm_pointers[i] = new_function;
   }
   
   return program;
