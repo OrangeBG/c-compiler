@@ -536,7 +536,12 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
   
   AsmNode *destination = arena_alloc(asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
-  destination->data.operand_register.op_register = ASM_REGISTER_R11;    
+
+  if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
+    destination->data.operand_register.op_register = ASM_REGISTER_XMM15;
+  } else {
+    destination->data.operand_register.op_register = ASM_REGISTER_R11;
+  }
 
   mov_instruction->data.instruction_mov.destination = destination;
   
@@ -610,6 +615,7 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
 
   AsmNode *xmm_15 = arena_alloc(asm_arena);
   xmm_15->type = ASM_OPERAND_REGISTER;
+  xmm_15->data.operand_register.op_register = ASM_REGISTER_XMM15;
 
   AsmNode *mov = arena_alloc(asm_arena);
   mov->type = ASM_INSTRUCTION_MOV;
@@ -620,6 +626,7 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
   add_instruction_to_function(function, mov);
 
   AsmNode *binary = arena_alloc(asm_arena);
+  binary->type = ASM_INSTRUCTION_BINARY;
   binary->data.instruction_binary.binary_op = instruction->data.instruction_binary.binary_op;
   binary->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
   binary->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
