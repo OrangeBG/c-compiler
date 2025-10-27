@@ -454,8 +454,8 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       Types left_expression_type = expression_type_check(node->data.binary_expression.left_expression, declaration_table, function_declaration_node, ast_arena);
       Types right_expression_type = expression_type_check(node->data.binary_expression.right_expression, declaration_table, function_declaration_node, ast_arena);
 
-      if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_OR && left_expression_type == TYPE_DOUBLE && right_expression_type == TYPE_DOUBLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise OR operator to doubles\n");
+      if ((node->data.binary_expression.op_type == AST_BINARY_BITWISE_OR || node->data.binary_expression.op_type == AST_BINARY_BITWISE_AND) && (left_expression_type == TYPE_DOUBLE || right_expression_type == TYPE_DOUBLE)) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise operator to doubles\n");
         exit(1);
       }
 
