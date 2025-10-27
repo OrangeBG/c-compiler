@@ -433,6 +433,11 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
     case AST_EXPRESSION_UNARY: {
       Types expression_type = expression_type_check(node->data.unary_expression.expression, declaration_table, function_declaration_node, ast_arena);
 
+      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT && expression_type == TYPE_DOUBLE) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement operator to a double\n");
+        exit(1);
+      }
+
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
       ast_expression_type_node->data.type.type = expression_type;
@@ -448,6 +453,11 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
     case AST_EXPRESSION_BINARY: {
       Types left_expression_type = expression_type_check(node->data.binary_expression.left_expression, declaration_table, function_declaration_node, ast_arena);
       Types right_expression_type = expression_type_check(node->data.binary_expression.right_expression, declaration_table, function_declaration_node, ast_arena);
+
+      if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_OR && left_expression_type == TYPE_DOUBLE && right_expression_type == TYPE_DOUBLE) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise OR operator to doubles\n");
+        exit(1);
+      }
 
       if (node->data.binary_expression.op_type == AST_BINARY_AND || node->data.binary_expression.op_type == AST_BINARY_OR) {
         AstNode *ast_expression_type_node = arena_alloc(ast_arena);
