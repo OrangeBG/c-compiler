@@ -467,6 +467,7 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
     add_instruction_to_function(function, new_cvtsi2sd);
 
     AsmNode *mov = arena_alloc(asm_arena);
+    mov->type = ASM_INSTRUCTION_MOV;
     mov->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
     mov->data.instruction_mov.source = xmm_15;
     mov->data.instruction_mov.destination = cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand;
