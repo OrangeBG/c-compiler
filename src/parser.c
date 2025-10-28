@@ -1384,6 +1384,11 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
           fprintf(stderr, "ERROR - Parser: Declared type cannot contain 'static' storage class (line %d)\n", current_token(parser)->line);
           exit(1);
         }
+
+        if (specifier.storage_class_type != AST_STORAGE_CLASS_NONE) {
+          fprintf(stderr, "ERROR - Parser: Declared 'static' cannot be included (line %d)\n", current_token(parser)->line);
+          exit(1);
+        }
         
         specifier.storage_class_type = AST_STORAGE_CLASS_STATIC;
         parser->current_token_index++;
@@ -1391,6 +1396,11 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       case TOKEN_EXTERN:
         if (error_if_storage_class_found) {
           fprintf(stderr, "ERROR - Parser: Declared type cannot contain 'extern' storage class (line %d)\n", current_token(parser)->line);
+          exit(1);
+        }
+
+        if (specifier.storage_class_type != AST_STORAGE_CLASS_NONE) {
+          fprintf(stderr, "ERROR - Parser: Declared 'static' cannot be included (line %d)\n", current_token(parser)->line);
           exit(1);
         }
 
