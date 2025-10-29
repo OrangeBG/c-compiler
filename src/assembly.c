@@ -1149,6 +1149,7 @@ static void emit_function(IRNode *ir_function, AsmNode *asm_function, Assembly *
           } else {
             emit_instruction_double_to_ulong(asm_function, current_ir_node, assembly);
           }
+          break;
         }
       default:
         fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
@@ -2276,6 +2277,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
     add_instruction_to_function(asm_function, mov_1);
 
     AsmNode *binary_1 = arena_alloc(assembly->asm_arena);
+    binary_1->type = ASM_INSTRUCTION_BINARY;
     binary_1->data.instruction_binary.binary_op = ASM_BINARY_SUB;
     binary_1->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
     binary_1->data.instruction_binary.operand_1 = upper_bound_data;
