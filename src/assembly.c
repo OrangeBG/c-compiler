@@ -65,18 +65,18 @@ static void         pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbol
 static void         replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 static AsmNode*     create_operand(IRNode *ir_operand, Assembly *assembly);
 static AsmNode*     resolve_instructions(AsmNode *function, Assembly *assembly); 
-static ResolveType  resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena);
-static ResolveType  resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena); 
+static ResolveType  resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Assembly *assembly);
+static ResolveType  resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Assembly *assembly); 
 static ResolveType  resolve_mov_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
-static ResolveType  resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena); 
-static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena);
-static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-static ResolveType  resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena); 
-static ResolveType  resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Arena *asm_arena); 
+static ResolveType  resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly); 
+static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Assembly *assembly);
+static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Assembly *assembly); 
 static AsmType      convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
@@ -84,7 +84,6 @@ static int          round_stack_offset(int stack_offset);
 static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
 static AsmType      get_instruction_type(AsmNode *instruction); 
 static void         print_assembly_type(AsmType type); 
-// static bool         is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {  
   Arena *asm_arena = malloc(sizeof(Arena));
@@ -143,7 +142,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
 
     top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_binary.operand_1->data.operand_imm.value = stack_offset;    
 
-    AsmNode *new_function = resolve_instructions(top_level_node, asm_arena);
+    AsmNode *new_function = resolve_instructions(top_level_node, assembly);
 
     program->data.program.top_level_pointers->asm_pointers[i] = new_function;
   }
@@ -175,38 +174,38 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
         resolve_type = resolve_mov_instruction(new_function, instruction, assembly);
         break;
       case ASM_INSTRUCTION_MOVSX:        
-        resolve_type = resolve_movsx_instruction(new_function, instruction, assembly->asm_arena); 
+        resolve_type = resolve_movsx_instruction(new_function, instruction, assembly); 
         break;
       case ASM_INSTRUCTION_MOV_ZERO_EXTEND:        
-        resolve_type = resolve_mov_zero_extend_instruction(new_function, instruction, assembly->asm_arena); 
+        resolve_type = resolve_mov_zero_extend_instruction(new_function, instruction, assembly); 
         break;
       case ASM_INSTRUCTION_CMP:
-        resolve_type = resolve_cmp_instruction(new_function, instruction, assembly->asm_arena);
+        resolve_type = resolve_cmp_instruction(new_function, instruction, assembly);
         break;
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
-          resolve_type = resolve_binary_double_instructions(new_function, instruction, assembly->asm_arena);
+          resolve_type = resolve_binary_double_instructions(new_function, instruction, assembly);
         }
 
         AsmBinaryOpType op_type = instruction->data.instruction_binary.binary_op;
 
         if (op_type == ASM_BINARY_ADD || op_type == ASM_BINARY_SUB || op_type == ASM_BINARY_BITWISE_AND || op_type == ASM_BINARY_BITWISE_OR) {
-          resolve_type = resolve_binary_add_sub_instruction(new_function, instruction, assembly->asm_arena);
+          resolve_type = resolve_binary_add_sub_instruction(new_function, instruction, assembly);
         } else if (instruction->data.instruction_binary.binary_op == ASM_BINARY_MULT) {
-          resolve_type = resolve_binary_mul_instruction(new_function, instruction, assembly->asm_arena);
+          resolve_type = resolve_binary_mul_instruction(new_function, instruction, assembly);
         }
         break;
       case ASM_INSTRUCTION_IDIV:
-        resolve_type = resolve_idiv_instruction(new_function, instruction, assembly->asm_arena);
+        resolve_type = resolve_idiv_instruction(new_function, instruction, assembly);
         break;
       case ASM_INSTRUCTION_DIV:
-        resolve_type = resolve_div_instruction(new_function, instruction, assembly->asm_arena);
+        resolve_type = resolve_div_instruction(new_function, instruction, assembly);
         break;      
       case ASM_INSTRUCTION_CVTTSD2SI:
-        resolve_type = resolve_cvttsd2si_instruction(new_function, instruction, assembly->asm_arena);        
+        resolve_type = resolve_cvttsd2si_instruction(new_function, instruction, assembly);        
         break;
       case ASM_INSTRUCTION_CVTSI2SD:
-        resolve_type = resolve_cvtsi2sd_instruction(new_function, instruction, assembly->asm_arena);
+        resolve_type = resolve_cvtsi2sd_instruction(new_function, instruction, assembly);
         break;
     }
 
@@ -214,7 +213,7 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
       continue;
     }
 
-    resolve_large_imm_operand(new_function, instruction, assembly->asm_arena);
+    resolve_large_imm_operand(new_function, instruction, assembly);
 
     AsmNode *new_instruction = arena_alloc(assembly->asm_arena); 
     new_instruction->type = instruction->type;
@@ -226,23 +225,24 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
   return new_function;
 }
 
-static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
+  //TODO: None of the MOV instructions in this function have assembly types
+
   //The quadword versions of binary arithmetic instructions (addq, imulq, and subq) can’t handle immediate values that don’t fit into an int,
   //and neither can cmpq or pushq. If the source of any of these instructions is a constant outside the range of int, we’ll need to copy it into R10 before we can use it.
-
   if (instruction->type == ASM_INSTRUCTION_BINARY && instruction->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD && instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_IMM && (instruction->data.instruction_binary.operand_1->data.operand_imm.value > INT_MAX || instruction->data.instruction_binary.operand_1->data.operand_imm.value < INT_MIN )) {
-    AsmNode *r10_register = arena_alloc(asm_arena);
+    AsmNode *r10_register = arena_alloc(assembly->asm_arena);
     r10_register->type = ASM_OPERAND_REGISTER;
     r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
 
-    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    AsmNode *r10_mov_instruction = arena_alloc(assembly->asm_arena);
     r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
     r10_mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_1;
     r10_mov_instruction->data.instruction_mov.destination = r10_register;
 
     add_instruction_to_function(function, r10_mov_instruction);
 
-    AsmNode *stack_mov = arena_alloc(asm_arena);
+    AsmNode *stack_mov = arena_alloc(assembly->asm_arena);
     stack_mov->type = ASM_INSTRUCTION_MOV;
     stack_mov->data.instruction_mov.source = r10_register;
     stack_mov->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
@@ -252,18 +252,18 @@ static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruc
   }
 
   if (instruction->type == ASM_INSTRUCTION_CMP && instruction->data.instruction_cmp.assembly_type == ASM_TYPE_QUADWORD && instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_IMM && (instruction->data.instruction_cmp.operand_1->data.operand_imm.value > INT_MAX || instruction->data.instruction_cmp.operand_1->data.operand_imm.value < INT_MIN )) {
-    AsmNode *r10_register = arena_alloc(asm_arena);
+    AsmNode *r10_register = arena_alloc(assembly->asm_arena);
     r10_register->type = ASM_OPERAND_REGISTER;
     r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
 
-    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    AsmNode *r10_mov_instruction = arena_alloc(assembly->asm_arena);
     r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
     r10_mov_instruction->data.instruction_mov.source = instruction->data.instruction_cmp.operand_1;
     r10_mov_instruction->data.instruction_mov.destination = r10_register;
 
     add_instruction_to_function(function, r10_mov_instruction);
 
-    AsmNode *stack_mov = arena_alloc(asm_arena);
+    AsmNode *stack_mov = arena_alloc(assembly->asm_arena);
     stack_mov->type = ASM_INSTRUCTION_MOV;
     stack_mov->data.instruction_mov.source = r10_register;
     stack_mov->data.instruction_mov.destination = instruction->data.instruction_cmp.operand_2;
@@ -273,18 +273,18 @@ static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruc
   }
 
   if (instruction->type == ASM_INSTRUCTION_PUSH && instruction->data.instruction_push.operand->type == ASM_OPERAND_IMM && (instruction->data.instruction_push.operand->data.operand_imm.value > INT_MAX || instruction->data.instruction_push.operand->data.operand_imm.value < INT_MIN )) {
-    AsmNode *r10_register = arena_alloc(asm_arena);
+    AsmNode *r10_register = arena_alloc(assembly->asm_arena);
     r10_register->type = ASM_OPERAND_REGISTER;
     r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
 
-    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
+    AsmNode *r10_mov_instruction = arena_alloc(assembly->asm_arena);
     r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
     r10_mov_instruction->data.instruction_mov.source = instruction->data.instruction_push.operand;
     r10_mov_instruction->data.instruction_mov.destination = r10_register;
 
     add_instruction_to_function(function, r10_mov_instruction);
 
-    AsmNode *stack_mov = arena_alloc(asm_arena);
+    AsmNode *stack_mov = arena_alloc(assembly->asm_arena);
     stack_mov->type = ASM_INSTRUCTION_MOV;
     stack_mov->data.instruction_mov.source = r10_register;
     stack_mov->data.instruction_mov.destination = instruction->data.instruction_push.operand;
@@ -296,26 +296,21 @@ static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruc
   return INSTRUCTION_NOT_FIXED;
 }
 
-static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Arena *asm_arena) {
+static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly) {
   //MOVSX instructions cannot have a memory address as a destination or an immediate value as a source
   if (movsx_instruction->data.instruction_movsx.source->type != ASM_OPERAND_IMM && movsx_instruction->data.instruction_movsx.destination->type != ASM_OPERAND_STACK) {
     return INSTRUCTION_NOT_FIXED;
   }
 
-  AsmNode *new_movsx = arena_alloc(asm_arena);
+  AsmNode *new_movsx = arena_alloc(assembly->asm_arena);
   new_movsx->type = ASM_INSTRUCTION_MOVSX;
 
   if (movsx_instruction->data.instruction_movsx.source->type == ASM_OPERAND_IMM) {
-    AsmNode *r10_register = arena_alloc(asm_arena);
+    AsmNode *r10_register = arena_alloc(assembly->asm_arena);
     r10_register->type = ASM_OPERAND_REGISTER;
     r10_register->data.operand_register.op_register = ASM_REGISTER_R10;
 
-    AsmNode *r10_mov_instruction = arena_alloc(asm_arena);
-    r10_mov_instruction->type = ASM_INSTRUCTION_MOV;
-    r10_mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
-    r10_mov_instruction->data.instruction_mov.source = movsx_instruction->data.instruction_movsx.source;
-    r10_mov_instruction->data.instruction_mov.destination = r10_register;
-
+    AsmNode *r10_mov_instruction = create_mov_instruction(movsx_instruction->data.instruction_movsx.source, r10_register, ASM_TYPE_LONGWORD, assembly);
     add_instruction_to_function(function, r10_mov_instruction);
     
     new_movsx->data.instruction_movsx.source = r10_mov_instruction;
@@ -324,7 +319,7 @@ static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_i
   }
 
   if (movsx_instruction->data.instruction_movsx.destination->type == ASM_OPERAND_STACK) {
-    AsmNode *r11_register = arena_alloc(asm_arena);
+    AsmNode *r11_register = arena_alloc(assembly->asm_arena);
     r11_register->type = ASM_OPERAND_REGISTER;
     r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
 
@@ -332,7 +327,7 @@ static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_i
 
     add_instruction_to_function(function, new_movsx);
 
-    AsmNode *r11_mov_instruction = arena_alloc(asm_arena);
+    AsmNode *r11_mov_instruction = arena_alloc(assembly->asm_arena);
     r11_mov_instruction->type = ASM_INSTRUCTION_MOV;
     r11_mov_instruction->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
     r11_mov_instruction->data.instruction_mov.source = r11_register;
@@ -347,26 +342,20 @@ static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_i
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Arena *asm_arena) {
+static ResolveType resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Assembly *assembly) {
   //IDIV instructions need to be copied into a scratch buffer if the operand is a constant
   if (idiv_instruction->data.instruction_idiv.operand->type != ASM_OPERAND_IMM) {
     return INSTRUCTION_NOT_FIXED;
   }
 
-  AsmNode *mov_instruction = arena_alloc(asm_arena);
-  mov_instruction->type = ASM_INSTRUCTION_MOV;
-  mov_instruction->data.instruction_mov.source = idiv_instruction->data.instruction_idiv.operand;
-  mov_instruction->data.instruction_mov.assembly_type = idiv_instruction->data.instruction_idiv.assembly_type;
-
-  AsmNode *destination = arena_alloc(asm_arena);
+  AsmNode *destination = arena_alloc(assembly->asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
   destination->data.operand_register.op_register = ASM_REGISTER_R10;    
 
-  mov_instruction->data.instruction_mov.destination = destination;
-
+  AsmNode *mov_instruction = create_mov_instruction(idiv_instruction->data.instruction_idiv.operand, destination, idiv_instruction->data.instruction_idiv.assembly_type, assembly);
   add_instruction_to_function(function, mov_instruction);
 
-  AsmNode *new_idiv_instruction = arena_alloc(asm_arena);
+  AsmNode *new_idiv_instruction = arena_alloc(assembly->asm_arena);
   new_idiv_instruction->type = ASM_INSTRUCTION_IDIV;
   new_idiv_instruction->data.instruction_idiv.operand = destination;
   new_idiv_instruction->data.instruction_idiv.assembly_type = idiv_instruction->data.instruction_idiv.assembly_type;
@@ -376,26 +365,21 @@ static ResolveType resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_ins
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Arena *asm_arena) {
+static ResolveType resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Assembly *assembly) {
   //DIV instructions need to be copied into a scratch buffer if the operand is a constant
   if (div_instruction->data.instruction_div.operand->type != ASM_OPERAND_IMM) {
     return INSTRUCTION_NOT_FIXED;
   }
-  
-  AsmNode *mov_instruction = arena_alloc(asm_arena);
-  mov_instruction->type = ASM_INSTRUCTION_MOV;
-  mov_instruction->data.instruction_mov.source = div_instruction->data.instruction_div.operand;
-  mov_instruction->data.instruction_mov.assembly_type = div_instruction->data.instruction_div.assembly_type;
 
-  AsmNode *destination = arena_alloc(asm_arena);
+  AsmNode *destination = arena_alloc(assembly->asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
   destination->data.operand_register.op_register = ASM_REGISTER_R10;    
 
-  mov_instruction->data.instruction_mov.destination = destination;
+  AsmNode *mov_instruction = create_mov_instruction(div_instruction->data.instruction_div.operand, destination, div_instruction->data.instruction_div.assembly_type, assembly);
 
   add_instruction_to_function(function, mov_instruction);
 
-  AsmNode *new_div_instruction = arena_alloc(asm_arena);
+  AsmNode *new_div_instruction = arena_alloc(assembly->asm_arena);
   new_div_instruction->type = ASM_INSTRUCTION_DIV;
   new_div_instruction->data.instruction_div.operand = destination;
   new_div_instruction->data.instruction_div.assembly_type = div_instruction->data.instruction_div.assembly_type;
@@ -405,16 +389,16 @@ static ResolveType resolve_div_instruction(AsmNode *function, AsmNode *div_instr
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *cvttsd2si_instruction, Arena *asm_arena) {
+static ResolveType resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *cvttsd2si_instruction, Assembly *assembly) {
   if (cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_REGISTER) {
     return INSTRUCTION_NOT_FIXED;
   }
 
-  AsmNode *r11 = arena_alloc(asm_arena);
+  AsmNode *r11 = arena_alloc(assembly->asm_arena);
   r11->type = ASM_OPERAND_REGISTER;
   r11->data.operand_register.op_register = ASM_REGISTER_R11;
 
-  AsmNode *new_cvttsd2si = arena_alloc(asm_arena);
+  AsmNode *new_cvttsd2si = arena_alloc(assembly->asm_arena);
   new_cvttsd2si->type = ASM_INSTRUCTION_CVTTSD2SI;
   new_cvttsd2si->data.instruction_cvttsd2si.destination_assembly_type = ASM_TYPE_QUADWORD;
   new_cvttsd2si->data.instruction_cvttsd2si.source_operand = cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand;
@@ -422,18 +406,13 @@ static ResolveType resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *cvt
 
   add_instruction_to_function(function, new_cvttsd2si);
 
-  AsmNode *mov = arena_alloc(asm_arena);
-  mov->type = ASM_INSTRUCTION_MOV;
-  mov->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
-  mov->data.instruction_mov.source = r11;
-  mov->data.instruction_mov.destination = cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand;
-
+  AsmNode *mov = create_mov_instruction(r11, cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(function, mov);
   
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Arena *asm_arena) {
+static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Assembly *assembly) {
   if (cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand->type != ASM_OPERAND_IMM && cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_REGISTER) {
     return INSTRUCTION_NOT_FIXED;
   }
@@ -441,25 +420,20 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
   AsmNode *source_node = cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand;
 
   if (source_node->type == ASM_OPERAND_IMM) {
-    AsmNode *r10 = arena_alloc(asm_arena);
+    AsmNode *r10 = arena_alloc(assembly->asm_arena);
     r10->type = ASM_OPERAND_REGISTER;
     r10->data.operand_register.op_register = ASM_REGISTER_R10;
 
-    AsmNode *mov = arena_alloc(asm_arena);
-    mov->type = ASM_INSTRUCTION_MOV;
-    mov->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
-    mov->data.instruction_mov.source = cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand;
-    mov->data.instruction_mov.destination = r10;
-
+    AsmNode *mov = create_mov_instruction(cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand, r10, ASM_TYPE_LONGWORD, assembly);
     add_instruction_to_function(function, mov);
   }
 
   if (cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand->type != ASM_OPERAND_REGISTER) {
-    AsmNode *xmm_15 = arena_alloc(asm_arena);
+    AsmNode *xmm_15 = arena_alloc(assembly->asm_arena);
     xmm_15->type = ASM_OPERAND_REGISTER;
     xmm_15->data.operand_register.op_register = ASM_REGISTER_XMM15;
 
-    AsmNode *new_cvtsi2sd = arena_alloc(asm_arena);
+    AsmNode *new_cvtsi2sd = arena_alloc(assembly->asm_arena);
     new_cvtsi2sd->type = ASM_INSTRUCTION_CVTSI2SD;
     new_cvtsi2sd->data.instruction_cvtsi2sd.source_assembly_type = ASM_TYPE_LONGWORD;
     new_cvtsi2sd->data.instruction_cvtsi2sd.source_operand = source_node;
@@ -467,15 +441,10 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
 
     add_instruction_to_function(function, new_cvtsi2sd);
 
-    AsmNode *mov = arena_alloc(asm_arena);
-    mov->type = ASM_INSTRUCTION_MOV;
-    mov->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
-    mov->data.instruction_mov.source = xmm_15;
-    mov->data.instruction_mov.destination = cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand;
-
+    AsmNode *mov = create_mov_instruction(xmm_15, cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand, ASM_TYPE_DOUBLE, assembly);
     add_instruction_to_function(function, mov);
   } else {
-    AsmNode *new_cvtsi2sd = arena_alloc(asm_arena);
+    AsmNode *new_cvtsi2sd = arena_alloc(assembly->asm_arena);
     new_cvtsi2sd->type = ASM_INSTRUCTION_CVTSI2SD;
     new_cvtsi2sd->data.instruction_cvtsi2sd.source_assembly_type = ASM_TYPE_LONGWORD;
     new_cvtsi2sd->data.instruction_cvtsi2sd.source_operand = source_node;
@@ -487,10 +456,12 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Arena *asm_arena) {
+static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Assembly *assembly) {
   if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_REGISTER) {
-    AsmNode *mov_instruction = arena_alloc(asm_arena);
-    mov_instruction->type = ASM_INSTRUCTION_MOV;    mov_instruction->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
+    //TODO: No assembly type
+    AsmNode *mov_instruction = arena_alloc(assembly->asm_arena);
+    mov_instruction->type = ASM_INSTRUCTION_MOV;
+    mov_instruction->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
     mov_instruction->data.instruction_mov.destination = mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination;
     
     add_instruction_to_function(function, mov_instruction);
@@ -499,24 +470,14 @@ static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNod
   }
   
   if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_IMM) {
-    AsmNode *r11_register = arena_alloc(asm_arena);
+    AsmNode *r11_register = arena_alloc(assembly->asm_arena);
     r11_register->type = ASM_OPERAND_REGISTER;
     r11_register->data.operand_register.op_register = ASM_REGISTER_R11;
 
-    AsmNode *mov_instruction_1 = arena_alloc(asm_arena);
-    mov_instruction_1->type = ASM_INSTRUCTION_MOV;
-    mov_instruction_1->data.instruction_mov.assembly_type = ASM_TYPE_LONGWORD;
-    mov_instruction_1->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
-    mov_instruction_1->data.instruction_mov.destination = r11_register;
-
+    AsmNode *mov_instruction_1 = create_mov_instruction(mov_zero_extend_instruction->data.instruction_mov_zero_extend.source, r11_register, ASM_TYPE_LONGWORD, assembly);
     add_instruction_to_function(function, mov_instruction_1);
 
-    AsmNode *mov_instruction_2 = arena_alloc(asm_arena);
-    mov_instruction_2->type = ASM_INSTRUCTION_MOV;
-    mov_instruction_2->data.instruction_mov.assembly_type = ASM_TYPE_QUADWORD;
-    mov_instruction_2->data.instruction_mov.source = r11_register;
-    mov_instruction_2->data.instruction_mov.destination = mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination;
-
+    AsmNode *mov_instruction_2 = create_mov_instruction(r11_register, mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination, ASM_TYPE_QUADWORD, assembly);
     add_instruction_to_function(function, mov_instruction_2);
 
     return INSTRUCTION_FIXED;
@@ -525,18 +486,13 @@ static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNod
   return INSTRUCTION_NOT_FIXED;
 }
 
-static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //MUL instructions cannot use a memory address as its destination
   if (instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_STACK) {
     return INSTRUCTION_NOT_FIXED;
   }
   
-  AsmNode *mov_instruction = arena_alloc(asm_arena);
-  mov_instruction->type = ASM_INSTRUCTION_MOV;
-  mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_2;
-  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_binary.assembly_type;
-  
-  AsmNode *destination = arena_alloc(asm_arena);
+  AsmNode *destination = arena_alloc(assembly->asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
 
   if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
@@ -545,11 +501,11 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
     destination->data.operand_register.op_register = ASM_REGISTER_R11;
   }
 
-  mov_instruction->data.instruction_mov.destination = destination;
+  AsmNode *mov_instruction = create_mov_instruction(instruction->data.instruction_binary.operand_2, destination, instruction->data.instruction_binary.assembly_type, assembly);
   
   add_instruction_to_function(function, mov_instruction);
 
-  AsmNode *mull_instruction = arena_alloc(asm_arena);
+  AsmNode *mull_instruction = arena_alloc(assembly->asm_arena);
   mull_instruction->type = ASM_INSTRUCTION_BINARY;
   mull_instruction->data.instruction_binary.binary_op = ASM_BINARY_MULT;
   mull_instruction->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
@@ -558,29 +514,20 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
 
   add_instruction_to_function(function, mull_instruction);
 
-  AsmNode *mov_instruction_2 = arena_alloc(asm_arena);
-  mov_instruction_2->type = ASM_INSTRUCTION_MOV;
-  mov_instruction_2->data.instruction_mov.source = destination;
-  mov_instruction_2->data.instruction_mov.destination = instruction->data.instruction_binary.operand_2;
-  mov_instruction_2->data.instruction_mov.assembly_type = instruction->data.instruction_binary.assembly_type;
+  AsmNode *mov_instruction_2 = create_mov_instruction(destination, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, assembly);
 
   add_instruction_to_function(function, mov_instruction_2);
 
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //ADD and SUB instructions cannot have both a source and destination as memory addresses
   if (instruction->data.instruction_binary.operand_1->type != ASM_OPERAND_STACK || instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_STACK) {
     return INSTRUCTION_NOT_FIXED;
   }
 
-  AsmNode *mov_instruction = arena_alloc(asm_arena);
-  mov_instruction->type = ASM_INSTRUCTION_MOV;
-  mov_instruction->data.instruction_mov.source = instruction->data.instruction_binary.operand_1;
-  mov_instruction->data.instruction_mov.assembly_type = instruction->data.instruction_binary.assembly_type;
-
-  AsmNode *destination = arena_alloc(asm_arena);
+  AsmNode *destination = arena_alloc(assembly->asm_arena);
   destination->type = ASM_OPERAND_REGISTER;
 
   if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
@@ -589,11 +536,11 @@ static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode
     destination->data.operand_register.op_register = ASM_REGISTER_R10;    
   }
 
-  mov_instruction->data.instruction_mov.destination = destination;
+  AsmNode *mov_instruction = create_mov_instruction(instruction->data.instruction_binary.operand_1, destination, instruction->data.instruction_binary.assembly_type, assembly);
 
   add_instruction_to_function(function, mov_instruction);
 
-  AsmNode *binary_instruction = arena_alloc(asm_arena);
+  AsmNode *binary_instruction = arena_alloc(assembly->asm_arena);
   binary_instruction->type = ASM_INSTRUCTION_BINARY;
   binary_instruction->data.instruction_binary.operand_1 = destination;
   binary_instruction->data.instruction_binary.operand_2 = instruction->data.instruction_binary.operand_2;
@@ -604,7 +551,7 @@ static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Arena *asm_arena) {
+static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_REGISTER) {
     return INSTRUCTION_NOT_FIXED;
   }
@@ -615,19 +562,15 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
     return INSTRUCTION_NOT_FIXED;
   }
 
-  AsmNode *xmm_15 = arena_alloc(asm_arena);
+  AsmNode *xmm_15 = arena_alloc(assembly->asm_arena);
   xmm_15->type = ASM_OPERAND_REGISTER;
   xmm_15->data.operand_register.op_register = ASM_REGISTER_XMM15;
 
-  AsmNode *mov = arena_alloc(asm_arena);
-  mov->type = ASM_INSTRUCTION_MOV;
-  mov->data.instruction_mov.assembly_type = ASM_TYPE_DOUBLE;
-  mov->data.instruction_mov.source = instruction->data.instruction_binary.operand_2;
-  mov->data.instruction_mov.destination = xmm_15;
+  AsmNode *mov = create_mov_instruction(instruction->data.instruction_binary.operand_2, xmm_15, ASM_TYPE_DOUBLE, assembly);
 
   add_instruction_to_function(function, mov);
 
-  AsmNode *binary = arena_alloc(asm_arena);
+  AsmNode *binary = arena_alloc(assembly->asm_arena);
   binary->type = ASM_INSTRUCTION_BINARY;
   binary->data.instruction_binary.binary_op = instruction->data.instruction_binary.binary_op;
   binary->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
@@ -2715,20 +2658,3 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
       exit(1);
   }  
 }
-
-
-// static bool is_double_operand(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
-//   switch (ir_node->type) {
-//     case IR_VALUE_CONSTANT:
-//       return ir_node->data.value_constant.type == TYPE_DOUBLE ? true : false;
-//     case IR_VALUE_VAR: {
-//       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
-//       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-
-//       return declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE ? true : false;
-//     }    
-//     default:
-//       fprintf(stderr, "ERROR - Assembler: Could not resolve IR type when determining if node is a double\n");
-//       exit(1);
-//   }
-// }
