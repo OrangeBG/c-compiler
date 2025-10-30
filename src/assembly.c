@@ -86,6 +86,7 @@ static void         emit_asm_label_instruction(AsmNode *function, char *identifi
 static void         emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly); 
 static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly); 
+static void         emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
@@ -1174,13 +1175,7 @@ static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode 
 
   emit_asm_cmp_instruction(asm_function, imm_operand, source, source_type, assembly);
   emit_asm_mov_instruction(asm_function, imm_operand, destination_node, destination_type, assembly);
-
-  AsmNode *set_cc_instruction = arena_alloc(assembly->asm_arena);  
-  set_cc_instruction->type = ASM_INSTRUCTION_SETCC;
-  set_cc_instruction->data.instruction_set_cc.condition_code = ASM_CONDITION_EQUAL;
-  set_cc_instruction->data.instruction_set_cc.operand = destination_node;
-
-  add_instruction_to_function(asm_function, set_cc_instruction);
+  emit_asm_setcc_instruction(asm_function, ASM_CONDITION_EQUAL, destination_node, assembly);
 }
 
 static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Assembly *assembly) {
@@ -1197,13 +1192,7 @@ static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *
   imm->data.operand_imm.value = 0;
 
   emit_asm_mov_instruction(asm_function, imm, destination_node, destination_type, assembly);
-
-  AsmNode *set_cc = arena_alloc(assembly->asm_arena);
-  set_cc->type = ASM_INSTRUCTION_SETCC;
-  set_cc->data.instruction_set_cc.condition_code = ASM_CONDITION_EQUAL;
-  set_cc->data.instruction_set_cc.operand = destination_node;
-
-  add_instruction_to_function(asm_function, set_cc);  
+  emit_asm_setcc_instruction(asm_function, ASM_CONDITION_EQUAL, destination_node, assembly);
 }
 
 static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Assembly *assembly) {
@@ -1239,12 +1228,7 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
       break;
   }
 
-  AsmNode *set_cc_instruction = arena_alloc(assembly->asm_arena);
-  set_cc_instruction->type = ASM_INSTRUCTION_SETCC;  
-  set_cc_instruction->data.instruction_set_cc.condition_code = relational_op;
-  set_cc_instruction->data.instruction_set_cc.operand = destination_node;
-
-  add_instruction_to_function(asm_function, set_cc_instruction);
+  emit_asm_setcc_instruction(asm_function, relational_op, destination_node, assembly);
 }
 
 static void emit_ir_instruction_binary_signed_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Assembly *assembly) {
@@ -1754,6 +1738,16 @@ static void emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condi
 
   add_instruction_to_function(function, jmp_instruction);
 }
+
+static void emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly) {
+  AsmNode *set_cc_instruction = arena_alloc(assembly->asm_arena);  
+
+  set_cc_instruction->type = ASM_INSTRUCTION_SETCC;
+  set_cc_instruction->data.instruction_set_cc.condition_code = condition_code;
+  set_cc_instruction->data.instruction_set_cc.operand = operand;
+
+  add_instruction_to_function(function, set_cc_instruction);
+} 
 
 static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
   AsmNode *asm_operand = arena_alloc(assembly->asm_arena);
