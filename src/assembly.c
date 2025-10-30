@@ -85,6 +85,7 @@ static void         emit_asm_unary_instruction(AsmNode *function, AsmNode *opera
 static void         emit_asm_label_instruction(AsmNode *function, char *identifier, Assembly *assembly);
 static void         emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly); 
+static void         emit_asm_jmp_instruction(AsmNode *function, char *identifier, Assembly *assembly); 
 static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly); 
 static void         emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
@@ -1568,12 +1569,7 @@ static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *i
   char *label_2_name = malloc(32);
   snprintf(label_2_name, 32, "%ULongToDbl.d", label2++); 
 
-  AsmNode *jmp = arena_alloc(assembly->asm_arena);
-  jmp->type = ASM_INSTRUCTION_JMP;
-  jmp->data.instruction_jmp.identifier = label_2_name;
-
-  add_instruction_to_function(asm_function, jmp);
-
+  emit_asm_jmp_instruction(asm_function, label_2_name, assembly);
   emit_asm_label_instruction(asm_function, label_1_name, assembly);
   emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
   emit_asm_mov_instruction(asm_function, assembly->register_ax, assembly->register_cx, ASM_TYPE_QUADWORD, assembly);
@@ -1606,6 +1602,8 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
 
   if (entry == NULL || entry->key == NULL) {
     InitialValue max_long_init = { .long_value = LONG_MAX };
+
+    emit_asm_setcc_instruction(asm_function, relational_op, destination_node, assembly);
     add_static_variable_declaration_symbol(assembly->declaration_symbol_table, TYPE_LONG, max_long_init, ".MAX_LONG", true, INITIAL_VALUE_INITIALIZED);       
   }
 
@@ -1627,12 +1625,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
   char *label_2_name = malloc(32);
   snprintf(label_2_name, 32, "%d.DblToULong_end.d", label_2_index++); 
 
-  AsmNode *jmp_end = arena_alloc(assembly->asm_arena);
-  jmp_end->type = ASM_INSTRUCTION_JMP;
-  jmp_end->data.instruction_jmp.identifier = label_2_name;
-
-  add_instruction_to_function(asm_function, jmp_end);
-
+  emit_asm_jmp_instruction(asm_function, label_2_name, assembly);
   emit_asm_label_instruction(asm_function, label_1_name, assembly);
   emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, ASM_TYPE_DOUBLE, assembly);
   emit_asm_binary_instruction(asm_function, upper_bound_data, assembly->register_ax, ASM_BINARY_SUB, ASM_TYPE_DOUBLE, assembly);
@@ -1728,6 +1721,15 @@ static void emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_nod
 
   add_instruction_to_function(function, cvtsi2sd);
 }
+
+static void emit_asm_jmp_instruction(AsmNode *function, char *identifier, Assembly *assembly) {
+  AsmNode *jmp_end = arena_alloc(assembly->asm_arena);
+
+  jmp_end->type = ASM_INSTRUCTION_JMP;
+  jmp_end->data.instruction_jmp.identifier = identifier;
+
+  add_instruction_to_function(function, jmp_end);
+} 
 
 static void emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly) {
   AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
