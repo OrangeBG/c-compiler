@@ -80,6 +80,7 @@ static void         emit_instruction_double_to_ulong(AsmNode *asm_function, IRNo
 static AsmNode*     create_register(AsmRegisterType register_type, Assembly *assembly);
 static AsmNode*     create_mov_instruction(AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static AsmNode*     create_cmp_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmType type, Assembly *assembly);
+static AsmNode*     create_binary_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
@@ -502,20 +503,12 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
   }
 
   AsmNode *mov_instruction = create_mov_instruction(instruction->data.instruction_binary.operand_2, destination, instruction->data.instruction_binary.assembly_type, assembly);
-  
   add_instruction_to_function(function, mov_instruction);
 
-  AsmNode *mull_instruction = arena_alloc(assembly->asm_arena);
-  mull_instruction->type = ASM_INSTRUCTION_BINARY;
-  mull_instruction->data.instruction_binary.binary_op = ASM_BINARY_MULT;
-  mull_instruction->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
-  mull_instruction->data.instruction_binary.operand_2 = destination;
-  mull_instruction->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
-
+  AsmNode *mull_instruction = create_binary_instruction(instruction->data.instruction_binary.operand_1, destination, ASM_BINARY_MULT, instruction->data.instruction_binary.assembly_type, assembly);
   add_instruction_to_function(function, mull_instruction);
 
   AsmNode *mov_instruction_2 = create_mov_instruction(destination, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, assembly);
-
   add_instruction_to_function(function, mov_instruction_2);
 
   return INSTRUCTION_FIXED;
@@ -536,15 +529,9 @@ static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode
   }
 
   AsmNode *mov_instruction = create_mov_instruction(instruction->data.instruction_binary.operand_1, destination, instruction->data.instruction_binary.assembly_type, assembly);
-
   add_instruction_to_function(function, mov_instruction);
 
-  AsmNode *binary_instruction = arena_alloc(assembly->asm_arena);
-  binary_instruction->type = ASM_INSTRUCTION_BINARY;
-  binary_instruction->data.instruction_binary.operand_1 = destination;
-  binary_instruction->data.instruction_binary.operand_2 = instruction->data.instruction_binary.operand_2;
-  binary_instruction->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
-
+  AsmNode *binary_instruction = create_binary_instruction(destination, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.binary_op, instruction->data.instruction_binary.assembly_type, assembly);
   add_instruction_to_function(function, binary_instruction);
 
   return INSTRUCTION_FIXED;
@@ -562,16 +549,9 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
   }
 
   AsmNode *mov = create_mov_instruction(instruction->data.instruction_binary.operand_2, assembly->register_xmm15, ASM_TYPE_DOUBLE, assembly);
-
   add_instruction_to_function(function, mov);
 
-  AsmNode *binary = arena_alloc(assembly->asm_arena);
-  binary->type = ASM_INSTRUCTION_BINARY;
-  binary->data.instruction_binary.binary_op = instruction->data.instruction_binary.binary_op;
-  binary->data.instruction_binary.assembly_type = instruction->data.instruction_binary.assembly_type;
-  binary->data.instruction_binary.operand_1 = instruction->data.instruction_binary.operand_1;
-  binary->data.instruction_binary.operand_2 = assembly->register_xmm15;
-
+  AsmNode *binary = create_binary_instruction(instruction->data.instruction_binary.operand_1, assembly->register_xmm15, instruction->data.instruction_binary.binary_op, instruction->data.instruction_binary.assembly_type, assembly);
   add_instruction_to_function(function, binary);
 
   return INSTRUCTION_FIXED;
@@ -1133,13 +1113,7 @@ static void emit_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes
   imm_operand->type = ASM_OPERAND_IMM;
   imm_operand->data.operand_imm.value = bytes;
 
-  AsmNode *binary_instruction = arena_alloc(assembly->asm_arena);
-  binary_instruction->type = ASM_INSTRUCTION_BINARY;
-  binary_instruction->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
-  binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_SUB;
-  binary_instruction->data.instruction_binary.operand_1 = imm_operand;
-  binary_instruction->data.instruction_binary.operand_2 = assembly->register_sp;
-
+  AsmNode *binary_instruction = create_binary_instruction(imm_operand, assembly->register_sp, ASM_BINARY_SUB, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(asm_function, binary_instruction);
 }
 
@@ -1191,23 +1165,12 @@ static void emit_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode 
 static void emit_instruction_jump_if_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Assembly *assembly) {
 
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
-  AsmNode *binary = arena_alloc(assembly->asm_arena);
-  binary->type = ASM_INSTRUCTION_BINARY;
-  binary->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
-  binary->data.instruction_binary.binary_op =  ASM_BINARY_BITWISE_XOR;
-  binary->data.instruction_binary.operand_1 = assembly->register_xmm14;
-  binary->data.instruction_binary.operand_2 = assembly->register_xmm14;
-
+  AsmNode *binary = create_binary_instruction(assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, binary);
 
   AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
-  AsmNode *cmp = arena_alloc(assembly->asm_arena);
-  cmp->type = ASM_INSTRUCTION_CMP;
-  cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
-  cmp->data.instruction_cmp.operand_1 = condition;
-  cmp->data.instruction_cmp.operand_2 = assembly->register_xmm14;
-
+  AsmNode *cmp = create_cmp_instruction(condition, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, cmp);
 
   AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
@@ -1238,13 +1201,7 @@ static void emit_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRN
 
 static void emit_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Assembly *assembly) {  
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
-  AsmNode *binary = arena_alloc(assembly->asm_arena);
-  binary->type = ASM_INSTRUCTION_BINARY;
-  binary->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
-  binary->data.instruction_binary.binary_op =  ASM_BINARY_BITWISE_XOR;
-  binary->data.instruction_binary.operand_1 = assembly->register_xmm14;
-  binary->data.instruction_binary.operand_2 = assembly->register_xmm14;
-
+  AsmNode *binary = create_binary_instruction(assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, binary);
 
   AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
@@ -1273,30 +1230,27 @@ static void emit_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_ins
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
 
   AsmNode *mov_instruction = create_mov_instruction(source_1, destination_node, source_1_type, assembly);
+  add_instruction_to_function(asm_function, mov_instruction);
 
-  AsmNode *binary_instruction = arena_alloc(assembly->asm_arena);
-  binary_instruction->type = ASM_INSTRUCTION_BINARY;
-  binary_instruction->data.instruction_binary.operand_1 = source_2;
-  binary_instruction->data.instruction_binary.operand_2 = destination_node;
-  binary_instruction->data.instruction_binary.assembly_type = source_1_type;
+  AsmBinaryOpType binary_op; 
 
   switch (ir_binary_instruction->data.instruction_binary.op_type) {
-    case IR_BINARY_ADD:                 binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_ADD; break;
-    case IR_BINARY_SUBTRACT:            binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_SUB; break;
-    case IR_BINARY_MULTIPLY:            binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_MULT; break;
-    case IR_BINARY_BITWISE_AND:         binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_AND; break;
-    case IR_BINARY_BITWISE_OR:          binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_OR; break;
-    case IR_BINARY_BITWISE_XOR:         binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_XOR; break;
-    case IR_BINARY_BITWISE_LEFT_SHIFT:  binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_LEFT_SHIFT; break;
-    case IR_BINARY_BITWISE_RIGHT_SHIFT: binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_RIGHT_SHIFT; break;
-    case IR_BINARY_DIVIDE:              binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_DIV_DOUBLE; break;      
+    case IR_BINARY_ADD:                 binary_op = ASM_BINARY_ADD; break;
+    case IR_BINARY_SUBTRACT:            binary_op = ASM_BINARY_SUB; break;
+    case IR_BINARY_MULTIPLY:            binary_op = ASM_BINARY_MULT; break;
+    case IR_BINARY_BITWISE_AND:         binary_op = ASM_BINARY_BITWISE_AND; break;
+    case IR_BINARY_BITWISE_OR:          binary_op = ASM_BINARY_BITWISE_OR; break;
+    case IR_BINARY_BITWISE_XOR:         binary_op = ASM_BINARY_BITWISE_XOR; break;
+    case IR_BINARY_BITWISE_LEFT_SHIFT:  binary_op = ASM_BINARY_BITWISE_LEFT_SHIFT; break;
+    case IR_BINARY_BITWISE_RIGHT_SHIFT: binary_op = ASM_BINARY_BITWISE_RIGHT_SHIFT; break;
+    case IR_BINARY_DIVIDE:              binary_op = ASM_BINARY_DIV_DOUBLE; break;      
     default:
       fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation\n");
       exit(1);
       break;
   }
 
-  add_instruction_to_function(asm_function, mov_instruction);
+  AsmNode *binary_instruction = create_binary_instruction(source_2, destination_node, binary_op, source_1_type, assembly);  
   add_instruction_to_function(asm_function, binary_instruction);
 }
 
@@ -1331,21 +1285,10 @@ static void emit_instruction_unary_not_double(AsmNode *asm_function, IRNode *ir_
   AsmType destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->declaration_symbol_table);
 
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
-  AsmNode *binary = arena_alloc(assembly->asm_arena);
-  binary->type = ASM_INSTRUCTION_BINARY;
-  binary->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
-  binary->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_XOR;
-  binary->data.instruction_binary.operand_1 = assembly->register_xmm14;
-  binary->data.instruction_binary.operand_2 = assembly->register_xmm14;
-  
+  AsmNode *binary = create_binary_instruction(assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, binary);
   
-  AsmNode *cmp = arena_alloc(assembly->asm_arena);
-  cmp->type = ASM_INSTRUCTION_CMP;
-  cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
-  cmp->data.instruction_cmp.operand_1 = source;
-  cmp->data.instruction_cmp.operand_2 = assembly->register_xmm14;
-
+  AsmNode *cmp = create_cmp_instruction(source, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, cmp);
 
   AsmNode *imm = arena_alloc(assembly->asm_arena);
@@ -1518,18 +1461,11 @@ static void emit_instruction_unary_negation_double(AsmNode *asm_function, IRNode
   AsmNode *destination_node = create_operand(ir_unary_instruction->data.instruction_unary.destination, assembly);
 
   AsmNode *mov_node = create_mov_instruction(source_node, destination_node, ASM_TYPE_DOUBLE, assembly);
-
   add_instruction_to_function(asm_function, mov_node);
 
   AsmNode *data_node = emit_static_constant(-0.0, 16, assembly); 
 
-  AsmNode *binary_node = arena_alloc(assembly->asm_arena);
-  binary_node->type = ASM_INSTRUCTION_BINARY;
-  binary_node->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
-  binary_node->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_XOR;
-  binary_node->data.instruction_binary.operand_1 = data_node;
-  binary_node->data.instruction_binary.operand_2 = source_node;
-
+  AsmNode *binary_node = create_binary_instruction(data_node, source_node, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, binary_node);
 }
 
@@ -1638,13 +1574,7 @@ static void emit_instruction_function_call(AsmNode *asm_function, IRNode *ir_fun
     imm_operand->type = ASM_OPERAND_IMM;
     imm_operand->data.operand_imm.value = bytes_to_remove;
 
-    AsmNode *deallocate_stack_binary_instruction = arena_alloc(assembly->asm_arena);
-    deallocate_stack_binary_instruction->type = ASM_INSTRUCTION_BINARY;
-    deallocate_stack_binary_instruction->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
-    deallocate_stack_binary_instruction->data.instruction_binary.binary_op = ASM_BINARY_ADD;
-    deallocate_stack_binary_instruction->data.instruction_binary.operand_1 = imm_operand;
-    deallocate_stack_binary_instruction->data.instruction_binary.operand_2 = assembly->register_sp;
-
+    AsmNode *deallocate_stack_binary_instruction = create_binary_instruction(imm_operand, assembly->register_sp, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
     add_instruction_to_function(asm_function, deallocate_stack_binary_instruction);        
   }
 
@@ -1839,22 +1769,10 @@ static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_u
   imm_1->type = ASM_OPERAND_IMM;
   imm_1->data.operand_imm.value = 1;
 
-  AsmNode *binary_1 = arena_alloc(assembly->asm_arena);
-  binary_1->type = ASM_INSTRUCTION_BINARY;
-  binary_1->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
-  binary_1->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_AND;
-  binary_1->data.instruction_binary.operand_1 = imm_1;
-  binary_1->data.instruction_binary.operand_2 = assembly->register_ax;
-
+  AsmNode *binary_1 = create_binary_instruction(imm_1, assembly->register_ax, ASM_BINARY_BITWISE_AND, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(asm_function, binary_1);
   
-  AsmNode *binary_2 = arena_alloc(assembly->asm_arena);
-  binary_2->type = ASM_INSTRUCTION_BINARY;
-  binary_2->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
-  binary_2->data.instruction_binary.binary_op = ASM_BINARY_BITWISE_OR;
-  binary_2->data.instruction_binary.operand_1 = assembly->register_ax;
-  binary_2->data.instruction_binary.operand_2 = assembly->register_cx;
-
+  AsmNode *binary_2 = create_binary_instruction(assembly->register_ax, assembly->register_cx, ASM_BINARY_BITWISE_OR, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(asm_function, binary_2);
 
   AsmNode *cvtsi2sd_2 = arena_alloc(assembly->asm_arena);
@@ -1865,13 +1783,7 @@ static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_u
 
   add_instruction_to_function(asm_function, cvtsi2sd_2);
   
-  AsmNode *binary_3 = arena_alloc(assembly->asm_arena);
-  binary_3->type = ASM_INSTRUCTION_BINARY;
-  binary_3->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
-  binary_3->data.instruction_binary.binary_op = ASM_BINARY_ADD;
-  binary_3->data.instruction_binary.operand_1 = destination_node;
-  binary_3->data.instruction_binary.operand_2 = destination_node;
-
+  AsmNode *binary_3 = create_binary_instruction(destination_node, destination_node, ASM_BINARY_ADD, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, binary_3);
 
   AsmNode *label_2_node = arena_alloc(assembly->asm_arena);
@@ -1911,12 +1823,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
 
     AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, assembly);
 
-    AsmNode *cmp = arena_alloc(assembly->asm_arena);
-    cmp->type = ASM_INSTRUCTION_CMP;
-    cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
-    cmp->data.instruction_cmp.operand_1 = upper_bound_data;
-    cmp->data.instruction_cmp.operand_2 = source_node;
-
+    AsmNode *cmp = create_cmp_instruction(upper_bound_data, source_node, ASM_TYPE_DOUBLE, assembly);
     add_instruction_to_function(asm_function, cmp);
    
     static int label_1_index = 0;
@@ -1958,16 +1865,9 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
     add_instruction_to_function(asm_function, label_1);
     
     AsmNode *mov_1 = create_mov_instruction(source_node, assembly->register_ax, ASM_TYPE_DOUBLE, assembly);
-
     add_instruction_to_function(asm_function, mov_1);
 
-    AsmNode *binary_1 = arena_alloc(assembly->asm_arena);
-    binary_1->type = ASM_INSTRUCTION_BINARY;
-    binary_1->data.instruction_binary.binary_op = ASM_BINARY_SUB;
-    binary_1->data.instruction_binary.assembly_type = ASM_TYPE_DOUBLE;
-    binary_1->data.instruction_binary.operand_1 = upper_bound_data;
-    binary_1->data.instruction_binary.operand_2 = assembly->register_ax;
-
+    AsmNode *binary_1 = create_binary_instruction(upper_bound_data, assembly->register_ax, ASM_BINARY_SUB, ASM_TYPE_DOUBLE, assembly);
     add_instruction_to_function(asm_function, binary_1);
 
     AsmNode *cvttsd2si_2 = arena_alloc(assembly->asm_arena);
@@ -1983,16 +1883,9 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
     imm->data.operand_imm.value = LONG_MAX;
     
     AsmNode *mov_2 = create_mov_instruction(imm, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
-
     add_instruction_to_function(asm_function, mov_2);
 
-    AsmNode *binary_2 = arena_alloc(assembly->asm_arena);
-    binary_2->type = ASM_INSTRUCTION_BINARY;
-    binary_2->data.instruction_binary.assembly_type = ASM_TYPE_QUADWORD;
-    binary_2->data.instruction_binary.binary_op = ASM_BINARY_ADD;
-    binary_2->data.instruction_binary.operand_1 = assembly->register_ax;
-    binary_2->data.instruction_binary.operand_2 = destination_node;
-
+    AsmNode *binary_2 = create_binary_instruction(assembly->register_ax, destination_node, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
     add_instruction_to_function(asm_function, binary_2);
     
     AsmNode *label_2 = arena_alloc(assembly->asm_arena);
@@ -2028,6 +1921,18 @@ static AsmNode* create_cmp_instruction(AsmNode *operand_1, AsmNode *operand_2, A
   cmp_instruction->data.instruction_cmp.assembly_type = type;
 
   return cmp_instruction;
+}
+
+static AsmNode* create_binary_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly) {
+  AsmNode *binary_instruction = arena_alloc(assembly->asm_arena);
+
+  binary_instruction->type = ASM_INSTRUCTION_BINARY;
+  binary_instruction->data.instruction_binary.binary_op = op_type;
+  binary_instruction->data.instruction_binary.operand_1 = operand_1;
+  binary_instruction->data.instruction_binary.operand_2 = operand_2;
+  binary_instruction->data.instruction_binary.assembly_type = assembly_type;
+
+  return binary_instruction;
 }
 
 static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
