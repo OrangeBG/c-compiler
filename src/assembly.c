@@ -83,6 +83,7 @@ static AsmNode*     create_cmp_instruction(AsmNode *operand_1, AsmNode *operand_
 static AsmNode*     create_binary_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
 static AsmNode*     create_unary_instruction(AsmNode *operand, AsmUnaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
 static AsmNode*     create_label_instruction(char *identifier, Assembly *assembly);
+static AsmNode*     create_cvttsd2si_instruction(AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
@@ -414,12 +415,7 @@ static ResolveType resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *cvt
     return INSTRUCTION_NOT_FIXED;
   }
 
-  AsmNode *new_cvttsd2si = arena_alloc(assembly->asm_arena);
-  new_cvttsd2si->type = ASM_INSTRUCTION_CVTTSD2SI;
-  new_cvttsd2si->data.instruction_cvttsd2si.destination_assembly_type = ASM_TYPE_QUADWORD;
-  new_cvttsd2si->data.instruction_cvttsd2si.source_operand = cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand;
-  new_cvttsd2si->data.instruction_cvttsd2si.destination_operand = assembly->register_r11; 
-
+  AsmNode *new_cvttsd2si = create_cvttsd2si_instruction(cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand, assembly->register_r11, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(function, new_cvttsd2si);
 
   AsmNode *mov = create_mov_instruction(assembly->register_r11, cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand, ASM_TYPE_QUADWORD, assembly);
@@ -1664,12 +1660,7 @@ static void emit_ir_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly);
   AsmType destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly->declaration_symbol_table);
 
-  AsmNode *cvttsd2si_instruction = arena_alloc(assembly->asm_arena);
-  cvttsd2si_instruction->type = ASM_INSTRUCTION_CVTTSD2SI;
-  cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand = source_node;
-  cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand = destination_node;
-  cvttsd2si_instruction->data.instruction_cvttsd2si.destination_assembly_type = destination_type;
-
+  AsmNode *cvttsd2si_instruction = create_cvttsd2si_instruction(source_node, destination_node, destination_type, assembly);
   add_instruction_to_function(asm_function, cvttsd2si_instruction);
 }
 
@@ -1781,16 +1772,10 @@ static void emit_ir_instruction_double_to_uint(AsmNode *asm_function, IRNode *ir
   AsmNode *source_node = create_operand(ir_double_to_uint_instruction->data.instruction_double_to_uint.source, assembly);
   AsmNode *destination_node = create_operand(ir_double_to_uint_instruction->data.instruction_double_to_uint.destination, assembly);
 
-  AsmNode *cvttsd2si = arena_alloc(assembly->asm_arena);
-  cvttsd2si->type = ASM_INSTRUCTION_CVTTSD2SI;
-  cvttsd2si->data.instruction_cvttsd2si.destination_assembly_type = ASM_TYPE_QUADWORD;
-  cvttsd2si->data.instruction_cvttsd2si.source_operand = source_node;
-  cvttsd2si->data.instruction_cvttsd2si.destination_operand = assembly->register_ax;
-
+  AsmNode *cvttsd2si = create_cvttsd2si_instruction(source_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(asm_function, cvttsd2si);
 
   AsmNode *mov = create_mov_instruction(assembly->register_ax, destination_node, ASM_TYPE_LONGWORD, assembly);
-
   add_instruction_to_function(asm_function, mov);
 }
 
@@ -1823,12 +1808,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
 
     add_instruction_to_function(asm_function, jmp_cc);
 
-    AsmNode *cvttsd2si_1 = arena_alloc(assembly->asm_arena);
-    cvttsd2si_1->type = ASM_INSTRUCTION_CVTTSD2SI;
-    cvttsd2si_1->data.instruction_cvttsd2si.destination_assembly_type = ASM_TYPE_QUADWORD;
-    cvttsd2si_1->data.instruction_cvttsd2si.source_operand = source_node;
-    cvttsd2si_1->data.instruction_cvttsd2si.destination_operand = destination_node;
-    
+    AsmNode *cvttsd2si_1 = create_cvttsd2si_instruction(source_node, destination_node, ASM_TYPE_QUADWORD, assembly);
     add_instruction_to_function(asm_function, cvttsd2si_1);
         
     static int label_2_index = 0;
@@ -1851,12 +1831,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
     AsmNode *binary_1 = create_binary_instruction(upper_bound_data, assembly->register_ax, ASM_BINARY_SUB, ASM_TYPE_DOUBLE, assembly);
     add_instruction_to_function(asm_function, binary_1);
 
-    AsmNode *cvttsd2si_2 = arena_alloc(assembly->asm_arena);
-    cvttsd2si_2->type = ASM_INSTRUCTION_CVTTSD2SI;
-    cvttsd2si_2->data.instruction_cvttsd2si.destination_assembly_type = ASM_TYPE_QUADWORD;
-    cvttsd2si_2->data.instruction_cvttsd2si.source_operand = assembly->register_ax;
-    cvttsd2si_2->data.instruction_cvttsd2si.destination_operand = destination_node;
-    
+    AsmNode *cvttsd2si_2 = create_cvttsd2si_instruction(assembly->register_ax, destination_node, ASM_TYPE_QUADWORD, assembly);
     add_instruction_to_function(asm_function, cvttsd2si_2);
 
     AsmNode *imm = arena_alloc(assembly->asm_arena);
@@ -1930,6 +1905,17 @@ static AsmNode* create_label_instruction(char *identifier, Assembly *assembly) {
   label->data.instruction_label.identifier = identifier;
 
   return label;
+}
+
+static AsmNode* create_cvttsd2si_instruction(AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly) {
+  AsmNode *cvttsd2si = arena_alloc(assembly->asm_arena);
+
+  cvttsd2si->type = ASM_INSTRUCTION_CVTTSD2SI;
+  cvttsd2si->data.instruction_cvttsd2si.destination_assembly_type = type;
+  cvttsd2si->data.instruction_cvttsd2si.source_operand = source_node;
+  cvttsd2si->data.instruction_cvttsd2si.destination_operand = destination_node; 
+
+  return cvttsd2si;
 }
 
 static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
