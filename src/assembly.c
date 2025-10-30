@@ -82,6 +82,7 @@ static AsmNode*     create_mov_instruction(AsmNode *source_node, AsmNode *destin
 static AsmNode*     create_cmp_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmType type, Assembly *assembly);
 static AsmNode*     create_binary_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
 static AsmNode*     create_unary_instruction(AsmNode *operand, AsmUnaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
+static AsmNode*     create_label_instruction(char *identifier, Assembly *assembly);
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
@@ -1738,10 +1739,7 @@ static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_u
 
   add_instruction_to_function(asm_function, jmp);
 
-  AsmNode *label_1_node = arena_alloc(assembly->asm_arena);
-  label_1_node->type = ASM_INSTRUCTION_LABEL;
-  label_1_node->data.instruction_label.identifier = label_1_name;
-
+  AsmNode *label_1_node = create_label_instruction(label_1_name, assembly);
   add_instruction_to_function(asm_function, label_1_node);
 
   AsmNode *mov_1 = create_mov_instruction(source_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
@@ -1774,10 +1772,7 @@ static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_u
   AsmNode *binary_3 = create_binary_instruction(destination_node, destination_node, ASM_BINARY_ADD, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, binary_3);
 
-  AsmNode *label_2_node = arena_alloc(assembly->asm_arena);
-  label_2_node->type = ASM_INSTRUCTION_LABEL;
-  label_2_node->data.instruction_label.identifier = label_2_name;
-
+  AsmNode *label_2_node = create_label_instruction(label_2_name, assembly);
   add_instruction_to_function(asm_function, label_2_node);
 }
 
@@ -1846,10 +1841,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
 
     add_instruction_to_function(asm_function, jmp_end);
 
-    AsmNode *label_1 = arena_alloc(assembly->asm_arena);
-    label_1->type = ASM_INSTRUCTION_LABEL;
-    label_1->data.instruction_label.identifier = label_1_name;
-
+    AsmNode *label_1 = create_label_instruction(label_1_name, assembly);
     add_instruction_to_function(asm_function, label_1);
     
     AsmNode *mov_1 = create_mov_instruction(source_node, assembly->register_ax, ASM_TYPE_DOUBLE, assembly);
@@ -1876,10 +1868,7 @@ static void emit_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_d
     AsmNode *binary_2 = create_binary_instruction(assembly->register_ax, destination_node, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
     add_instruction_to_function(asm_function, binary_2);
     
-    AsmNode *label_2 = arena_alloc(assembly->asm_arena);
-    label_2->type = ASM_INSTRUCTION_LABEL;
-    label_2->data.instruction_label.identifier = label_2_name;
-
+    AsmNode *label_2 = create_label_instruction(label_2_name, assembly);
     add_instruction_to_function(asm_function, label_2);    
 }
 
@@ -1934,6 +1923,14 @@ static AsmNode* create_unary_instruction(AsmNode *operand, AsmUnaryOpType op_typ
   return unary;
 }
  
+static AsmNode* create_label_instruction(char *identifier, Assembly *assembly) {
+  AsmNode *label = arena_alloc(assembly->asm_arena);
+  label->type = ASM_INSTRUCTION_LABEL;
+  label->data.instruction_label.identifier = identifier;
+
+  return label;
+}
+
 static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
   AsmNode *asm_operand = arena_alloc(assembly->asm_arena);
 
