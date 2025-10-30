@@ -169,7 +169,7 @@ static Assembly* init_assembly(DeclarationSymbolTable *declaration_symbol_table)
   AsmNodePointers *static_constant_node_pointers = malloc(sizeof(AsmNodePointers));
   init_node_pointer(static_constant_node_pointers);  
 
-  Assembly *assembly = arena_alloc(asm_arena);
+  Assembly *assembly = malloc(sizeof(Assembly));
   assembly->asm_arena = asm_arena;
   assembly->declaration_symbol_table = declaration_symbol_table;
   assembly->top_level_declarations = top_level_declarations;
@@ -226,7 +226,7 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
         resolve_type = resolve_movsx_instruction(new_function, instruction, assembly); 
         break;
       case ASM_INSTRUCTION_MOV_ZERO_EXTEND:        
-        resolve_type = resolve_mov_zero_extend_instruction(new_function, instruction, assembly); 
+        resolve_type = resolve_mov_zero_extend_instruction(new_function, instruction, assembly);
         break;
       case ASM_INSTRUCTION_CMP:
         resolve_type = resolve_cmp_instruction(new_function, instruction, assembly);
