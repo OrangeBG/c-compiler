@@ -81,6 +81,7 @@ static AsmNode*     create_register(AsmRegisterType register_type, Assembly *ass
 static AsmNode*     create_mov_instruction(AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static AsmNode*     create_cmp_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmType type, Assembly *assembly);
 static AsmNode*     create_binary_instruction(AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
+static AsmNode*     create_unary_instruction(AsmNode *operand, AsmUnaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
@@ -1206,12 +1207,7 @@ static void emit_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNo
 
   AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
-  AsmNode *cmp = arena_alloc(assembly->asm_arena);
-  cmp->type = ASM_INSTRUCTION_CMP;
-  cmp->data.instruction_cmp.assembly_type = ASM_TYPE_DOUBLE;
-  cmp->data.instruction_cmp.operand_1 = condition;
-  cmp->data.instruction_cmp.operand_2 = assembly->register_xmm14;
-
+  AsmNode *cmp = create_cmp_instruction(condition, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
   add_instruction_to_function(asm_function, cmp);
 
   AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
@@ -1438,21 +1434,17 @@ static void emit_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instr
   AsmType source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.instruction_unary.source, assembly->declaration_symbol_table);
 
   AsmNode *mov_node = create_mov_instruction(source_node, destination_node, source_type, assembly);
-
   add_instruction_to_function(asm_function, mov_node);
   
-  AsmNode *unary_instruction = arena_alloc(assembly->asm_arena);
-  unary_instruction->type = ASM_INSTRUCTION_UNARY;
-  unary_instruction->data.instruction_unary.assembly_type = source_type;
+  AsmUnaryOpType op_type;
 
   if (ir_unary_instruction->data.instruction_unary.op_type == IR_UNARY_NEGATE) {
-    unary_instruction->data.instruction_unary.unary_op = ASM_UNARY_NEG;
+    op_type = ASM_UNARY_NEG;
   } else {
-    unary_instruction->data.instruction_unary.unary_op = ASM_UNARY_NOT;
+    op_type = ASM_UNARY_NOT;
   }
-  
-  unary_instruction->data.instruction_unary.operand = destination_node;
 
+  AsmNode *unary_instruction = create_unary_instruction(destination_node, op_type, source_type, assembly);
   add_instruction_to_function(asm_function, unary_instruction);
 }
 
@@ -1707,6 +1699,7 @@ static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_u
   imm_0->type = ASM_OPERAND_IMM;
   imm_0->data.operand_imm.value = 0;
   
+  //TODO: Missing assembly type
   AsmNode *cmp = arena_alloc(assembly->asm_arena);
   cmp->type = ASM_INSTRUCTION_CMP;
   cmp->data.instruction_cmp.operand_1 = imm_0;
@@ -1757,12 +1750,7 @@ static void emit_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_u
   AsmNode *mov_2 = create_mov_instruction(assembly->register_ax, assembly->register_cx, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(asm_function, mov_2);
 
-  AsmNode *unary = arena_alloc(assembly->asm_arena);
-  unary->type = ASM_INSTRUCTION_UNARY;
-  unary->data.instruction_unary.assembly_type = ASM_TYPE_QUADWORD;
-  unary->data.instruction_unary.unary_op = ASM_UNARY_SHR;
-  unary->data.instruction_unary.operand = assembly->register_cx;
-
+  AsmNode *unary = create_unary_instruction(assembly->register_cx, ASM_UNARY_SHR, ASM_TYPE_QUADWORD, assembly);
   add_instruction_to_function(asm_function, unary);
 
   AsmNode *imm_1 = arena_alloc(assembly->asm_arena);
@@ -1935,6 +1923,17 @@ static AsmNode* create_binary_instruction(AsmNode *operand_1, AsmNode *operand_2
   return binary_instruction;
 }
 
+static AsmNode* create_unary_instruction(AsmNode *operand, AsmUnaryOpType op_type, AsmType assembly_type, Assembly *assembly) {
+  AsmNode *unary = arena_alloc(assembly->asm_arena);
+
+  unary->type = ASM_INSTRUCTION_UNARY;
+  unary->data.instruction_unary.assembly_type = assembly_type;
+  unary->data.instruction_unary.unary_op = op_type;
+  unary->data.instruction_unary.operand = operand;
+
+  return unary;
+}
+ 
 static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
   AsmNode *asm_operand = arena_alloc(assembly->asm_arena);
 
