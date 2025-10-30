@@ -85,6 +85,7 @@ static void         emit_asm_unary_instruction(AsmNode *function, AsmNode *opera
 static void         emit_asm_label_instruction(AsmNode *function, char *identifier, Assembly *assembly);
 static void         emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly); 
+static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
@@ -1095,13 +1096,7 @@ static void emit_ir_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNo
   AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
   emit_asm_cmp_instruction(asm_function, imm, condition, asm_source_type, assembly);
-  
-  AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
-  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
-  jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_EQUAL;
-  jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target;
-
-  add_instruction_to_function(asm_function, jmp_instruction);
+  emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_EQUAL, ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target, assembly);
 }
 
 static void emit_ir_instruction_jump_if_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Assembly *assembly) {
@@ -1112,13 +1107,7 @@ static void emit_ir_instruction_jump_if_zero_double(AsmNode *asm_function, IRNod
   AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
   emit_asm_cmp_instruction(asm_function, condition, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
-
-  AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
-  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
-  jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_EQUAL;
-  jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target;
-
-  add_instruction_to_function(asm_function, jmp_instruction);
+  emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_EQUAL, ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target, assembly);
 }
 
 static void emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmType source_asm_type, Assembly *assembly) {
@@ -1129,13 +1118,7 @@ static void emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, 
   AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, assembly);
 
   emit_asm_cmp_instruction(asm_function, imm, condition, source_asm_type, assembly);
-  
-  AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
-  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
-  jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_NOT_EQUAL;
-  jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.target;
-
-  add_instruction_to_function(asm_function, jmp_instruction);
+  emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_NOT_EQUAL, ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.target, assembly);
 }
 
 static void emit_ir_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Assembly *assembly) {  
@@ -1145,13 +1128,7 @@ static void emit_ir_instruction_jump_if_not_zero_double(AsmNode *asm_function, I
   AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
   emit_asm_cmp_instruction(asm_function, condition, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
-
-  AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
-  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
-  jmp_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_NOT_EQUAL;
-  jmp_instruction->data.instruction_jmp_cc.identifier = ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.target;
-
-  add_instruction_to_function(asm_function, jmp_instruction);
+  emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_NOT_EQUAL, ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.target, assembly);
 }
 
 static void emit_ir_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_instruction, Assembly *assembly) {
@@ -1599,13 +1576,7 @@ static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *i
   char *label_1_name = malloc(32);
   snprintf(label_1_name, 32, "%ULongToDbl_CC.d", label1++); 
 
-  AsmNode *jmp_cc_instruction = arena_alloc(assembly->asm_arena);
-  jmp_cc_instruction->type = ASM_INSTRUCTION_JMPCC;
-  jmp_cc_instruction->data.instruction_jmp_cc.condition_code = ASM_CONDITION_LESS;
-  jmp_cc_instruction->data.instruction_jmp_cc.identifier = label_1_name;
-
-  add_instruction_to_function(asm_function, jmp_cc_instruction);
-
+  emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_LESS, label_1_name, assembly);
   emit_asm_cvtsi2sd_instruction(asm_function, source_node, destination_node, ASM_TYPE_QUADWORD, assembly);
 
   static int label2 = 0;
@@ -1663,14 +1634,8 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
   char *label_1_name = malloc(32);
   snprintf(label_1_name, 32, "%d.DblToULong_CC.d", label_1_index++); 
 
-  AsmNode *jmp_cc = arena_alloc(assembly->asm_arena);
-  jmp_cc->type = ASM_INSTRUCTION_JMPCC;
   //TODO: This may need to be just 'above' since upper bound data is not 'max long + 1', only 'max long'
-  jmp_cc->data.instruction_jmp_cc.condition_code = ASM_CONDITION_ABOVE_EQUAL;
-  jmp_cc->data.instruction_jmp_cc.identifier = label_1_name;
-
-  add_instruction_to_function(asm_function, jmp_cc);
-
+  emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_ABOVE_EQUAL, label_1_name, assembly);
   emit_asm_cvttsd2si_instruction(asm_function, source_node, destination_node, ASM_TYPE_QUADWORD, assembly);
     
   static int label_2_index = 0;
@@ -1778,6 +1743,16 @@ static void emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_nod
   cvtsi2sd->data.instruction_cvtsi2sd.destination_operand = destination_node; 
 
   add_instruction_to_function(function, cvtsi2sd);
+}
+
+static void emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly) {
+  AsmNode *jmp_instruction = arena_alloc(assembly->asm_arena);
+
+  jmp_instruction->type = ASM_INSTRUCTION_JMPCC;
+  jmp_instruction->data.instruction_jmp_cc.condition_code = condition_code;
+  jmp_instruction->data.instruction_jmp_cc.identifier = identifier;
+
+  add_instruction_to_function(function, jmp_instruction);
 }
 
 static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
