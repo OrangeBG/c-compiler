@@ -17,7 +17,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         save_assembly_file(asm_node->data.program.static_constant_pointers->asm_pointers[i], file);
       }
       
-      for (int i = 0; i < asm_node->data.program.top_level_count; i++) {
+      for (int i = 0; i < asm_node->data.program.top_level_pointers->count; i++) {
         save_assembly_file(asm_node->data.program.top_level_pointers->asm_pointers[i], file);
       }
 
@@ -379,7 +379,7 @@ static char* get_8_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R11: return "%r11";
     case ASM_REGISTER_SP:  return "%rsp";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find 8 byte register '%d'", register_type);
+      fprintf(stderr, "ERROR - Code Emit: Could not find 8 byte register '%d'\n", register_type);
       exit(1);
   }
 }
@@ -397,7 +397,7 @@ static char* get_4_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R11: return "%r11d";
     case ASM_REGISTER_SP:  return "%rsp";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find 4 byte register '%d'", register_type);
+      fprintf(stderr, "ERROR - Code Emit: Could not find 4 byte register '%d'\n", register_type);
       exit(1);
   }
 }
@@ -414,7 +414,7 @@ static char* get_1_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R10: return "%r10b";
     case ASM_REGISTER_R11: return "%r11b";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find 1 byte register '%d'", register_type);
+      fprintf(stderr, "ERROR - Code Emit: Could not find 1 byte register '%d'\n", register_type);
       exit(1);
   }
 }
@@ -432,7 +432,7 @@ static char* get_xmm_register(AsmRegisterType register_type) {
     case ASM_REGISTER_XMM14: return "%xmm14";
     case ASM_REGISTER_XMM15: return "%xmm15";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find xmm register '%d'", register_type);
+      fprintf(stderr, "ERROR - Code Emit: Could not find xmm register '%d'\n", register_type);
       exit(1);
   }
 }
@@ -443,7 +443,7 @@ static void print_instruction_suffix(FILE *file, AsmType type) {
     case ASM_TYPE_QUADWORD:   fprintf(file, "q"); break;
     case ASM_TYPE_DOUBLE:     fprintf(file, "sd"); break;
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find AsmType '%d'", type);
+      fprintf(stderr, "ERROR - Code Emit: Could not find AsmType '%d'\n", type);
       exit(1);  
   }
 }

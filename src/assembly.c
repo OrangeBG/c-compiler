@@ -127,7 +127,6 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
 
   AsmNode *program = arena_alloc(assembly->asm_arena);
   program->type = ASM_PROGRAM;
-  program->data.program.top_level_count = 0;
   program->data.program.top_level_pointers = assembly->top_level_declarations;
   program->data.program.static_constant_pointers = assembly->static_constants;
 
@@ -139,15 +138,13 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
       emit_ir_function(ir_nodes->data.program.top_level_ptrs->node_pointers[i], declaration, assembly);
     } else {
       emit_static_variable(ir_nodes->data.program.top_level_ptrs->node_pointers[i], declaration);
-   }
-    
-    program->data.program.top_level_count++;
+   }    
   }
 
   convert_declaration_table_to_backend_table(declaration_symbol_table, backend_symbol_table);
 
-  for (int i = 0; i < program->data.program.top_level_count; i++) {
-    AsmNode *top_level_node = program->data.program.top_level_pointers->asm_pointers[i];
+  for (int i = 0; i < assembly->top_level_declarations->count; i++) {
+    AsmNode *top_level_node = assembly->top_level_declarations->asm_pointers[i];
 
     if (top_level_node->type != ASM_FUNCTION) {
       continue;
@@ -1713,7 +1710,7 @@ void print_assembly(AsmNode *node) {
     case ASM_PROGRAM:
       printf("Program \n");
 
-      for (int i = 0; i < node->data.program.top_level_count; i++) {
+      for (int i = 0; i < node->data.program.top_level_pointers->count; i++) {
         print_assembly(node->data.program.top_level_pointers->asm_pointers[i]);
       }
 
