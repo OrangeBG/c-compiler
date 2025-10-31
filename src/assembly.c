@@ -1495,9 +1495,9 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
 
   emit_asm_jmp_instruction(asm_function, label_2_name, assembly);
   emit_asm_label_instruction(asm_function, label_1_name, assembly);
-  emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, ASM_TYPE_DOUBLE, assembly);
-  emit_asm_binary_instruction(asm_function, upper_bound_data, assembly->register_ax, ASM_BINARY_SUB, ASM_TYPE_DOUBLE, assembly);
-  emit_asm_cvttsd2si_instruction(asm_function, assembly->register_ax, destination_node, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(asm_function, source_node, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_binary_instruction(asm_function, upper_bound_data, assembly->register_xmm14, ASM_BINARY_SUB, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_cvttsd2si_instruction(asm_function, assembly->register_xmm14, destination_node, ASM_TYPE_QUADWORD, assembly);
 
   AsmNode *imm = create_imm_operand(LONG_MAX, assembly);
 
