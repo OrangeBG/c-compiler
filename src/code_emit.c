@@ -378,6 +378,9 @@ static char* get_8_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R10: return "%r10";
     case ASM_REGISTER_R11: return "%r11";
     case ASM_REGISTER_SP:  return "%rsp";
+    default:
+      fprintf(stderr, "ERROR - Code Emit: Could not find 8 byte register '%d'", register_type);
+      exit(1);
   }
 }
 
@@ -393,6 +396,9 @@ static char* get_4_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R10: return "%r10d";
     case ASM_REGISTER_R11: return "%r11d";
     case ASM_REGISTER_SP:  return "%rsp";
+    default:
+      fprintf(stderr, "ERROR - Code Emit: Could not find 4 byte register '%d'", register_type);
+      exit(1);
   }
 }
 
@@ -407,6 +413,9 @@ static char* get_1_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R9:  return "%r9b";
     case ASM_REGISTER_R10: return "%r10b";
     case ASM_REGISTER_R11: return "%r11b";
+    default:
+      fprintf(stderr, "ERROR - Code Emit: Could not find 1 byte register '%d'", register_type);
+      exit(1);
   }
 }
 
@@ -422,6 +431,9 @@ static char* get_xmm_register(AsmRegisterType register_type) {
     case ASM_REGISTER_XMM7:  return "%xmm7";
     case ASM_REGISTER_XMM14: return "%xmm14";
     case ASM_REGISTER_XMM15: return "%xmm15";
+    default:
+      fprintf(stderr, "ERROR - Code Emit: Could not find xmm register '%d'", register_type);
+      exit(1);
   }
 }
 
@@ -430,6 +442,9 @@ static void print_instruction_suffix(FILE *file, AsmType type) {
     case ASM_TYPE_LONGWORD:   fprintf(file, "l"); break;
     case ASM_TYPE_QUADWORD:   fprintf(file, "q"); break;
     case ASM_TYPE_DOUBLE:     fprintf(file, "sd"); break;
+    default:
+      fprintf(stderr, "ERROR - Code Emit: Could not find AsmType '%d'", type);
+      exit(1);  
   }
 }
 
