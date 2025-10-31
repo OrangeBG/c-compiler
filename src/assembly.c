@@ -119,7 +119,7 @@ static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *de
 static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
 static int          round_stack_offset(int stack_offset); 
 static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
-static AsmType      get_instruction_type(AsmNode *instruction); 
+// static AsmType      get_instruction_type(AsmNode *instruction); 
 static void         print_assembly_type(AsmType type); 
 
 AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {   
@@ -1312,16 +1312,16 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
 
       emit_asm_mov_instruction(asm_function, arg, destination, asm_type, assembly);
     } else {
-      if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || get_instruction_type(arg) == ASM_TYPE_QUADWORD || get_instruction_type(arg) == ASM_TYPE_DOUBLE) {
-        emit_asm_push_instruction(asm_function, arg, assembly);
-      } else {
-        stack_arg_count++;
+      // if (arg->type == ASM_OPERAND_PSEUDO_REGISTER || arg->type == ASM_OPERAND_IMM || get_instruction_type(arg) == ASM_TYPE_QUADWORD || get_instruction_type(arg) == ASM_TYPE_DOUBLE) {
+      //   emit_asm_push_instruction(asm_function, arg, assembly);
+      // } else {
+      //   stack_arg_count++;
 
-        AsmType mov_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);       
+      //   AsmType mov_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);       
 
-        emit_asm_mov_instruction(asm_function, arg, assembly->register_ax, mov_type, assembly);
-        emit_asm_push_instruction(asm_function, assembly->register_r10, assembly);
-      }
+      //   emit_asm_mov_instruction(asm_function, arg, assembly->register_ax, mov_type, assembly);
+      //   emit_asm_push_instruction(asm_function, assembly->register_r10, assembly);
+      // }      
 
       continue;
     }
@@ -1343,9 +1343,6 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
 
   //retrieve return value 
   AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
-
-  //TODO: @Cleanup - This needs a clean up. Do a conversion function from declaration symbol to asm type. Check to see if entry is found or else throw exception. Don't assume that found entry is a function symbol
-  // AsmType return_type = get_instruction_type(assembly_destination);
 
   HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function_call_instruction->data.instruction_function_call.identifier);
   DeclarationSymbol *declaration_symbol = entry->value->structure;
@@ -1420,7 +1417,7 @@ static void emit_ir_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir
 static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.destination, assembly);
-  AsmType source_type = get_instruction_type(source_node);
+  AsmType source_type = convert_ir_value_to_asm_type(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly->declaration_symbol_table);
   AsmNode *imm_0 = create_imm_operand(0, assembly);  
 
   emit_asm_cmp_instruction(asm_function, imm_0, source_node, source_type, assembly);
@@ -2022,20 +2019,20 @@ static AsmType convert_type_to_asm_type(Types type) {
   }
 }
 
-static AsmType get_instruction_type(AsmNode *instruction) {
-  switch (instruction->type) {
-    case ASM_INSTRUCTION_MOV: return instruction->data.instruction_mov.assembly_type;
-    case ASM_INSTRUCTION_UNARY: return instruction->data.instruction_unary.assembly_type;
-    case ASM_INSTRUCTION_BINARY: return instruction->data.instruction_binary.assembly_type;
-    case ASM_INSTRUCTION_CMP: return instruction->data.instruction_cmp.assembly_type;
-    case ASM_INSTRUCTION_IDIV: return instruction->data.instruction_idiv.assembly_type;
-    case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type;
-    //case ASM_OPERAND_IMM: return ASM_TYPE_LONGWORD;
-    default:
-      fprintf(stderr, "ERROR - Assembler: Could not get instruction type for ASM instruction '%d'\n", instruction->type);
-      exit(1);
-  }
-}
+// static AsmType get_instruction_type(AsmNode *instruction) {
+//   switch (instruction->type) {
+//     case ASM_INSTRUCTION_MOV: return instruction->data.instruction_mov.assembly_type;
+//     case ASM_INSTRUCTION_UNARY: return instruction->data.instruction_unary.assembly_type;
+//     case ASM_INSTRUCTION_BINARY: return instruction->data.instruction_binary.assembly_type;
+//     case ASM_INSTRUCTION_CMP: return instruction->data.instruction_cmp.assembly_type;
+//     case ASM_INSTRUCTION_IDIV: return instruction->data.instruction_idiv.assembly_type;
+//     case ASM_INSTRUCTION_CDQ: return instruction->data.instruction_cdq.assembly_type;
+//     //case ASM_OPERAND_IMM: return ASM_TYPE_LONGWORD;
+//     default:
+//       fprintf(stderr, "ERROR - Assembler: Could not get instruction type for ASM instruction '%d'\n", instruction->type);
+//       exit(1);
+//   }
+// }
 
 void backend_symbol_table_init(AsmBackendSymbolTable *backend_symbol_table) {
   HashTable *symbol_table = malloc(sizeof(HashTable));
