@@ -33,6 +33,7 @@
 	- There are a lot dependencies that need both Token* and the char* file. Maybe combine them into a struct  
 
 # Testing Needed
+	- Ensure that declared functions (not function calls) are loading params correctly from registers and the stack
 
 # Investigate
 	- In IR, for expressions where temp registers are being created, it's being added as an automatic variable declaration. Check if that is always true or if there needs to be a static check.

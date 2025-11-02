@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
+#include "assembly.h"
 
 static char* get_8_byte_register(AsmRegisterType register_type); 
 static char* get_4_byte_register(AsmRegisterType register_type); 
@@ -18,6 +19,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
       
       for (int i = 0; i < asm_node->data.program.top_level_pointers->count; i++) {
+        if (asm_node->data.program.top_level_pointers->asm_pointers[i]->type == ASM_STATIC_CONSTANT) {
+          continue;
+        }
+
         save_assembly_file(asm_node->data.program.top_level_pointers->asm_pointers[i], file);
       }
 
