@@ -4,7 +4,6 @@
 		    double d = ~10;
 		    return 0;
 		}		
-	- parse_factor_constant() in the parser does not support doubles when parsing the string to a value
 
 # Incomplete
 	- IR 'If' statement does not support else statements

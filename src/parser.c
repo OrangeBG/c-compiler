@@ -1144,25 +1144,38 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
 }
 
 static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type) {
-  expect(parser, constant_type); 
+  expect(parser, constant_type);
 
   factor_node->type = AST_EXPRESSION_CONSTANT;
 
-  char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
-  strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
-
-  char *end_ptr;
-  //@BUG: Does not support float values
-  long constant_value = strtol(slice, &end_ptr, BASE_TEN);
-
-  if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
-    fprintf(stderr, "ERROR - Parser: Out of bounds int/long constant '%ld'\n", constant_value);
-    exit(1);
-  }
+  char constant_slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
+  strncpy(constant_slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
 
   AstNode *expression_type = arena_alloc(parser->node_arena);
   expression_type->type = AST_TYPE;
 
+  //Floating points constants can't go out of range since a double supports positive and negative infinity
+  if (constant_type == TOKEN_CONSTANT_FLOAT) {
+    char *end_pointer;
+    double double_value = strtod(constant_slice, &end_pointer);
+
+    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_DOUBLE;
+    factor_node->data.constant_expression.double_value = double_value;
+
+    expression_type->data.type.type = TYPE_DOUBLE;  
+    
+    factor_node->data.constant_expression.expression_type = expression_type;
+    return;    
+  }
+
+  char *end_pointer;
+  long constant_value = strtol(constant_slice, &end_pointer, BASE_TEN);
+  
+  if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
+    fprintf(stderr, "ERROR - Parser: Out of bounds int/long constant '%ld'\n", constant_value);
+    exit(1);
+  }
+  
   if (constant_type == TOKEN_CONSTANT_INT && constant_value > INT_MIN && constant_value < INT_MAX) {
     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
     factor_node->data.constant_expression.int_value = (int)constant_value;
@@ -1173,19 +1186,7 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
 
     return;
   }
-
-  //Floating points constants can't go out of range since a double supports positive and negative infinity
-  if (constant_type == TOKEN_CONSTANT_FLOAT) {
-    factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_DOUBLE;
-    factor_node->data.constant_expression.double_value = (double)constant_value;
-
-    expression_type->data.type.type = TYPE_DOUBLE;  
-    
-    factor_node->data.constant_expression.expression_type = expression_type;
-
-    return;
-  }
-
+  
   if (constant_type == TOKEN_CONSTANT_UNSIGNED_INT && constant_value >= 0  && constant_value < UINT_MAX) {
     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_UINT;
     factor_node->data.constant_expression.uint_value = (unsigned int)constant_value;
@@ -1215,6 +1216,79 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     
   factor_node->data.constant_expression.expression_type = expression_type;
 }
+
+// static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type) {
+//   expect(parser, constant_type); 
+
+//   factor_node->type = AST_EXPRESSION_CONSTANT;
+
+//   char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
+//   strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
+
+//   char *end_ptr;
+//   //@BUG: Does not support float values
+//   long constant_value = strtol(slice, &end_ptr, BASE_TEN);
+
+//   if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
+//     fprintf(stderr, "ERROR - Parser: Out of bounds int/long constant '%ld'\n", constant_value);
+//     exit(1);
+//   }
+
+//   AstNode *expression_type = arena_alloc(parser->node_arena);
+//   expression_type->type = AST_TYPE;
+
+//   if (constant_type == TOKEN_CONSTANT_INT && constant_value > INT_MIN && constant_value < INT_MAX) {
+//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
+//     factor_node->data.constant_expression.int_value = (int)constant_value;
+
+//     expression_type->data.type.type = TYPE_INT;  
+    
+//     factor_node->data.constant_expression.expression_type = expression_type;
+
+//     return;
+//   }
+
+//   //Floating points constants can't go out of range since a double supports positive and negative infinity
+//   if (constant_type == TOKEN_CONSTANT_FLOAT) {
+//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_DOUBLE;
+//     factor_node->data.constant_expression.double_value = (double)constant_value;
+
+//     expression_type->data.type.type = TYPE_DOUBLE;  
+    
+//     factor_node->data.constant_expression.expression_type = expression_type;
+
+//     return;
+//   }
+
+//   if (constant_type == TOKEN_CONSTANT_UNSIGNED_INT && constant_value >= 0  && constant_value < UINT_MAX) {
+//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_UINT;
+//     factor_node->data.constant_expression.uint_value = (unsigned int)constant_value;
+
+//     expression_type->data.type.type = TYPE_UINT;  
+    
+//     factor_node->data.constant_expression.expression_type = expression_type;
+
+//     return;
+//   }
+
+//   if (constant_type == TOKEN_CONSTANT_UNSIGNED_LONG && constant_value >= 0  && constant_value < ULONG_MAX) {
+//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_ULONG;
+//     factor_node->data.constant_expression.ulong_value = (unsigned long)constant_value;
+
+//     expression_type->data.type.type = TYPE_ULONG;  
+    
+//     factor_node->data.constant_expression.expression_type = expression_type;
+
+//     return;
+//   }
+
+//   factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
+//   factor_node->data.constant_expression.long_value = constant_value;
+
+//   expression_type->data.type.type = TYPE_LONG;  
+    
+//   factor_node->data.constant_expression.expression_type = expression_type;
+// }
 
 static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
   UnaryOpType op_type; 
