@@ -150,15 +150,15 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack, int f
       break;      
     }
     case AST_BLOCK: {
+      block_count++;
       push_new_declaration_stack(declaration_stack);
       
       for (int i = 0; i < node->data.block.block_count; i++) {   
         AstNode *block_item_node = node->data.block.block_ptrs->node_pointers[i];
-        variable_resolve_node(block_item_node, declaration_stack, function_count, block_count++); 
+        variable_resolve_node(block_item_node, declaration_stack, function_count, block_count);
        }
 
       stack_pop(declaration_stack);
-
       break;
     }
     case AST_STATEMENT_COMPOUND:
