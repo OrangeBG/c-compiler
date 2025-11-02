@@ -1307,13 +1307,16 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
 
   create_function_call_arguments(function_call_args, ir_function_call_instruction, assembly);
 
-  printf("int register count: %d\n", function_call_args->int_register_count);
-  printf("double register count: %d\n", function_call_args->double_register_count);
-  printf("stack count: %d\n", function_call_args->stack_arguments->count);
+  int stack_padding = 0;
+
+  if (function_call_args->stack_arguments->count % 2 != 0) {
+    stack_padding = 8;
+    emit_ir_instruction_allocate_rsp_stack(asm_function, stack_padding, assembly);    
+  } 
 
   AsmNode *int_arg_registers[6] = { assembly->register_di, assembly->register_si, assembly->register_dx, assembly->register_cx, assembly->register_r8, assembly->register_r9 };
 
-  // //As per the System V ABI (Application Binary Interface), the first 6 arguments of a function call will be loaded into the following 'arg_registers' as ordered in the array. After that, any additional arguments will be added to the stack in reverse order to be processed in the order of how they are called.
+  // //As per the System V ABI (Application Binary Interface), the first 6 arguments of a function call will be loaded into general registers as ordered in the array. Double declarations will be loaded into 8 XMM registers. After that, any additional arguments will be added to the stack in reverse order to be processed in the order of how they are called.
   for (int i = 0; i < function_call_args->int_register_count; i++) {    
     emit_asm_mov_instruction(asm_function, function_call_args->int_register_arguments[i], int_arg_registers[i], function_call_args->int_register_types[i], assembly);
   }
@@ -1335,93 +1338,40 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
       emit_asm_push_instruction(asm_function, assembly->register_ax, assembly);
     } 
   }
+
+  AsmNode *call_instruction = arena_alloc(assembly->asm_arena);
+  call_instruction->type = ASM_INSTRUCTION_CALL;
+  call_instruction->data.instruction_call.identifier = ir_function_call_instruction->data.instruction_function_call.identifier;
+
+  add_instruction_to_function(asm_function, call_instruction);        
+
+  //Adjust stack pointer
+  int bytes_to_remove = 8 * function_call_args->stack_arguments->count + stack_padding;
+
+  if (bytes_to_remove != 0) {
+    AsmNode *bytes_to_remove_imm_node = create_imm_operand(bytes_to_remove, assembly);
+    emit_asm_binary_instruction(asm_function, bytes_to_remove_imm_node, assembly->register_sp, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
+  }
   
-  // int arg_count = ir_function_call_instruction->data.instruction_function_call.arg_count;
-  // int stack_padding = 0;
+  //retrieve return value 
+  AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
+
+  HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function_call_instruction->data.instruction_function_call.identifier);
+  DeclarationSymbol *declaration_symbol = entry->value->structure;
+  
+  AsmType return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type);
+
+  AsmNode *dest_register;
    
-  // //Adjust the stack alignment when there are stack allocated arguments and it's an odd alignment
-  // if (arg_count > 6 && arg_count % 2 != 0) {
-  //   stack_padding = 8;
-  //   emit_ir_instruction_allocate_rsp_stack(asm_function, stack_padding, assembly);    
-  // }
-
-  // int general_arg_count = 0;
-  // int floating_point_arg_count = 0;
-  // int stack_arg_count = 0;
-
-  // for (int i = 0; i < arg_count; i++) {
-  //   AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly);
-  //   Types node_type = get_ir_node_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
-
-  //   if ((node_type != TYPE_DOUBLE && general_arg_count < 6) || (node_type == TYPE_DOUBLE && floating_point_arg_count < 8)) {
-  //     AsmType asm_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
-
-  //     //TODO: Need to use the new registers in Assembly rather than creating them here
-  //     AsmNode *destination = arena_alloc(assembly->asm_arena);
-  //     destination->type = ASM_OPERAND_REGISTER;
-
-  //     if (node_type == TYPE_DOUBLE) {
-  //       destination->data.operand_register.op_register = arg_floating_point_registers[i];      
-  //       floating_point_arg_count++;
-  //     } else {
-  //       destination->data.operand_register.op_register = arg_general_registers[i];      
-  //       general_arg_count++;
-  //     }
-
-  //     emit_asm_mov_instruction(asm_function, arg, destination, asm_type, assembly);
-  //   } else {
-  //     GetInstructionTypeResult instruction_type_result = get_instruction_type(arg);
-
-  //     if (arg->type == ASM_OPERAND_PSEUDO_REGISTER ||
-  //         arg->type == ASM_OPERAND_IMM ||
-  //         (instruction_type_result.found_type && instruction_type_result.instruction_type_found == ASM_TYPE_QUADWORD || instruction_type_result.instruction_type_found == ASM_TYPE_DOUBLE)) {
-  //       emit_asm_push_instruction(asm_function, arg, assembly);
-  //     } else {
-  //       stack_arg_count++;
-
-  //       AsmType mov_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);       
-
-  //       emit_asm_mov_instruction(asm_function, arg, assembly->register_ax, mov_type, assembly);
-  //       emit_asm_push_instruction(asm_function, assembly->register_r10, assembly);
-  //     }         
-
-  //     continue;
-  //   }
-  // }  
-
-  // AsmNode *call_instruction = arena_alloc(assembly->asm_arena);
-  // call_instruction->type = ASM_INSTRUCTION_CALL;
-  // call_instruction->data.instruction_call.identifier = ir_function_call_instruction->data.instruction_function_call.identifier;
-
-  // add_instruction_to_function(asm_function, call_instruction);        
-
-  // //Adjust stack pointer
-  // int bytes_to_remove = 8 * stack_arg_count + stack_padding;
-
-  // if (bytes_to_remove != 0) {
-  //   AsmNode *imm_operand = create_imm_operand(bytes_to_remove, assembly);
-  //   emit_asm_binary_instruction(asm_function, imm_operand, assembly->register_sp, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
-  // }
-
-  // //retrieve return value 
-  // AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
-
-  // HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function_call_instruction->data.instruction_function_call.identifier);
-  // DeclarationSymbol *declaration_symbol = entry->value->structure;
+  if (return_type == ASM_TYPE_DOUBLE) {
+    dest_register = assembly->register_xmm0; 
+  } else {
+    dest_register = assembly->register_ax;
+  }
   
-  // AsmType return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type);
+  AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, assembly->declaration_symbol_table);
 
-  // AsmNode *dest_register;
-   
-  // if (return_type == ASM_TYPE_DOUBLE) {
-  //   dest_register = assembly->register_xmm0; 
-  // } else {
-  //   dest_register = assembly->register_ax;
-  // }
-  
-  // AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, assembly->declaration_symbol_table);
-
-  // emit_asm_mov_instruction(asm_function, dest_register, assembly_destination, destination_type, assembly); 
+  emit_asm_mov_instruction(asm_function, dest_register, assembly_destination, destination_type, assembly); 
 }
 
 static void emit_ir_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Assembly *assembly) {
