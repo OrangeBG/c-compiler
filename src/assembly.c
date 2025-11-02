@@ -1324,7 +1324,7 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
   AsmNode *double_arg_registers[8] = { assembly->register_xmm0, assembly->register_xmm1, assembly->register_xmm2, assembly->register_xmm3, assembly->register_xmm4, assembly->register_xmm5, assembly->register_xmm6, assembly->register_xmm7 };
 
   for (int i = 0; i < function_call_args->double_register_count; i++) {    
-    emit_asm_mov_instruction(asm_function, function_call_args->int_register_arguments[i], double_arg_registers[i], ASM_TYPE_DOUBLE, assembly);
+    emit_asm_mov_instruction(asm_function, function_call_args->double_register_arguments[i], double_arg_registers[i], ASM_TYPE_DOUBLE, assembly);
   }
 
   for (int i = function_call_args->stack_arguments->count - 1; i >= 0; i--) {
@@ -2182,7 +2182,7 @@ static void create_function_call_arguments(FunctionCallArguments *function_call_
 
     if (asm_type == ASM_TYPE_DOUBLE) {
       if (function_call_arguments->double_register_count < DOUBLE_ARGUMENT_LIMIT) {
-        function_call_arguments->double_register_arguments[function_call_arguments->double_register_count - 1] = arg;
+        function_call_arguments->double_register_arguments[function_call_arguments->double_register_count] = arg;
         function_call_arguments->double_register_count++;
         continue;
       } 
