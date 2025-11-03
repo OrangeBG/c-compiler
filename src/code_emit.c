@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
-#include "assembly.h"
 
 static char* get_8_byte_register(AsmRegisterType register_type); 
 static char* get_4_byte_register(AsmRegisterType register_type); 
@@ -150,9 +149,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\tcomisd");
       } else {
         fprintf(file, "\tcmp");
+        print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type);
       }
 
-      print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type);
       if (asm_node->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE) {
         fprintf(file, "\t");
       } else {
