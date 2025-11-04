@@ -15,7 +15,7 @@
 #define NODE_POINTER_CAPACITY 8
 #define BASE_TEN 10
 
-typedef struct Parser {
+typedef struct {
   int token_count;
   int current_token_index;
   int current_loop_label_id;
@@ -24,14 +24,37 @@ typedef struct Parser {
   Arena* node_arena;
 } Parser;
 
-typedef struct Specifier {
+typedef struct {
   StorageClassType storage_class_type;
   Types specifier_type;
   bool specifier_type_found;
 } Specifier;
+
+typedef struct Declarator Declarator;
+
+typedef enum {
+  DECLARATOR_TYPE_IDENTIFIER,
+  DECLARATOR_TYPE_POINTER,
+  DECLARATOR_FUNCTION
+} DeclaratorType;
+
+typedef struct {
+  Types type;
+  Declarator *declarator;
+} Parameter;
+
+typedef struct Declarator {
+  DeclaratorType type;
+  union {
+    struct Identifier { char* identifier; } identifier;
+    struct PointerDeclarator { Declarator *declarator; } pointer_declaration;
+    struct FunctionDeclarator { Parameter *parameters; int parameter_count; int parameter_capacity; Declarator *declarator; } function_declarator;
+  } data;  
+} Declarator;
  
 static void       parse_program(Parser *parser, AstNode *program_node);
 static void       parse_declaration(Parser *parser, AstNode *declaration_node); 
+static void       parse_declarator(Parser *parser, AstNode *declarator_node, Types base_type); 
 static void       parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier);
 static void       parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier);
 static void       parse_block(Parser *parser, AstNode *block_node);
@@ -558,6 +581,8 @@ static void parse_program(Parser *parser, AstNode *program_node) {
 static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   Specifier specifier = parse_specifier(parser, false);
 
+  //TODO: Get Declarator here
+
   //Variable Declaration -> int c; or int c = 0; 
   if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
     parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
@@ -565,6 +590,12 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   }
 
   parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
+}
+
+static void parse_declarator(Parser *parser, AstNode *declarator_node, Types base_type) {
+  if (current_token(parser)->type == TOKEN_ASTERISK) {
+    //
+  }
 }
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {
@@ -1216,79 +1247,6 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     
   factor_node->data.constant_expression.expression_type = expression_type;
 }
-
-// static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type) {
-//   expect(parser, constant_type); 
-
-//   factor_node->type = AST_EXPRESSION_CONSTANT;
-
-//   char slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
-//   strncpy(slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
-
-//   char *end_ptr;
-//   //@BUG: Does not support float values
-//   long constant_value = strtol(slice, &end_ptr, BASE_TEN);
-
-//   if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
-//     fprintf(stderr, "ERROR - Parser: Out of bounds int/long constant '%ld'\n", constant_value);
-//     exit(1);
-//   }
-
-//   AstNode *expression_type = arena_alloc(parser->node_arena);
-//   expression_type->type = AST_TYPE;
-
-//   if (constant_type == TOKEN_CONSTANT_INT && constant_value > INT_MIN && constant_value < INT_MAX) {
-//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_INT;
-//     factor_node->data.constant_expression.int_value = (int)constant_value;
-
-//     expression_type->data.type.type = TYPE_INT;  
-    
-//     factor_node->data.constant_expression.expression_type = expression_type;
-
-//     return;
-//   }
-
-//   //Floating points constants can't go out of range since a double supports positive and negative infinity
-//   if (constant_type == TOKEN_CONSTANT_FLOAT) {
-//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_DOUBLE;
-//     factor_node->data.constant_expression.double_value = (double)constant_value;
-
-//     expression_type->data.type.type = TYPE_DOUBLE;  
-    
-//     factor_node->data.constant_expression.expression_type = expression_type;
-
-//     return;
-//   }
-
-//   if (constant_type == TOKEN_CONSTANT_UNSIGNED_INT && constant_value >= 0  && constant_value < UINT_MAX) {
-//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_UINT;
-//     factor_node->data.constant_expression.uint_value = (unsigned int)constant_value;
-
-//     expression_type->data.type.type = TYPE_UINT;  
-    
-//     factor_node->data.constant_expression.expression_type = expression_type;
-
-//     return;
-//   }
-
-//   if (constant_type == TOKEN_CONSTANT_UNSIGNED_LONG && constant_value >= 0  && constant_value < ULONG_MAX) {
-//     factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_ULONG;
-//     factor_node->data.constant_expression.ulong_value = (unsigned long)constant_value;
-
-//     expression_type->data.type.type = TYPE_ULONG;  
-    
-//     factor_node->data.constant_expression.expression_type = expression_type;
-
-//     return;
-//   }
-
-//   factor_node->data.constant_expression.constant_type = AST_CONSTANT_TYPE_LONG;
-//   factor_node->data.constant_expression.long_value = constant_value;
-
-//   expression_type->data.type.type = TYPE_LONG;  
-    
-//   factor_node->data.constant_expression.expression_type = expression_type;
-// }
 
 static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
   UnaryOpType op_type; 
