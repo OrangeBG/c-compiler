@@ -12,6 +12,7 @@
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define FUNCTION_IDENTIFIER_INIT_CAPACITY 4
 #define FUNCTION_PARAMETER_TYPE_INIT_CAPACITY 4
+#define FUNCTION_DECLARATOR_INIT_CAPACITY 4
 #define NODE_POINTER_CAPACITY 8
 #define BASE_TEN 10
 
@@ -39,64 +40,67 @@ typedef enum {
 } DeclaratorType;
 
 typedef struct {
-  Types type;
-  Declarator *declarator;
-} Parameter;
+  int count;
+  int capacity;
+  char *identifiers;
+  AstNode *types;
+} FunctionDeclaratorParameter; 
 
 typedef struct Declarator {
   DeclaratorType type;
   union {
     struct Identifier { char* identifier; } identifier;
     struct PointerDeclarator { Declarator *declarator; } pointer_declaration;
-    struct FunctionDeclarator { Parameter *parameters; int parameter_count; int parameter_capacity; Declarator *declarator; } function_declarator;
+    struct FunctionDeclarator { FunctionDeclaratorParameter *function_declarator_parameters; Declarator *declarator; } function_declarator;
   } data;  
 } Declarator;
  
-static void       parse_program(Parser *parser, AstNode *program_node);
-static void       parse_declaration(Parser *parser, AstNode *declaration_node); 
-static void       parse_declarator(Parser *parser, AstNode *declarator_node, Types base_type); 
-static void       parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier);
-static void       parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier);
-static void       parse_block(Parser *parser, AstNode *block_node);
-static void       parse_statement(Parser *parser, AstNode **statement_node);
-static void       parse_statement_null(Parser *parser, AstNode *statement_node);
-static void       parse_statement_return(Parser *parser, AstNode *statement_node); 
-static void       parse_statement_if(Parser *parser, AstNode *statement_node); 
-static void       parse_statement_goto(Parser *parser, AstNode *statement_node); 
-static void       parse_statement_break(Parser *parser, AstNode *break_statement_node); 
-static void       parse_statement_continue(Parser *parser, AstNode *continue_statement_node); 
-static void       parse_statement_while(Parser *parser, AstNode *while_statement_node); 
-static void       parse_statement_do(Parser *parser, AstNode *do_statement_node); 
-static void       parse_statement_for(Parser *parser, AstNode *for_statement_node); 
-static void       parse_statement_compound_statement(Parser *parser, AstNode *compound_statement_node); 
-static void       parse_expression(Parser *parser, AstNode **expression_node, int min_precedence);
-static void       parse_expression_postfix(Parser *parser, AstNode *postfix_expression, AstNode *left_expression,  TokenType postfix_token);
-static void       parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
-static void       parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
-static void       parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
-static void       parse_factor(Parser *parser, AstNode *factor_node);
-static void       parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type);
-static void       parse_factor_unary(Parser *parser, AstNode *factor_node); 
-static void       parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
-static void       parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node); 
-static void       parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
-static void       parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
-static void       parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
-static void       parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
-static Specifier  parse_specifier(Parser *parser, bool error_if_storage_class_found);
-static Token*     current_token(const Parser *parser);
-static Token*     previous_token(const Parser *parser);
-static TokenType  peek_next_token(const Parser *parser); 
-static char*      get_identifier(Parser *parser);
-static void       expect(Parser *parser, TokenType expected_type);
-static void       print_whitespace(int count); 
-static void       add_to_node_pointer(AstNode *node, NodePointer *node_pointer); 
-static void       init_node_pointer(NodePointer *node_pointer); 
-static bool       end_of_file(const Parser *parser);
-static bool       is_type_identifier_token(TokenType token_type);
-static int        get_precedence(TokenType token_type);
-static void       add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
-static void       add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
+static void         parse_program(Parser *parser, AstNode *program_node);
+static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
+static Declarator*  parse_declarator(Parser *parser); 
+static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier);
+static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier);
+static void         parse_block(Parser *parser, AstNode *block_node);
+static void         parse_statement(Parser *parser, AstNode **statement_node);
+static void         parse_statement_null(Parser *parser, AstNode *statement_node);
+static void         parse_statement_return(Parser *parser, AstNode *statement_node); 
+static void         parse_statement_if(Parser *parser, AstNode *statement_node); 
+static void         parse_statement_goto(Parser *parser, AstNode *statement_node); 
+static void         parse_statement_break(Parser *parser, AstNode *break_statement_node); 
+static void         parse_statement_continue(Parser *parser, AstNode *continue_statement_node); 
+static void         parse_statement_while(Parser *parser, AstNode *while_statement_node); 
+static void         parse_statement_do(Parser *parser, AstNode *do_statement_node); 
+static void         parse_statement_for(Parser *parser, AstNode *for_statement_node); 
+static void         parse_statement_compound_statement(Parser *parser, AstNode *compound_statement_node); 
+static void         parse_expression(Parser *parser, AstNode **expression_node, int min_precedence);
+static void         parse_expression_postfix(Parser *parser, AstNode *postfix_expression, AstNode *left_expression,  TokenType postfix_token);
+static void         parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
+static void         parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
+static void         parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
+static void         parse_factor(Parser *parser, AstNode *factor_node);
+static void         parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type);
+static void         parse_factor_unary(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
+static void         parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
+static Specifier    parse_specifier(Parser *parser, bool error_if_storage_class_found);
+static Token*       current_token(const Parser *parser);
+static Token*       previous_token(const Parser *parser);
+static TokenType    peek_next_token(const Parser *parser); 
+static char*        get_identifier(Parser *parser);
+static void         expect(Parser *parser, TokenType expected_type);
+static void         print_whitespace(int count); 
+static void         add_to_node_pointer(AstNode *node, NodePointer *node_pointer); 
+static void         init_node_pointer(NodePointer *node_pointer); 
+static bool         end_of_file(const Parser *parser);
+static bool         is_type_identifier_token(TokenType token_type);
+static int          get_precedence(TokenType token_type);
+static void         add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
+static void         add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
+static void         add_function_parameter_to_declarator(Declarator *function_declarator, AstNode *param_type, char *identifier); 
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -580,8 +584,7 @@ static void parse_program(Parser *parser, AstNode *program_node) {
 
 static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   Specifier specifier = parse_specifier(parser, false);
-
-  //TODO: Get Declarator here
+  Declarator *declarator = parse_declarator(parser);
 
   //Variable Declaration -> int c; or int c = 0; 
   if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
@@ -590,12 +593,6 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   }
 
   parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
-}
-
-static void parse_declarator(Parser *parser, AstNode *declarator_node, Types base_type) {
-  if (current_token(parser)->type == TOKEN_ASTERISK) {
-    //
-  }
 }
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {
@@ -1511,6 +1508,64 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
   return specifier;
 }
 
+static Declarator* parse_declarator(Parser *parser) {
+  if (current_token(parser)->type == TOKEN_ASTERISK) {
+    expect(parser, TOKEN_ASTERISK);
+
+    Declarator *pointer_declarator = malloc(sizeof(Declarator));    
+    pointer_declarator->type = DECLARATOR_TYPE_POINTER;
+    pointer_declarator->data.pointer_declaration.declarator = parse_declarator(parser);  
+
+    return pointer_declarator;
+  }
+
+  if (current_token(parser)->type == TOKEN_IDENTIFIER) {
+    char *identifier = get_identifier(parser);
+    Declarator *identifier_declarator = malloc(sizeof(Declarator));
+    identifier_declarator->data.identifier.identifier = identifier;
+
+    return identifier_declarator;
+  }
+
+  if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+    expect(parser, TOKEN_OPEN_PAREN);
+
+    Declarator *function_declarator = malloc(sizeof(Declarator));
+    AstNode *parameter_type = arena_alloc(parser->node_arena);
+    parameter_type->type = AST_TYPE;
+
+    Specifier parameter_specifier = parse_specifier(parser, true);
+    parameter_type->data.type.type = parameter_specifier.specifier_type;
+
+    char *identifier = NULL;
+
+    if (parameter_specifier.specifier_type != TYPE_VOID) {
+      identifier = get_identifier(parser);
+    }
+
+    add_function_parameter_to_declarator(function_declarator, parameter_type, identifier);
+
+    while(current_token(parser)->type == TOKEN_COMMA) {
+      expect(parser, TOKEN_COMMA);
+
+      AstNode *next_parameter_type = arena_alloc(parser->node_arena);
+      next_parameter_type->type = AST_TYPE;
+    
+      Specifier next_parameter_specifier = parse_specifier(parser, true);
+      next_parameter_type->data.type.type = next_parameter_specifier.specifier_type;
+
+      char *identifier = get_identifier(parser);
+      add_function_parameter_to_declarator(function_declarator, parameter_type, identifier);
+    }
+  
+    expect(parser, TOKEN_CLOSE_PAREN);
+
+    return function_declarator;
+  }
+
+  return NULL;
+}
+
 static int get_precedence(TokenType token_type) {
   switch (token_type) {
     case TOKEN_INCREMENT:
@@ -1599,3 +1654,15 @@ static void add_function_parameter_type(AstNode *function_parameter_type, AstNod
   function_type->data.type.function_param_type_count++;
 }   
 
+static void add_function_parameter_to_declarator(Declarator *function_declarator, AstNode *param_type, char *identifier) {
+  if (function_declarator->data.function_declarator.function_declarator_parameters->count == function_declarator->data.function_declarator.function_declarator_parameters->capacity) {
+    int size = function_declarator->data.function_declarator.function_declarator_parameters->capacity == 0 ? FUNCTION_DECLARATOR_INIT_CAPACITY : function_declarator->data.function_declarator.function_declarator_parameters->capacity * 2;
+    function_declarator->data.function_declarator.function_declarator_parameters->capacity = size;
+    function_declarator->data.function_declarator.function_declarator_parameters->types = realloc(function_declarator->data.function_declarator.function_declarator_parameters->types, size * sizeof(AstNode));
+    function_declarator->data.function_declarator.function_declarator_parameters->identifiers = realloc(function_declarator->data.function_declarator.function_declarator_parameters->types, size * sizeof(char*));
+  }
+
+  function_declarator->data.function_declarator.function_declarator_parameters->types[function_declarator->data.function_declarator.function_declarator_parameters->count] = *param_type;
+  function_declarator->data.function_declarator.function_declarator_parameters->identifiers[function_declarator->data.function_declarator.function_declarator_parameters->count] = *identifier;
+  function_declarator->data.function_declarator.function_declarator_parameters->count++;
+}   
