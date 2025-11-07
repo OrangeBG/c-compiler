@@ -1524,43 +1524,54 @@ static Declarator* parse_declarator(Parser *parser) {
     Declarator *identifier_declarator = malloc(sizeof(Declarator));
     identifier_declarator->data.identifier.identifier = identifier;
 
-    return identifier_declarator;
-  }
+    // return identifier_declarator;
+    // }
 
-  if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
-    expect(parser, TOKEN_OPEN_PAREN);
+    if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+      expect(parser, TOKEN_OPEN_PAREN);
 
-    Declarator *function_declarator = malloc(sizeof(Declarator));
-    AstNode *parameter_type = arena_alloc(parser->node_arena);
-    parameter_type->type = AST_TYPE;
+      Declarator *function_declarator = malloc(sizeof(Declarator));
+      function_declarator->type = DECLARATOR_FUNCTION;
+      function_declarator->data.function_declarator.declarator = identifier_declarator;
+      function_declarator->data.function_declarator.function_declarator_parameters = malloc(sizeof(FunctionDeclaratorParameter));
+      function_declarator->data.function_declarator.function_declarator_parameters->capacity = 0;
+      function_declarator->data.function_declarator.function_declarator_parameters->count = 0;
+      function_declarator->data.function_declarator.function_declarator_parameters->identifiers = NULL;
+      function_declarator->data.function_declarator.function_declarator_parameters->types = NULL;
 
-    Specifier parameter_specifier = parse_specifier(parser, true);
-    parameter_type->data.type.type = parameter_specifier.specifier_type;
+      AstNode *parameter_type = arena_alloc(parser->node_arena);
+      parameter_type->type = AST_TYPE;
 
-    char *identifier = NULL;
+      Specifier parameter_specifier = parse_specifier(parser, true);
+      parameter_type->data.type.type = parameter_specifier.specifier_type;
 
-    if (parameter_specifier.specifier_type != TYPE_VOID) {
-      identifier = get_identifier(parser);
-    }
+      char *identifier = NULL;
 
-    add_function_parameter_to_declarator(function_declarator, parameter_type, identifier);
+      if (parameter_specifier.specifier_type != TYPE_VOID) {
+        identifier = get_identifier(parser);
+      }
 
-    while(current_token(parser)->type == TOKEN_COMMA) {
-      expect(parser, TOKEN_COMMA);
-
-      AstNode *next_parameter_type = arena_alloc(parser->node_arena);
-      next_parameter_type->type = AST_TYPE;
-    
-      Specifier next_parameter_specifier = parse_specifier(parser, true);
-      next_parameter_type->data.type.type = next_parameter_specifier.specifier_type;
-
-      char *identifier = get_identifier(parser);
       add_function_parameter_to_declarator(function_declarator, parameter_type, identifier);
-    }
-  
-    expect(parser, TOKEN_CLOSE_PAREN);
 
-    return function_declarator;
+      while(current_token(parser)->type == TOKEN_COMMA) {
+        expect(parser, TOKEN_COMMA);
+
+        AstNode *next_parameter_type = arena_alloc(parser->node_arena);
+        next_parameter_type->type = AST_TYPE;
+
+        Specifier next_parameter_specifier = parse_specifier(parser, true);
+        next_parameter_type->data.type.type = next_parameter_specifier.specifier_type;
+
+        char *identifier = get_identifier(parser);
+        add_function_parameter_to_declarator(function_declarator, parameter_type, identifier);
+      }
+
+      expect(parser, TOKEN_CLOSE_PAREN);
+
+      return function_declarator;
+    } else {
+      return identifier_declarator;
+    }
   }
 
   return NULL;
@@ -1663,6 +1674,8 @@ static void add_function_parameter_to_declarator(Declarator *function_declarator
   }
 
   function_declarator->data.function_declarator.function_declarator_parameters->types[function_declarator->data.function_declarator.function_declarator_parameters->count] = *param_type;
-  function_declarator->data.function_declarator.function_declarator_parameters->identifiers[function_declarator->data.function_declarator.function_declarator_parameters->count] = *identifier;
+  if (identifier != NULL) {
+    function_declarator->data.function_declarator.function_declarator_parameters->identifiers[function_declarator->data.function_declarator.function_declarator_parameters->count] = *identifier;
+  }
   function_declarator->data.function_declarator.function_declarator_parameters->count++;
 }   
