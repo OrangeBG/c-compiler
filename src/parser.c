@@ -7,6 +7,7 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "../include/lexer.h"
+#include "types.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -54,6 +55,12 @@ typedef struct Declarator {
     struct FunctionDeclarator { FunctionDeclaratorParameter *function_declarator_parameters; Declarator *declarator; } function_declarator;
   } data;  
 } Declarator;
+
+typedef struct {
+  char *identifier;
+  Types declaration_type;
+  FunctionDeclaratorParameter *function_params;
+} DeclaratorResults; 
  
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
@@ -101,6 +108,7 @@ static int          get_precedence(TokenType token_type);
 static void         add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 static void         add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
 static void         add_function_parameter_to_declarator(Declarator *function_declarator, AstNode *param_type, char *identifier); 
+static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, Types base_type); 
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -586,13 +594,31 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   Specifier specifier = parse_specifier(parser, false);
   Declarator *declarator = parse_declarator(parser);
 
-  //Variable Declaration -> int c; or int c = 0; 
-  if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
-    parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
-    return;
+  // //Variable Declaration -> int c; or int c = 0; 
+  // if (peek_next_token(parser) == TOKEN_EQUAL || peek_next_token(parser) == TOKEN_SEMICOLON) {
+  //   parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
+  //   return;
+  // }
+
+  // parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
+}
+
+static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, Types base_type) {
+  switch (declarator->type) {
+    case DECLARATOR_TYPE_IDENTIFIER:
+      declaration_results->identifier = declarator->data.identifier.identifier;
+      break;
+    case DECLARATOR_TYPE_POINTER: {
+      AstNode *pointer_type = arena_alloc(parser->node_arena);
+      pointer_type->type = AST_TYPE;
+      pointer_type->data.type.type = TYPE_POINTER;
+      break;
+    }
+    case DECLARATOR_FUNCTION:
+      break;
   }
 
-  parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
+  return declaration_results;
 }
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {

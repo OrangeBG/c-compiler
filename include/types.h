@@ -11,7 +11,8 @@ typedef enum {
   TYPE_LONG,
   TYPE_ULONG,
   TYPE_DOUBLE,
-  TYPE_FUNCTION
+  TYPE_FUNCTION,
+  TYPE_POINTER
 } Types;
 
 size_t get_type_size(Types type);
