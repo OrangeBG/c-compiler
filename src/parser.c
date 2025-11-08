@@ -54,11 +54,11 @@ typedef struct Declarator {
   } data;  
 } Declarator;
 
-// typedef struct {
-//   char *identifier;
-//   Types declaration_type;
-//   DeclaratorParameter *function_params;
-// } DeclaratorResults; 
+typedef struct {
+  char *identifier;
+  AstNode *declaration_type;
+  DeclaratorParameter *function_params;
+} DeclaratorResults; 
  
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
@@ -604,33 +604,37 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   // parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
 }
 
-// static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, Types base_type) {
-//   switch (declarator->type) {
-//     case DECLARATOR_TYPE_IDENTIFIER:
-//       declaration_results->identifier = declarator->data.identifier.identifier;
-//       break;
-//     case DECLARATOR_TYPE_POINTER: {
-//       AstNode *pointer_type = arena_alloc(parser->node_arena);
-//       pointer_type->type = AST_TYPE;
-//       pointer_type->data.type.type = TYPE_POINTER;
-//       pointer_type->data.type.pointer_reference_type = base_type;
-//       break;
-//     }
-//     case DECLARATOR_FUNCTION:
-//       switch(declarator->data.function_declarator.declarator->type) {
-//         case DECLARATOR_TYPE_IDENTIFIER:
+static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, AstNode *base_type) {
+  switch (declarator->type) {
+    case DECLARATOR_TYPE_IDENTIFIER:
+      declaration_results->identifier = declarator->data.identifier.identifier;
+      declaration_results->declaration_type = base_type;
+      break;
+    case DECLARATOR_TYPE_POINTER: {
+      AstNode *pointer_type = arena_alloc(parser->node_arena);
+      pointer_type->type = AST_TYPE;
+      pointer_type->data.type.type = TYPE_POINTER;
+      pointer_type->data.type.pointer_reference_type = base_type;
 
-//           break;
-//         default:
-//           fprintf(stderr, "ERROR - Parser: Cannot apply additional type derivations to a function type\n");
-//           exit(1);
-//       }
+      return process_declarator(parser, declaration_results, declarator, pointer_type);
+    }
+    case DECLARATOR_FUNCTION:
+      switch(declarator->data.function_declarator.declarator->type) {
+        case DECLARATOR_TYPE_IDENTIFIER:
+          for (int i = 0; i < declarator->data.function_declarator.param_count; i++) {
+
+          }
+          break;
+        default:
+          fprintf(stderr, "ERROR - Parser: Cannot apply additional type derivations to a function type\n");
+          exit(1);
+      }
       
-//       break;
-//   }
+      break;
+  }
 
-//   return declaration_results;
-// }
+  return declaration_results;
+}
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {
   function_node->data.function_declaration.parameter_count = 0;

@@ -97,7 +97,7 @@ typedef struct AstNode {
     //TODO: Seems bad to have param count and have function_type.data.type.function_param_type_count representing the same thing
     struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity;  /*NodePointer *parameter_type_ptrs;*/ int parameter_count; AstNode *body_block; AstNode *function_type; } function_declaration;
     struct VariableDeclaration { char *name; AstNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } variable_declaration;
-    struct Type { Types type; AstNode *function_param_types; int function_param_type_count; int function_param_type_capacity; AstNode *function_return_type; Types pointer_reference_type; } type;
+    struct Type { Types type; AstNode *function_param_types; int function_param_type_count; int function_param_type_capacity; AstNode *function_return_type; AstNode *pointer_reference_type; } type;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } return_statement;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } if_statement;
