@@ -112,7 +112,7 @@ Arena* parse_ast(Token *tokens, int token_count, char *file) {
   Arena *parser_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(parser_arena, sizeof(AstNode), sizeof(AstNode) * 1000, false);
-  
+
   Parser parser = {
     .token_count = token_count,
     .current_token_index = 0,
@@ -1556,14 +1556,21 @@ static Declarator* parse_declarator(Parser *parser) {
     return pointer_declarator;
   }
 
+  //Supports casted declarations like '*(var)'
+  if (current_token(parser)->type == TOKEN_OPEN_PAREN)
+  {
+    expect(parser, TOKEN_OPEN_PAREN);
+    Declarator *declarator = parse_declarator(parser);
+    expect(parser, TOKEN_CLOSE_PAREN);
+    return declarator;
+  }
+
   if (current_token(parser)->type == TOKEN_IDENTIFIER) {
     char *identifier = get_identifier(parser);
     Declarator *identifier_declarator = malloc(sizeof(Declarator));
     identifier_declarator->type = DECLARATOR_TYPE_IDENTIFIER;
     identifier_declarator->data.identifier.identifier = identifier;
 
-
-    //TODO: Assuming an open paren here is to a function declaration. Need to support casts like *(x)
     if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
       expect(parser, TOKEN_OPEN_PAREN);
 

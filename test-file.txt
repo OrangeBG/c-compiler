@@ -1,4 +1,6 @@
 int *main(void) {
+    int *(ptr_1);
     int *ptr;
+
     return *ptr;
 }
