@@ -1,4 +1,4 @@
-int *main(void) {
+int *main(int *a, int b) {
     int *(ptr_1);
     int *ptr;
 
