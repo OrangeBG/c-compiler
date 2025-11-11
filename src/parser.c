@@ -56,7 +56,10 @@ typedef struct Declarator {
 typedef struct {
   char *identifier;
   AstNode *declaration_type;
-  DeclaratorParameter *function_params;
+  // DeclaratorParameter *function_params;
+  int param_identifiers_count;
+  int param_identifiers_capacity;
+  char **param_identifiers;
 } DeclaratorResults; 
  
 static void         parse_program(Parser *parser, AstNode *program_node);
@@ -105,6 +108,7 @@ static int          get_precedence(TokenType token_type);
 static void         add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 static void         add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type);   
 static void         add_function_parameter_to_declarator(Declarator *function_declarator, Types param_type, Declarator *param_declarator); 
+static void         add_function_parameter_identifier_to_declarator_results(char *identifier, DeclaratorResults *declarator_results);   
 static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, AstNode *base_type); 
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
@@ -595,7 +599,11 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   base_type->type = AST_TYPE;
   base_type->data.type.type = specifier.specifier_type;
 
-  DeclaratorResults *results = process_declarator(parser, NULL, declarator, base_type);
+  DeclaratorResults results;
+  results.param_identifiers = NULL;
+  results.param_identifiers_capacity = 0;
+  results.param_identifiers_count = 0;
+  process_declarator(parser, &results, declarator, base_type);
 
   //@Temp: Temp code while I test declarator parser
   expect(parser, TOKEN_OPEN_BRACE);
@@ -626,13 +634,16 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
     case DECLARATOR_FUNCTION:
       switch(declarator->data.function_declarator.declarator->type) {
         case DECLARATOR_TYPE_IDENTIFIER: {
-          DeclaratorResults *function_results = malloc(sizeof(DeclaratorResults));
-          function_results->identifier = declarator->data.function_declarator.declarator->data.identifier.identifier;
+          //DeclaratorResults *function_results = malloc(sizeof(DeclaratorResults));
+          declaration_results->identifier = declarator->data.function_declarator.declarator->data.identifier.identifier;
 
           AstNode *function_type = arena_alloc(parser->node_arena);
           function_type->type = AST_TYPE;
           function_type->data.type.type = TYPE_FUNCTION;
-          
+          function_type->data.type.function_return_type = base_type;
+
+          declaration_results->declaration_type = function_type;
+
           for (int i = 0; i < declarator->data.function_declarator.param_count; i++) {
             DeclaratorParameter *param = &declarator->data.function_declarator.declarator_parameters[i];
             DeclaratorResults *param_results = malloc(sizeof(DeclaratorResults));
@@ -642,10 +653,12 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
             param_type->data.type.type = param->param_type;
 
             param_results = process_declarator(parser, param_results, param->declarator, param_type); 
+
             add_function_parameter_type(param_results->declaration_type, function_type);
+            add_function_parameter_identifier_to_declarator_results(param_results->identifier, declaration_results);
           }
 
-          return function_results;
+          return declaration_results;
         }
         default:
           fprintf(stderr, "ERROR - Parser: Cannot apply additional type derivations to a function type\n");
@@ -1733,3 +1746,15 @@ static void add_function_parameter_to_declarator(Declarator *function_declarator
   function_declarator->data.function_declarator.declarator_parameters[count].declarator = param_declarator;
   function_declarator->data.function_declarator.param_count++;
 }   
+
+static void add_function_parameter_identifier_to_declarator_results(char *identifier, DeclaratorResults *declarator_results) {  
+  if (declarator_results->param_identifiers_count == declarator_results->param_identifiers_capacity) {
+    int size = declarator_results->param_identifiers_capacity == 0 ? FUNCTION_IDENTIFIER_INIT_CAPACITY : declarator_results->param_identifiers_capacity * 2;
+    declarator_results->param_identifiers_capacity = size;
+    declarator_results->param_identifiers = realloc(declarator_results->param_identifiers, size * sizeof(char*));
+  }
+
+  declarator_results->param_identifiers[declarator_results->param_identifiers_count] = identifier;
+  declarator_results->param_identifiers_count++;
+}
+
