@@ -65,8 +65,8 @@ typedef struct {
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
 static Declarator*  parse_declarator(Parser *parser); 
-static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier);
-static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier);
+static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier, DeclaratorResults *declaration_results);
+static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier, DeclaratorResults *declaration_results);
 static void         parse_block(Parser *parser, AstNode *block_node);
 static void         parse_statement(Parser *parser, AstNode **statement_node);
 static void         parse_statement_null(Parser *parser, AstNode *statement_node);
@@ -608,9 +608,9 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   process_declarator(parser, &results, declarator, base_type);
 
   if (results.declaration_type->data.type.type == TYPE_FUNCTION) {
-    parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
+    parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type, &results);
   } else {
-    parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type);
+    parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type, &results);
   }
 }
 
@@ -668,7 +668,7 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
   return declaration_results;
 }
 
-static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier) {
+static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier, DeclaratorResults *declaration_results) {
   function_node->data.declaration_function.parameter_count = 0;
   function_node->data.declaration_function.parameter_identifier_capacity = 0;
   function_node->data.declaration_function.parameter_identifiers = NULL;
@@ -739,7 +739,7 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   parse_block(parser, block_node);
 }
 
-static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier) {
+static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier, DeclaratorResults *declaration_results) {
   char *identifier = get_identifier(parser);
 
   variable_node->type = AST_VARIABLE_DECLARATION;
@@ -988,9 +988,21 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
   AstNode *dec_or_exp = arena_alloc(parser->node_arena);
 
   Specifier type_specifier = parse_specifier(parser, true);
+  Declarator *declarator = parse_declarator(parser);
 
   if (type_specifier.specifier_type_found) {
-    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, type_specifier.specifier_type);
+    AstNode *base_type = arena_alloc(parser->node_arena);
+    base_type->type = AST_TYPE;
+    base_type->data.type.type = type_specifier.specifier_type;
+
+    DeclaratorResults results = {
+      .param_identifiers = NULL,
+      .param_identifiers_count = 0,
+      .param_identifiers_capacity = 0
+    };
+
+    process_declarator(parser, &results, declarator, base_type);
+    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, type_specifier.specifier_type, &results);
   } else if (current_token(parser)->type == TOKEN_SEMICOLON) {
     expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
