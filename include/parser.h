@@ -95,32 +95,32 @@ typedef struct AstNode {
   union {
     struct Program { NodePointer *declaration_ptrs; int declaration_count; } program;
     //TODO: Seems bad to have param count and have function_type.data.type.function_param_type_count representing the same thing
-    struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity;  /*NodePointer *parameter_type_ptrs;*/ int parameter_count; AstNode *body_block; AstNode *function_type; } function_declaration;
-    struct VariableDeclaration { char *name; AstNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } variable_declaration;
+    struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity;  /*NodePointer *parameter_type_ptrs;*/ int parameter_count; AstNode *body_block; AstNode *function_type; } declaration_function;
+    struct VariableDeclaration { char *name; AstNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } declaration_variable;
     struct Type { Types type; AstNode *function_param_types; int function_param_type_count; int function_param_type_capacity; AstNode *function_return_type; AstNode *pointer_reference_type; } type;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
-    struct ReturnStatement { AstNode *expression; } return_statement;
-    struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } if_statement;
-    struct CompoundStatement { AstNode *block; } compound_statement;
-    struct GotoStatement { char *label; } goto_statement;
-    struct GotoLabelStatement { char *label; } goto_label_statement;
-    struct WhileStatement { AstNode *condition; AstNode *statement_body; int label_id; } while_statement;
-    struct DoWhileStatement { AstNode *statement_body; AstNode *condition; int label_id; } do_while_statement;
-    struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } for_statement;
-    struct BreakStatement { int label_id; } break_statement;
-    struct ContinueStatement { int label_id; } continue_statement;
+    struct ReturnStatement { AstNode *expression; } statement_return;
+    struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } statement_if;
+    struct CompoundStatement { AstNode *block; } statement_compound;
+    struct GotoStatement { char *label; } statement_goto;
+    struct GotoLabelStatement { char *label; } statement_goto_label;
+    struct WhileStatement { AstNode *condition; AstNode *statement_body; int label_id; } statement_while;
+    struct DoWhileStatement { AstNode *statement_body; AstNode *condition; int label_id; } statement_do_while;
+    struct ForStatement { AstNode *for_loop_init; AstNode *condition_expression; AstNode *post_expression; AstNode *statement_body; int label_id; } statement_for;
+    struct BreakStatement { int label_id; } statement_break;
+    struct ContinueStatement { int label_id; } statement_continue;
     //TODO: Look into making the constant values into a union
-    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; AstNode *expression_type; double double_value; } constant_expression;
-    struct VariableExpression { char *identifier; AstNode *expression_type; } variable_expression;
-    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; AstNode *expression_type; } unary_expression;
-    struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } binary_expression;
-    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } assignement_expression;
-    struct IncrementDecrementExpression { AstNode *expression; AstNode *expression_type; } increment_decrement_expression;
-    struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; AstNode *expression_type; } conditional_expression;
-    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; AstNode *expression_type; int argument_count; } function_call_expression;
-    struct CastExpression { AstNode *target_type; AstNode *expression; AstNode *expression_type; } cast_expression;
-    struct DereferenceExpression { AstNode *expression; } dereference_expression;
-    struct AddressOfExpression { AstNode *expression; } address_of_expression;
+    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; AstNode *expression_type; double double_value; } expression_constant;
+    struct VariableExpression { char *identifier; AstNode *expression_type; } expression_variable;
+    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; AstNode *expression_type; } expression_unary;
+    struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } expression_binary;
+    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } expression_assignment;
+    struct IncrementDecrementExpression { AstNode *expression; AstNode *expression_type; } expression_increment_decrement;
+    struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; AstNode *expression_type; } expression_conditional;
+    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; AstNode *expression_type; int argument_count; } expression_function_call;
+    struct CastExpression { AstNode *target_type; AstNode *expression; AstNode *expression_type; } expression_cast;
+    struct DereferenceExpression { AstNode *expression; } expression_dereference;
+    struct AddressOfExpression { AstNode *expression; } expression_address_of;
   } data;
 } AstNode;
 

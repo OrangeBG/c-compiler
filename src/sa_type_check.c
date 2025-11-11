@@ -48,68 +48,68 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       if (function_declaration_node == NULL) {
         type_check_file_scope_variable_declaration(node, declaration_table);
       } else {
-        type_check_block_scope_variable_declaration(node, declaration_table, function_declaration_node->data.function_declaration.name);
+        type_check_block_scope_variable_declaration(node, declaration_table, function_declaration_node->data.declaration_function.name);
       }
 
-      if (node->data.variable_declaration.has_expression) {
-        function_and_variable_type_check(node->data.variable_declaration.init_expression, declaration_table, function_declaration_node, ast_arena);
+      if (node->data.declaration_variable.has_expression) {
+        function_and_variable_type_check(node->data.declaration_variable.init_expression, declaration_table, function_declaration_node, ast_arena);
       }
       break;
     }
     case AST_FUNCTION_DECLARATION: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_declaration.name);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.declaration_function.name);
 
       if (entry != NULL && entry->key != NULL) {
         DeclarationSymbol *existing_function_symbol = entry->value->structure;
 
-        if (existing_function_symbol->data.function_symbol->value_type != node->data.function_declaration.function_type->data.type.function_return_type->data.type.type) {
+        if (existing_function_symbol->data.function_symbol->value_type != node->data.declaration_function.function_type->data.type.function_return_type->data.type.type) {
           fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
           exit(1);
         }
 
-        if (existing_function_symbol->data.function_symbol->is_defined && node->data.function_declaration.body_block != NULL) {
+        if (existing_function_symbol->data.function_symbol->is_defined && node->data.declaration_function.body_block != NULL) {
           fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
           exit(1);
         }
 
-        if (existing_function_symbol->data.function_symbol->is_global == node->data.function_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-          fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static\n", node->data.function_declaration.name);
+        if (existing_function_symbol->data.function_symbol->is_global == node->data.declaration_function.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+          fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static\n", node->data.declaration_function.name);
           exit(1);
         }
 
-        if (existing_function_symbol->data.function_symbol->param_count != node->data.function_declaration.parameter_count) {
-          fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.function_declaration.name);
+        if (existing_function_symbol->data.function_symbol->param_count != node->data.declaration_function.parameter_count) {
+          fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.declaration_function.name);
           exit(1);
         }
 
-        for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-          if (existing_function_symbol->data.function_symbol->param_types[i] != node->data.function_declaration.function_type->data.type.function_param_types[i].data.type.type) {
-            fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.function_declaration.name);
+        for (int i = 0; i < node->data.declaration_function.parameter_count; i++) {
+          if (existing_function_symbol->data.function_symbol->param_types[i] != node->data.declaration_function.function_type->data.type.function_param_types[i].data.type.type) {
+            fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.declaration_function.name);
             exit(1);
           }
 
           //We only want to add function param names for function definitions
-          if (node->data.function_declaration.body_block != NULL)
+          if (node->data.declaration_function.body_block != NULL)
           {
-            add_function_parameter_to_symbol_table(&node->data.function_declaration.function_type->data.type.function_param_types[i], node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+            add_function_parameter_to_symbol_table(&node->data.declaration_function.function_type->data.type.function_param_types[i], node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
           }
         }
 
-        if (!existing_function_symbol->data.function_symbol->is_defined && node->data.function_declaration.body_block != NULL) {
+        if (!existing_function_symbol->data.function_symbol->is_defined && node->data.declaration_function.body_block != NULL) {
           existing_function_symbol->data.function_symbol->is_defined = true;
-          function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
+          function_and_variable_type_check(node->data.declaration_function.body_block, declaration_table, node, ast_arena);
         }
 
         break;
       }
 
-      Types *param_types = malloc(sizeof(Types) * node->data.function_declaration.parameter_count);
+      Types *param_types = malloc(sizeof(Types) * node->data.declaration_function.parameter_count);
       
-      bool is_defined = node->data.function_declaration.body_block != NULL;
-      bool is_global = (node->data.function_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.function_declaration.name, "main") == 0);
+      bool is_defined = node->data.declaration_function.body_block != NULL;
+      bool is_global = (node->data.declaration_function.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.declaration_function.name, "main") == 0);
         
-      for (int i = 0; i < node->data.function_declaration.parameter_count; i++) {
-        AstNode *parameter_type = &node->data.function_declaration.function_type->data.type.function_param_types[i];
+      for (int i = 0; i < node->data.declaration_function.parameter_count; i++) {
+        AstNode *parameter_type = &node->data.declaration_function.function_type->data.type.function_param_types[i];
 
         param_types[i] = parameter_type->data.type.type;
 
@@ -118,42 +118,42 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         }
 
         //We only want to add function param names for function definitions
-        if (node->data.function_declaration.body_block != NULL)
+        if (node->data.declaration_function.body_block != NULL)
         {
-          add_function_parameter_to_symbol_table(parameter_type, node->data.function_declaration.parameter_identifiers[i], node->data.function_declaration.name, declaration_table);
+          add_function_parameter_to_symbol_table(parameter_type, node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
         }
       }
       
-      DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.function_declaration.name, node->data.function_declaration.function_type->data.type.function_return_type->data.type.type, node->data.function_declaration.parameter_count, param_types, is_global, is_defined);
+      DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.type.function_return_type->data.type.type, node->data.declaration_function.parameter_count, param_types, is_global, is_defined);
 
-      if (node->data.function_declaration.body_block != NULL) {
-        function_and_variable_type_check(node->data.function_declaration.body_block, declaration_table, node, ast_arena);
+      if (node->data.declaration_function.body_block != NULL) {
+        function_and_variable_type_check(node->data.declaration_function.body_block, declaration_table, node, ast_arena);
       }
       break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_call_expression.identfier);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_function_call.identfier);
 
       if (entry != NULL && entry->key != NULL) {
         DeclarationSymbol *existing_symbol = entry->value->structure;
 
         if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-          fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
+          fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.expression_function_call.identfier);
           exit(1);
         }               
 
-        if (existing_symbol->data.function_symbol->param_count != node->data.function_call_expression.argument_count) {
-          fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.function_call_expression.identfier);
+        if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
+          fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.expression_function_call.identfier);
           exit(1);
         }
       }
 
-      if (node->data.function_call_expression.expression_type == NULL) { 
+      if (node->data.expression_function_call.expression_type == NULL) { 
         expression_type_check(node, declaration_table, function_declaration_node, ast_arena);
       }
 
-      for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
-        AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
+      for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
+        AstNode *argument_node = node->data.expression_function_call.argument_ptrs->node_pointers[i];
         function_and_variable_type_check(argument_node, declaration_table, function_declaration_node, ast_arena);
       }
       break;
@@ -179,53 +179,53 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       break;
     }
     case AST_STATEMENT_IF: {
-      function_and_variable_type_check(node->data.if_statement.condition_expression, declaration_table, function_declaration_node, ast_arena);
-      function_and_variable_type_check(node->data.if_statement.then_statement, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_if.condition_expression, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_if.then_statement, declaration_table, function_declaration_node, ast_arena);
 
-      if (node->data.if_statement.else_statement != NULL) {
-        function_and_variable_type_check(node->data.if_statement.else_statement, declaration_table, function_declaration_node, ast_arena);
+      if (node->data.statement_if.else_statement != NULL) {
+        function_and_variable_type_check(node->data.statement_if.else_statement, declaration_table, function_declaration_node, ast_arena);
       }
       break;
     }
     case AST_STATEMENT_RETURN: {
-      Types return_expression_type = expression_type_check(node->data.return_statement.expression, declaration_table, function_declaration_node, ast_arena);
-      Types function_return_type = function_declaration_node->data.function_declaration.function_type->data.type.function_return_type->data.type.type;
+      Types return_expression_type = expression_type_check(node->data.statement_return.expression, declaration_table, function_declaration_node, ast_arena);
+      Types function_return_type = function_declaration_node->data.declaration_function.function_type->data.type.function_return_type->data.type.type;
 
       if (function_return_type == return_expression_type) {
         break;
       }
 
-      node->data.return_statement.expression = implicit_expression_type_cast(node->data.return_statement.expression, return_expression_type, function_return_type, ast_arena);
+      node->data.statement_return.expression = implicit_expression_type_cast(node->data.statement_return.expression, return_expression_type, function_return_type, ast_arena);
       break;
     }
     case AST_STATEMENT_FOR: {
-      if (node->data.for_statement.for_loop_init != NULL) {        
-        function_and_variable_type_check(node->data.for_statement.for_loop_init, declaration_table, function_declaration_node, ast_arena);
+      if (node->data.statement_for.for_loop_init != NULL) {        
+        function_and_variable_type_check(node->data.statement_for.for_loop_init, declaration_table, function_declaration_node, ast_arena);
       }
 
-      if (node->data.for_statement.condition_expression != NULL) {
-        function_and_variable_type_check(node->data.for_statement.condition_expression, declaration_table, function_declaration_node, ast_arena);
+      if (node->data.statement_for.condition_expression != NULL) {
+        function_and_variable_type_check(node->data.statement_for.condition_expression, declaration_table, function_declaration_node, ast_arena);
       }
 
-      if (node->data.for_statement.post_expression != NULL) {
-        function_and_variable_type_check(node->data.for_statement.post_expression, declaration_table, function_declaration_node, ast_arena);
+      if (node->data.statement_for.post_expression != NULL) {
+        function_and_variable_type_check(node->data.statement_for.post_expression, declaration_table, function_declaration_node, ast_arena);
       }
 
-      function_and_variable_type_check(node->data.for_statement.statement_body, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_for.statement_body, declaration_table, function_declaration_node, ast_arena);
       break;
     }
     case AST_STATEMENT_WHILE: {
-      function_and_variable_type_check(node->data.while_statement.condition, declaration_table, function_declaration_node, ast_arena);
-      function_and_variable_type_check(node->data.while_statement.statement_body, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_while.condition, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_while.statement_body, declaration_table, function_declaration_node, ast_arena);
       break;
     }
     case AST_STATEMENT_DO_WHILE: {
-      function_and_variable_type_check(node->data.do_while_statement.condition, declaration_table, function_declaration_node, ast_arena);
-      function_and_variable_type_check(node->data.do_while_statement.statement_body, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_do_while.condition, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_do_while.statement_body, declaration_table, function_declaration_node, ast_arena);
       break;
     }
     case AST_STATEMENT_COMPOUND:      
-      function_and_variable_type_check(node->data.compound_statement.block, declaration_table, function_declaration_node, ast_arena);
+      function_and_variable_type_check(node->data.statement_compound.block, declaration_table, function_declaration_node, ast_arena);
       break;
     case AST_STATEMENT_GOTO_LABEL:
     case AST_STATEMENT_GOTO:
@@ -243,10 +243,10 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   InitialValueType initial_value_type; 
   InitialValue initial_value;
 
-  if (variable_declaration_node->data.variable_declaration.has_expression && variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
+  if (variable_declaration_node->data.declaration_variable.has_expression && variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initial_value_type = INITIAL_VALUE_INITIALIZED;
 
-    switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
+    switch (variable_declaration_node->data.declaration_variable.type->data.type.type) {
       case TYPE_INT:     initial_value.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node); break;
       case TYPE_LONG:    initial_value.long_value = convert_variable_declaration_constant_to_long(variable_declaration_node); break;
       case TYPE_UINT:    initial_value.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node); break;
@@ -256,8 +256,8 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
         fprintf(stderr, "ERROR: SA Type Check: Unsupported constant expression type when checking file scope variable\n");
         exit(1);
     }
-  } else if (!variable_declaration_node->data.variable_declaration.has_expression) {
-    if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+  } else if (!variable_declaration_node->data.declaration_variable.has_expression) {
+    if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
     } else {
       initial_value_type = INITIAL_VALUE_TENTATIVE;
@@ -267,34 +267,34 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     exit(1);
   }
 
-  bool is_global = variable_declaration_node->data.variable_declaration.storage_class_type != AST_STORAGE_CLASS_STATIC;
+  bool is_global = variable_declaration_node->data.declaration_variable.storage_class_type != AST_STORAGE_CLASS_STATIC;
 
-  HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.variable_declaration.name);
+  HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.declaration_variable.name);
 
   if (entry != NULL && entry->key != NULL) {
     DeclarationSymbol *existing_variable_symbol = entry->value->structure;
 
     if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
-      fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.variable_declaration.name);
+      fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.declaration_variable.name);
       exit(1);
     }
 
-    if (variable_declaration_node->data.variable_declaration.type->data.type.type != existing_variable_symbol->data.variable_symbol->value_type) {
-      fprintf(stderr, "ERROR: SA Type Check: Previously declared '%s' variable has type of '%s'\n", variable_declaration_node->data.variable_declaration.name, get_type_string(existing_variable_symbol->data.variable_symbol->value_type));
+    if (variable_declaration_node->data.declaration_variable.type->data.type.type != existing_variable_symbol->data.variable_symbol->value_type) {
+      fprintf(stderr, "ERROR: SA Type Check: Previously declared '%s' variable has type of '%s'\n", variable_declaration_node->data.declaration_variable.name, get_type_string(existing_variable_symbol->data.variable_symbol->value_type));
       exit(1);
     }
 
-    if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+    if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       existing_variable_symbol->data.variable_symbol->static_is_global = true;
     }
     else if (existing_variable_symbol->data.variable_symbol->static_is_global != is_global) {
-      fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting variable linkage\n", variable_declaration_node->data.variable_declaration.name);
+      fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting variable linkage\n", variable_declaration_node->data.declaration_variable.name);
       exit(1);
     }
 
     if (existing_variable_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_INITIALIZED) {
       if (initial_value_type == INITIAL_VALUE_INITIALIZED) {
-        fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.variable_declaration.name);
+        fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.declaration_variable.name);
         exit(1);
       }
     } else {
@@ -305,17 +305,17 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     return;
   }
 
-  add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.variable_declaration.type->data.type.type, initial_value, variable_declaration_node->data.variable_declaration.name, is_global, initial_value_type);  
+  add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type->data.type.type, initial_value, variable_declaration_node->data.declaration_variable.name, is_global, initial_value_type);  
 }
 
 static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name) {
-  if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-    if (variable_declaration_node->data.variable_declaration.has_expression) {
-      fprintf(stderr, "ERROR - SA Type Check: Initializer on local extern variable declaration '%s'\n", variable_declaration_node->data.variable_declaration.name);
+  if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+    if (variable_declaration_node->data.declaration_variable.has_expression) {
+      fprintf(stderr, "ERROR - SA Type Check: Initializer on local extern variable declaration '%s'\n", variable_declaration_node->data.declaration_variable.name);
       exit(1);
     }
     
-    HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.variable_declaration.name);
+    HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.declaration_variable.name);
 
     if (entry != NULL && entry->key != NULL) {
       DeclarationSymbol *existing_variable_symbol = entry->value->structure;
@@ -325,51 +325,51 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         exit(1);
       }
     } else {
-      add_static_extern_variable_declaration_symbol(declaration_table, variable_declaration_node->data.variable_declaration.type->data.type.type, variable_declaration_node->data.variable_declaration.name); 
+      add_static_extern_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type->data.type.type, variable_declaration_node->data.declaration_variable.name); 
     }
     
     return;
   }
 
-  if (variable_declaration_node->data.variable_declaration.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+  if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_STATIC) {
     InitialValue initial_value;
     
-    if (!variable_declaration_node->data.variable_declaration.has_expression) {
-      switch (variable_declaration_node->data.variable_declaration.type->data.type.type) {
+    if (!variable_declaration_node->data.declaration_variable.has_expression) {
+      switch (variable_declaration_node->data.declaration_variable.type->data.type.type) {
         case TYPE_INT:     initial_value.int_value = 0; break;
         case TYPE_UINT:    initial_value.uint_value = 0; break;
         case TYPE_LONG:    initial_value.long_value = 0; break;
         case TYPE_ULONG:   initial_value.ulong_value = 0; break;
         case TYPE_DOUBLE:  initial_value.double_value = 0; break;
         default:
-          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n", variable_declaration_node->data.variable_declaration.type->data.type.type);
+          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n", variable_declaration_node->data.declaration_variable.type->data.type.type);
           exit(1);
       }
-    } else if (variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->type == AST_EXPRESSION_CONSTANT) {
+    } else if (variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
 
-      Types constant_expression_type = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression->data.constant_expression.expression_type->data.type.type;
+      Types constant_expression_type = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->data.expression_constant.expression_type->data.type.type;
 
-      switch(variable_declaration_node->data.variable_declaration.type->data.type.type) {
+      switch(variable_declaration_node->data.declaration_variable.type->data.type.type) {
         case TYPE_INT:     initial_value.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node); break;
         case TYPE_LONG:    initial_value.long_value = convert_variable_declaration_constant_to_long(variable_declaration_node); break;
         case TYPE_UINT:    initial_value.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node); break;
         case TYPE_ULONG:   initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
         case TYPE_DOUBLE:  initial_value.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node); break;
         default:
-          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",variable_declaration_node->data.variable_declaration.type->data.type.type);
+          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",variable_declaration_node->data.declaration_variable.type->data.type.type);
           exit(1);
       }
     } else {
-      fprintf(stderr, "ERROR - SA Type Check: Non-constant initializer on local static variable '%s'\n", variable_declaration_node->data.variable_declaration.name);
+      fprintf(stderr, "ERROR - SA Type Check: Non-constant initializer on local static variable '%s'\n", variable_declaration_node->data.declaration_variable.name);
       exit(1);
     }
 
-    add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.variable_declaration.type->data.type.type, initial_value, variable_declaration_node->data.variable_declaration.name, false, INITIAL_VALUE_INITIALIZED);
+    add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type->data.type.type, initial_value, variable_declaration_node->data.declaration_variable.name, false, INITIAL_VALUE_INITIALIZED);
     
     return;
   }   
 
-  add_automatic_variable_declaration_symbol(declaration_table, variable_declaration_node->data.variable_declaration.type->data.type.type, variable_declaration_node->data.variable_declaration.name);
+  add_automatic_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type->data.type.type, variable_declaration_node->data.declaration_variable.name);
 
   return;
 } 
@@ -377,17 +377,17 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena) {
   switch (node->type) {
     case AST_EXPRESSION_VARIABLE: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.variable_expression.identifier);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_variable.identifier);
 
       if (entry == NULL || entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Type Check: Expression variable '%s' not found in declaration symbol table\n", node->data.variable_expression.identifier);
+        fprintf(stderr, "ERROR - SA Type Check: Expression variable '%s' not found in declaration symbol table\n", node->data.expression_variable.identifier);
         exit(1);
       }
 
       DeclarationSymbol* symbol = entry->value->structure; 
 
       if (symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
-        fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable\n", node->data.variable_expression.identifier);
+        fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable\n", node->data.expression_variable.identifier);
         exit(1);
       }
 
@@ -395,7 +395,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       ast_expression_type->type = AST_TYPE;
       ast_expression_type->data.type.type = symbol->data.variable_symbol->value_type;       
 
-      node->data.variable_expression.expression_type = ast_expression_type;
+      node->data.expression_variable.expression_type = ast_expression_type;
 
       return ast_expression_type->data.type.type;
     }
@@ -403,7 +403,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       AstNode *ast_expression_type = arena_alloc(ast_arena);
       ast_expression_type->type = AST_TYPE;
       
-      switch (node->data.constant_expression.constant_type) {
+      switch (node->data.expression_constant.constant_type) {
         case AST_CONSTANT_TYPE_INT:    ast_expression_type->data.type.type = TYPE_INT; break;
         case AST_CONSTANT_TYPE_LONG:   ast_expression_type->data.type.type = TYPE_LONG; break;
         case AST_CONSTANT_TYPE_UINT:   ast_expression_type->data.type.type = TYPE_UINT; break;
@@ -414,26 +414,26 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
           exit(1);
       }
 
-      node->data.constant_expression.expression_type = ast_expression_type;
+      node->data.expression_constant.expression_type = ast_expression_type;
 
       return ast_expression_type->data.type.type;
     }
     case AST_EXPRESSION_CAST: {
       //@Bug: I think this is not right. Use the following as an example: long gg = (long)5;. Expression type returned is int
-      Types expression_type = expression_type_check(node->data.cast_expression.expression, declaration_table, function_declaration_node, ast_arena);
+      Types expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, ast_arena);
 
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
       ast_expression_type_node->data.type.type = expression_type;
 
-      node->data.cast_expression.expression_type = ast_expression_type_node;
+      node->data.expression_cast.expression_type = ast_expression_type_node;
 
       return expression_type;
     }
     case AST_EXPRESSION_UNARY: {
-      Types expression_type = expression_type_check(node->data.unary_expression.expression, declaration_table, function_declaration_node, ast_arena);
+      Types expression_type = expression_type_check(node->data.expression_unary.expression, declaration_table, function_declaration_node, ast_arena);
 
-      if (node->data.unary_expression.op_type == AST_UNARY_COMPLEMENT && expression_type == TYPE_DOUBLE) {
+      if (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT && expression_type == TYPE_DOUBLE) {
         fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement operator to a double\n");
         exit(1);
       }
@@ -442,71 +442,71 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       ast_expression_type_node->type = AST_TYPE;
       ast_expression_type_node->data.type.type = expression_type;
 
-      node->data.unary_expression.expression_type = ast_expression_type_node;
+      node->data.expression_unary.expression_type = ast_expression_type_node;
 
-      if (node->data.unary_expression.op_type == AST_UNARY_NOT) {
+      if (node->data.expression_unary.op_type == AST_UNARY_NOT) {
         return TYPE_INT;
       }
 
       return expression_type;
     }
     case AST_EXPRESSION_BINARY: {
-      Types left_expression_type = expression_type_check(node->data.binary_expression.left_expression, declaration_table, function_declaration_node, ast_arena);
-      Types right_expression_type = expression_type_check(node->data.binary_expression.right_expression, declaration_table, function_declaration_node, ast_arena);
+      Types left_expression_type = expression_type_check(node->data.expression_binary.left_expression, declaration_table, function_declaration_node, ast_arena);
+      Types right_expression_type = expression_type_check(node->data.expression_binary.right_expression, declaration_table, function_declaration_node, ast_arena);
 
       if (right_expression_type == TYPE_DOUBLE || left_expression_type == TYPE_DOUBLE) {
-        if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_OR) {
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_OR) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise OR operator with a double value\n");
           exit(1);
         } 
 
-        if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_LEFT_SHIFT) {
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_LEFT_SHIFT) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise left shift operator with a double value\n");
           exit(1);
         }
         
-        if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_RIGHT_SHIFT) {
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_RIGHT_SHIFT) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise right shift operator with a double value\n");
           exit(1);
         }
 
-        if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_XOR) {
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_XOR) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise XOR operator with a double value\n");
           exit(1);
         } 
 
-        if (node->data.binary_expression.op_type == AST_BINARY_BITWISE_AND) {
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_AND) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise AND operator with a double value\n");
           exit(1);
         } 
         
-        if (node->data.binary_expression.op_type == AST_BINARY_REMAINDER) {
+        if (node->data.expression_binary.op_type == AST_BINARY_REMAINDER) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply Modulo operator with a double value\n");
           exit(1);
         } 
       }
 
-      if (node->data.binary_expression.op_type == AST_BINARY_AND || node->data.binary_expression.op_type == AST_BINARY_OR) {
+      if (node->data.expression_binary.op_type == AST_BINARY_AND || node->data.expression_binary.op_type == AST_BINARY_OR) {
         AstNode *ast_expression_type_node = arena_alloc(ast_arena);
         ast_expression_type_node->type = AST_TYPE;
         ast_expression_type_node->data.type.type = TYPE_INT;
 
-        node->data.binary_expression.expression_type = ast_expression_type_node;
+        node->data.expression_binary.expression_type = ast_expression_type_node;
         return TYPE_INT;
       }
 
       Types common_real_type = get_common_real_type(left_expression_type, right_expression_type);
 
-      node->data.binary_expression.left_expression = implicit_expression_type_cast(node->data.binary_expression.left_expression, left_expression_type, common_real_type, ast_arena);
-      node->data.binary_expression.right_expression = implicit_expression_type_cast(node->data.binary_expression.right_expression, right_expression_type, common_real_type, ast_arena);
+      node->data.expression_binary.left_expression = implicit_expression_type_cast(node->data.expression_binary.left_expression, left_expression_type, common_real_type, ast_arena);
+      node->data.expression_binary.right_expression = implicit_expression_type_cast(node->data.expression_binary.right_expression, right_expression_type, common_real_type, ast_arena);
       
       AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       ast_expression_type_node->type = AST_TYPE;
       ast_expression_type_node->data.type.type = common_real_type;
 
-      node->data.binary_expression.expression_type = ast_expression_type_node;
+      node->data.expression_binary.expression_type = ast_expression_type_node;
       
-      switch (node->data.binary_expression.op_type) {
+      switch (node->data.expression_binary.op_type) {
         case AST_BINARY_ADD:
         case AST_BINARY_SUBTRACT:
         case AST_BINARY_MULTIPLY:
@@ -518,35 +518,35 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       }
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      Types left_expression_type = expression_type_check(node->data.assignement_expression.left_expression, declaration_table, function_declaration_node, ast_arena);
-      Types right_expression_type = expression_type_check(node->data.assignement_expression.right_expression, declaration_table, function_declaration_node, ast_arena);
+      Types left_expression_type = expression_type_check(node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, ast_arena);
+      Types right_expression_type = expression_type_check(node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, ast_arena);
 
       //TODO: Need to look into this. I don't think it's working correctly
-      node->data.assignement_expression.right_expression = implicit_expression_type_cast(node->data.assignement_expression.right_expression, right_expression_type, left_expression_type, ast_arena);      
+      node->data.expression_assignment.right_expression = implicit_expression_type_cast(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, ast_arena);      
 
       return left_expression_type;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.function_call_expression.identfier);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_function_call.identfier);
       if (entry == NULL && entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table\n", node->data.function_call_expression.identfier);
+        fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table\n", node->data.expression_function_call.identfier);
         exit(1);
       }
 
       DeclarationSymbol *existing_symbol = entry->value->structure;
 
       if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.function_call_expression.identfier);
+        fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.expression_function_call.identfier);
         exit(1);
       }               
 
-      if (existing_symbol->data.function_symbol->param_count != node->data.function_call_expression.argument_count) {
-        fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.function_call_expression.identfier);
+      if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
+        fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.expression_function_call.identfier);
         exit(1);
       }
       
-      for (int i = 0; i < node->data.function_call_expression.argument_count; i++) {
-        AstNode *argument_node = node->data.function_call_expression.argument_ptrs->node_pointers[i];
+      for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
+        AstNode *argument_node = node->data.expression_function_call.argument_ptrs->node_pointers[i];
         function_and_variable_type_check(argument_node, declaration_table, function_declaration_node, ast_arena);
       }
     
@@ -554,27 +554,27 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       ast_expression_type_node->type = AST_TYPE;
       ast_expression_type_node->data.type.type = existing_symbol->data.function_symbol->value_type;
 
-      node->data.function_call_expression.expression_type = ast_expression_type_node;
+      node->data.expression_function_call.expression_type = ast_expression_type_node;
 
       return ast_expression_type_node->data.type.type;
     }
     case AST_EXPRESSION_CONDITIONAL: {
-      expression_type_check(node->data.conditional_expression.condition, declaration_table, function_declaration_node, ast_arena);
+      expression_type_check(node->data.expression_conditional.condition, declaration_table, function_declaration_node, ast_arena);
 
-      Types true_expression_type = expression_type_check(node->data.conditional_expression.true_expression, declaration_table, function_declaration_node, ast_arena);
-      Types false_expression_type = expression_type_check(node->data.conditional_expression.false_expression, declaration_table, function_declaration_node, ast_arena);
+      Types true_expression_type = expression_type_check(node->data.expression_conditional.true_expression, declaration_table, function_declaration_node, ast_arena);
+      Types false_expression_type = expression_type_check(node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, ast_arena);
       
       Types common_real_type = get_common_real_type(true_expression_type, false_expression_type);
 
-      node->data.conditional_expression.true_expression = implicit_expression_type_cast(node->data.conditional_expression.true_expression, true_expression_type, common_real_type, ast_arena);
-      node->data.conditional_expression.false_expression = implicit_expression_type_cast(node->data.conditional_expression.false_expression, false_expression_type, common_real_type, ast_arena);
+      node->data.expression_conditional.true_expression = implicit_expression_type_cast(node->data.expression_conditional.true_expression, true_expression_type, common_real_type, ast_arena);
+      node->data.expression_conditional.false_expression = implicit_expression_type_cast(node->data.expression_conditional.false_expression, false_expression_type, common_real_type, ast_arena);
       return common_real_type;
     }
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT: {
-      expression_type_check(node->data.increment_decrement_expression.expression, declaration_table, function_declaration_node, ast_arena);
+      expression_type_check(node->data.expression_increment_decrement.expression, declaration_table, function_declaration_node, ast_arena);
       break;
     }
     default:
@@ -618,26 +618,26 @@ static AstNode* implicit_expression_type_cast(AstNode *expression, Types express
 
   AstNode *casted_expression = arena_alloc(ast_arena);
   casted_expression->type = AST_EXPRESSION_CAST;
-  casted_expression->data.cast_expression.target_type = type_node;
-  casted_expression->data.cast_expression.expression = expression;
+  casted_expression->data.expression_cast.target_type = type_node;
+  casted_expression->data.expression_cast.expression = expression;
   
   AstNode *cast_expression_type = NULL;
 
   switch (expression->type) {
-    case AST_EXPRESSION_CONSTANT:      cast_expression_type = expression->data.constant_expression.expression_type; break;
-    case AST_EXPRESSION_VARIABLE:      cast_expression_type = expression->data.variable_expression.expression_type; break;
-    case AST_EXPRESSION_CAST:          cast_expression_type = expression->data.cast_expression.expression_type; break;
-    case AST_EXPRESSION_UNARY:         cast_expression_type = expression->data.unary_expression.expression_type; break;
-    case AST_EXPRESSION_BINARY:        cast_expression_type = expression->data.binary_expression.expression_type; break;
-    case AST_EXPRESSION_ASSIGNMENT:    cast_expression_type = expression->data.assignement_expression.expression_type; break;
-    case AST_EXPRESSION_CONDITIONAL:   cast_expression_type = expression->data.conditional_expression.expression_type; break;
-    case AST_EXPRESSION_FUNCTION_CALL: cast_expression_type = expression->data.variable_expression.expression_type; break;
+    case AST_EXPRESSION_CONSTANT:      cast_expression_type = expression->data.expression_constant.expression_type; break;
+    case AST_EXPRESSION_VARIABLE:      cast_expression_type = expression->data.expression_variable.expression_type; break;
+    case AST_EXPRESSION_CAST:          cast_expression_type = expression->data.expression_cast.expression_type; break;
+    case AST_EXPRESSION_UNARY:         cast_expression_type = expression->data.expression_unary.expression_type; break;
+    case AST_EXPRESSION_BINARY:        cast_expression_type = expression->data.expression_binary.expression_type; break;
+    case AST_EXPRESSION_ASSIGNMENT:    cast_expression_type = expression->data.expression_assignment.expression_type; break;
+    case AST_EXPRESSION_CONDITIONAL:   cast_expression_type = expression->data.expression_conditional.expression_type; break;
+    case AST_EXPRESSION_FUNCTION_CALL: cast_expression_type = expression->data.expression_variable.expression_type; break;
     default:
       fprintf(stderr, "ERROR - Parser: Unsupported cast expression type '%d'\n", expression->type);
       exit(1);
   }
 
-  casted_expression->data.cast_expression.expression_type = cast_expression_type;
+  casted_expression->data.expression_cast.expression_type = cast_expression_type;
   
   return casted_expression;
 }
@@ -654,14 +654,14 @@ static void add_function_parameter_to_symbol_table(AstNode *parameter_type, char
 }
 
 static long convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
+  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
 
-  switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (long)constant_expression->data.constant_expression.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (long)constant_expression->data.constant_expression.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (long)constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (long)constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return constant_expression->data.constant_expression.long_value;
+  switch (constant_expression->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (long)constant_expression->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (long)constant_expression->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (long)constant_expression->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (long)constant_expression->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return constant_expression->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to long\n");
       exit(1);
@@ -669,14 +669,14 @@ static long convert_variable_declaration_constant_to_long(AstNode *variable_decl
 }
 
 static int convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
+  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
 
-  switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return constant_expression->data.constant_expression.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (int)constant_expression->data.constant_expression.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (int)constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (int)constant_expression->data.constant_expression.long_value;
+  switch (constant_expression->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return constant_expression->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (int)constant_expression->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (int)constant_expression->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_expression->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (int)constant_expression->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to int\n");
       exit(1);
@@ -684,14 +684,14 @@ static int convert_variable_declaration_constant_to_int(AstNode *variable_declar
 }
 
 static unsigned int convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
+  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
 
-  switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (unsigned int)constant_expression->data.constant_expression.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return constant_expression->data.constant_expression.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_expression->data.constant_expression.long_value;
+  switch (constant_expression->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (unsigned int)constant_expression->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return constant_expression->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_expression->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_expression->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_expression->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
       exit(1);
@@ -699,14 +699,14 @@ static unsigned int convert_variable_declaration_constant_to_uint(AstNode *varia
 }
 
 static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
+  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
 
-  switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (unsigned long)constant_expression->data.constant_expression.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (unsigned long)constant_expression->data.constant_expression.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_expression->data.constant_expression.long_value;
+  switch (constant_expression->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (unsigned long)constant_expression->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (unsigned long)constant_expression->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return constant_expression->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_expression->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_expression->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
       exit(1);
@@ -714,14 +714,14 @@ static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *var
 }
 
 static double convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.variable_declaration.init_expression->data.assignement_expression.right_expression;
+  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
 
-  switch (constant_expression->data.constant_expression.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (double)constant_expression->data.constant_expression.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (double)constant_expression->data.constant_expression.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (double)constant_expression->data.constant_expression.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return constant_expression->data.constant_expression.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (double)constant_expression->data.constant_expression.long_value;
+  switch (constant_expression->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (double)constant_expression->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (double)constant_expression->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (double)constant_expression->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return constant_expression->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (double)constant_expression->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to double\n");
       exit(1);
