@@ -169,6 +169,10 @@ void print_ast(const AstNode *node, int whitespace) {
     case AST_FUNCTION_DECLARATION:
       print_whitespace(whitespace);
       printf("Function Declaration (name = \"%s\"\n", node->data.declaration_function.name);
+      print_whitespace(whitespace);
+      printf("return type = ");
+      print_ast(node->data.declaration_function.function_type->data.type.function_return_type, 0);
+      printf("\n");
      
       for (int i = 0; i < node->data.declaration_function.parameter_count; i++) {
         print_whitespace(ADD_WHITESPACE);
