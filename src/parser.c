@@ -669,6 +669,9 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
 }
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier, DeclaratorResults *declaration_results) {
+  function_node->type = AST_FUNCTION_DECLARATION;
+  function_node->data.declaration_function.name = declaration_results->identifier; 
+  function_node->data.declaration_function.function_type = declaration_results->declaration_type;
   function_node->data.declaration_function.parameter_count = 0;
   function_node->data.declaration_function.parameter_identifier_capacity = 0;
   function_node->data.declaration_function.parameter_identifiers = NULL;
@@ -677,56 +680,6 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   AstNode *return_type_node = arena_alloc(parser->node_arena);
   return_type_node->type = AST_TYPE;
   return_type_node->data.type.type = return_type_specifier;
-
-  AstNode *function_type = arena_alloc(parser->node_arena);
-  function_type->type = AST_TYPE;
-  function_type->data.type.type = TYPE_FUNCTION;
-  function_type->data.type.function_return_type = return_type_node;
-  function_type->data.type.function_param_type_count = 0;
-
-  function_node->data.declaration_function.function_type = function_type;
-  
-  char *id_name = get_identifier(parser);  
-
-  function_node->data.declaration_function.name = id_name;
-
-  expect(parser, TOKEN_OPEN_PAREN);
-
-  AstNode *parameter_type = arena_alloc(parser->node_arena);
-  parameter_type->type = AST_TYPE;
-
-  Specifier parameter_specifier = parse_specifier(parser, true);
-
-  parameter_type->data.type.type = parameter_specifier.specifier_type;
-
-  if (parameter_specifier.specifier_type != TYPE_VOID) {
-    char *identifier = get_identifier(parser);
-    add_function_parameter_identifier(identifier, function_node);
-  }
-  
-  add_function_parameter_type(parameter_type, function_type);
-
-  while(current_token(parser)->type == TOKEN_COMMA) {
-    expect(parser, TOKEN_COMMA);
-
-    AstNode *next_parameter_type = arena_alloc(parser->node_arena);
-    next_parameter_type->type = AST_TYPE;
-    
-    Specifier next_parameter_specifier = parse_specifier(parser, true);
-    next_parameter_type->data.type.type = next_parameter_specifier.specifier_type;
-
-    if (next_parameter_specifier.specifier_type != TYPE_VOID) {
-      char *identifier = get_identifier(parser);
-      add_function_parameter_identifier(identifier, function_node);
-    }
-
-    add_function_parameter_type(next_parameter_type, function_type);
-  }
-  
-  expect(parser, TOKEN_CLOSE_PAREN);
-
-  function_node->type = AST_FUNCTION_DECLARATION;
-  function_node->data.declaration_function.name = id_name;
 
   //If semicolon is found, then it is considered a function definition
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
@@ -740,10 +693,10 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
 }
 
 static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier, DeclaratorResults *declaration_results) {
-  char *identifier = get_identifier(parser);
+  // char *identifier = get_identifier(parser);
 
   variable_node->type = AST_VARIABLE_DECLARATION;
-  variable_node->data.declaration_variable.name = identifier;
+  variable_node->data.declaration_variable.name = declaration_results->identifier;
   variable_node->data.declaration_variable.storage_class_type = storage_class_type;
 
   AstNode *variable_type_node = arena_alloc(parser->node_arena);
