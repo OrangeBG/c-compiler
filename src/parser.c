@@ -56,7 +56,6 @@ typedef struct Declarator {
 typedef struct {
   char *identifier;
   AstNode *declaration_type;
-  // DeclaratorParameter *function_params;
   int param_identifiers_count;
   int param_identifiers_capacity;
   char **param_identifiers;
@@ -165,7 +164,6 @@ void print_ast(const AstNode *node, int whitespace) {
         print_ast(node->data.declaration_variable.init_expression, ADD_WHITESPACE);
       }
 
-      print_whitespace(whitespace);
       printf(")\n");      
       break;
     case AST_FUNCTION_DECLARATION:
@@ -203,11 +201,17 @@ void print_ast(const AstNode *node, int whitespace) {
         case TYPE_ULONG:    printf("ulong"); break;
         case TYPE_DOUBLE:   printf("double"); break;
         case TYPE_FUNCTION: printf("function"); break;
+        case TYPE_POINTER:
+          printf("Pointer(");
+          print_ast(node->data.type.pointer_reference_type, whitespace);
+          printf(")");
+          break;
         default:
           fprintf(stderr, "ERROR - Parser: Could not find AST Type '%d' when printing\n", node->data.type.type);
           exit(1);
       }
-      printf(")\n");      
+
+      printf(")");      
       break;
     case AST_BLOCK:
       print_whitespace(whitespace);
@@ -631,7 +635,6 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
     case DECLARATOR_FUNCTION:
       switch(declarator->data.function_declarator.declarator->type) {
         case DECLARATOR_TYPE_IDENTIFIER: {
-          //DeclaratorResults *function_results = malloc(sizeof(DeclaratorResults));
           declaration_results->identifier = declarator->data.function_declarator.declarator->data.identifier.identifier;
 
           AstNode *function_type = arena_alloc(parser->node_arena);
@@ -677,10 +680,6 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   function_node->data.declaration_function.parameter_identifiers = NULL;
   function_node->data.declaration_function.storage_class_type = storage_class_type;
 
-  AstNode *return_type_node = arena_alloc(parser->node_arena);
-  return_type_node->type = AST_TYPE;
-  return_type_node->data.type.type = return_type_specifier;
-
   //If semicolon is found, then it is considered a function definition
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
     expect(parser, TOKEN_SEMICOLON);
@@ -693,17 +692,10 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
 }
 
 static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier, DeclaratorResults *declaration_results) {
-  // char *identifier = get_identifier(parser);
-
   variable_node->type = AST_VARIABLE_DECLARATION;
   variable_node->data.declaration_variable.name = declaration_results->identifier;
   variable_node->data.declaration_variable.storage_class_type = storage_class_type;
-
-  AstNode *variable_type_node = arena_alloc(parser->node_arena);
-  variable_type_node->type = AST_TYPE;
-  variable_type_node->data.type.type = variable_type_specifier;
-
-  variable_node->data.declaration_variable.type = variable_type_node;
+  variable_node->data.declaration_variable.type = declaration_results->declaration_type; 
 
   if (current_token(parser)->type == TOKEN_EQUAL) {
     //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
