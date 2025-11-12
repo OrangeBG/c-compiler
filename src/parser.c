@@ -173,14 +173,15 @@ void print_ast(const AstNode *node, int whitespace) {
       printf("return type = ");
       print_ast(node->data.declaration_function.function_type->data.type.function_return_type, 0);
       printf("\n");
+      print_whitespace(whitespace);
+      printf("params = ");
+      printf("\n");
      
       for (int i = 0; i < node->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
         print_whitespace(ADD_WHITESPACE);
-        printf("Param( name = %s\n", node->data.declaration_function.parameter_identifiers[i]);
+        printf("Param( name = %s, ", node->data.declaration_function.parameter_identifiers[i]);
 
-        print_ast(&node->data.declaration_function.function_type->data.type.function_param_types[i], ADD_WHITESPACE + 5);
-        
-        print_whitespace(ADD_WHITESPACE);
+        print_ast(&node->data.declaration_function.function_type->data.type.function_param_types[i], 0);
         printf(")\n");
       }
 
