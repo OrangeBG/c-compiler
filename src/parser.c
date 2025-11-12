@@ -64,8 +64,8 @@ typedef struct {
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
 static Declarator*  parse_declarator(Parser *parser); 
-static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier, DeclaratorResults *declaration_results);
-static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier, DeclaratorResults *declaration_results);
+static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
+static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_block(Parser *parser, AstNode *block_node);
 static void         parse_statement(Parser *parser, AstNode **statement_node);
 static void         parse_statement_null(Parser *parser, AstNode *statement_node);
@@ -174,7 +174,7 @@ void print_ast(const AstNode *node, int whitespace) {
       print_ast(node->data.declaration_function.function_type->data.type.function_return_type, 0);
       printf("\n");
      
-      for (int i = 0; i < node->data.declaration_function.parameter_count; i++) {
+      for (int i = 0; i < node->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
         print_whitespace(ADD_WHITESPACE);
         printf("Param( name = %s\n", node->data.declaration_function.parameter_identifiers[i]);
 
@@ -616,9 +616,9 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   process_declarator(parser, &results, declarator, base_type);
 
   if (results.declaration_type->data.type.type == TYPE_FUNCTION) {
-    parse_function_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type, &results);
+    parse_function_declaration(parser, declaration_node, specifier.storage_class_type, &results);
   } else {
-    parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, specifier.specifier_type, &results);
+    parse_variable_declaration(parser, declaration_node, specifier.storage_class_type, &results);
   }
 }
 
@@ -652,6 +652,11 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
             DeclaratorParameter *param = &declarator->data.function_declarator.declarator_parameters[i];
             DeclaratorResults *param_results = malloc(sizeof(DeclaratorResults));
 
+            if (param->param_type == TYPE_VOID)
+            {
+              break;
+            }
+
             AstNode *param_type = arena_alloc(parser->node_arena);
             param_type->type = AST_TYPE;
             param_type->data.type.type = param->param_type;
@@ -675,14 +680,18 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
   return declaration_results;
 }
 
-static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, Types return_type_specifier, DeclaratorResults *declaration_results) {
+static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results) {
   function_node->type = AST_FUNCTION_DECLARATION;
   function_node->data.declaration_function.name = declaration_results->identifier; 
   function_node->data.declaration_function.function_type = declaration_results->declaration_type;
-  function_node->data.declaration_function.parameter_count = 0;
   function_node->data.declaration_function.parameter_identifier_capacity = 0;
   function_node->data.declaration_function.parameter_identifiers = NULL;
   function_node->data.declaration_function.storage_class_type = storage_class_type;
+
+  for (int i = 0; i < declaration_results->param_identifiers_count; i++)
+  {
+    add_function_parameter_identifier(declaration_results->param_identifiers[i], function_node);
+  }
 
   //If semicolon is found, then it is considered a function definition
   if (current_token(parser)->type == TOKEN_SEMICOLON) {
@@ -695,7 +704,7 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   parse_block(parser, block_node);
 }
 
-static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, Types variable_type_specifier, DeclaratorResults *declaration_results) {
+static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results) {
   variable_node->type = AST_VARIABLE_DECLARATION;
   variable_node->data.declaration_variable.name = declaration_results->identifier;
   variable_node->data.declaration_variable.storage_class_type = storage_class_type;
@@ -951,7 +960,7 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
     };
 
     process_declarator(parser, &results, declarator, base_type);
-    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, type_specifier.specifier_type, &results);
+    parse_variable_declaration(parser, dec_or_exp, AST_STORAGE_CLASS_NONE, &results);
   } else if (current_token(parser)->type == TOKEN_SEMICOLON) {
     expect(parser, TOKEN_SEMICOLON);    
     dec_or_exp = NULL;
@@ -1670,14 +1679,14 @@ static bool is_type_identifier_token(TokenType token_type) {
 }
 
 static void add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node) {  
-  if (function_declaration_node->data.declaration_function.parameter_count == function_declaration_node->data.declaration_function.parameter_identifier_capacity) {
+  if (function_declaration_node->data.declaration_function.parameter_identifier_count == function_declaration_node->data.declaration_function.parameter_identifier_capacity) {
     int size = function_declaration_node->data.declaration_function.parameter_identifier_capacity == 0 ? FUNCTION_IDENTIFIER_INIT_CAPACITY : function_declaration_node->data.declaration_function.parameter_identifier_capacity * 2;
     function_declaration_node->data.declaration_function.parameter_identifier_capacity = size;
     function_declaration_node->data.declaration_function.parameter_identifiers = realloc(function_declaration_node->data.declaration_function.parameter_identifiers, size * sizeof(char*));
   }
 
-  function_declaration_node->data.declaration_function.parameter_identifiers[function_declaration_node->data.declaration_function.parameter_count] = identifier;
-  function_declaration_node->data.declaration_function.parameter_count++;
+  function_declaration_node->data.declaration_function.parameter_identifiers[function_declaration_node->data.declaration_function.parameter_identifier_count] = identifier;
+  function_declaration_node->data.declaration_function.parameter_identifier_count++;
 }
 
 static void add_function_parameter_type(AstNode *function_parameter_type, AstNode *function_type) {

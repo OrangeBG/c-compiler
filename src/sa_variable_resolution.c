@@ -121,7 +121,7 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack, int f
       //Add a new stack for the function variable declarations
       push_new_declaration_stack(declaration_stack);
 
-      for (int i = 0; i < node->data.declaration_function.parameter_count; i++) {
+      for (int i = 0; i < node->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
         AstNode *param_type = &node->data.declaration_function.function_type->data.type.function_param_types[i];
         resolve_function_parameter(param_type, node, i, declaration_stack, function_count);
       }

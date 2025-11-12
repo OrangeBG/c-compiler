@@ -271,7 +271,7 @@ static IRNode* emit_function(AstNode *ast_function, IREmitStatus *emit_status, A
   DeclarationSymbol *symbol = found_declaration_entry->value->structure;
   function->data.function.is_global = symbol->data.function_symbol->is_global;
 
-  for (int i = 0; i < ast_function->data.declaration_function.parameter_count; i++) {
+  for (int i = 0; i < ast_function->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
     add_function_parameter_identifier(ast_function->data.declaration_function.parameter_identifiers[i], function);
   }
     
