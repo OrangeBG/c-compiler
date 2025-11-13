@@ -92,6 +92,8 @@ static void         parse_factor_cast_expression(Parser *parser, AstNode *factor
 static void         parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
 static void         parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
+static void         parse_factor_address_of(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_dereference(Parser *parser, AstNode *factor_node); 
 static Specifier    parse_specifier(Parser *parser, bool error_if_storage_class_found);
 static Token*       current_token(const Parser *parser);
 static Token*       previous_token(const Parser *parser);
@@ -159,11 +161,13 @@ void print_ast(const AstNode *node, int whitespace) {
       
       printf(", type = ");
       print_ast(node->data.declaration_variable.type, 0);
+      printf("\n");
 
       if (node->data.declaration_variable.has_expression) {
         print_ast(node->data.declaration_variable.init_expression, ADD_WHITESPACE);
       }
 
+      print_whitespace(whitespace);
       printf(")\n");      
       break;
     case AST_FUNCTION_DECLARATION:
@@ -507,6 +511,20 @@ void print_ast(const AstNode *node, int whitespace) {
         printf(")\n");
         break;
       }
+      case AST_EXPRESSION_DEREFERENCE:
+        print_whitespace(whitespace);
+        printf("Dereference(\n");        
+        print_ast(node->data.expression_dereference.expression, ADD_WHITESPACE);
+        print_whitespace(whitespace);
+        printf(")\n");
+        break;
+      case AST_EXPRESSION_ADDRESS_OF:
+        print_whitespace(whitespace);
+        printf("Address Of(\n");        
+        print_ast(node->data.expression_address_of.expression, ADD_WHITESPACE);
+        print_whitespace(whitespace);
+        printf(")\n");
+        break;
       default: {
         printf("ERROR - Parser: Missing ast node type for printing: %d\n", node->type);
         exit(1);
@@ -1191,6 +1209,10 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
     case TOKEN_INCREMENT:
     case TOKEN_DECREMENT:
       parse_factor_prefix_expression(parser, factor_node); break;
+    case TOKEN_BITWISE_AND:
+      parse_factor_address_of(parser, factor_node); break;
+    case TOKEN_ASTERISK:
+      parse_factor_dereference(parser, factor_node); break;
     case TOKEN_OPEN_PAREN: {
       if (is_type_identifier_token(peek_next_token(parser))) {
         parse_factor_cast_expression(parser, factor_node); 
@@ -1430,6 +1452,28 @@ static void parse_factor_function_call(Parser *parser, AstNode *factor_node, cha
 
   expect(parser, TOKEN_CLOSE_PAREN);
 } 
+
+static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
+  expect(parser, TOKEN_BITWISE_AND);
+
+  AstNode *address_of_expression = arena_alloc(parser->node_arena);
+
+  parse_expression(parser, &address_of_expression, 0);
+
+  factor_node->data.expression_address_of.expression = address_of_expression;
+  factor_node->type = AST_EXPRESSION_ADDRESS_OF;
+}
+
+static void parse_factor_dereference(Parser *parser, AstNode *factor_node) {
+  expect(parser, TOKEN_ASTERISK);
+
+  AstNode *dereference_expression = arena_alloc(parser->node_arena);
+
+  parse_expression(parser, &dereference_expression, 0);
+
+  factor_node->data.expression_dereference.expression = dereference_expression;
+  factor_node->type = AST_EXPRESSION_DEREFERENCE;
+}
 
 static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_found) {
   Specifier specifier;
