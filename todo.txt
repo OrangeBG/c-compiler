@@ -40,3 +40,4 @@
 	- Add procedure link table calling support for linux pg 201 - Sandler Nora
 	- Look into implementing Global Offset Table - pg 221 - Sandler Nora
 	- Implement NaN - pg 342
+	- Implement function pointers

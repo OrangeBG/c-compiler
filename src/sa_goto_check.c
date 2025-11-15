@@ -35,14 +35,14 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       }
       break;
     case AST_FUNCTION_DECLARATION:
-      if (ast_node->data.function_declaration.body_block == NULL) {
+      if (ast_node->data.declaration_function.body_block == NULL) {
         break;
       }
 
       HashTable new_goto_statuses;
       hash_table_init(&new_goto_statuses);
 
-      check_ast_node(ast_node->data.function_declaration.body_block, &new_goto_statuses);
+      check_ast_node(ast_node->data.declaration_function.body_block, &new_goto_statuses);
 
       for (int i = 0; i < new_goto_statuses.capacity; i++) {
         HashTableEntry *entry = &new_goto_statuses.entries[i];
@@ -77,18 +77,18 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       }   
       break;      
     case AST_STATEMENT_COMPOUND:
-      check_ast_node(ast_node->data.compound_statement.block, goto_statuses);
+      check_ast_node(ast_node->data.statement_compound.block, goto_statuses);
       break;
     case AST_STATEMENT_GOTO_LABEL: {
-      HashTableEntry *existing_goto_entry = hash_table_get_entry(goto_statuses, ast_node->data.goto_label_statement.label);
+      HashTableEntry *existing_goto_entry = hash_table_get_entry(goto_statuses, ast_node->data.statement_goto_label.label);
 
       if (existing_goto_entry == NULL || existing_goto_entry->key == NULL) {
-        add_goto_to_table(ast_node->data.goto_label_statement.label, GOTO_LABEL, goto_statuses);
+        add_goto_to_table(ast_node->data.statement_goto_label.label, GOTO_LABEL, goto_statuses);
         break;
       }
 
       if (((GotoStatus*)existing_goto_entry->value->structure)->has_label) {
-        fprintf(stderr, "ERROR - SA GOTO CHECK: Duplicate '%s' label not allowed\n", ast_node->data.goto_label_statement.label); 
+        fprintf(stderr, "ERROR - SA GOTO CHECK: Duplicate '%s' label not allowed\n", ast_node->data.statement_goto_label.label); 
         exit(1);
       }
       
@@ -97,29 +97,29 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       break;
     }
     case AST_STATEMENT_GOTO: {
-      HashTableEntry *existing_goto_entry = hash_table_get_entry(goto_statuses, ast_node->data.goto_label_statement.label);
+      HashTableEntry *existing_goto_entry = hash_table_get_entry(goto_statuses, ast_node->data.statement_goto_label.label);
 
       if (existing_goto_entry == NULL || existing_goto_entry->key == NULL) {
-        add_goto_to_table(ast_node->data.goto_label_statement.label, GOTO_STATEMENT, goto_statuses);
+        add_goto_to_table(ast_node->data.statement_goto_label.label, GOTO_STATEMENT, goto_statuses);
       }      
 
       break;
     }
     case AST_STATEMENT_IF: 
-      check_ast_node(ast_node->data.if_statement.then_statement, goto_statuses);
+      check_ast_node(ast_node->data.statement_if.then_statement, goto_statuses);
 
-      if (ast_node->data.if_statement.else_statement != NULL) {
-        check_ast_node(ast_node->data.if_statement.else_statement, goto_statuses);
+      if (ast_node->data.statement_if.else_statement != NULL) {
+        check_ast_node(ast_node->data.statement_if.else_statement, goto_statuses);
       }
       break;
     case AST_STATEMENT_FOR:
-      check_ast_node(ast_node->data.for_statement.statement_body, goto_statuses);
+      check_ast_node(ast_node->data.statement_for.statement_body, goto_statuses);
       break;
     case AST_STATEMENT_WHILE:
-      check_ast_node(ast_node->data.while_statement.statement_body, goto_statuses);
+      check_ast_node(ast_node->data.statement_while.statement_body, goto_statuses);
       break;
     case AST_STATEMENT_DO_WHILE:
-      check_ast_node(ast_node->data.do_while_statement.statement_body, goto_statuses);
+      check_ast_node(ast_node->data.statement_do_while.statement_body, goto_statuses);
       break;
   }
 }

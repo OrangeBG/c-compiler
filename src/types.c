@@ -3,11 +3,12 @@
 
 size_t get_type_size(Types type) {
   switch(type) {
-    case TYPE_INT:    return sizeof(int);
-    case TYPE_UINT:   return sizeof(unsigned int);
-    case TYPE_LONG:   return sizeof(long);
-    case TYPE_ULONG:  return sizeof(unsigned long);
-    case TYPE_DOUBLE: return sizeof(double);
+    case TYPE_INT:     return sizeof(int);
+    case TYPE_UINT:    return sizeof(unsigned int);
+    case TYPE_LONG:    return sizeof(long);
+    case TYPE_ULONG:   return sizeof(unsigned long);
+    case TYPE_DOUBLE:  return sizeof(double);
+    case TYPE_POINTER: return sizeof(int*);
     default:
       fprintf(stderr, "ERROR - Types: Unsupported type when attempting to get Type size\n");
       exit(1);
@@ -33,6 +34,7 @@ char* get_type_string(Types type) {
     case TYPE_ULONG:    return "Unsigned Long";
     case TYPE_DOUBLE:   return "Double";
     case TYPE_FUNCTION: return "Function";
+    case TYPE_POINTER:  return "Pointer";
     default:
       fprintf(stderr, "ERROR - Types: get_type_string() type %d not supported", type);
       exit(1);
