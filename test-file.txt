@@ -1,5 +1,4 @@
-int *main(int *a, int b) {
-    int *ptr;
-
-    return ptr;
+int main(void) {
+    int *result_of_cast = (int *)(1 + 2);
+    return *result_of_cast;
 }

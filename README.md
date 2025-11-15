@@ -15,6 +15,7 @@ A C compiler that targets the C17 standard for the x64 instruction set. The comp
 - long
 - unsigned int
 - unsigned long
+- double
 
 ### Unary Operators
 

@@ -60,10 +60,25 @@ typedef struct {
   int param_identifiers_capacity;
   char **param_identifiers;
 } DeclaratorResults; 
+
+typedef enum {
+  ABSTRACT_DECLARATOR_POINTER,
+  ABSTRACT_DECLARATOR_BASE
+} AbstractDeclaratorType;
+
+typedef struct AbstractDeclarator AbstractDeclarator;
+
+typedef struct AbstractDeclarator {
+  AbstractDeclaratorType type;
+  union {
+    struct AbstractPointer { AbstractDeclarator *abstract_declarator; } abstract_declarator;
+  } data;
+} AbstractDeclarator;
  
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
 static Declarator*  parse_declarator(Parser *parser); 
+static void         parse_abstract_declarator(Parser *parser); 
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_block(Parser *parser, AstNode *block_node);
@@ -1405,6 +1420,10 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   factor_node->data.expression_cast.target_type = type_node;  
   factor_node->data.expression_cast.expression = expression_node;
   factor_node->data.expression_cast.expression_type = NULL;
+}
+
+static void parse_abstract_declarator(Parser *parser) {
+
 }
 
 static void parse_factor_goto_label(Parser *parser, AstNode *factor_node) {
