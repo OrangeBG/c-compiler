@@ -71,14 +71,14 @@ typedef struct AbstractDeclarator AbstractDeclarator;
 typedef struct AbstractDeclarator {
   AbstractDeclaratorType type;
   union {
-    struct AbstractPointer { AbstractDeclarator *abstract_declarator; } abstract_declarator;
+    struct AbstractPointer { AbstractDeclarator *abstract_declarator; } abstract_pointer;
   } data;
 } AbstractDeclarator;
  
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
 static Declarator*  parse_declarator(Parser *parser); 
-static void         parse_abstract_declarator(Parser *parser); 
+static AbstractDeclarator* parse_abstract_declarator(Parser *parser); 
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_block(Parser *parser, AstNode *block_node);
@@ -1411,6 +1411,8 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   Specifier specifier = parse_specifier(parser, true);
   type_node->data.type.type = specifier.specifier_type; 
 
+  AbstractDeclarator *abstract_declarator = parse_abstract_declarator(parser);
+
   expect(parser, TOKEN_CLOSE_PAREN);
 
   AstNode *expression_node = arena_alloc(parser->node_arena);
@@ -1422,8 +1424,30 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   factor_node->data.expression_cast.expression_type = NULL;
 }
 
-static void parse_abstract_declarator(Parser *parser) {
+//'*' by itself is a valid abstract declarator but not a valid regular declarator.
+static AbstractDeclarator* parse_abstract_declarator(Parser *parser) {
+  if (current_token(parser)->type == TOKEN_ASTERISK) {
+    expect(parser, TOKEN_ASTERISK);
 
+    AbstractDeclarator *pointer_declarator = malloc(sizeof(AbstractDeclarator));
+    pointer_declarator->type = ABSTRACT_DECLARATOR_POINTER;
+    pointer_declarator->data.abstract_pointer.abstract_declarator = parse_abstract_declarator(parser); 
+
+    return pointer_declarator;
+  }
+
+  if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+    expect(parser, TOKEN_OPEN_PAREN);
+    AbstractDeclarator *abstract_declarator = parse_abstract_declarator(parser);
+    expect(parser, TOKEN_CLOSE_PAREN);
+
+    return abstract_declarator;
+  }  
+
+  AbstractDeclarator *base_declarator = malloc(sizeof(AbstractDeclarator));
+  base_declarator->type = ABSTRACT_DECLARATOR_BASE;
+
+  return base_declarator;
 }
 
 static void parse_factor_goto_label(Parser *parser, AstNode *factor_node) {
