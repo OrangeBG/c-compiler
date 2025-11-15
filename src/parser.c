@@ -126,6 +126,7 @@ static void         add_function_parameter_type(AstNode *function_parameter_type
 static void         add_function_parameter_to_declarator(Declarator *function_declarator, Types param_type, Declarator *param_declarator); 
 static void         add_function_parameter_identifier_to_declarator_results(char *identifier, DeclaratorResults *declarator_results);   
 static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, AstNode *base_type); 
+static AstNode*     process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, AstNode *base_type);
 
 Arena* parse_ast(Token *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -227,7 +228,7 @@ void print_ast(const AstNode *node, int whitespace) {
         case TYPE_FUNCTION: printf("function"); break;
         case TYPE_POINTER:
           printf("Pointer(");
-          print_ast(node->data.type.pointer_reference_type, whitespace);
+          print_ast(node->data.type.pointer_reference_type, 0);
           printf(")");
           break;
         default:
@@ -235,7 +236,7 @@ void print_ast(const AstNode *node, int whitespace) {
           exit(1);
       }
 
-      printf(")");      
+      printf(")");
       break;
     case AST_BLOCK:
       print_whitespace(whitespace);
@@ -522,7 +523,6 @@ void print_ast(const AstNode *node, int whitespace) {
 
         print_ast(node->data.expression_cast.expression, ADD_WHITESPACE);        
 
-        print_whitespace(whitespace);
         printf(")\n");
         break;
       }
@@ -1412,7 +1412,8 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   type_node->data.type.type = specifier.specifier_type; 
 
   AbstractDeclarator *abstract_declarator = parse_abstract_declarator(parser);
-
+  AstNode *abstract_declarator_type_node = process_abstract_declarator(parser, abstract_declarator, type_node);
+  
   expect(parser, TOKEN_CLOSE_PAREN);
 
   AstNode *expression_node = arena_alloc(parser->node_arena);
@@ -1420,7 +1421,7 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   
   factor_node->type = AST_EXPRESSION_CAST;
   factor_node->data.expression_cast.target_type = type_node;  
-  factor_node->data.expression_cast.expression = expression_node;
+  factor_node->data.expression_cast.expression = abstract_declarator_type_node;
   factor_node->data.expression_cast.expression_type = NULL;
 }
 
@@ -1448,6 +1449,20 @@ static AbstractDeclarator* parse_abstract_declarator(Parser *parser) {
   base_declarator->type = ABSTRACT_DECLARATOR_BASE;
 
   return base_declarator;
+}
+
+static AstNode* process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, AstNode *base_type) {
+  switch (abstract_declarator->type) {
+    case ABSTRACT_DECLARATOR_POINTER:
+      AstNode *pointer_type = arena_alloc(parser->node_arena);
+      pointer_type->type = AST_TYPE;
+      pointer_type->data.type.type = TYPE_POINTER;
+      pointer_type->data.type.pointer_reference_type = base_type;
+
+      return process_abstract_declarator(parser, abstract_declarator->data.abstract_pointer.abstract_declarator, pointer_type);
+  }
+
+  return base_type;
 }
 
 static void parse_factor_goto_label(Parser *parser, AstNode *factor_node) {
