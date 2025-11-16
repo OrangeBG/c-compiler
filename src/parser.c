@@ -381,7 +381,6 @@ void print_ast(const AstNode *node, int whitespace) {
         default:
           fprintf(stderr, "ERROR - Parser: Could not find constant type when printing\n");
           exit(1);
-          break;
       }
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
@@ -707,8 +706,6 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
           fprintf(stderr, "ERROR - Parser: Cannot apply additional type derivations to a function type\n");
           exit(1);
       }
-      
-      break;
   }
 
   return declaration_results;
