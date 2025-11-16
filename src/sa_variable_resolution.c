@@ -207,10 +207,11 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack, int f
       break;
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_UNARY) {
-        fprintf(stderr, "ERROR - SA Variable Resolution: Invalid LValue for assignment expression\n");
-        exit(1);
-      }
+      //TODO: This will be moved to the type checker
+      // if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_UNARY) {
+      //   fprintf(stderr, "ERROR - SA Variable Resolution: Invalid LValue for assignment expression\n");
+      //   exit(1);
+      // }
 
       variable_resolve_node(node->data.expression_assignment.left_expression, declaration_stack, function_count, block_count);
       variable_resolve_node(node->data.expression_assignment.right_expression, declaration_stack, function_count, block_count);
@@ -237,6 +238,12 @@ static void variable_resolve_node(AstNode *node, Stack *declaration_stack, int f
       break;
     case AST_EXPRESSION_CAST:
       variable_resolve_node(node->data.expression_cast.expression, declaration_stack, function_count, block_count);
+      break;
+    case AST_EXPRESSION_ADDRESS_OF:
+      variable_resolve_node(node->data.expression_address_of.expression, declaration_stack, function_count, block_count);
+      break;
+    case AST_EXPRESSION_DEREFERENCE:
+      variable_resolve_node(node->data.expression_dereference.expression, declaration_stack, function_count, block_count);
       break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(declaration_stack);
