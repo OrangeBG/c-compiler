@@ -577,6 +577,20 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       expression_type_check(node->data.expression_increment_decrement.expression, declaration_table, function_declaration_node, ast_arena);
       break;
     }
+    case AST_EXPRESSION_ADDRESS_OF: {
+      //TODO: Add functionality
+      break;
+    }
+    case AST_EXPRESSION_DEREFERENCE: {
+      Types expression_type = expression_type_check(node->data.expression_dereference.expression, declaration_table, function_declaration_node, ast_arena);
+
+      if (expression_type != TYPE_POINTER) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot dereference a non-pointer");
+        exit(1);
+      }
+     
+      break;
+    }
     default:
       fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check\n", node->type);
       exit(1);
