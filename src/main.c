@@ -68,7 +68,7 @@ int main(int argc, const char *argv[]) {
   DeclarationSymbolTable declaration_symbol_table;
   declaration_symbol_table_init(&declaration_symbol_table);
   
-  sa_type_check(program_node, &declaration_symbol_table, parser_results.ast_node_arena);
+  sa_type_check(&parser_results, &declaration_symbol_table);
   sa_loop_labeling(program_node);
   sa_goto_check(program_node);
 

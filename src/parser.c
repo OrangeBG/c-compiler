@@ -135,7 +135,7 @@ void parse_ast(ParserResults *results, Token *tokens, int token_count, char *fil
 
   Arena *type_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
-  arena_init(parser_arena, sizeof(TypeNode), sizeof(TypeNode) * 1000, false);
+  arena_init(type_arena, sizeof(TypeNode), sizeof(TypeNode) * 1000, false);
 
   Parser parser = {
     .token_count = token_count,
