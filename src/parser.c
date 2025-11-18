@@ -137,6 +137,9 @@ void parse_ast(ParserResults *results, Token *tokens, int token_count, char *fil
   //TODO: Hardcoded capacity
   arena_init(type_arena, sizeof(TypeNode), sizeof(TypeNode) * 1000, false);
 
+  results->ast_node_arena = parser_arena;
+  results->type_node_arena = type_arena;
+  
   Parser parser = {
     .token_count = token_count,
     .current_token_index = 0,
