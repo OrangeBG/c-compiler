@@ -15,7 +15,7 @@ static void             function_and_variable_type_check(AstNode *node, Declarat
 static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
 static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
 static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
-static Types            expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
+static TypeNode*        expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static Types            get_common_real_type(Types type_1, Types type_2);
 static Types            get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static AstNode*         convert_to(AstNode *expression, Types expression_type, Types target_type, ParserResults *parser_results); 
@@ -109,7 +109,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         break;
       }
 
-      Types *param_types = malloc(sizeof(Types) * node->data.declaration_function.function_type->data.function_type.param_type_count);
+      TypeNode *param_types = malloc(sizeof(TypeNode) * node->data.declaration_function.function_type->data.function_type.param_type_count);
       
       bool is_defined = node->data.declaration_function.body_block != NULL;
       bool is_global = (node->data.declaration_function.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.declaration_function.name, "main") == 0);
@@ -117,7 +117,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       for (int i = 0; i < node->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
         TypeNode *parameter_type = &node->data.declaration_function.function_type->data.function_type.param_types[i];
 
-        param_types[i] = parameter_type->type;
+        param_types[i] = *parameter_type;
 
         if (parameter_type->type == TYPE_VOID) {
           continue;
@@ -129,9 +129,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           add_function_parameter_to_symbol_table(parameter_type, node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
         }
       }
-   
 
-      //@BUG: Need to update 'param_types' to be type nodes 
       DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.function_type.return_type, node->data.declaration_function.function_type->data.function_type.param_type_count, param_types, is_global, is_defined);
 
       if (node->data.declaration_function.body_block != NULL) {
@@ -196,14 +194,14 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       break;
     }
     case AST_STATEMENT_RETURN: {
-      Types return_expression_type = expression_type_check(node->data.statement_return.expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *return_expression_type = expression_type_check(node->data.statement_return.expression, declaration_table, function_declaration_node, parser_results);
       Types function_return_type = function_declaration_node->data.declaration_function.function_type->data.function_type.return_type->type;
 
-      if (function_return_type == return_expression_type) {
+      if (function_return_type == return_expression_type->type) {
         break;
       }
 
-      node->data.statement_return.expression = convert_to(node->data.statement_return.expression, return_expression_type, function_return_type, parser_results);
+      node->data.statement_return.expression = convert_to(node->data.statement_return.expression, return_expression_type->type, function_return_type, parser_results);
       break;
     }
     case AST_STATEMENT_FOR: {
@@ -381,7 +379,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 } 
 
 //TODO: Maybe need to return the whole TypeNode rather than the type enum
-static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
+static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
     case AST_EXPRESSION_VARIABLE: {
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_variable.identifier);
@@ -407,7 +405,7 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       //@NOTE: Experimenting with something here. Rather than creating a new type node. Pass the pointer to the existing one. 
       node->data.expression_variable.expression_type = symbol->data.variable_symbol->value_type;
 
-      return symbol->data.variable_symbol->value_type->type;
+      return symbol->data.variable_symbol->value_type;
       // return ast_expression_type->data.type.type;
     }
     case AST_EXPRESSION_CONSTANT: {
@@ -426,27 +424,29 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
 
       node->data.expression_constant.expression_type = expression_type;
 
-      return expression_type->type;
+      return expression_type;
     }
     case AST_EXPRESSION_CAST: {
       //@Bug: I think this is not right. Use the following as an example: long gg = (long)5;. Expression type returned is int
-      Types expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
+      // Types expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
       // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       // ast_expression_type_node->type = AST_TYPE;
       // ast_expression_type_node->data.type.type = expression_type;
 
-      TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-      expression_type_node->type = expression_type;
+      // TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
+      // expression_type_node->type = expression_type;
 
-      node->data.expression_cast.expression_type = expression_type_node;
+      // node->data.expression_cast.expression_type = expression_type_node;
+      node->data.expression_cast.expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
-      return expression_type;
+      // return expression_type;
+      return node->data.expression_cast.expression_type;
     }
     case AST_EXPRESSION_UNARY: {
-      Types expression_type = expression_type_check(node->data.expression_unary.expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check(node->data.expression_unary.expression, declaration_table, function_declaration_node, parser_results);
 
-      if (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT && expression_type == TYPE_DOUBLE) {
+      if (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT && expression_type->type == TYPE_DOUBLE) {
         fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement operator to a double\n");
         exit(1);
       }
@@ -455,22 +455,27 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
       // ast_expression_type_node->type = AST_TYPE;
       // ast_expression_type_node->data.type.type = expression_type;
 
-      TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-      expression_type_node->type = expression_type;
+      // TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
+      // expression_type_node->type = expression_type;
 
-      node->data.expression_unary.expression_type = expression_type_node;
+      // node->data.expression_unary.expression_type = expression_type_node;
+
+      node->data.expression_unary.expression_type = expression_type;
 
       if (node->data.expression_unary.op_type == AST_UNARY_NOT) {
-        return TYPE_INT;
+        TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+        int_type->type = TYPE_INT;
+
+        return int_type;
       }
 
       return expression_type;
     }
     case AST_EXPRESSION_BINARY: {
-      Types left_expression_type = expression_type_check(node->data.expression_binary.left_expression, declaration_table, function_declaration_node, parser_results);
-      Types right_expression_type = expression_type_check(node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *left_expression_type = expression_type_check(node->data.expression_binary.left_expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *right_expression_type = expression_type_check(node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
 
-      if (right_expression_type == TYPE_DOUBLE || left_expression_type == TYPE_DOUBLE) {
+      if (right_expression_type->type == TYPE_DOUBLE || left_expression_type->type == TYPE_DOUBLE) {
         if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_OR) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise OR operator with a double value\n");
           exit(1);
@@ -511,19 +516,19 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
         expression_type_node->type = TYPE_INT;
 
         node->data.expression_binary.expression_type = expression_type_node;
-        return TYPE_INT;
+        return expression_type_node;
       }
 
       Types common_type;
       
-      if (left_expression_type == TYPE_POINTER || right_expression_type == TYPE_POINTER) {
+      if (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER) {
         common_type = get_common_pointer_type(node->data.expression_binary.left_expression, node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
       } else {
-        common_type = get_common_real_type(left_expression_type, right_expression_type);
+        common_type = get_common_real_type(left_expression_type->type, right_expression_type->type);
       }
 
-      node->data.expression_binary.left_expression = convert_to(node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
-      node->data.expression_binary.right_expression = convert_to(node->data.expression_binary.right_expression, right_expression_type, common_type, parser_results);
+      node->data.expression_binary.left_expression = convert_to(node->data.expression_binary.left_expression, left_expression_type->type, common_type, parser_results);
+      node->data.expression_binary.right_expression = convert_to(node->data.expression_binary.right_expression, right_expression_type->type, common_type, parser_results);
       
       // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
       // ast_expression_type_node->type = AST_TYPE;
@@ -540,18 +545,21 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
         case AST_BINARY_MULTIPLY:
         case AST_BINARY_DIVIDE:
         case AST_BINARY_REMAINDER:
-          return common_type;
-        default:
-          return TYPE_INT;
+          return expression_type_node;
+        default: {
+          TypeNode *int_type_node = arena_alloc(parser_results->type_node_arena);
+          int_type_node->type = TYPE_INT;
+          return int_type_node;
+        }
       }
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      Types left_expression_type = expression_type_check(node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, parser_results);
-      Types right_expression_type = expression_type_check(node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *left_expression_type = expression_type_check(node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *right_expression_type = expression_type_check(node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, parser_results);
 
       // //TODO: Need to look into this. I don't think it's working correctly
       // node->data.expression_assignment.right_expression = convert_to(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, ast_arena);      
-      node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, parser_results);
+      node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type->type, left_expression_type->type, parser_results);
 
       return left_expression_type;
     }
@@ -590,25 +598,27 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
 
       node->data.expression_function_call.expression_type = existing_symbol->data.function_symbol->value_type;
 
-      return existing_symbol->data.function_symbol->value_type->type;
+      return existing_symbol->data.function_symbol->value_type;
     }
     case AST_EXPRESSION_CONDITIONAL: {
       expression_type_check(node->data.expression_conditional.condition, declaration_table, function_declaration_node, parser_results);
 
-      Types true_expression_type = expression_type_check(node->data.expression_conditional.true_expression, declaration_table, function_declaration_node, parser_results);
-      Types false_expression_type = expression_type_check(node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *true_expression_type = expression_type_check(node->data.expression_conditional.true_expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *false_expression_type = expression_type_check(node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, parser_results);
       
       Types common_type;
 
-      if (true_expression_type == TYPE_POINTER || false_expression_type == TYPE_POINTER) {
+      if (true_expression_type->type == TYPE_POINTER || false_expression_type->type == TYPE_POINTER) {
         common_type = get_common_pointer_type(node->data.expression_conditional.true_expression, node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, parser_results);
       } else {
-        common_type = get_common_real_type(true_expression_type, false_expression_type);
+        common_type = get_common_real_type(true_expression_type->type, false_expression_type->type);
       }
 
-      node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type, common_type, parser_results);
-      node->data.expression_conditional.false_expression = convert_to(node->data.expression_conditional.false_expression, false_expression_type, common_type, parser_results);
-      return common_type;
+      node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type->type, common_type, parser_results);
+      node->data.expression_conditional.false_expression = convert_to(node->data.expression_conditional.false_expression, false_expression_type->type, common_type, parser_results);
+
+      // return common_type;
+      return node->data.expression_conditional.expression_type;
     }
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_INCREMENT:
@@ -630,13 +640,15 @@ static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declar
         exit(1);
       }
 
-      expression_type_check(node->data.expression_address_of.expression, declaration_table, function_declaration_node, parser_results);
-      return TYPE_POINTER;
+      // return TYPE_POINTER;
+
+      TypeNode *address_of_expression_type = expression_type_check(node->data.expression_address_of.expression, declaration_table, function_declaration_node, parser_results);
+      return address_of_expression_type;
     }
     case AST_EXPRESSION_DEREFERENCE: {
-      Types expression_type = expression_type_check(node->data.expression_dereference.expression, declaration_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check(node->data.expression_dereference.expression, declaration_table, function_declaration_node, parser_results);
 
-      if (expression_type != TYPE_POINTER) {
+      if (expression_type->type != TYPE_POINTER) {
         fprintf(stderr, "ERROR - SA Type Check: Cannot dereference a non-pointer\n");
         exit(1);
       }
@@ -675,19 +687,19 @@ static Types get_common_real_type(Types type_1, Types type_2) {
 }
 
 static Types get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
-  Types expression_1_type = expression_type_check(expression_1, declaration_table, function_declaration_node, parser_results); 
-  Types expression_2_type = expression_type_check(expression_2, declaration_table, function_declaration_node, parser_results); 
+  TypeNode *expression_1_type = expression_type_check(expression_1, declaration_table, function_declaration_node, parser_results); 
+  TypeNode *expression_2_type = expression_type_check(expression_2, declaration_table, function_declaration_node, parser_results); 
 
   if (expression_1_type == expression_2_type) {
-    return expression_1_type;
+    return expression_1_type->type;
   }
 
   if (is_null_pointer_constant(expression_1)) {
-    return expression_2_type;
+    return expression_2_type->type;
   }
 
   if (is_null_pointer_constant(expression_2)) {
-    return expression_1_type;
+    return expression_1_type->type;
   }
 
   fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types");
