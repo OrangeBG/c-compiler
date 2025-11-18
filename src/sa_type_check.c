@@ -374,8 +374,6 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   }   
 
   add_automatic_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type->data.type.type, variable_declaration_node->data.declaration_variable.name);
-
-  return;
 } 
 
 static Types expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena) {

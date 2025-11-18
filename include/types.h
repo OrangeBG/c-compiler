@@ -15,6 +15,13 @@ typedef enum {
   TYPE_POINTER
 } Types;
 
+typedef struct TypeNode TypeNode;
+
+typedef struct TypeNode {
+  Types type;
+  TypeNode *pointer_reference;
+} TypeNode;
+
 size_t get_type_size(Types type);
 bool is_type_signed(Types type); 
 char* get_type_string(Types type);
