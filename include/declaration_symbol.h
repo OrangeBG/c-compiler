@@ -20,9 +20,10 @@ typedef enum {
 typedef struct {
   bool is_defined;
   bool is_global;
-  Types value_type;
+  // Types value_type;
+  TypeNode *value_type;
   int param_count;
-  Types *param_types;
+  TypeNode *param_types;
 } FunctionSymbol;
 
 typedef union {
@@ -34,7 +35,8 @@ typedef union {
 } InitialValue;
 
 typedef struct {
-  Types value_type;
+  // Types value_type;
+  TypeNode *value_type;
   bool is_automatic_storage_duration;
   InitialValueType static_initial_type;
   InitialValue static_initial_value;

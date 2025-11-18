@@ -35,7 +35,7 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); //TODO: This will be moved to the type checker
 static char* get_identifier_with_stack_offset(char *identifier, int stack_offset, int function_count, int block_count); 
 static void push_new_declaration_stack(Stack *declaration_stack); 
-static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, VariableResolution *variable_resolution); 
+static void resolve_function_parameter(TypeNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, VariableResolution *variable_resolution); 
 static void print_declaration_stack(Stack *declaration_stack);
 
 void sa_variable_resolution(AstNode *ast_nodes) {
@@ -137,8 +137,8 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       //Add a new stack for the function variable declarations
       push_new_declaration_stack(variable_resolution->declaration_stack);
 
-      for (int i = 0; i < node->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
-        AstNode *param_type = &node->data.declaration_function.function_type->data.type.function_param_types[i];
+      for (int i = 0; i < node->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
+        TypeNode *param_type = &node->data.declaration_function.function_type->data.function_type.param_types[i];
         resolve_function_parameter(param_type, node, i, variable_resolution);
       }
   
@@ -322,7 +322,6 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       node->data.expression_variable.identifier = identifier;
       break;
     }
-    case AST_TYPE:
     case AST_EXPRESSION_CONSTANT:
     case AST_STATEMENT_NULL:
     case AST_STATEMENT_CONTINUE:
@@ -430,8 +429,8 @@ static void push_new_declaration_stack(Stack *declaration_stack) {
   stack_push(declaration_stack, new_stack_value);
 }
 
-static void resolve_function_parameter(AstNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, VariableResolution *variable_resolution) {
-  if (param_type_node->data.type.type == TYPE_VOID) {
+static void resolve_function_parameter(TypeNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, VariableResolution *variable_resolution) {
+  if (param_type_node->type == TYPE_VOID) {
     return;
   }
 

@@ -14,7 +14,7 @@
 static void             function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena);
 static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
 static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
-static void             add_function_parameter_to_symbol_table(AstNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
+static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
 static Types            expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena); 
 static Types            get_common_real_type(Types type_1, Types type_2);
 static Types            get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, Arena *ast_arena); 
@@ -66,7 +66,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       if (entry != NULL && entry->key != NULL) {
         DeclarationSymbol *existing_function_symbol = entry->value->structure;
 
-        if (existing_function_symbol->data.function_symbol->value_type != node->data.declaration_function.function_type->data.type.function_return_type->data.type.type) {
+        if (existing_function_symbol->data.function_symbol->value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {
           fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
           exit(1);
         }
@@ -81,13 +81,13 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           exit(1);
         }
 
-        if (existing_function_symbol->data.function_symbol->param_count != node->data.declaration_function.function_type->data.type.function_param_type_count) {
+        if (existing_function_symbol->data.function_symbol->param_count != node->data.declaration_function.function_type->data.function_type.param_type_count) {
           fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.declaration_function.name);
           exit(1);
         }
 
-        for (int i = 0; i < node->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
-          if (existing_function_symbol->data.function_symbol->param_types[i] != node->data.declaration_function.function_type->data.type.function_param_types[i].data.type.type) {
+        for (int i = 0; i < node->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
+          if (existing_function_symbol->data.function_symbol->param_types[i].type != node->data.declaration_function.function_type->data.function_type.param_types[i].type) {
             fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.declaration_function.name);
             exit(1);
           }
@@ -95,7 +95,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           //We only want to add function param names for function definitions
           if (node->data.declaration_function.body_block != NULL)
           {
-            add_function_parameter_to_symbol_table(&node->data.declaration_function.function_type->data.type.function_param_types[i], node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
+            add_function_parameter_to_symbol_table(&node->data.declaration_function.function_type->data.function_type.param_types[i], node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
           }
         }
 
@@ -107,17 +107,17 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         break;
       }
 
-      Types *param_types = malloc(sizeof(Types) * node->data.declaration_function.function_type->data.type.function_param_type_count);
+      Types *param_types = malloc(sizeof(Types) * node->data.declaration_function.function_type->data.function_type.param_type_count);
       
       bool is_defined = node->data.declaration_function.body_block != NULL;
       bool is_global = (node->data.declaration_function.storage_class_type != AST_STORAGE_CLASS_STATIC || strcmp(node->data.declaration_function.name, "main") == 0);
         
-      for (int i = 0; i < node->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
-        AstNode *parameter_type = &node->data.declaration_function.function_type->data.type.function_param_types[i];
+      for (int i = 0; i < node->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
+        TypeNode *parameter_type = &node->data.declaration_function.function_type->data.function_type.param_types[i];
 
-        param_types[i] = parameter_type->data.type.type;
+        param_types[i] = parameter_type->type;
 
-        if (parameter_type->data.type.type == TYPE_VOID) {
+        if (parameter_type->type == TYPE_VOID) {
           continue;
         }
 
@@ -128,7 +128,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         }
       }
       
-      DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.type.function_return_type->data.type.type, node->data.declaration_function.function_type->data.type.function_param_type_count, param_types, is_global, is_defined);
+      DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.function_type.return_type->type, node->data.declaration_function.function_type->data.function_type.param_type_count, param_types, is_global, is_defined);
 
       if (node->data.declaration_function.body_block != NULL) {
         function_and_variable_type_check(node->data.declaration_function.body_block, declaration_table, node, ast_arena);
