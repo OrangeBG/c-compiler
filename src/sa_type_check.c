@@ -396,17 +396,10 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         exit(1);
       }
 
-      // AstNode *ast_expression_type = arena_alloc(ast_arena);
-      // ast_expression_type->type = AST_TYPE;
-      // ast_expression_type->data.type.type = symbol->data.variable_symbol->value_type;       
-
-      // node->data.expression_variable.expression_type = ast_expression_type;
-
       //@NOTE: Experimenting with something here. Rather than creating a new type node. Pass the pointer to the existing one. 
       node->data.expression_variable.expression_type = symbol->data.variable_symbol->value_type;
 
       return symbol->data.variable_symbol->value_type;
-      // return ast_expression_type->data.type.type;
     }
     case AST_EXPRESSION_CONSTANT: {
       TypeNode *expression_type = arena_alloc(parser_results->type_node_arena);
@@ -427,20 +420,8 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       return expression_type;
     }
     case AST_EXPRESSION_CAST: {
-      //@Bug: I think this is not right. Use the following as an example: long gg = (long)5;. Expression type returned is int
-      // Types expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
-
-      // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
-      // ast_expression_type_node->type = AST_TYPE;
-      // ast_expression_type_node->data.type.type = expression_type;
-
-      // TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-      // expression_type_node->type = expression_type;
-
-      // node->data.expression_cast.expression_type = expression_type_node;
       node->data.expression_cast.expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
-      // return expression_type;
       return node->data.expression_cast.expression_type;
     }
     case AST_EXPRESSION_UNARY: {
@@ -450,15 +431,6 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement operator to a double\n");
         exit(1);
       }
-
-      // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
-      // ast_expression_type_node->type = AST_TYPE;
-      // ast_expression_type_node->data.type.type = expression_type;
-
-      // TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-      // expression_type_node->type = expression_type;
-
-      // node->data.expression_unary.expression_type = expression_type_node;
 
       node->data.expression_unary.expression_type = expression_type;
 
@@ -508,10 +480,6 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       }
 
       if (node->data.expression_binary.op_type == AST_BINARY_AND || node->data.expression_binary.op_type == AST_BINARY_OR) {
-        // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
-        // ast_expression_type_node->type = AST_TYPE;
-        // ast_expression_type_node->data.type.type = TYPE_INT;
-
         TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
         expression_type_node->type = TYPE_INT;
 
@@ -529,10 +497,6 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
 
       node->data.expression_binary.left_expression = convert_to(node->data.expression_binary.left_expression, left_expression_type->type, common_type, parser_results);
       node->data.expression_binary.right_expression = convert_to(node->data.expression_binary.right_expression, right_expression_type->type, common_type, parser_results);
-      
-      // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
-      // ast_expression_type_node->type = AST_TYPE;
-      // ast_expression_type_node->data.type.type = common_type;
 
       TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
       expression_type_node->type = common_type;
@@ -557,8 +521,6 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *left_expression_type = expression_type_check(node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, parser_results);
       TypeNode *right_expression_type = expression_type_check(node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, parser_results);
 
-      // //TODO: Need to look into this. I don't think it's working correctly
-      // node->data.expression_assignment.right_expression = convert_to(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, ast_arena);      
       node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type->type, left_expression_type->type, parser_results);
 
       return left_expression_type;
@@ -587,15 +549,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         function_and_variable_type_check(argument_node, declaration_table, function_declaration_node, parser_results);
       }
     
-      // AstNode *ast_expression_type_node = arena_alloc(ast_arena);
-      // ast_expression_type_node->type = AST_TYPE;
-      // ast_expression_type_node->data.type.type = existing_symbol->data.function_symbol->value_type;
-      // node->data.expression_function_call.expression_type = ast_expression_type_node;
-
-      // return ast_expression_type_node->data.type.type;
-
       //@NOTE: Attempting to reuse existing types here rather than creating a new one
-
       node->data.expression_function_call.expression_type = existing_symbol->data.function_symbol->value_type;
 
       return existing_symbol->data.function_symbol->value_type;
@@ -713,10 +667,6 @@ static AstNode* convert_to(AstNode *expression, Types expression_type, Types tar
   if (expression_type == target_type) {
     return expression;
   }
-
-  // AstNode *type_node = arena_alloc(ast_arena);
-  // type_node->type = AST_TYPE;
-  // type_node->data.type.type = target_type;
 
   TypeNode *type_node = arena_alloc(parser_results->type_node_arena);
   type_node->type = target_type;
