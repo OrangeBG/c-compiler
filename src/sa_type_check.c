@@ -640,10 +640,13 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         exit(1);
       }
 
-      // return TYPE_POINTER;
-
       TypeNode *address_of_expression_type = expression_type_check(node->data.expression_address_of.expression, declaration_table, function_declaration_node, parser_results);
-      return address_of_expression_type;
+
+      TypeNode *pointer_type_node = arena_alloc(parser_results->type_node_arena);
+      pointer_type_node->type = TYPE_POINTER;
+      pointer_type_node->data.pointer_type.reference_type = address_of_expression_type;
+
+      return pointer_type_node;
     }
     case AST_EXPRESSION_DEREFERENCE: {
       TypeNode *expression_type = expression_type_check(node->data.expression_dereference.expression, declaration_table, function_declaration_node, parser_results);
@@ -653,8 +656,8 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         exit(1);
       }
 
-      //TODO: Returning the Type in this function may be incorrect. There is no Dereference Type, so maybe I need to return the AST Type node..
-      return expression_type;
+      //TODO: Will this work if it's greater than one level? Example: int** 
+      return expression_type->data.pointer_type.reference_type;
     }
     default:
       fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check\n", node->type);

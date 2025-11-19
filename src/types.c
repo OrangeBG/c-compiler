@@ -44,8 +44,6 @@ char* get_type_string(Types type) {
 }
 
 void print_type_node(TypeNode *type_node) {
-  printf("Type(");
-
   switch (type_node->type) {
     case TYPE_VOID:     printf("void"); break;
     case TYPE_INT:      printf("int"); break;
@@ -63,8 +61,6 @@ void print_type_node(TypeNode *type_node) {
       fprintf(stderr, "ERROR - Parser: Could not find Type '%d' when printing\n", type_node->type);
       exit(1);
   }
-
-  printf(")");
 }
 
 void add_function_parameter_type(TypeNode *parameter_type, TypeNode *function_type) {
