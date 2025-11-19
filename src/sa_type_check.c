@@ -347,6 +347,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         case TYPE_LONG:    initial_value.long_value = 0; break;
         case TYPE_ULONG:   initial_value.ulong_value = 0; break;
         case TYPE_DOUBLE:  initial_value.double_value = 0; break;
+        case TYPE_POINTER: initial_value.ulong_value = 0; break;
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n", variable_declaration_node->data.declaration_variable.type->type);
           exit(1);
@@ -361,6 +362,17 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         case TYPE_UINT:    initial_value.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node); break;
         case TYPE_ULONG:   initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
         case TYPE_DOUBLE:  initial_value.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node); break;
+        case TYPE_POINTER: {
+          unsigned long value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
+
+          if (value != 0) {
+            fprintf(stderr, "ERROR - SA Type Check: Cannot assign value '%ld' to a static pointer\n", value);
+            exit(1);
+          }
+
+          initial_value.ulong_value = value;
+          break;
+        }
         default:
           fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",variable_declaration_node->data.declaration_variable.type->type);
           exit(1);

@@ -1,11 +1,5 @@
 int main(void) {
-    //int value = 10;
-    //int *ref = &value;
-    //int deref = *ref;
+    static int *ptr = 0;
 
-    //return deref;
-    double *d;
-    double d2 = (int)d;
-
-    return 2;
+    return 5;
 }
