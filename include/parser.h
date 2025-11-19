@@ -12,7 +12,6 @@ typedef enum {
   AST_PROGRAM,
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
-  AST_TYPE,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
   AST_STATEMENT_NULL,
@@ -90,14 +89,18 @@ typedef struct {
   AstNode **node_pointers;
 } NodePointer;
 
+typedef struct {
+ Arena *ast_node_arena;
+ Arena *type_node_arena;
+} ParserResults;
+
 typedef struct AstNode {
   NodeType type;
   union {
     struct Program { NodePointer *declaration_ptrs; int declaration_count; } program;
     //TODO: Seems bad to have param count and have function_type.data.type.function_param_type_count representing the same thing
-    struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity; int parameter_identifier_count; AstNode *body_block; AstNode *function_type; } declaration_function;
-    struct VariableDeclaration { char *name; AstNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } declaration_variable;
-    struct Type { Types type; AstNode *function_param_types; int function_param_type_count; int function_param_type_capacity; AstNode *function_return_type; AstNode *pointer_reference_type; } type;
+    struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity; int parameter_identifier_count; AstNode *body_block; TypeNode *function_type; } declaration_function;
+    struct VariableDeclaration { char *name; TypeNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } declaration_variable;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } statement_return;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } statement_if;
@@ -110,21 +113,21 @@ typedef struct AstNode {
     struct BreakStatement { int label_id; } statement_break;
     struct ContinueStatement { int label_id; } statement_continue;
     //TODO: Look into making the constant values into a union
-    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; AstNode *expression_type; double double_value; } expression_constant;
-    struct VariableExpression { char *identifier; AstNode *expression_type; } expression_variable;
-    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; AstNode *expression_type; } expression_unary;
-    struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } expression_binary;
-    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; AstNode *expression_type; } expression_assignment;
-    struct IncrementDecrementExpression { AstNode *expression; AstNode *expression_type; } expression_increment_decrement;
-    struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; AstNode *expression_type; } expression_conditional;
-    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; AstNode *expression_type; int argument_count; } expression_function_call;
-    struct CastExpression { AstNode *target_type; AstNode *expression; AstNode *expression_type; } expression_cast;
+    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; TypeNode *expression_type; double double_value; } expression_constant;
+    struct VariableExpression { char *identifier; TypeNode *expression_type; } expression_variable;
+    struct UnaryExpression { UnaryOpType op_type; AstNode *expression; TypeNode *expression_type; } expression_unary;
+    struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; TypeNode *expression_type; } expression_binary;
+    struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; TypeNode *expression_type; } expression_assignment;
+    struct IncrementDecrementExpression { AstNode *expression; TypeNode *expression_type; } expression_increment_decrement;
+    struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; TypeNode *expression_type; } expression_conditional;
+    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; TypeNode *expression_type; int argument_count; } expression_function_call;
+    struct CastExpression { TypeNode *target_type; AstNode *expression; TypeNode *expression_type; } expression_cast;
     struct DereferenceExpression { AstNode *expression; } expression_dereference;
     struct AddressOfExpression { AstNode *expression; } expression_address_of;
   } data;
 } AstNode;
 
-Arena* parse_ast(Token *tokens, int token_count, char *file);   
+void parse_ast(ParserResults *results, Token *tokens, int token_count, char *file);   
 void print_ast(const AstNode *node, int whitespace);
 
 #endif

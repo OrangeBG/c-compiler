@@ -53,27 +53,28 @@ int main(int argc, const char *argv[]) {
     print_tokens(&lexer, file);
   }
 
-  Arena *ast_arena = parse_ast(lexer.tokens, lexer.token_count, file);
+  ParserResults parser_results;
+  parse_ast(&parser_results, lexer.tokens, lexer.token_count, file);
 
   if (print_debug) {
     printf("\n>> AST PRINT <<\n\n");
-    AstNode *program_node = arena_get_by_index(ast_arena, 0);
+    AstNode *program_node = arena_get_by_index(parser_results.ast_node_arena, 0);
     print_ast(program_node, 0);
   }
 
-  AstNode *program_node = arena_get_by_index(ast_arena, 0);
+  AstNode *program_node = arena_get_by_index(parser_results.ast_node_arena, 0);
   sa_variable_resolution(program_node);
 
   DeclarationSymbolTable declaration_symbol_table;
   declaration_symbol_table_init(&declaration_symbol_table);
   
-  sa_type_check(program_node, &declaration_symbol_table, ast_arena);
+  sa_type_check(&parser_results, &declaration_symbol_table);
   sa_loop_labeling(program_node);
   sa_goto_check(program_node);
 
   if (print_debug) {
     printf("\n>> SEMANTIC PRINT <<\n\n");
-    AstNode *program_node = arena_get_by_index(ast_arena, 0);
+    AstNode *program_node = arena_get_by_index(parser_results.ast_node_arena, 0);
     print_ast(program_node, 0);
   }
 
@@ -84,7 +85,7 @@ int main(int argc, const char *argv[]) {
     print_intermediate_ret(ir);
   }
 
-  arena_free(ast_arena);
+  arena_free(parser_results.ast_node_arena);
 
   AsmBackendSymbolTable backend_symbol_table;
   backend_symbol_table_init(&backend_symbol_table);

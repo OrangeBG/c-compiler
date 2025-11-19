@@ -234,14 +234,14 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_STATIC_VAR:
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
-      switch (ir_node->data.static_variable.static_variable_symbol->value_type) {
+      switch (ir_node->data.static_variable.static_variable_symbol->value_type->type) {
         case TYPE_INT:    printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
         case TYPE_LONG:   printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
         case TYPE_UINT:   printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
         case TYPE_ULONG:  printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
         case TYPE_DOUBLE: printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
         default:
-          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type);
+          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type->type);
           exit(1);
       }
 
@@ -283,7 +283,7 @@ static IRNode* emit_function(AstNode *ast_function, IntermediateRep *intermediat
   DeclarationSymbol *symbol = found_declaration_entry->value->structure;
   function->data.function.is_global = symbol->data.function_symbol->is_global;
 
-  for (int i = 0; i < ast_function->data.declaration_function.function_type->data.type.function_param_type_count; i++) {
+  for (int i = 0; i < ast_function->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
     add_function_parameter_identifier(ast_function->data.declaration_function.parameter_identifiers[i], function);
   }
     
@@ -513,7 +513,7 @@ static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, Inte
   //TODO: Warning, setting hard buffer limit
   char *destination_name = create_temp_register(intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, unary_node->data.expression_unary.expression_type->data.type.type, destination_name);
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, unary_node->data.expression_unary.expression_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -550,7 +550,11 @@ static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, In
   destination->data.value_var.identifier = destination_name;
 
   if (binary_node->data.expression_binary.op_type == AST_BINARY_AND || binary_node->data.expression_binary.op_type == AST_BINARY_OR) {
-    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, TYPE_INT, destination_name);    
+    //@Temp: Malloc'ing node to satisfy the need to padd it into the add function. Look into a way to add to the type arena
+    TypeNode *int_type_node = malloc(sizeof(TypeNode));
+    int_type_node->type = TYPE_INT;
+
+    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, int_type_node, destination_name);    
 
     char *label_name = create_temp_label(intermediate_rep);
 
@@ -596,7 +600,7 @@ static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, In
     return destination;
   }
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type->data.type.type, destination_name);
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
 
   IRBinaryOpType binary_op_type;
 
@@ -689,7 +693,7 @@ static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode
 
   char *destination_name = create_temp_register(intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, function_call_node->data.expression_function_call.expression_type->data.type.type, destination_name);
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, function_call_node->data.expression_function_call.expression_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -713,9 +717,9 @@ static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode
 static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *cast_expression = emit_ast_node(cast_node->data.expression_cast.expression, function, intermediate_rep);
   Types expression_type = get_node_type(cast_expression, intermediate_rep); 
-  Types target_type = cast_node->data.expression_cast.target_type->data.type.type;
+  TypeNode *target_type = cast_node->data.expression_cast.target_type;
 
-  if (expression_type == target_type) {
+  if (expression_type == target_type->type) {
     return cast_expression;
   }
 
@@ -724,17 +728,17 @@ static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, Interm
 
   IRNode *var_destination_node = create_variable(temp_destination, intermediate_rep);
 
-  if (get_type_size(target_type) == get_type_size(expression_type)) {
+  if (get_type_size(target_type->type) == get_type_size(expression_type)) {
     emit_copy(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_DOUBLE && target_type == TYPE_INT) {
+  } else if (expression_type == TYPE_DOUBLE && target_type->type == TYPE_INT) {
     emit_double_to_int(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_DOUBLE && target_type == TYPE_UINT) {
+  } else if (expression_type == TYPE_DOUBLE && target_type->type == TYPE_UINT) {
     emit_double_to_uint(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_INT && target_type == TYPE_DOUBLE) {
+  } else if (expression_type == TYPE_INT && target_type->type == TYPE_DOUBLE) {
     emit_int_to_double(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_UINT && target_type == TYPE_DOUBLE) {
+  } else if (expression_type == TYPE_UINT && target_type->type == TYPE_DOUBLE) {
     emit_uint_to_double(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (get_type_size(target_type) < get_type_size(expression_type)) {
+  } else if (get_type_size(target_type->type) < get_type_size(expression_type)) {
     emit_truncate(cast_expression, var_destination_node, function, intermediate_rep);    
   } else if (is_type_signed(expression_type)) {
     emit_sign_extend(cast_expression, var_destination_node, function, intermediate_rep);
@@ -963,9 +967,9 @@ static IRNode* create_int_constant(int value, IntermediateRep *intermediate_rep)
 static IRNode* create_ast_constant(AstNode *ast_constant, IntermediateRep *intermediate_rep) {
   IRNode *constant = arena_alloc(intermediate_rep->node_arena);
   constant->type = IR_VALUE_CONSTANT;
-  constant->data.value_constant.type = ast_constant->data.expression_constant.expression_type->data.type.type;
+  constant->data.value_constant.type = ast_constant->data.expression_constant.expression_type->type;
 
-  switch (ast_constant->data.expression_constant.expression_type->data.type.type) {
+  switch (ast_constant->data.expression_constant.expression_type->type) {
     case TYPE_INT:
       constant->data.value_constant.value.int_value = ast_constant->data.expression_constant.int_value;
       break;
@@ -982,7 +986,7 @@ static IRNode* create_ast_constant(AstNode *ast_constant, IntermediateRep *inter
       constant->data.value_constant.value.double_value = ast_constant->data.expression_constant.double_value;
       break;
     default:
-      fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)\n", ast_constant->data.expression_constant.expression_type->data.type.type);
+      fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)\n", ast_constant->data.expression_constant.expression_type->type);
       exit(1);
   }
 
@@ -1036,14 +1040,14 @@ static void init_node_pointer(IRNodePointer *ir_node_pointer) {
 static Types get_node_type(IRNode *node, IntermediateRep *intermediate_rep) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
-    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type;
+    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type->type;
     case IR_VALUE_VAR: {
       //TODO: Error check to make sure we actually have a variable symbol.
       //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
       HashTableEntry *entry = hash_table_get_entry(intermediate_rep->declaration_symbol_table->symbol_table, node->data.value_var.identifier);
       DeclarationSymbol *declaration_symbol = entry->value->structure;
 
-      return declaration_symbol->data.variable_symbol->value_type;
+      return declaration_symbol->data.variable_symbol->value_type->type;
     }
     default:
       fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type\n", node->type);
