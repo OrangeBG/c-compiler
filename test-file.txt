@@ -1,7 +1,11 @@
 int main(void) {
-    int value = 10;
-    int *ref = &value;
-    int deref = *ref;
+    //int value = 10;
+    //int *ref = &value;
+    //int deref = *ref;
 
-    return deref;
+    //return deref;
+    double *d;
+    double d2 = (int)d;
+
+    return 2;
 }

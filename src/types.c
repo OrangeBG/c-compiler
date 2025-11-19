@@ -38,7 +38,7 @@ char* get_type_string(Types type) {
     case TYPE_FUNCTION: return "function";
     case TYPE_POINTER:  return "pointer";
     default:
-      fprintf(stderr, "ERROR - Types: get_type_string() type %d not supported", type);
+      fprintf(stderr, "ERROR - Types: get_type_string() type %d not supported\n", type);
       exit(1);
   }
 }
@@ -73,3 +73,16 @@ void add_function_parameter_type(TypeNode *parameter_type, TypeNode *function_ty
   function_type->data.function_type.param_types[function_type->data.function_type.param_type_count] = *parameter_type;
   function_type->data.function_type.param_type_count++;
 }   
+
+Types get_pointer_base_type(TypeNode *pointer_node) {
+  if (pointer_node->type != TYPE_POINTER) {
+    fprintf(stderr, "ERROR - Type: Passed non-pointer to get_pointer_base_type()\n");
+    exit(1);
+  }
+
+  if (pointer_node->data.pointer_type.reference_type->type == TYPE_POINTER) {
+    return get_pointer_base_type(pointer_node->data.pointer_type.reference_type);    
+  }
+
+  return pointer_node->data.pointer_type.reference_type->type;
+}

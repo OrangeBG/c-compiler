@@ -422,6 +422,11 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
     case AST_EXPRESSION_CAST: {
       node->data.expression_cast.expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
+      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.expression_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.expression_type) == TYPE_DOUBLE) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
+        exit(1);
+      }
+
       return node->data.expression_cast.expression_type;
     }
     case AST_EXPRESSION_UNARY: {
@@ -429,6 +434,11 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
 
       if (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT && expression_type->type == TYPE_DOUBLE) {
         fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement operator to a double\n");
+        exit(1);
+      }
+
+      if (expression_type->type == TYPE_POINTER && (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT || node->data.expression_unary.op_type == AST_UNARY_NEGATE)) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement or negate operator to a pointer\n");
         exit(1);
       }
 
@@ -474,9 +484,26 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         } 
         
         if (node->data.expression_binary.op_type == AST_BINARY_REMAINDER) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply Modulo operator with a double value\n");
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply modulo operator with a double value\n");
           exit(1);
         } 
+      }
+
+      if (right_expression_type->type == TYPE_POINTER || left_expression_type->type == TYPE_POINTER) {
+        if (node->data.expression_binary.op_type == AST_BINARY_MULTIPLY) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot multiply with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_DIVIDE) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot divide with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_REMAINDER) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply modulo operated with a pointer\n");
+          exit(1);
+        }
       }
 
       if (node->data.expression_binary.op_type == AST_BINARY_AND || node->data.expression_binary.op_type == AST_BINARY_OR) {
@@ -489,7 +516,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
 
       Types common_type;
       
-      if (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER) {
+      if ((node->data.expression_binary.op_type == AST_BINARY_EQUAL || node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
         common_type = get_common_pointer_type(node->data.expression_binary.left_expression, node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
       } else {
         common_type = get_common_real_type(left_expression_type->type, right_expression_type->type);
