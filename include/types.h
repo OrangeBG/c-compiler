@@ -19,11 +19,16 @@ typedef struct TypeNode TypeNode;
 
 typedef struct TypeNode {
   Types type;
-  TypeNode *pointer_reference;
+  union {
+  struct FunctionType { TypeNode *param_types; int param_type_count; int param_type_capacity; TypeNode *return_type; } function_type;
+  struct PointerType { TypeNode *reference_type; } pointer_type;
+  } data;
 } TypeNode;
 
 size_t get_type_size(Types type);
-bool is_type_signed(Types type); 
-char* get_type_string(Types type);
+bool   is_type_signed(Types type); 
+char*  get_type_string(Types type);
+void   print_type_node(TypeNode *type_node); 
+void   add_function_parameter_type(TypeNode *parameter_type, TypeNode *function_type); 
 
 #endif

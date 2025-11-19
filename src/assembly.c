@@ -750,7 +750,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
       exit(1);
     }
 
-    Types parameter_type = ((DeclarationSymbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type;
+    Types parameter_type = ((DeclarationSymbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type->type;
     
     AsmNode *source_operand = arena_alloc(assembly->asm_arena);
 
@@ -948,7 +948,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
   asm_static_variable->data.static_variable.static_variable_symbol = ir_static_variable->data.static_variable.static_variable_symbol;
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 
-  switch (ir_static_variable->data.static_variable.static_variable_symbol->value_type) {
+  switch (ir_static_variable->data.static_variable.static_variable_symbol->value_type->type) {
     case TYPE_INT:
     case TYPE_UINT:
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD;
@@ -1004,7 +1004,11 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
 
   InitialValue initial_value = { .double_value = source_double };  
 
-  add_static_variable_declaration_symbol(assembly->declaration_symbol_table, TYPE_DOUBLE, initial_value, constant_label, true, INITIAL_VALUE_INITIALIZED);  
+  //@Temp: Malloc'ing node to satisfy the need to padd it into the add function. Look into a way to add to the type arena
+  TypeNode *double_type_node = malloc(sizeof(TypeNode));
+  double_type_node->type = TYPE_DOUBLE;
+  
+  add_static_variable_declaration_symbol(assembly->declaration_symbol_table, double_type_node, initial_value, constant_label, true, INITIAL_VALUE_INITIALIZED);  
 
   HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, constant_label);
 
@@ -1359,7 +1363,7 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
   HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function_call_instruction->data.instruction_function_call.identifier);
   DeclarationSymbol *declaration_symbol = entry->value->structure;
   
-  AsmType return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type);
+  AsmType return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type->type);
 
   AsmNode *dest_register;
    
@@ -1478,7 +1482,12 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
 
   if (entry == NULL || entry->key == NULL) {
     InitialValue max_long_init = { .long_value = LONG_MAX };
-    add_static_variable_declaration_symbol(assembly->declaration_symbol_table, TYPE_LONG, max_long_init, ".MAX_LONG", true, INITIAL_VALUE_INITIALIZED);       
+
+    //@Temp: Malloc'ing node to satisfy the need to padd it into the add function. Look into a way to add to the type arena
+    TypeNode *long_type_node = malloc(sizeof(TypeNode));
+    long_type_node->type = TYPE_LONG;
+
+    add_static_variable_declaration_symbol(assembly->declaration_symbol_table, long_type_node, max_long_init, ".MAX_LONG", true, INITIAL_VALUE_INITIALIZED);       
   }
 
   AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, assembly);
@@ -1980,7 +1989,7 @@ static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declarati
      
       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
 
-      return declaration_symbol->data.variable_symbol->value_type;
+      return declaration_symbol->data.variable_symbol->value_type->type;
     }
     case IR_INSTRUCTION_FUNCTION_CALL: {
       //TODO: Add some error checking
@@ -1988,7 +1997,7 @@ static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declarati
      
       DeclarationSymbol *declaration_symbol = function_hash_entry->value->structure;
 
-      return declaration_symbol->data.function_symbol->value_type;
+      return declaration_symbol->data.function_symbol->value_type->type;
       break;
     }
     default:
@@ -2006,7 +2015,7 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
 
-      return convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type);
+      return convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type->type);
     }
     default:
       fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
@@ -2079,9 +2088,9 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
 
     if (declaration_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
       asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
-      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type);
+      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type->type);
 
-      if (declaration_symbol->data.variable_symbol->value_type == TYPE_DOUBLE) {
+      if (declaration_symbol->data.variable_symbol->value_type->type == TYPE_DOUBLE) {
         //TODO: Confirm that this is always the case
         asm_backend_symbol->data.object_entry.is_constant = true;
       }
@@ -2149,11 +2158,11 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
     case IR_VALUE_VAR: {
       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
       DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-      value_type = declaration_symbol->data.variable_symbol->value_type;
+      value_type = declaration_symbol->data.variable_symbol->value_type->type;
       break;
     }
     case IR_VALUE_STATIC_VAR:
-      value_type = ir_node->data.static_variable.static_variable_symbol->value_type;
+      value_type = ir_node->data.static_variable.static_variable_symbol->value_type->type;
       break;
     default:
       fprintf(stderr, "ERROR: Assembly - Unsupported IR node type '%d' when attempting to find if IR Value is signed", ir_node->type);
