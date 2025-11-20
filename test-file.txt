@@ -1,5 +1,7 @@
 int main(void) {
-    static int *ptr = 0;
+    int value = 10;
+    int *ref = &value;
+    int deref = *ref;
 
-    return 5;
+    return deref;
 }

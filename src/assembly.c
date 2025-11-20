@@ -1685,13 +1685,13 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
 
   switch (ir_operand->type) {
     case IR_VALUE_CONSTANT:
-      if (ir_operand->data.value_constant.type == TYPE_DOUBLE) {
+      if (ir_operand->data.value_constant.type->type == TYPE_DOUBLE) {
         return emit_static_constant(ir_operand->data.value_constant.value.double_value, 8, assembly); 
       }
       
       asm_operand->type = ASM_OPERAND_IMM;
 
-      switch (ir_operand->data.value_constant.type) {
+      switch (ir_operand->data.value_constant.type->type) {
         case TYPE_INT:   asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.int_value; break;
         case TYPE_LONG:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.long_value; break;         
         case TYPE_UINT:  asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.uint_value; break;
@@ -1982,7 +1982,7 @@ static void init_node_pointer(AsmNodePointers *asm_node_pointer) {
 
 static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
   switch (ir_node->type) {
-    case IR_VALUE_CONSTANT: return ir_node->data.value_constant.type;
+    case IR_VALUE_CONSTANT: return ir_node->data.value_constant.type->type;
     case IR_VALUE_VAR: {
       //TODO: Add some error checking
       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
@@ -2009,7 +2009,7 @@ static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declarati
 static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
-      return convert_type_to_asm_type(ir_node->data.value_constant.type);
+      return convert_type_to_asm_type(ir_node->data.value_constant.type->type);
     case IR_VALUE_VAR: {
       //TODO: Add some error checking
       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
@@ -2153,7 +2153,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
   Types value_type;
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
-      value_type = ir_node->data.value_constant.type;
+      value_type = ir_node->data.value_constant.type->type;
       break;
     case IR_VALUE_VAR: {
       HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     

@@ -26,6 +26,9 @@ typedef enum {
   IR_INSTRUCTION_DOUBLE_TO_UINT,
   IR_INSTRUCTION_INT_TO_DOUBLE,
   IR_INSTRUCTION_UINT_TO_DOUBLE,
+  IR_INSTRUCTION_GET_ADDRESS,
+  IR_INSTRUCTION_LOAD,
+  IR_INSTRUCTION_STORE,
   IR_VALUE_CONSTANT,
   IR_VALUE_VAR,
   IR_VALUE_STATIC_VAR
@@ -83,7 +86,11 @@ typedef struct IRNode {
   struct IRInstructionDoubleToUInt { IRNode *source; IRNode *destination; } instruction_double_to_uint;
   struct IRInstructionIntToDouble { IRNode *source; IRNode *destination; } instruction_int_to_double;
   struct IRInstructionUIntToDouble { IRNode *source; IRNode *destination; } instruction_uint_to_double;
-  struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
+  struct IRInstructionGetAddress { IRNode *source; IRNode *destination; } instruction_get_address;
+  struct IRInstructionLoad { IRNode *source_pointer; IRNode *destination; } instruction_load;
+  struct IRInstructionStore { IRNode *source; IRNode *destination_pointer; } instruction_store;
+  // struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
+  struct IRValueConstant { TypeNode *type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
  } data; 
