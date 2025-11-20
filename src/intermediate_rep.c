@@ -38,10 +38,10 @@ typedef struct {
 } ExpressionResult;
 
 static void              add_postfix_operations(IRNode *ir_function, IntermediateRep *intermediate_rep);
-static IRNode*           emit_function(AstNode *ast_function, IntermediateRep *intemediate_rep);
+static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *intemediate_rep);
 static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode*           emit_return(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_return(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep);
 static void              emit_if(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep); 
 static void              emit_goto(AstNode *goto_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static void              emit_goto_label(AstNode *goto_label_node, IRNode *function, IntermediateRep *intermediate_rep); 
@@ -63,24 +63,25 @@ static IRNode*           emit_double_to_int(IRNode *source, IRNode *destination,
 static IRNode*           emit_double_to_uint(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_int_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode*           emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode*           emit_conditional_expression(AstNode *condition_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode*           emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static ExpressionResult* emit_conditional_expression(AstNode *condition_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode*           emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode*           emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode*           emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode*           emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
 static void              emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  IntermediateRep *intermediate_rep); 
 static void              add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 static void              add_top_level_declaration_to_program(IRNode *ir_program, IRNode *ir_function); 
 static void              add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument);
+static ExpressionResult* create_expression_result(IRNode *operand, ExpressionResultType result_type, IntermediateRep *intermediate_rep); 
 static char*             create_temp_label(IntermediateRep *intermediate_rep); 
 static char*             create_temp_register(IntermediateRep *intermediate_rep); 
 static char*             create_concat_identifier(char *string, int integer); 
-static IRNode*           create_ast_constant(AstNode *constant_node, IntermediateRep *intermediate_rep);
+static ExpressionResult* create_ast_constant(AstNode *constant_node, IntermediateRep *intermediate_rep);
 static IRNode*           create_int_constant(int value, IntermediateRep *intermediate_rep);
-static IRNode*           create_variable(char *identifier, IntermediateRep *intermediate_rep);
+static ExpressionResult* create_variable(char *identifier, IntermediateRep *intermediate_rep);
 static void              add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
 static void              init_node_pointer(IRNodePointer *ir_node_pointer); 
 static TypeNode*         get_node_type(IRNode *node, IntermediateRep *intermediate_rep); 
@@ -119,8 +120,8 @@ IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *dec
       continue;
     }
 
-    IRNode *top_level_declaration = emit_function(declaration_node, &intermediate_rep);
-    add_top_level_declaration_to_program(program, top_level_declaration);        
+    ExpressionResult *top_level_declaration = emit_function(declaration_node, &intermediate_rep);
+    add_top_level_declaration_to_program(program, top_level_declaration->operand_value);        
   }
 
   emit_symbol_declarations(declaration_symbol_table->symbol_table, program, &intermediate_rep);
@@ -274,7 +275,7 @@ void print_intermediate_ret(IRNode *ir_node) {
   }
 }
 
-static IRNode* emit_function(AstNode *ast_function, IntermediateRep *intermediate_rep) {
+static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *intermediate_rep) {
   IRNode *function = arena_alloc(intermediate_rep->node_arena);
   IRNodePointer *ir_node_pointer = malloc(sizeof(IRNodePointer));
   init_node_pointer(ir_node_pointer);
@@ -314,7 +315,8 @@ static IRNode* emit_function(AstNode *ast_function, IntermediateRep *intermediat
 
   add_instruction_to_function(function, return_instruction);
 
-  return function;
+  ExpressionResult *function_result = create_expression_result(function, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return function_result;
 }
 
 static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep) {
@@ -377,7 +379,7 @@ static IRNode* emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function,
   load_instruction->data.instruction_load.source_pointer = result->operand_value;
   load_instruction->data.instruction_load.destination = destination;
   
-  // add_instruction_to_function(function, load_instruction);
+  add_instruction_to_function(function, load_instruction);
 
   return load_instruction;
 }
@@ -391,8 +393,8 @@ static void emit_block(AstNode *block_node, IRNode *function, IntermediateRep *i
   }
 }
 
-static IRNode* emit_return(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep) {
-  IRNode *value = emit_ast_node(block_item->data.statement_return.expression, function, intermediate_rep);
+static ExpressionResult* emit_return(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *value = emit_ast_node_and_convert_lvalue(block_item->data.statement_return.expression, function, intermediate_rep);
   IRNode *return_instruction = arena_alloc(intermediate_rep->node_arena);
 
   return_instruction->type = IR_INSTRUCTION_RET;
@@ -401,11 +403,13 @@ static IRNode* emit_return(AstNode *block_item, IRNode *function, IntermediateRe
   add_instruction_to_function(function, return_instruction);
   add_postfix_operations(function, intermediate_rep);
 
-  return return_instruction;
+  ExpressionResult *return_result = create_expression_result(return_instruction, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+
+  return return_result;
 }
 
 static void emit_if(AstNode *if_node, IRNode *function, IntermediateRep *intermediate_rep) {
-  IRNode *condition = emit_ast_node(if_node->data.statement_if.condition_expression, function, intermediate_rep);
+  IRNode *condition = emit_ast_node_and_convert_lvalue(if_node->data.statement_if.condition_expression, function, intermediate_rep);
   char *label_name = create_temp_label(intermediate_rep);
 
   emit_jump_if_zero(label_name, condition, function, intermediate_rep);
@@ -430,7 +434,7 @@ static void emit_while(AstNode *while_node, IRNode *function, IntermediateRep *i
 
   emit_label(continue_label_identifier, function, intermediate_rep);
 
-  IRNode *condition = emit_ast_node(while_node->data.statement_while.condition, function, intermediate_rep);
+  IRNode *condition = emit_ast_node_and_convert_lvalue(while_node->data.statement_while.condition, function, intermediate_rep);
 
   emit_jump_if_zero(break_label_identifier, condition, function, intermediate_rep);
   emit_ast_node(while_node->data.statement_while.statement_body, function, intermediate_rep);
@@ -447,7 +451,7 @@ static void emit_do_while(AstNode *do_node, IRNode *function, IntermediateRep *i
   char *continue_label_identifier = create_concat_identifier(CONTINUE_LABEL, do_node->data.statement_do_while.label_id); 
   emit_label(continue_label_identifier, function, intermediate_rep);
 
-  IRNode *condition = emit_ast_node(do_node->data.statement_do_while.condition, function, intermediate_rep);
+  IRNode *condition = emit_ast_node_and_convert_lvalue(do_node->data.statement_do_while.condition, function, intermediate_rep);
   emit_jump_if_not_zero(start_label_identifier, condition, function, intermediate_rep);
 
   char *break_label_identifier = create_concat_identifier(BREAK_LABEL, do_node->data.statement_do_while.label_id);
@@ -465,7 +469,7 @@ static void emit_for(AstNode *for_node, IRNode *function, IntermediateRep *inter
   char *break_label_identifier = create_concat_identifier(BREAK_LABEL, for_node->data.statement_for.label_id);
 
   if (for_node->data.statement_for.condition_expression != NULL) {
-    IRNode *condition = emit_ast_node(for_node->data.statement_for.condition_expression, function, intermediate_rep);
+    IRNode *condition = emit_ast_node_and_convert_lvalue(for_node->data.statement_for.condition_expression, function, intermediate_rep);
     emit_jump_if_zero(break_label_identifier, condition, function, intermediate_rep);
   }
 
@@ -492,38 +496,40 @@ static void emit_break(int label_id, IRNode *function, IntermediateRep *intermed
   emit_jump(break_label_identifier, function, intermediate_rep);
 }
 
-static IRNode* emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep) {
+static ExpressionResult* emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep) {
   if (!declaration_node->data.declaration_variable.has_expression) {
     return NULL;
   }
 
-  IRNode *node = emit_ast_node(declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);    
+  IRNode *node = emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);    
   add_postfix_operations(function, intermediate_rep);
 
-  return node;
+  ExpressionResult *expression_result = create_expression_result(node, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return expression_result;
 }
 
-static IRNode* emit_conditional_expression(AstNode *conditional_node, IRNode *function, IntermediateRep *intermediate_rep) {
-  IRNode *condition = emit_ast_node(conditional_node->data.expression_conditional.condition, function, intermediate_rep);
+static ExpressionResult* emit_conditional_expression(AstNode *conditional_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *condition = emit_ast_node_and_convert_lvalue(conditional_node->data.expression_conditional.condition, function, intermediate_rep);
 
   char *end_label_name = create_temp_label(intermediate_rep);
   char *false_label_name = create_temp_label(intermediate_rep);
 
   emit_jump_if_zero(false_label_name, condition, function, intermediate_rep);
 
-  IRNode *true_value = emit_ast_node(conditional_node->data.expression_conditional.true_expression, function, intermediate_rep);
+  IRNode *true_value = emit_ast_node_and_convert_lvalue(conditional_node->data.expression_conditional.true_expression, function, intermediate_rep);
 
   emit_jump(end_label_name, function, intermediate_rep);
   emit_label(false_label_name, function, intermediate_rep);
 
-  IRNode *false_value = emit_ast_node(conditional_node->data.expression_conditional.false_expression, function, intermediate_rep);      
+  IRNode *false_value = emit_ast_node_and_convert_lvalue(conditional_node->data.expression_conditional.false_expression, function, intermediate_rep);      
 
   emit_label(end_label_name, function, intermediate_rep);
 
-  return condition;
+  ExpressionResult *conditional_result = create_expression_result(condition, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return conditional_result;
 }
 
-static IRNode* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep) {
+static ExpressionResult* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep) {
   AstNode *postfix_arena_node = arena_alloc(&intermediate_rep->emit_status->postfix_arena);
   *postfix_arena_node = *postfix_node->data.expression_increment_decrement.expression;
 
@@ -541,7 +547,8 @@ static IRNode* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *i
     exit(1);
   }
 
-  return variable;
+  ExpressionResult *variable_result = create_expression_result(variable, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return variable_result;
 }
 
 static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep) {
@@ -575,16 +582,14 @@ static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *func
 
   add_instruction_to_function(function, unary_instruction);
 
-  ExpressionResult *destination_result = arena_alloc(intermediate_rep->node_arena);
-  destination_result->type = EXPRESSION_RESULT_PLAIN_OPERAND;
-  destination_result->operand_value = destination;
+  ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
 
   return destination_result;
 }
 
-static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep) {
-  IRNode *source_1 = emit_ast_node(binary_node->data.expression_binary.left_expression, function, intermediate_rep);
-  IRNode *source_2 = emit_ast_node(binary_node->data.expression_binary.right_expression, function, intermediate_rep);
+static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *source_1 = emit_ast_node_and_convert_lvalue(binary_node->data.expression_binary.left_expression, function, intermediate_rep);
+  IRNode *source_2 = emit_ast_node_and_convert_lvalue(binary_node->data.expression_binary.right_expression, function, intermediate_rep);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = create_temp_register(intermediate_rep);
@@ -641,7 +646,8 @@ static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, In
     emit_copy(result_0, destination, function, intermediate_rep);
     emit_label(END_LABEL, function, intermediate_rep);
 
-    return destination;
+    ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+    return destination_result;
   }
 
   add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
@@ -677,20 +683,21 @@ static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, In
 
   add_instruction_to_function(function, binary_instruction);
 
-  return destination;
+  ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return destination_result;
 }
 
-static IRNode* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep) {
+static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep) {
   //TODO: Keep this for now. Need to assess why conditional expressions are handled differently when the source node is 'ast_expression_assignment'. There's already an emit_conditional(). 
   if (assignment_node->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONDITIONAL) {
-    IRNode *condition = emit_ast_node(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.condition, function, intermediate_rep);
+    IRNode *condition = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.condition, function, intermediate_rep);
 
     char *end_label_name = create_temp_label(intermediate_rep);
     char *false_label_name = create_temp_label(intermediate_rep);
 
     emit_jump_if_zero(false_label_name, condition, function, intermediate_rep);
     
-    IRNode *true_value = emit_ast_node(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.true_expression, function, intermediate_rep);
+    IRNode *true_value = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.true_expression, function, intermediate_rep);
 
     IRNode *variable = arena_alloc(intermediate_rep->node_arena);
     variable->type = IR_VALUE_VAR;
@@ -700,7 +707,7 @@ static IRNode* emit_assignment_expression(AstNode *assignment_node, IRNode *func
     emit_jump(end_label_name, function, intermediate_rep);
     emit_label(false_label_name, function, intermediate_rep);
   
-    IRNode *false_value = emit_ast_node(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.false_expression, function, intermediate_rep);
+    IRNode *false_value = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.false_expression, function, intermediate_rep);
 
     emit_copy(false_value, variable, function, intermediate_rep);
     emit_label(end_label_name, function, intermediate_rep);
@@ -727,7 +734,7 @@ static IRNode* emit_assignment_expression(AstNode *assignment_node, IRNode *func
   return result;
 }
 
-static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep) {
+static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *ir_function_call = arena_alloc(intermediate_rep->node_arena);
   ir_function_call->type = IR_INSTRUCTION_FUNCTION_CALL;
   ir_function_call->data.instruction_function_call.identifier = function_call_node->data.expression_function_call.identfier;
@@ -748,46 +755,49 @@ static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode
   for (int i = 0; i < function_call_node->data.expression_function_call.argument_count; i++) {
     AstNode *argument_node = function_call_node->data.expression_function_call.argument_ptrs->node_pointers[i];
 
-    IRNode *argument = emit_ast_node(argument_node, function, intermediate_rep);
+    IRNode *argument = emit_ast_node_and_convert_lvalue(argument_node, function, intermediate_rep);
 
     add_argument_to_function_call(ir_function_call, argument);    
   }
 
   add_instruction_to_function(function, ir_function_call);
 
-  return destination;
+  ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+
+  return destination_result;
 } 
 
-static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep) {
-  IRNode *cast_expression = emit_ast_node(cast_node->data.expression_cast.expression, function, intermediate_rep);
+static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *cast_expression = emit_ast_node_and_convert_lvalue(cast_node->data.expression_cast.expression, function, intermediate_rep);
   TypeNode *expression_type = get_node_type(cast_expression, intermediate_rep); 
   TypeNode *target_type = cast_node->data.expression_cast.target_type;
 
   if (expression_type->type == target_type->type) {
-    return cast_expression;
+    ExpressionResult *cast_result = create_expression_result(cast_expression, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+    return cast_result;
   }
 
   char *temp_destination = create_temp_register(intermediate_rep);
   add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, target_type, temp_destination);
 
-  IRNode *var_destination_node = create_variable(temp_destination, intermediate_rep);
+  ExpressionResult *var_destination_node = create_variable(temp_destination, intermediate_rep);
 
   if (get_type_size(target_type->type) == get_type_size(expression_type->type)) {
-    emit_copy(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_copy(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (expression_type->type == TYPE_DOUBLE && target_type->type == TYPE_INT) {
-    emit_double_to_int(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_double_to_int(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (expression_type->type == TYPE_DOUBLE && target_type->type == TYPE_UINT) {
-    emit_double_to_uint(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_double_to_uint(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (expression_type->type == TYPE_INT && target_type->type == TYPE_DOUBLE) {
-    emit_int_to_double(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_int_to_double(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (expression_type->type == TYPE_UINT && target_type->type == TYPE_DOUBLE) {
-    emit_uint_to_double(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_uint_to_double(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (get_type_size(target_type->type) < get_type_size(expression_type->type)) {
-    emit_truncate(cast_expression, var_destination_node, function, intermediate_rep);    
+    emit_truncate(cast_expression, var_destination_node->operand_value, function, intermediate_rep);    
   } else if (is_type_signed(expression_type->type)) {
-    emit_sign_extend(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_sign_extend(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else {
-    emit_zero_extend(cast_expression, var_destination_node, function, intermediate_rep);
+    emit_zero_extend(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   }  
 
   return var_destination_node;
@@ -1014,7 +1024,7 @@ static IRNode* create_int_constant(int value, IntermediateRep *intermediate_rep)
   return constant;
 }
 
-static IRNode* create_ast_constant(AstNode *ast_constant, IntermediateRep *intermediate_rep) {
+static ExpressionResult* create_ast_constant(AstNode *ast_constant, IntermediateRep *intermediate_rep) {
   IRNode *constant = arena_alloc(intermediate_rep->node_arena);
   constant->type = IR_VALUE_CONSTANT;
   constant->data.value_constant.type = ast_constant->data.expression_constant.expression_type;
@@ -1040,15 +1050,17 @@ static IRNode* create_ast_constant(AstNode *ast_constant, IntermediateRep *inter
       exit(1);
   }
 
-  return constant;
+  ExpressionResult *constant_result = create_expression_result(constant, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return constant_result;
 }
 
-static IRNode* create_variable(char *identifier, IntermediateRep *intermediate_rep) {
+static ExpressionResult* create_variable(char *identifier, IntermediateRep *intermediate_rep) {
   IRNode *variable = arena_alloc(intermediate_rep->node_arena);
   variable->type = IR_VALUE_VAR;
   variable->data.value_var.identifier = identifier;
 
-  return variable;
+  ExpressionResult *variable_result = create_expression_result(variable, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return variable_result;
 }
 
 static char* create_concat_identifier(char *string, int integer) {
@@ -1057,6 +1069,14 @@ static char* create_concat_identifier(char *string, int integer) {
   snprintf(identifier, 64, "%s.%d", string, integer);
 
   return identifier;
+}
+
+static ExpressionResult* create_expression_result(IRNode *operand, ExpressionResultType result_type, IntermediateRep *intermediate_rep) {
+  ExpressionResult *result_node = arena_alloc(intermediate_rep->node_arena);
+  result_node->type = result_type;
+  result_node->operand_value = operand;
+
+  return result_node;
 }
 
 static void add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer) {

@@ -5,6 +5,7 @@
 	- IR 'If' statement does not support else statements
 
 # Tech Debt
+	- Intermediate Rep: Need to assess why conditional expressions are handled differently when the source node is 'ast_expression_assignment'. There's already an emit_conditional(). Check out comment in emit_assignement_expression
 	- In Intermediate rep, we are often creating a temp destination and then adding it to declaration symbol (check emit_unary logic for example). See if we combine them into a single call.
 	- Add a global Goto bool in parser. If there are no goto statements, then bypass the sa_goto_check
 	- Hash Table: I'm performing a lot of hash_table_get_entry() queries and then doing immediate NULL checks on the entry. Add a function that does the check.
