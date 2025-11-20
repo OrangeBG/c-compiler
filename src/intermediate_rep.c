@@ -754,25 +754,6 @@ static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IR
 
   ExpressionResult *plain_right_operand = create_expression_result(right_value, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
   return plain_right_operand;
-
-  
-  // IRNode *result = emit_ast_node(assignment_node->data.expression_assignment.right_expression, function, intermediate_rep);
-
-  // IRNode *variable = arena_alloc(intermediate_rep->node_arena);
-  // variable->type = IR_VALUE_VAR;
-
-  // if (assignment_node->data.expression_assignment.left_expression->type == AST_EXPRESSION_VARIABLE) {
-  //   variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_variable.identifier;
-  // } else if (assignment_node->data.expression_assignment.left_expression->type == AST_EXPRESSION_UNARY) {
-  //   variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_unary.expression->data.expression_variable.identifier;
-  // } else {
-  //   fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Expression Assignment\n");
-  //   exit(1);
-  // }
-
-  // emit_copy(result, variable, function, intermediate_rep);
-  
-  // return result;
 }
 
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep) {
