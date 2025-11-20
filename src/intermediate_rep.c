@@ -27,53 +27,64 @@ typedef struct {
   DeclarationSymbolTable *declaration_symbol_table;
 } IntermediateRep;
 
-static void    add_postfix_operations(IRNode *ir_function, IntermediateRep *intermediate_rep);
-static IRNode* emit_function(AstNode *ast_function, IntermediateRep *intemediate_rep);
-static IRNode* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_return(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep);
-static void    emit_if(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep); 
-static void    emit_goto(AstNode *goto_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static void    emit_goto_label(AstNode *goto_label_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static void    emit_while(AstNode *while_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static void    emit_do_while(AstNode *do_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static void    emit_for(AstNode *for_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static void    emit_continue(int label_id, IRNode *function, IntermediateRep *intermediate_rep);
-static void    emit_break(int label_id, IRNode *function, IntermediateRep *intermediate_rep);
-static void    emit_block(AstNode *block_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_jump(char *label, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode* emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_label(char* label, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode* emit_copy(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_truncate(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_double_to_int(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_double_to_uint(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_int_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_conditional_expression(AstNode *condition_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep);
-static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep);
-static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
-static void    emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  IntermediateRep *intermediate_rep); 
-static void    add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
-static void    add_top_level_declaration_to_program(IRNode *ir_program, IRNode *ir_function); 
-static void    add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument);
-static char*   create_temp_label(IntermediateRep *intermediate_rep); 
-static char*   create_temp_register(IntermediateRep *intermediate_rep); 
-static char*   create_concat_identifier(char *string, int integer); 
-static IRNode* create_ast_constant(AstNode *constant_node, IntermediateRep *intermediate_rep);
-static IRNode* create_int_constant(int value, IntermediateRep *intermediate_rep);
-static IRNode* create_variable(char *identifier, IntermediateRep *intermediate_rep);
-static void    add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
-static void    init_node_pointer(IRNodePointer *ir_node_pointer); 
-static Types   get_node_type(IRNode *node, IntermediateRep *intermediate_rep); 
-static void    add_function_parameter_identifier(char *identifier, IRNode *function_node);  
+typedef enum {
+  EXPRESSION_RESULT_PLAIN_OPERAND,
+  EXPRESSION_RESULT_DEREFERENCED_POINTER
+} ExpressionResultType;
+
+typedef struct {
+  ExpressionResultType type;
+  IRNode *operand_value;
+} ExpressionResult;
+
+static void              add_postfix_operations(IRNode *ir_function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_function(AstNode *ast_function, IntermediateRep *intemediate_rep);
+static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_return(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep);
+static void              emit_if(AstNode *block_item, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_goto(AstNode *goto_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_goto_label(AstNode *goto_label_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_while(AstNode *while_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_do_while(AstNode *do_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_for(AstNode *for_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_continue(int label_id, IRNode *function, IntermediateRep *intermediate_rep);
+static void              emit_break(int label_id, IRNode *function, IntermediateRep *intermediate_rep);
+static void              emit_block(AstNode *block_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_jump(char *label, IRNode *function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_label(char* label, IRNode *function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_copy(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_truncate(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_double_to_int(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_double_to_uint(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_int_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_conditional_expression(AstNode *condition_node, IRNode *function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep);
+static IRNode*           emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
+static void              emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  IntermediateRep *intermediate_rep); 
+static void              add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
+static void              add_top_level_declaration_to_program(IRNode *ir_program, IRNode *ir_function); 
+static void              add_argument_to_function_call(IRNode *ir_function_call_node, IRNode *argument);
+static char*             create_temp_label(IntermediateRep *intermediate_rep); 
+static char*             create_temp_register(IntermediateRep *intermediate_rep); 
+static char*             create_concat_identifier(char *string, int integer); 
+static IRNode*           create_ast_constant(AstNode *constant_node, IntermediateRep *intermediate_rep);
+static IRNode*           create_int_constant(int value, IntermediateRep *intermediate_rep);
+static IRNode*           create_variable(char *identifier, IntermediateRep *intermediate_rep);
+static void              add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_node_pointer); 
+static void              init_node_pointer(IRNodePointer *ir_node_pointer); 
+static TypeNode*         get_node_type(IRNode *node, IntermediateRep *intermediate_rep); 
+static void              add_function_parameter_identifier(char *identifier, IRNode *function_node);  
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
@@ -104,7 +115,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *dec
   for (int i = 0; i < ast_node->data.program.declaration_count; i++) {
     AstNode *declaration_node = ast_node->data.program.declaration_ptrs->node_pointers[i];
 
-    if (declaration_node->type == AST_VARIABLE_DECLARATION ||declaration_node->data.declaration_function.body_block == NULL) {
+    if (declaration_node->type == AST_VARIABLE_DECLARATION || declaration_node->data.declaration_function.body_block == NULL) {
       continue;
     }
 
@@ -217,14 +228,14 @@ void print_intermediate_ret(IRNode *ir_node) {
     }
     break;
     case IR_VALUE_CONSTANT:
-      switch (ir_node->data.value_constant.type) {
+      switch (ir_node->data.value_constant.type->type) {
         case TYPE_INT:     printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
         case TYPE_LONG:    printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
         case TYPE_UINT:    printf("Constant(type = uint, value = %d)", ir_node->data.value_constant.value.uint_value); break;
         case TYPE_ULONG:   printf("Constant(type = ulong, value = %ld)", ir_node->data.value_constant.value.ulong_value); break;          
         case TYPE_DOUBLE:  printf("Constant(type = double, value = %f)", ir_node->data.value_constant.value.double_value); break;          
         default:
-          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type);
+          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type->type);
           exit(1);
       }
       break;
@@ -306,7 +317,7 @@ static IRNode* emit_function(AstNode *ast_function, IntermediateRep *intermediat
   return function;
 }
 
-static IRNode* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep) {
+static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep) {
   switch (node->type) {
       case AST_BLOCK:                        { emit_block(node, function, intermediate_rep); break; }
       case AST_STATEMENT_IF:                 { emit_if(node, function, intermediate_rep); break; }
@@ -345,6 +356,32 @@ static IRNode* emit_ast_node(AstNode *node, IRNode *function, IntermediateRep *i
   return NULL;
 }
 
+static IRNode* emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function, IntermediateRep *intermediate_rep) {
+  ExpressionResult *result = emit_ast_node(node, function, intermediate_rep);
+
+  if (result->type == EXPRESSION_RESULT_PLAIN_OPERAND) {
+    return result->operand_value;
+  }  
+
+  char *destination_name = create_temp_register(intermediate_rep);
+  TypeNode *result_type = get_node_type(result->operand_value, intermediate_rep);
+
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, result_type, destination_name);
+
+  IRNode *destination = arena_alloc(intermediate_rep->node_arena);
+  destination->type = IR_VALUE_VAR;
+  destination->data.value_var.identifier = destination_name;
+
+  IRNode *load_instruction = arena_alloc(intermediate_rep->node_arena);
+  load_instruction->type = IR_INSTRUCTION_LOAD;
+  load_instruction->data.instruction_load.source_pointer = result->operand_value;
+  load_instruction->data.instruction_load.destination = destination;
+  
+  // add_instruction_to_function(function, load_instruction);
+
+  return load_instruction;
+}
+ 
 static void emit_block(AstNode *block_node, IRNode *function, IntermediateRep *intermediate_rep) {
   for (int i = 0; i < block_node->data.block.block_count; i++) {
     arena_reset(&intermediate_rep->emit_status->postfix_arena);
@@ -507,8 +544,8 @@ static IRNode* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *i
   return variable;
 }
 
-static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep) {
-  IRNode *source = emit_ast_node(unary_node->data.expression_unary.expression, function, intermediate_rep);
+static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *source = emit_ast_node_and_convert_lvalue(unary_node->data.expression_unary.expression, function, intermediate_rep);
 
   //TODO: Warning, setting hard buffer limit
   char *destination_name = create_temp_register(intermediate_rep);
@@ -525,6 +562,9 @@ static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, Inte
     case AST_UNARY_COMPLEMENT: unary_op_type = IR_UNARY_COMPLEMENT; break;
     case AST_UNARY_NEGATE:     unary_op_type = IR_UNARY_NEGATE; break;
     case AST_UNARY_NOT:        unary_op_type = IR_UNARY_NOT; break;
+    default:
+      fprintf(stderr, "ERROR - Intermediate Rep: Unsupported unary op type");
+      exit(1);
   }
 
   IRNode *unary_instruction = arena_alloc(intermediate_rep->node_arena);         
@@ -535,7 +575,11 @@ static IRNode* emit_unary_expression(AstNode *unary_node, IRNode *function, Inte
 
   add_instruction_to_function(function, unary_instruction);
 
-  return destination;
+  ExpressionResult *destination_result = arena_alloc(intermediate_rep->node_arena);
+  destination_result->type = EXPRESSION_RESULT_PLAIN_OPERAND;
+  destination_result->operand_value = destination;
+
+  return destination_result;
 }
 
 static IRNode* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep) {
@@ -716,10 +760,10 @@ static IRNode* emit_function_call_expression(AstNode *function_call_node, IRNode
 
 static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *cast_expression = emit_ast_node(cast_node->data.expression_cast.expression, function, intermediate_rep);
-  Types expression_type = get_node_type(cast_expression, intermediate_rep); 
+  TypeNode *expression_type = get_node_type(cast_expression, intermediate_rep); 
   TypeNode *target_type = cast_node->data.expression_cast.target_type;
 
-  if (expression_type == target_type->type) {
+  if (expression_type->type == target_type->type) {
     return cast_expression;
   }
 
@@ -728,19 +772,19 @@ static IRNode* emit_cast_expression(AstNode *cast_node, IRNode *function, Interm
 
   IRNode *var_destination_node = create_variable(temp_destination, intermediate_rep);
 
-  if (get_type_size(target_type->type) == get_type_size(expression_type)) {
+  if (get_type_size(target_type->type) == get_type_size(expression_type->type)) {
     emit_copy(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_DOUBLE && target_type->type == TYPE_INT) {
+  } else if (expression_type->type == TYPE_DOUBLE && target_type->type == TYPE_INT) {
     emit_double_to_int(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_DOUBLE && target_type->type == TYPE_UINT) {
+  } else if (expression_type->type == TYPE_DOUBLE && target_type->type == TYPE_UINT) {
     emit_double_to_uint(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_INT && target_type->type == TYPE_DOUBLE) {
+  } else if (expression_type->type == TYPE_INT && target_type->type == TYPE_DOUBLE) {
     emit_int_to_double(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (expression_type == TYPE_UINT && target_type->type == TYPE_DOUBLE) {
+  } else if (expression_type->type == TYPE_UINT && target_type->type == TYPE_DOUBLE) {
     emit_uint_to_double(cast_expression, var_destination_node, function, intermediate_rep);
-  } else if (get_type_size(target_type->type) < get_type_size(expression_type)) {
+  } else if (get_type_size(target_type->type) < get_type_size(expression_type->type)) {
     emit_truncate(cast_expression, var_destination_node, function, intermediate_rep);    
-  } else if (is_type_signed(expression_type)) {
+  } else if (is_type_signed(expression_type->type)) {
     emit_sign_extend(cast_expression, var_destination_node, function, intermediate_rep);
   } else {
     emit_zero_extend(cast_expression, var_destination_node, function, intermediate_rep);
@@ -959,7 +1003,13 @@ static IRNode* create_int_constant(int value, IntermediateRep *intermediate_rep)
   IRNode *constant = arena_alloc(intermediate_rep->node_arena);
   constant->type = IR_VALUE_CONSTANT;
   constant->data.value_constant.value.int_value = value;
-  constant->data.value_constant.type = TYPE_INT;
+  // constant->data.value_constant.type = TYPE_INT;
+
+  //TODO: Malloc'ing here. Find a better way to handle this
+  TypeNode *int_type_node = malloc(sizeof(TypeNode));
+  int_type_node->type = TYPE_INT;
+
+  constant->data.value_constant.type = int_type_node;
 
   return constant;
 }
@@ -967,7 +1017,7 @@ static IRNode* create_int_constant(int value, IntermediateRep *intermediate_rep)
 static IRNode* create_ast_constant(AstNode *ast_constant, IntermediateRep *intermediate_rep) {
   IRNode *constant = arena_alloc(intermediate_rep->node_arena);
   constant->type = IR_VALUE_CONSTANT;
-  constant->data.value_constant.type = ast_constant->data.expression_constant.expression_type->type;
+  constant->data.value_constant.type = ast_constant->data.expression_constant.expression_type;
 
   switch (ast_constant->data.expression_constant.expression_type->type) {
     case TYPE_INT:
@@ -1037,17 +1087,17 @@ static void init_node_pointer(IRNodePointer *ir_node_pointer) {
   ir_node_pointer->node_pointers = NULL;
 }
 
-static Types get_node_type(IRNode *node, IntermediateRep *intermediate_rep) {
+static TypeNode* get_node_type(IRNode *node, IntermediateRep *intermediate_rep) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
-    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type->type;
+    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type;
     case IR_VALUE_VAR: {
       //TODO: Error check to make sure we actually have a variable symbol.
       //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
       HashTableEntry *entry = hash_table_get_entry(intermediate_rep->declaration_symbol_table->symbol_table, node->data.value_var.identifier);
       DeclarationSymbol *declaration_symbol = entry->value->structure;
 
-      return declaration_symbol->data.variable_symbol->value_type->type;
+      return declaration_symbol->data.variable_symbol->value_type;
     }
     default:
       fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type\n", node->type);
