@@ -56,6 +56,8 @@ static IRNode*           emit_jump_if_zero(char *label, IRNode *condition, IRNod
 static IRNode*           emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_label(char* label, IRNode *function, IntermediateRep *intermediate_rep);
 static IRNode*           emit_copy(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_store(IRNode *source, IRNode *destination_pointer, IRNode *function, IntermediateRep *intermediate_rep); 
+static IRNode*           emit_get_address(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_truncate(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
@@ -71,6 +73,8 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
 static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_address_of_expression(AstNode *address_of_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static ExpressionResult* emit_dereference_expression(AstNode *dereference_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static void              emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  IntermediateRep *intermediate_rep); 
 static void              add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 static void              add_top_level_declaration_to_program(IRNode *ir_program, IRNode *ir_function); 
@@ -269,6 +273,26 @@ void print_intermediate_ret(IRNode *ir_node) {
       }
       printf(")");
       break;
+    case IR_INSTRUCTION_GET_ADDRESS:
+      printf("Get Address(Source(");
+      print_intermediate_ret(ir_node->data.instruction_get_address.source);
+      printf(") (Destination(");
+      print_intermediate_ret(ir_node->data.instruction_get_address.destination);
+      printf(")\n");
+      break;
+    case IR_INSTRUCTION_LOAD:
+      printf("Load(Source(");
+      print_intermediate_ret(ir_node->data.instruction_load.source_pointer);
+      printf(") (Destination(");
+      print_intermediate_ret(ir_node->data.instruction_load.destination);
+      printf(")\n");
+      break;
+    case IR_INSTRUCTION_STORE:
+      printf("Store(Source(");
+      print_intermediate_ret(ir_node->data.instruction_store.source);
+      printf(") (Destination(");
+      print_intermediate_ret(ir_node->data.instruction_store.destination_pointer);
+      break;
     default:
       fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type);
       exit(1);
@@ -345,6 +369,8 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
       case AST_EXPRESSION_ASSIGNMENT:        { return emit_assignment_expression(node, function, intermediate_rep); }
       case AST_EXPRESSION_FUNCTION_CALL:     { return emit_function_call_expression(node, function, intermediate_rep); }
       case AST_EXPRESSION_CAST:              { return emit_cast_expression(node, function, intermediate_rep); } 
+      case AST_EXPRESSION_ADDRESS_OF:        { return emit_address_of_expression(node, function, intermediate_rep); }
+      case AST_EXPRESSION_DEREFERENCE:       { return emit_dereference_expression(node, function, intermediate_rep); }
       case AST_VARIABLE_DECLARATION:         { return emit_declaration(node, function, intermediate_rep); }
       case AST_FUNCTION_DECLARATION:         {
           if (node->data.declaration_function.body_block == NULL) break;
@@ -714,24 +740,39 @@ static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IR
 
     return NULL;
   }
-    
-  IRNode *result = emit_ast_node(assignment_node->data.expression_assignment.right_expression, function, intermediate_rep);
 
-  IRNode *variable = arena_alloc(intermediate_rep->node_arena);
-  variable->type = IR_VALUE_VAR;
+  IRNode *right_value = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression, function, intermediate_rep);
+  ExpressionResult *left_result = emit_ast_node(assignment_node->data.expression_assignment.left_expression, function, intermediate_rep);
 
-  if (assignment_node->data.expression_assignment.left_expression->type == AST_EXPRESSION_VARIABLE) {
-    variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_variable.identifier;
-  } else if (assignment_node->data.expression_assignment.left_expression->type == AST_EXPRESSION_UNARY) {
-    variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_unary.expression->data.expression_variable.identifier;
-  } else {
-    fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Expression Assignment\n");
-    exit(1);
+
+  if (left_result->type == EXPRESSION_RESULT_PLAIN_OPERAND) {   
+    emit_copy(right_value, left_result->operand_value, function, intermediate_rep);
+    return left_result;
   }
 
-  emit_copy(result, variable, function, intermediate_rep);
+  emit_store(right_value, left_result->operand_value, function, intermediate_rep);   
+
+  ExpressionResult *plain_right_operand = create_expression_result(right_value, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return plain_right_operand;
+
   
-  return result;
+  // IRNode *result = emit_ast_node(assignment_node->data.expression_assignment.right_expression, function, intermediate_rep);
+
+  // IRNode *variable = arena_alloc(intermediate_rep->node_arena);
+  // variable->type = IR_VALUE_VAR;
+
+  // if (assignment_node->data.expression_assignment.left_expression->type == AST_EXPRESSION_VARIABLE) {
+  //   variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_variable.identifier;
+  // } else if (assignment_node->data.expression_assignment.left_expression->type == AST_EXPRESSION_UNARY) {
+  //   variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_unary.expression->data.expression_variable.identifier;
+  // } else {
+  //   fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Expression Assignment\n");
+  //   exit(1);
+  // }
+
+  // emit_copy(result, variable, function, intermediate_rep);
+  
+  // return result;
 }
 
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep) {
@@ -803,6 +844,37 @@ static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *functi
   return var_destination_node;
 }
 
+static ExpressionResult* emit_address_of_expression(AstNode *address_of_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  ExpressionResult *address_of_result = emit_ast_node(address_of_node->data.expression_address_of.expression, function, intermediate_rep);
+
+  if (address_of_result->type == EXPRESSION_RESULT_PLAIN_OPERAND) {   
+    char *destination_name = create_temp_register(intermediate_rep);
+    TypeNode *result_type = get_node_type(address_of_result->operand_value, intermediate_rep);
+
+    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, result_type, destination_name);
+
+    IRNode *destination = arena_alloc(intermediate_rep->node_arena);
+    destination->type = IR_VALUE_VAR;
+    destination->data.value_var.identifier = destination_name;
+
+    emit_get_address(address_of_result->operand_value, destination, function, intermediate_rep);
+
+    ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+    return destination_result;
+  }
+
+  ExpressionResult *pointer_result = create_expression_result(address_of_result->operand_value, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+
+  return pointer_result;  
+}
+
+static ExpressionResult* emit_dereference_expression(AstNode *dereference_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *dereference_instruction = emit_ast_node_and_convert_lvalue(dereference_node->data.expression_dereference.expression, function, intermediate_rep);
+
+  ExpressionResult *dereference_result = create_expression_result(dereference_instruction, EXPRESSION_RESULT_DEREFERENCED_POINTER, intermediate_rep);
+  return dereference_result;
+}
+
 static IRNode* emit_jump(char *label, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *jmp_instruction = arena_alloc(intermediate_rep->node_arena);
   jmp_instruction->type = IR_INSTRUCTION_JUMP;
@@ -853,6 +925,26 @@ static IRNode* emit_copy(IRNode *source, IRNode *destination, IRNode *function, 
   add_instruction_to_function(function, copy_instruction);
 
   return copy_instruction;
+}
+
+static IRNode* emit_store(IRNode *source, IRNode *destination_pointer, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *store_instruction = arena_alloc(intermediate_rep->node_arena);
+  store_instruction->type = IR_INSTRUCTION_STORE;
+  store_instruction->data.instruction_store.source = source;
+  store_instruction->data.instruction_store.destination_pointer = destination_pointer;
+
+  return store_instruction;
+} 
+
+static IRNode* emit_get_address(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *get_address_instruction = arena_alloc(intermediate_rep->node_arena);
+  get_address_instruction->type = IR_INSTRUCTION_GET_ADDRESS;
+  get_address_instruction->data.instruction_get_address.source = source;
+  get_address_instruction->data.instruction_get_address.destination = destination;
+
+  add_instruction_to_function(function, get_address_instruction);
+
+  return get_address_instruction;
 }
 
 static IRNode* emit_truncate(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
