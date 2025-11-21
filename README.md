@@ -9,13 +9,14 @@ A C compiler that targets the C17 standard for the x64 instruction set. The comp
 - Linux
 - MacOS
 
-### Data Types
+### Types
 
 - int
 - long
 - unsigned int
 - unsigned long
 - double
+- pointers
 
 ### Unary Operators
 
