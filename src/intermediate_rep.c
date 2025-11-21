@@ -407,7 +407,7 @@ static IRNode* emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function,
   
   add_instruction_to_function(function, load_instruction);
 
-  return load_instruction;
+  return destination;
 }
  
 static void emit_block(AstNode *block_node, IRNode *function, IntermediateRep *intermediate_rep) {
