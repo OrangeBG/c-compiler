@@ -931,8 +931,8 @@ static IRNode* emit_get_address(IRNode *source, IRNode *destination, IRNode *fun
 static IRNode* emit_truncate(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *truncate_instruction = arena_alloc(intermediate_rep->node_arena);
   truncate_instruction->type = IR_INSTRUCTION_TRUNCATE;
-  truncate_instruction->data.instruction_copy.source = source;
-  truncate_instruction->data.instruction_copy.destination = destination;      
+  truncate_instruction->data.instruction_truncate.source = source;
+  truncate_instruction->data.instruction_truncate.destination = destination;      
 
   add_instruction_to_function(function, truncate_instruction);
 
@@ -952,9 +952,9 @@ static IRNode* emit_sign_extend(IRNode *source, IRNode *destination, IRNode *fun
 
 static IRNode* emit_zero_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *zero_extend_instruction = arena_alloc(intermediate_rep->node_arena);
-  zero_extend_instruction->type = IR_INSTRUCTION_TRUNCATE;
-  zero_extend_instruction->data.instruction_sign_extend.source = source;
-  zero_extend_instruction->data.instruction_sign_extend.destination = destination;      
+  zero_extend_instruction->type = IR_INSTRUCTION_ZERO_EXTEND;
+  zero_extend_instruction->data.instruction_zero_extend.source = source;
+  zero_extend_instruction->data.instruction_zero_extend.destination = destination;      
 
   add_instruction_to_function(function, zero_extend_instruction);
 
