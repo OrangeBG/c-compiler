@@ -16,6 +16,7 @@ typedef enum {
   ASM_INSTRUCTION_MOV,
   ASM_INSTRUCTION_MOVSX,
   ASM_INSTRUCTION_MOV_ZERO_EXTEND,
+  ASM_INSTRUCTION_LEA,
   ASM_INSTRUCTION_CVTTSD2SI,
   ASM_INSTRUCTION_CVTSI2SD,
   ASM_INSTRUCTION_RET,
@@ -34,8 +35,9 @@ typedef enum {
   ASM_OPERAND_IMM,
   ASM_OPERAND_REGISTER,
   ASM_OPERAND_PSEUDO_REGISTER,
-  ASM_OPERAND_STACK,
-  ASM_OPERAND_DATA
+  // ASM_OPERAND_STACK,
+  ASM_OPERAND_DATA,
+  ASM_OPERAND_MEMORY
 } AsmNodeType;
 
 typedef enum {
@@ -67,6 +69,7 @@ typedef enum {
   ASM_REGISTER_R10,
   ASM_REGISTER_R11,
   ASM_REGISTER_SP,
+  ASM_REGISTER_BP,
   ASM_REGISTER_XMM0,
   ASM_REGISTER_XMM1,
   ASM_REGISTER_XMM2,
@@ -132,6 +135,7 @@ typedef struct AsmNode {
     struct AsmInstructionMov { AsmType assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionMovsx { AsmNode *source; AsmNode *destination; } instruction_movsx;
     struct AsmInstructionMovZeroExtend { AsmNode *source; AsmNode *destination; } instruction_mov_zero_extend;
+    struct AsmInstructionLea { AsmNode *source; AsmNode *destination; } instruction_lea;
     struct AsmInstructionCvttsd2si { AsmType destination_assembly_type; AsmNode *source_operand; AsmNode *destination_operand; } instruction_cvttsd2si; 
     struct AsmInstructionCvtsi2sd { AsmType source_assembly_type; AsmNode *source_operand; AsmNode *destination_operand; } instruction_cvtsi2sd; 
     struct AsmInstructionUnary { AsmType assembly_type; AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
@@ -150,7 +154,8 @@ typedef struct AsmNode {
     struct AsmOperandImmediate { long value; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;
-    struct AsmOperandStack { int address; } operand_stack;
+    // struct AsmOperandStack { int address; } operand_stack;
+    struct AsmOperandMemory { AsmRegisterType op_register; int base_offset; } operand_memory;
     struct AsmOperandData { char *identifier; } operand_data;
   } data;
 } AsmNode;

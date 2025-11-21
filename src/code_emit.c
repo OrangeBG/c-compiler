@@ -338,8 +338,8 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         }        
       }
     }
-    case ASM_OPERAND_STACK:
-      fprintf(file, "-%d(%%rbp)", asm_node->data.operand_stack.address);
+    case ASM_OPERAND_MEMORY:
+      fprintf(file, "%d(%s)", asm_node->data.operand_memory.base_offset, get_8_byte_register(asm_node->data.operand_memory.op_register)); 
       break;
     case ASM_OPERAND_DATA:
       fprintf(file, "%s(%%rip)", asm_node->data.operand_data.identifier);
@@ -382,6 +382,7 @@ static char* get_8_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R10: return "%r10";
     case ASM_REGISTER_R11: return "%r11";
     case ASM_REGISTER_SP:  return "%rsp";
+    case ASM_REGISTER_BP:  return "%rbp";
     default:
       fprintf(stderr, "ERROR - Code Emit: Could not find 8 byte register '%d'\n", register_type);
       exit(1);
