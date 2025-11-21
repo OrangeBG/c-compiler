@@ -997,8 +997,8 @@ static IRNode* emit_int_to_double(IRNode *source, IRNode *destination, IRNode *f
 static IRNode* emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *uint_to_double_instruction = arena_alloc(intermediate_rep->node_arena);
   uint_to_double_instruction->type = IR_INSTRUCTION_UINT_TO_DOUBLE;
-  uint_to_double_instruction->data.instruction_int_to_double.source = source;
-  uint_to_double_instruction->data.instruction_int_to_double.destination = destination;      
+  uint_to_double_instruction->data.instruction_uint_to_double.source = source;
+  uint_to_double_instruction->data.instruction_uint_to_double.destination = destination;      
 
   add_instruction_to_function(function, uint_to_double_instruction);
 
