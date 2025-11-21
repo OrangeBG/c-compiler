@@ -941,7 +941,7 @@ static IRNode* emit_truncate(IRNode *source, IRNode *destination, IRNode *functi
 
 static IRNode* emit_sign_extend(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *sign_extend_instruction = arena_alloc(intermediate_rep->node_arena);
-  sign_extend_instruction->type = IR_INSTRUCTION_TRUNCATE;
+  sign_extend_instruction->type = IR_INSTRUCTION_SIGN_EXTEND;
   sign_extend_instruction->data.instruction_sign_extend.source = source;
   sign_extend_instruction->data.instruction_sign_extend.destination = destination;      
 
