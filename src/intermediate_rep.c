@@ -814,6 +814,10 @@ static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *functi
     emit_int_to_double(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (expression_type->type == TYPE_UINT && target_type->type == TYPE_DOUBLE) {
     emit_uint_to_double(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
+  } else if (expression_type->type == TYPE_POINTER) {
+    emit_sign_extend(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
+  } else if (target_type->type == TYPE_POINTER) {
+    emit_truncate(cast_expression, var_destination_node->operand_value, function, intermediate_rep);    
   } else if (get_type_size(target_type->type) < get_type_size(expression_type->type)) {
     emit_truncate(cast_expression, var_destination_node->operand_value, function, intermediate_rep);    
   } else if (is_type_signed(expression_type->type)) {
