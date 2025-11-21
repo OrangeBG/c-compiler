@@ -137,6 +137,13 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
       fprintf(file, "\n");
       break;
+    case ASM_INSTRUCTION_LEA:
+      fprintf(file, "\tleaq\t\t");
+      save_assembly_file(asm_node->data.instruction_lea.source, file);
+      fprintf(file, ", ");
+      save_assembly_file(asm_node->data.instruction_lea.destination, file);      
+      fprintf(file, "\n");
+      break;
     case ASM_INSTRUCTION_MOVSX:
       fprintf(file, "\tmovslq\t\t");
       save_assembly_file(asm_node->data.instruction_movsx.source, file);

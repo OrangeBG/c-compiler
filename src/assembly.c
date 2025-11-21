@@ -670,6 +670,14 @@ static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *b
           replace_pseudo_register(instruction->data.instruction_cvttsd2si.destination_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
+      case ASM_INSTRUCTION_LEA:
+        if (instruction->data.instruction_lea.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          replace_pseudo_register(instruction->data.instruction_lea.source, ASM_TYPE_QUADWORD, &stack_location_table, backend_symbol_table, stack_offset);
+        }
+
+        if (instruction->data.instruction_lea.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
+          replace_pseudo_register(instruction->data.instruction_lea.destination, ASM_TYPE_QUADWORD, &stack_location_table, backend_symbol_table, stack_offset);
+        }
       default:
         break;
     }
@@ -1980,6 +1988,14 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_INSTRUCTION_CALL:
       printf("Call -> %s\n", node->data.instruction_call.identifier);
+      break;
+    case ASM_INSTRUCTION_LEA:
+      printf("LEA -> "); 
+      printf("Source ( ");
+      print_assembly(node->data.instruction_lea.source);
+      printf("), Destination( ");
+      print_assembly(node->data.instruction_lea.destination);
+      printf(")\n");
       break;
     default:
       fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
