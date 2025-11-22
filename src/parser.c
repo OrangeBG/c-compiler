@@ -612,6 +612,7 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   Specifier specifier = parse_specifier(parser, false);
   Declarator *declarator = parse_declarator(parser);
 
+  //TODO: Look into not needing to alloc this type. Can it be derived from specifier?
   TypeNode *base_type = arena_alloc(parser->type_arena);
   base_type->type = specifier.specifier_type;  
 
@@ -1487,11 +1488,11 @@ static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
 }
 
 static void parse_factor_dereference(Parser *parser, AstNode *factor_node) {
+  //TODO: Look into if we should be using 'parse_abstract_declarator' and 'process_abstract_declarator'
   expect(parser, TOKEN_ASTERISK);
-
+  
   AstNode *dereference_expression = arena_alloc(parser->node_arena);
-
-  parse_expression(parser, &dereference_expression, 0);
+  parse_factor(parser, dereference_expression);
 
   factor_node->data.expression_dereference.expression = dereference_expression;
   factor_node->type = AST_EXPRESSION_DEREFERENCE;
