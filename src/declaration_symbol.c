@@ -148,6 +148,7 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
         case TYPE_ULONG:   printf("ulong\n"); break;
         case TYPE_VOID:    printf("void\n"); break;
         case TYPE_DOUBLE:  printf("double\n"); break;
+        case TYPE_POINTER: printf("pointer\n"); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
           exit(1);
@@ -202,5 +203,19 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       printf("\tis_defined: %d\n", symbol->data.function_symbol->is_defined);
       printf("\tis_global: %d\n", symbol->data.function_symbol->is_global);
     }
+  }
+}
+
+void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
+  switch (type_node->type) {
+    case TYPE_INT:     initial_value->int_value = 0; break;
+    case TYPE_UINT:    initial_value->uint_value = 0; break;
+    case TYPE_LONG:    initial_value->long_value = 0; break;
+    case TYPE_ULONG:   initial_value->ulong_value = 0; break;
+    case TYPE_DOUBLE:  initial_value->double_value = 0; break;
+    case TYPE_POINTER: initial_value->ulong_value = 0; break;
+    default:
+      fprintf(stderr, "ERROR - Declaration Symbol: Unsupported initial value Type '%d'\n", type_node->type);
+      exit(1);
   }
 }

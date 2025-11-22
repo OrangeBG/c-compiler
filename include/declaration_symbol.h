@@ -20,7 +20,6 @@ typedef enum {
 typedef struct {
   bool is_defined;
   bool is_global;
-  // Types value_type;
   TypeNode *value_type;
   int param_count;
   TypeNode *param_types;
@@ -35,7 +34,6 @@ typedef union {
 } InitialValue;
 
 typedef struct {
-  // Types value_type;
   TypeNode *value_type;
   bool is_automatic_storage_duration;
   InitialValueType static_initial_type;
@@ -66,5 +64,6 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
+void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
 
 #endif

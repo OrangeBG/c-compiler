@@ -78,6 +78,8 @@ int main(int argc, const char *argv[]) {
     print_ast(program_node, 0);
   }
 
+  declaration_symbol_table_print(&declaration_symbol_table);
+
   IRNode *ir = generate_intermediate_rep(program_node, &declaration_symbol_table);
 
   if (print_debug) {
