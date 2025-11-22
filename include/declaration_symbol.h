@@ -64,5 +64,6 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
+void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
 
 #endif

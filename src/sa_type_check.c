@@ -269,6 +269,8 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     } else {
       initial_value_type = INITIAL_VALUE_TENTATIVE;
     }
+
+    declaration_symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
   } else {
     fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer\n");
     exit(1);
@@ -342,17 +344,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     InitialValue initial_value;
     
     if (!variable_declaration_node->data.declaration_variable.has_expression) {
-      switch (variable_declaration_node->data.declaration_variable.type->type) {
-        case TYPE_INT:     initial_value.int_value = 0; break;
-        case TYPE_UINT:    initial_value.uint_value = 0; break;
-        case TYPE_LONG:    initial_value.long_value = 0; break;
-        case TYPE_ULONG:   initial_value.ulong_value = 0; break;
-        case TYPE_DOUBLE:  initial_value.double_value = 0; break;
-        case TYPE_POINTER: initial_value.ulong_value = 0; break;
-        default:
-          fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n", variable_declaration_node->data.declaration_variable.type->type);
-          exit(1);
-      }
+      declaration_symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
     } else if (variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
 
       Types constant_expression_type = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->data.expression_constant.expression_type->type;

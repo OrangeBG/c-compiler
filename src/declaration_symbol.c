@@ -205,3 +205,17 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
     }
   }
 }
+
+void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
+  switch (type_node->type) {
+    case TYPE_INT:     initial_value->int_value = 0; break;
+    case TYPE_UINT:    initial_value->uint_value = 0; break;
+    case TYPE_LONG:    initial_value->long_value = 0; break;
+    case TYPE_ULONG:   initial_value->ulong_value = 0; break;
+    case TYPE_DOUBLE:  initial_value->double_value = 0; break;
+    case TYPE_POINTER: initial_value->ulong_value = 0; break;
+    default:
+      fprintf(stderr, "ERROR - Declaration Symbol: Unsupported initial value Type '%d'\n", type_node->type);
+      exit(1);
+  }
+}
