@@ -171,11 +171,12 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       printf("\tstatic_initial_value: ");
 
       switch (symbol->data.variable_symbol->value_type->type) {
-        case TYPE_INT:    printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
-        case TYPE_UINT:   printf("%d\n", symbol->data.variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_LONG:   printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
-        case TYPE_ULONG:  printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
-        case TYPE_DOUBLE: printf("%f\n", symbol->data.variable_symbol->static_initial_value.double_value); break;
+        case TYPE_INT:      printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
+        case TYPE_UINT:     printf("%d\n", symbol->data.variable_symbol->static_initial_value.uint_value); break;
+        case TYPE_LONG:     printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
+        case TYPE_ULONG:    printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
+        case TYPE_DOUBLE:   printf("%f\n", symbol->data.variable_symbol->static_initial_value.double_value); break;
+        case TYPE_POINTER:  printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
           exit(1);
@@ -188,12 +189,13 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       printf("\tvalue_type: ");
 
       switch (symbol->data.function_symbol->value_type->type) {
-        case TYPE_INT:    printf("int\n"); break;
-        case TYPE_UINT:   printf("uint\n"); break;
-        case TYPE_LONG:   printf("long\n"); break;
-        case TYPE_ULONG:  printf("ulong\n"); break;
-        case TYPE_VOID:   printf("void\n"); break;
-        case TYPE_DOUBLE: printf("double\n"); break;
+        case TYPE_INT:      printf("int\n"); break;
+        case TYPE_UINT:     printf("uint\n"); break;
+        case TYPE_LONG:     printf("long\n"); break;
+        case TYPE_ULONG:    printf("ulong\n"); break;
+        case TYPE_VOID:     printf("void\n"); break;
+        case TYPE_DOUBLE:   printf("double\n"); break;
+        case TYPE_POINTER:  printf("pointer\n"); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported function value type '%d' when attempting to print\n", symbol->data.function_symbol->value_type->type);
           exit(1);
