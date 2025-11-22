@@ -16,15 +16,15 @@ static void             type_check_file_scope_variable_declaration(AstNode *vari
 static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
 static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
 static TypeNode*        expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
-static Types            get_common_real_type(Types type_1, Types type_2);
-static Types            get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
-static AstNode*         convert_to(AstNode *expression, Types expression_type, Types target_type, ParserResults *parser_results); 
+static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
+static TypeNode*        get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
+static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
 static long             convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node); 
 static int              convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node); 
 static unsigned long    convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node); 
 static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node); 
 static double           convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
-static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, Types right_assignment_type, Types target_type, ParserResults *parser_results); 
+static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results); 
 static bool             is_null_pointer_constant(AstNode *ast_node);
 
 void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declaration_table) {
@@ -175,6 +175,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT: 
     case AST_EXPRESSION_CONDITIONAL:
+    case AST_EXPRESSION_DEREFERENCE:
       expression_type_check(node, declaration_table, function_declaration_node, parser_results);
       break;
     case AST_BLOCK: {
@@ -195,13 +196,13 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
     }
     case AST_STATEMENT_RETURN: {
       TypeNode *return_expression_type = expression_type_check(node->data.statement_return.expression, declaration_table, function_declaration_node, parser_results);
-      Types function_return_type = function_declaration_node->data.declaration_function.function_type->data.function_type.return_type->type;
+      TypeNode *function_return_type = function_declaration_node->data.declaration_function.function_type->data.function_type.return_type;
 
-      if (function_return_type == return_expression_type->type) {
+      if (function_return_type->type == return_expression_type->type) {
         break;
       }
 
-      node->data.statement_return.expression = convert_to(node->data.statement_return.expression, return_expression_type->type, function_return_type, parser_results);
+      node->data.statement_return.expression = convert_to(node->data.statement_return.expression, return_expression_type, function_return_type, parser_results);
       break;
     }
     case AST_STATEMENT_FOR: {
@@ -411,7 +412,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       //@NOTE: Experimenting with something here. Rather than creating a new type node. Pass the pointer to the existing one. 
       node->data.expression_variable.expression_type = symbol->data.variable_symbol->value_type;
 
-      return symbol->data.variable_symbol->value_type;
+      return node->data.expression_variable.expression_type;
     }
     case AST_EXPRESSION_CONSTANT: {
       TypeNode *expression_type = arena_alloc(parser_results->type_node_arena);
@@ -526,19 +527,19 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         return expression_type_node;
       }
 
-      Types common_type;
+      TypeNode *common_type;
       
       if ((node->data.expression_binary.op_type == AST_BINARY_EQUAL || node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
         common_type = get_common_pointer_type(node->data.expression_binary.left_expression, node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
       } else {
-        common_type = get_common_real_type(left_expression_type->type, right_expression_type->type);
+        common_type = get_common_real_type(left_expression_type, right_expression_type);
       }
 
-      node->data.expression_binary.left_expression = convert_to(node->data.expression_binary.left_expression, left_expression_type->type, common_type, parser_results);
-      node->data.expression_binary.right_expression = convert_to(node->data.expression_binary.right_expression, right_expression_type->type, common_type, parser_results);
+      node->data.expression_binary.left_expression = convert_to(node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
+      node->data.expression_binary.right_expression = convert_to(node->data.expression_binary.right_expression, right_expression_type, common_type, parser_results);
 
       TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-      expression_type_node->type = common_type;
+      expression_type_node = common_type;
 
       node->data.expression_binary.expression_type = expression_type_node;
       
@@ -560,7 +561,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *left_expression_type = expression_type_check(node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, parser_results);
       TypeNode *right_expression_type = expression_type_check(node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, parser_results);
 
-      node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type->type, left_expression_type->type, parser_results);
+      node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, parser_results);
 
       return left_expression_type;
     }
@@ -599,16 +600,16 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *true_expression_type = expression_type_check(node->data.expression_conditional.true_expression, declaration_table, function_declaration_node, parser_results);
       TypeNode *false_expression_type = expression_type_check(node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, parser_results);
       
-      Types common_type;
+      TypeNode *common_type;
 
       if (true_expression_type->type == TYPE_POINTER || false_expression_type->type == TYPE_POINTER) {
         common_type = get_common_pointer_type(node->data.expression_conditional.true_expression, node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, parser_results);
       } else {
-        common_type = get_common_real_type(true_expression_type->type, false_expression_type->type);
+        common_type = get_common_real_type(true_expression_type, false_expression_type);
       }
 
-      node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type->type, common_type, parser_results);
-      node->data.expression_conditional.false_expression = convert_to(node->data.expression_conditional.false_expression, false_expression_type->type, common_type, parser_results);
+      node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type, common_type, parser_results);
+      node->data.expression_conditional.false_expression = convert_to(node->data.expression_conditional.false_expression, false_expression_type, common_type, parser_results);
 
       // return common_type;
       return node->data.expression_conditional.expression_type;
@@ -658,57 +659,61 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
   }
 }
 
-static Types get_common_real_type(Types type_1, Types type_2) {
-  if (type_1 == type_2) {
+static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
+  if (type_1->type == type_2->type) {
     return type_1;
   }  
 
-  if (type_1 == TYPE_DOUBLE || type_2 == TYPE_DOUBLE) {
-    return TYPE_DOUBLE;
+  if (type_1->type == TYPE_DOUBLE) {
+    return type_1;
   }
 
-  if (get_type_size(type_1) == get_type_size(type_2)) {
-    if (type_1 == TYPE_INT || type_1 == TYPE_LONG) {
+  if (type_2->type == TYPE_DOUBLE) {
+    return type_2;
+  }
+
+  if (get_type_size(type_1->type) == get_type_size(type_2->type)) {
+    if (type_1->type == TYPE_INT || type_1->type == TYPE_LONG) {
       return type_2;
     }
 
     return type_1;
   }  
 
-  if (get_type_size(type_1) > get_type_size(type_2)) {
+  if (get_type_size(type_1->type) > get_type_size(type_2->type)) {
     return type_1;
   } 
 
   return type_2;
 }
 
-static Types get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
+static TypeNode* get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   TypeNode *expression_1_type = expression_type_check(expression_1, declaration_table, function_declaration_node, parser_results); 
   TypeNode *expression_2_type = expression_type_check(expression_2, declaration_table, function_declaration_node, parser_results); 
 
   if (expression_1_type == expression_2_type) {
-    return expression_1_type->type;
+    return expression_1_type;
   }
 
   if (is_null_pointer_constant(expression_1)) {
-    return expression_2_type->type;
+    return expression_2_type;
   }
 
   if (is_null_pointer_constant(expression_2)) {
-    return expression_1_type->type;
+    return expression_1_type;
   }
 
   fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types");
   exit(1);
 }
 
-static AstNode* convert_to(AstNode *expression, Types expression_type, Types target_type, ParserResults *parser_results) {
-  if (expression_type == target_type) {
+static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results) {
+  if (expression_type->type == target_type->type) {
     return expression;
   }
 
   TypeNode *type_node = arena_alloc(parser_results->type_node_arena);
-  type_node->type = target_type;
+  type_node->type = target_type->type;
 
   AstNode *casted_expression = arena_alloc(parser_results->ast_node_arena);
   casted_expression->type = AST_EXPRESSION_CAST;
@@ -838,17 +843,17 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
   }
 }
 
-static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Types right_assignment_type, Types target_type, ParserResults *parser_results) {
+static AstNode* convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
   if (right_assignment_type == target_type) {
     return right_assignment_expression;
   }
 
   //arithmetic types
-  if (right_assignment_type == TYPE_DOUBLE || right_assignment_type == TYPE_INT || right_assignment_type == TYPE_UINT || right_assignment_type == TYPE_LONG || right_assignment_type == TYPE_ULONG) {
+  if (is_arithmetic_type(right_assignment_type) && is_arithmetic_type(target_type)) {
     return convert_to(right_assignment_expression, right_assignment_type, target_type, parser_results);
   }
 
-  if (is_null_pointer_constant(right_assignment_expression) && target_type == TYPE_POINTER) {
+  if (is_null_pointer_constant(right_assignment_expression) && target_type->type == TYPE_POINTER) {
     return convert_to(right_assignment_expression, right_assignment_type, target_type, parser_results);
   }
 

@@ -982,6 +982,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_DOUBLE:
+    case TYPE_POINTER:
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD;
       break;
     default:

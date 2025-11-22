@@ -1,7 +1,6 @@
-int main(void) {
-    int value = 10;
-    int *ref = &value;
-    int deref = *ref;
+double *d_ptr;
 
-    return deref;
+int update_thru_ptr(double new_val) {
+    *d_ptr = new_val;
+    return 0;
 }
