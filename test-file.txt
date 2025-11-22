@@ -1,6 +1,22 @@
-double *d_ptr;
+//double *d_ptr;
+//
+//int update_thru_ptr(double new_val) {
+//    *d_ptr = new_val;
+//    return 0;
+//}
+//
 
-int update_thru_ptr(double new_val) {
-    *d_ptr = new_val;
+int t_int;
+long t_long;
+unsigned int t_uint;
+unsigned long t_ulong;
+double t_double;
+
+int main(void) {
+    int block_t_int;
+    long block_t_long;
+    unsigned int block_t_uint;
+    unsigned long block_ulong;
+    double block_t_double;
     return 0;
 }

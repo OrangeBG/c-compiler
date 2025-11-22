@@ -1,4 +1,6 @@
 # Bugs
+	- Variable declaration looks to be incorrect: reference pg 217
+	- Code emit not displaying '.zero' for uninitialized vars
 	- The following segfaults: int *ptr = 0;
 
 # Incomplete

@@ -148,6 +148,7 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
         case TYPE_ULONG:   printf("ulong\n"); break;
         case TYPE_VOID:    printf("void\n"); break;
         case TYPE_DOUBLE:  printf("double\n"); break;
+        case TYPE_POINTER: printf("pointer\n"); break;
         default:
           fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
           exit(1);

@@ -1023,6 +1023,10 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
     if (declaration_symbol->symbol_type != DECLARATION_SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration) {
       continue;
     }
+
+    if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_NO_INITIALIZER) {
+      continue;
+    }
     
     IRNode *static_node = arena_alloc(intermediate_rep->node_arena);
 
