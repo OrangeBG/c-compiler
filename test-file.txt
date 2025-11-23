@@ -1,4 +1,5 @@
 double *d_ptr;
+int test = 5;
 
 int update_thru_ptr(double new_val) {
     *d_ptr = new_val;
