@@ -695,7 +695,7 @@ static TypeNode* get_common_pointer_type(AstNode *expression_1, AstNode *express
     return expression_1_type;
   }
 
-  fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types");
+  fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types\n");
   exit(1);
 }
 

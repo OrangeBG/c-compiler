@@ -1843,6 +1843,14 @@ void print_assembly(AsmNode *node) {
       print_assembly(node->data.instruction_movsx.destination);
       printf(")\n");
       break;
+    case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
+      printf("MOVZX -> ");
+      printf("Src( ");
+      print_assembly(node->data.instruction_mov_zero_extend.source);
+      printf(") Dest( ");
+      print_assembly(node->data.instruction_mov_zero_extend.destination);
+      printf(")\n");
+      break;
     case ASM_INSTRUCTION_RET:
       printf("RET -> \n");
       break;
