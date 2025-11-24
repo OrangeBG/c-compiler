@@ -1481,7 +1481,7 @@ static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
 
   AstNode *address_of_expression = arena_alloc(parser->node_arena);
 
-  parse_expression(parser, &address_of_expression, 0);
+  parse_factor(parser, address_of_expression);
 
   factor_node->data.expression_address_of.expression = address_of_expression;
   factor_node->type = AST_EXPRESSION_ADDRESS_OF;
