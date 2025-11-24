@@ -836,7 +836,7 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
 }
 
 static AstNode* convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
-  if (right_assignment_type == target_type) {
+  if (right_assignment_type->type == target_type->type) {
     return right_assignment_expression;
   }
 
