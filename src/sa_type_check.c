@@ -706,7 +706,7 @@ static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeN
   }
 
   TypeNode *type_node = arena_alloc(parser_results->type_node_arena);
-  type_node->type = target_type->type;
+  type_node = target_type;
 
   AstNode *casted_expression = arena_alloc(parser_results->ast_node_arena);
   casted_expression->type = AST_EXPRESSION_CAST;

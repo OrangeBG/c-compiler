@@ -495,6 +495,7 @@ void print_ast(const AstNode *node, int whitespace) {
         printf("Cast(type=");
 
         print_type_node(node->data.expression_cast.target_type);
+        printf("\n");
         print_ast(node->data.expression_cast.expression, ADD_WHITESPACE);        
 
         print_whitespace(whitespace);
