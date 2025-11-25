@@ -587,7 +587,9 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       return existing_symbol->data.function_symbol->value_type;
     }
     case AST_EXPRESSION_CONDITIONAL: {
-      expression_type_check(node->data.expression_conditional.condition, declaration_table, function_declaration_node, parser_results);
+      //TODO: Confirm that the conditional expression type does not need to do anything with the set common type
+      TypeNode* condition_type = expression_type_check(node->data.expression_conditional.condition, declaration_table, function_declaration_node, parser_results);
+        node->data.expression_conditional.expression_type = condition_type;
 
       TypeNode *true_expression_type = expression_type_check(node->data.expression_conditional.true_expression, declaration_table, function_declaration_node, parser_results);
       TypeNode *false_expression_type = expression_type_check(node->data.expression_conditional.false_expression, declaration_table, function_declaration_node, parser_results);
@@ -603,7 +605,6 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type, common_type, parser_results);
       node->data.expression_conditional.false_expression = convert_to(node->data.expression_conditional.false_expression, false_expression_type, common_type, parser_results);
 
-      // return common_type;
       return node->data.expression_conditional.expression_type;
     }
     case AST_EXPRESSION_PREFIX_INCREMENT:
