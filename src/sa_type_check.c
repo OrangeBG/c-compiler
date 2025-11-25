@@ -506,7 +506,12 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         }
 
         if (node->data.expression_binary.op_type == AST_BINARY_REMAINDER) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply modulo operated with a pointer\n");
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply modulo operator with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_AND) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise 'and' operator with a pointer\n");
           exit(1);
         }
       }
