@@ -99,11 +99,11 @@ static void         parse_expression_postfix(Parser *parser, AstNode *postfix_ex
 static void         parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
 static void         parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
 static void         parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
-static void         parse_factor(Parser *parser, AstNode *factor_node);
+static void         parse_factor(Parser *parser, AstNode **factor_node);
 static void         parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type);
 static void         parse_factor_unary(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
-static void         parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node); 
+static void         parse_factor_parenthetical_expression(Parser *parser, AstNode **factor_node); 
 static void         parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
@@ -999,7 +999,7 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
 }
 
 static void parse_expression(Parser *parser, AstNode **expression_node, int min_precedence) {
-  parse_factor(parser, *expression_node);
+  parse_factor(parser, expression_node);
 
   TokenType next_token = current_token(parser)->type;
 
@@ -1174,7 +1174,7 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
   }
 }
 
-static void parse_factor(Parser *parser, AstNode *factor_node) {
+static void parse_factor(Parser *parser, AstNode **factor_node) {
  if (end_of_file(parser)) {
     fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
     exit(1);
@@ -1186,21 +1186,21 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
     case TOKEN_CONSTANT_FLOAT:
     case TOKEN_CONSTANT_UNSIGNED_INT:
     case TOKEN_CONSTANT_UNSIGNED_LONG:
-      parse_factor_constant(parser, factor_node, current_token(parser)->type); break;
+      parse_factor_constant(parser, *factor_node, current_token(parser)->type); break;
     case TOKEN_NEGATION:
     case TOKEN_BITWISE_NOT:
     case TOKEN_LOGICAL_NOT:
-      parse_factor_unary(parser, factor_node); break;
+      parse_factor_unary(parser, *factor_node); break;
     case TOKEN_INCREMENT:
     case TOKEN_DECREMENT:
-      parse_factor_prefix_expression(parser, factor_node); break;
+      parse_factor_prefix_expression(parser, *factor_node); break;
     case TOKEN_BITWISE_AND:
-      parse_factor_address_of(parser, factor_node); break;
+      parse_factor_address_of(parser, *factor_node); break;
     case TOKEN_ASTERISK:
-      parse_factor_dereference(parser, factor_node); break;
+      parse_factor_dereference(parser, *factor_node); break;
     case TOKEN_OPEN_PAREN: {
       if (is_type_identifier_token(peek_next_token(parser))) {
-        parse_factor_cast_expression(parser, factor_node); 
+        parse_factor_cast_expression(parser, *factor_node); 
         break;
       }
 
@@ -1211,8 +1211,8 @@ static void parse_factor(Parser *parser, AstNode *factor_node) {
       char *identifier = get_identifier(parser);
 
       switch(current_token(parser)->type) {
-        case TOKEN_OPEN_PAREN: parse_factor_function_call(parser, factor_node, identifier); break;
-        default:               parse_factor_variable_expression(parser, factor_node, identifier); break;
+        case TOKEN_OPEN_PAREN: parse_factor_function_call(parser, *factor_node, identifier); break;
+        default:               parse_factor_variable_expression(parser, *factor_node, identifier); break;
       }      
       break;
     }
@@ -1315,7 +1315,7 @@ static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
   parser->current_token_index++;
 
   AstNode *unary_value_expression_node = arena_alloc(parser->node_arena);
-  parse_factor(parser, unary_value_expression_node);
+  parse_factor(parser, &unary_value_expression_node);
 
   factor_node->type = AST_EXPRESSION_UNARY;
   factor_node->data.expression_unary.op_type = op_type;  
@@ -1365,9 +1365,9 @@ static void parse_factor_prefix_expression(Parser *parser, AstNode *factor_node)
   prefix_expression->data.expression_increment_decrement.expression = factor_node;
 }
 
-static void parse_factor_parenthetical_expression(Parser *parser, AstNode *factor_node) {
+static void parse_factor_parenthetical_expression(Parser *parser, AstNode **factor_node) {
   expect(parser, TOKEN_OPEN_PAREN);
-  parse_expression(parser, &factor_node, 0);    
+  parse_expression(parser, factor_node, 0);    
   expect(parser, TOKEN_CLOSE_PAREN);
 }
 
@@ -1385,7 +1385,7 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   expect(parser, TOKEN_CLOSE_PAREN);
 
   AstNode *expression_node = arena_alloc(parser->node_arena);
-  parse_factor(parser, expression_node);
+  parse_factor(parser, &expression_node);
   
   factor_node->type = AST_EXPRESSION_CAST;
   factor_node->data.expression_cast.target_type = abstract_declarator_type_node;
@@ -1482,7 +1482,12 @@ static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
 
   AstNode *address_of_expression = arena_alloc(parser->node_arena);
 
-  parse_factor(parser, address_of_expression);
+  parse_factor(parser, &address_of_expression);
+
+  if (address_of_expression->type == AST_EXPRESSION_ASSIGNMENT) {
+    fprintf(stderr, "ERROR - Parser: Illegal to take an address of an assignment\n");
+    exit(1);
+  }
 
   factor_node->data.expression_address_of.expression = address_of_expression;
   factor_node->type = AST_EXPRESSION_ADDRESS_OF;
@@ -1493,7 +1498,7 @@ static void parse_factor_dereference(Parser *parser, AstNode *factor_node) {
   expect(parser, TOKEN_ASTERISK);
   
   AstNode *dereference_expression = arena_alloc(parser->node_arena);
-  parse_factor(parser, dereference_expression);
+  parse_factor(parser, &dereference_expression);
 
   factor_node->data.expression_dereference.expression = dereference_expression;
   factor_node->type = AST_EXPRESSION_DEREFERENCE;
