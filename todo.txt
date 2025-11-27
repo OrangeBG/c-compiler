@@ -1,4 +1,9 @@
 # Bugs
+	- The following does not parse the right shift correctly. Check AST print:		
+		int main(void) {
+		    int *x = 0;
+		    return (int) (x >> 10);
+		}
 	- The following segfaults: int *ptr = 0;
 
 # Incomplete

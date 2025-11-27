@@ -512,7 +512,27 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         }
 
         if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_AND) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise 'and' operator with a pointer\n");
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise AND operator with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_XOR) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise XOR operator with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_OR) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise OR operator with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_RIGHT_SHIFT) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise RShift operator with a pointer\n");
+          exit(1);
+        }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_LEFT_SHIFT) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise LShift operator with a pointer\n");
           exit(1);
         }
       }
