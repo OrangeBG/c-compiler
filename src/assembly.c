@@ -2245,6 +2245,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
   switch (value_type) {
     case TYPE_UINT:
     case TYPE_ULONG:
+    case TYPE_POINTER:
       return false;
     case TYPE_INT:
     case TYPE_LONG:

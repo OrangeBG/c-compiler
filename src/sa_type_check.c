@@ -176,6 +176,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
     case AST_EXPRESSION_PREFIX_DECREMENT: 
     case AST_EXPRESSION_CONDITIONAL:
     case AST_EXPRESSION_DEREFERENCE:
+    case AST_EXPRESSION_ADDRESS_OF:
       expression_type_check(node, declaration_table, function_declaration_node, parser_results);
       break;
     case AST_BLOCK: {
@@ -689,7 +690,7 @@ static TypeNode* get_common_pointer_type(AstNode *expression_1, AstNode *express
   TypeNode *expression_1_type = expression_type_check(expression_1, declaration_table, function_declaration_node, parser_results); 
   TypeNode *expression_2_type = expression_type_check(expression_2, declaration_table, function_declaration_node, parser_results); 
 
-  if (expression_1_type == expression_2_type) {
+  if (expression_1_type->type == expression_2_type->type) {
     return expression_1_type;
   }
 
