@@ -951,9 +951,9 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
   AstNode *dec_or_exp = arena_alloc(parser->node_arena);
 
   Specifier type_specifier = parse_specifier(parser, true);
-  Declarator *declarator = parse_declarator(parser);
 
   if (type_specifier.specifier_type_found) {
+    Declarator *declarator = parse_declarator(parser);
     TypeNode *base_type = arena_alloc(parser->type_arena);
     base_type->type = type_specifier.specifier_type;
 
