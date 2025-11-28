@@ -715,33 +715,6 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
 }
 
 static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep) {
-  //TODO: Keep this for now. Need to assess why conditional expressions are handled differently when the source node is 'ast_expression_assignment'. There's already an emit_conditional(). 
-  if (assignment_node->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONDITIONAL) {
-    IRNode *condition = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.condition, function, intermediate_rep);
-
-    char *end_label_name = create_temp_label(intermediate_rep);
-    char *false_label_name = create_temp_label(intermediate_rep);
-
-    emit_jump_if_zero(false_label_name, condition, function, intermediate_rep);
-    
-    IRNode *true_value = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.true_expression, function, intermediate_rep);
-
-    IRNode *variable = arena_alloc(intermediate_rep->node_arena);
-    variable->type = IR_VALUE_VAR;
-    variable->data.value_var.identifier = assignment_node->data.expression_assignment.left_expression->data.expression_variable.identifier;
-
-    emit_copy(true_value, variable, function, intermediate_rep);
-    emit_jump(end_label_name, function, intermediate_rep);
-    emit_label(false_label_name, function, intermediate_rep);
-  
-    IRNode *false_value = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression->data.expression_conditional.false_expression, function, intermediate_rep);
-
-    emit_copy(false_value, variable, function, intermediate_rep);
-    emit_label(end_label_name, function, intermediate_rep);
-
-    return NULL;
-  }
-
   IRNode *right_value = emit_ast_node_and_convert_lvalue(assignment_node->data.expression_assignment.right_expression, function, intermediate_rep);
   ExpressionResult *left_result = emit_ast_node(assignment_node->data.expression_assignment.left_expression, function, intermediate_rep);
 
