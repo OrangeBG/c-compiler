@@ -95,6 +95,7 @@ typedef struct {
 } ParserResults;
 
 typedef struct AstNode {
+  int line_number;
   NodeType type;
   union {
     struct Program { NodePointer *declaration_ptrs; int declaration_count; } program;
