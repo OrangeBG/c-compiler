@@ -35,6 +35,7 @@
 	- Look into why I'm adding the following in the parser (2 of them were found and tagged with TODOs): postfix_constant->data.constant_expression.int_value = 1;
 
 # Features
+	- Added some color to error and warning console output. Look into https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 	- GOTO Check: Need to add VLA check to goto statements when arrays are added to the compiler. Reference C17 ISO: 6.8.6 Jump statements
 	- Add generic dynamic array grow function
 	- Add Typedef support: Refer to pg 108 - Sandler Nora.

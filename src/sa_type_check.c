@@ -433,7 +433,8 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         exit(1);
       }
 
-      return node->data.expression_cast.expression_type;
+      //return node->data.expression_cast.expression_type;
+      return node->data.expression_cast.target_type;
     }
     case AST_EXPRESSION_UNARY: {
       TypeNode *expression_type = expression_type_check(node->data.expression_unary.expression, declaration_table, function_declaration_node, parser_results);
@@ -722,7 +723,7 @@ static TypeNode* get_common_pointer_type(AstNode *expression_1, AstNode *express
     return expression_1_type;
   }
 
-  fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types\n");
+  fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types (line %d)\n", expression_1->line_number);
   exit(1);
 }
 
