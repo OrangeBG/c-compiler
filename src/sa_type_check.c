@@ -426,12 +426,18 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       return expression_type;
     }
     case AST_EXPRESSION_CAST: {
-      node->data.expression_cast.expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
+      // node->data.expression_cast.expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
+      //
+      // if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.expression_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.expression_type) == TYPE_DOUBLE) {
+      //   fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
+      //   exit(1);
+      // }
+        node->data.expression_cast.target_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
-      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.expression_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.expression_type) == TYPE_DOUBLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
-        exit(1);
-      }
+        if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) == TYPE_DOUBLE) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
+          exit(1);
+        }
 
       //return node->data.expression_cast.expression_type;
       return node->data.expression_cast.target_type;
@@ -739,24 +745,25 @@ static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeN
   casted_expression->type = AST_EXPRESSION_CAST;
   casted_expression->data.expression_cast.target_type = type_node;
   casted_expression->data.expression_cast.expression = expression;
+  //casted_expression->data.expression_cast.expression_type = target_type;
   
-  TypeNode *cast_expression_type = NULL;
-
-  switch (expression->type) {
-    case AST_EXPRESSION_CONSTANT:      cast_expression_type = expression->data.expression_constant.expression_type; break;
-    case AST_EXPRESSION_VARIABLE:      cast_expression_type = expression->data.expression_variable.expression_type; break;
-    case AST_EXPRESSION_CAST:          cast_expression_type = expression->data.expression_cast.expression_type; break;
-    case AST_EXPRESSION_UNARY:         cast_expression_type = expression->data.expression_unary.expression_type; break;
-    case AST_EXPRESSION_BINARY:        cast_expression_type = expression->data.expression_binary.expression_type; break;
-    case AST_EXPRESSION_ASSIGNMENT:    cast_expression_type = expression->data.expression_assignment.expression_type; break;
-    case AST_EXPRESSION_CONDITIONAL:   cast_expression_type = expression->data.expression_conditional.expression_type; break;
-    case AST_EXPRESSION_FUNCTION_CALL: cast_expression_type = expression->data.expression_variable.expression_type; break;
-    default:
-      fprintf(stderr, "ERROR - Type Check: Unsupported cast expression type '%d'\n", expression->type);
-      exit(1);
-  }
-
-  casted_expression->data.expression_cast.expression_type = cast_expression_type;
+  // TypeNode *cast_expression_type = NULL;
+  //
+  // switch (expression->type) {
+  //   case AST_EXPRESSION_CONSTANT:      cast_expression_type = expression->data.expression_constant.expression_type; break;
+  //   case AST_EXPRESSION_VARIABLE:      cast_expression_type = expression->data.expression_variable.expression_type; break;
+  //   case AST_EXPRESSION_CAST:          cast_expression_type = expression->data.expression_cast.expression_type; break;
+  //   case AST_EXPRESSION_UNARY:         cast_expression_type = expression->data.expression_unary.expression_type; break;
+  //   case AST_EXPRESSION_BINARY:        cast_expression_type = expression->data.expression_binary.expression_type; break;
+  //   case AST_EXPRESSION_ASSIGNMENT:    cast_expression_type = expression->data.expression_assignment.expression_type; break;
+  //   case AST_EXPRESSION_CONDITIONAL:   cast_expression_type = expression->data.expression_conditional.expression_type; break;
+  //   case AST_EXPRESSION_FUNCTION_CALL: cast_expression_type = expression->data.expression_variable.expression_type; break;
+  //   default:
+  //     fprintf(stderr, "ERROR - Type Check: Unsupported cast expression type '%d'\n", expression->type);
+  //     exit(1);
+  // }
+  //
+  // casted_expression->data.expression_cast.expression_type = cast_expression_type;
   
   return casted_expression;
 }
