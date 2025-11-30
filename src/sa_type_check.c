@@ -745,6 +745,8 @@ static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeN
   casted_expression->type = AST_EXPRESSION_CAST;
   casted_expression->data.expression_cast.target_type = type_node;
   casted_expression->data.expression_cast.expression = expression;
+
+  //@Note: Commented the following as I don't think it's needed. Cast target type should be the same as the expression type. Expression type was removed from the AST Cast node. Leaving this commented until confident we don't need it.
   //casted_expression->data.expression_cast.expression_type = target_type;
   
   // TypeNode *cast_expression_type = NULL;
