@@ -823,7 +823,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
         AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_unary.source, assembly->declaration_symbol_table);
 
         if (current_ir_node->data.instruction_unary.op_type != IR_UNARY_NOT) {
-          if (current_ir_node->data.instruction_unary.op_type != IR_UNARY_NEGATE && source_type == ASM_TYPE_DOUBLE) {
+          if (current_ir_node->data.instruction_unary.op_type == IR_UNARY_NEGATE && source_type == ASM_TYPE_DOUBLE) {
             emit_ir_instruction_unary_negation_double(asm_function, current_ir_node, assembly); 
             continue;
           }
