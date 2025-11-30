@@ -134,7 +134,7 @@ static ResolveType  resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_in
 static ResolveType  resolve_div_instruction(AsmNode *function, AsmNode *div_instruction, Assembly *assembly); 
 static ResolveType  resolve_mov_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
-static ResolveType  resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_binary_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly); 
@@ -282,8 +282,8 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
 
         AsmBinaryOpType op_type = instruction->data.instruction_binary.binary_op;
 
-        if (op_type == ASM_BINARY_ADD || op_type == ASM_BINARY_SUB || op_type == ASM_BINARY_BITWISE_AND || op_type == ASM_BINARY_BITWISE_OR) {
-          resolve_type = resolve_binary_add_sub_instruction(new_function, instruction, assembly);
+        if (op_type == ASM_BINARY_ADD || op_type == ASM_BINARY_SUB || op_type == ASM_BINARY_BITWISE_AND || op_type == ASM_BINARY_BITWISE_OR || op_type == ASM_BINARY_BITWISE_XOR) {
+          resolve_type = resolve_binary_instruction(new_function, instruction, assembly);
         } else if (instruction->data.instruction_binary.binary_op == ASM_BINARY_MULT) {
           resolve_type = resolve_binary_mul_instruction(new_function, instruction, assembly);
         }
@@ -482,7 +482,7 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
   return INSTRUCTION_FIXED;
 }
 
-static ResolveType resolve_binary_add_sub_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
+static ResolveType resolve_binary_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //ADD and SUB instructions cannot have both a source and destination as memory addresses
   if (instruction->data.instruction_binary.operand_1->type != ASM_OPERAND_MEMORY || instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_MEMORY) {
     return INSTRUCTION_NOT_FIXED;

@@ -235,7 +235,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_BINARY_BITWISE_LEFT_SHIFT:   fprintf(file, "\tshl"); break;
         case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshr"); break;
         case ASM_BINARY_DIV_DOUBLE:           fprintf(file, "\tdiv"); break;
-        case ASM_BINARY_MULT:                 asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE ? fprintf(file, "\tmul") : fprintf(file, "\timul"); break;        
+        case ASM_BINARY_MULT:
+          asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE ? fprintf(file, "\tmul") : fprintf(file, "\timul");
+          break;
         case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txor"); break;
       }
 
