@@ -1428,7 +1428,7 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   factor_node->type = AST_EXPRESSION_CAST;
   factor_node->data.expression_cast.target_type = abstract_declarator_type_node;
   factor_node->data.expression_cast.expression = expression_node;
-  factor_node->data.expression_cast.expression_type = NULL;
+  //factor_node->data.expression_cast.expression_type = NULL;
 }
 
 //'*' by itself is a valid abstract declarator but not a valid regular declarator.

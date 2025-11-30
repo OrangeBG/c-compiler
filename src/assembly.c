@@ -864,7 +864,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
             AsmType source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, assembly->declaration_symbol_table);
             AsmType source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, assembly->declaration_symbol_table);
 
-            if (source_1_type == ASM_TYPE_DOUBLE && source_2_type == ASM_TYPE_DOUBLE) {
+            if (source_1_type == ASM_TYPE_DOUBLE || source_2_type == ASM_TYPE_DOUBLE) {
               emit_ir_instruction_binary(asm_function, current_ir_node, assembly);
             } else {
               if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->declaration_symbol_table)) {
@@ -1229,6 +1229,7 @@ static void emit_ir_instruction_binary_signed_division(AsmNode *asm_function, co
 
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
 
+  //@Bug: When dividing with DOUBLE Type
   emit_asm_mov_instruction(asm_function, source_1, assembly->register_ax, source_1_type, assembly);
 
   AsmNode *cdq_instruction = arena_alloc(assembly->asm_arena);
