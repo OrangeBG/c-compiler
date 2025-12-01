@@ -278,6 +278,7 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
           resolve_type = resolve_binary_double_instructions(new_function, instruction, assembly);
+          continue;
         }
 
         AsmBinaryOpType op_type = instruction->data.instruction_binary.binary_op;
