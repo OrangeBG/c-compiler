@@ -13,7 +13,6 @@
 #define BREAK_LABEL "break"
 #define CONTINUE_LABEL "continue"
 #define START_LABEL "start"
-#define END_LABEL "end"
 
 typedef struct {
   Arena postfix_arena;
@@ -663,15 +662,16 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
     add_instruction_to_function(function, jmp_instruction_v2);
 
     IRNode *result_1 = create_int_constant(1, intermediate_rep);
+    char *end_label = create_temp_label(intermediate_rep);
 
     emit_copy(result_1, destination, function, intermediate_rep);
-    emit_jump(END_LABEL, function, intermediate_rep);
+    emit_jump(end_label, function, intermediate_rep);
     emit_label(label_name, function, intermediate_rep);
 
     IRNode *result_0 = create_int_constant(0, intermediate_rep);
 
     emit_copy(result_0, destination, function, intermediate_rep);
-    emit_label(END_LABEL, function, intermediate_rep);
+    emit_label(end_label, function, intermediate_rep);
 
     ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
     return destination_result;
