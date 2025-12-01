@@ -136,6 +136,7 @@ static ResolveType  resolve_mov_instruction(AsmNode *function, AsmNode *instruct
 static ResolveType  resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType  resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly); 
 static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Assembly *assembly);
@@ -283,7 +284,9 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
 
         AsmBinaryOpType op_type = instruction->data.instruction_binary.binary_op;
 
-        if (op_type == ASM_BINARY_ADD || op_type == ASM_BINARY_SUB || op_type == ASM_BINARY_BITWISE_AND || op_type == ASM_BINARY_BITWISE_OR || op_type == ASM_BINARY_BITWISE_XOR) {
+        if (op_type == ASM_BINARY_BITWISE_RIGHT_SHIFT || op_type == ASM_BINARY_BITWISE_LEFT_SHIFT) {
+          resolve_type = resolve_binary_shift_instruction(new_function, instruction, assembly); 
+        } else if (op_type == ASM_BINARY_ADD || op_type == ASM_BINARY_SUB || op_type == ASM_BINARY_BITWISE_AND || op_type == ASM_BINARY_BITWISE_OR || op_type == ASM_BINARY_BITWISE_XOR) {
           resolve_type = resolve_binary_instruction(new_function, instruction, assembly);
         } else if (instruction->data.instruction_binary.binary_op == ASM_BINARY_MULT) {
           resolve_type = resolve_binary_mul_instruction(new_function, instruction, assembly);
@@ -520,6 +523,18 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
 
   return INSTRUCTION_FIXED;
 }
+
+
+static ResolveType resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
+  if (instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_MEMORY) {
+    return INSTRUCTION_NOT_FIXED;
+  }
+
+  emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_cx, ASM_TYPE_LONGWORD, assembly);
+  emit_asm_binary_instruction(function, assembly->register_cx, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.binary_op, ASM_TYPE_BYTE, assembly);
+  
+  return INSTRUCTION_FIXED;
+} 
 
 static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //CMP instructions cannot have both a source and destination as memory addresses
@@ -2021,6 +2036,7 @@ static void print_assembly_type(AsmType type) {
     case ASM_TYPE_QUADWORD: printf("Type(Quadword) "); return;
     case ASM_TYPE_LONGWORD: printf("Type(Longword) "); return;
     case ASM_TYPE_DOUBLE:   printf("Type(Double) "); return;
+    case ASM_TYPE_BYTE:     printf("Type(Byte) "); break;
     default:
       fprintf(stderr, "ERROR - Assembler: AsmType '%d' not supported for assembly type printing\n", type);
       exit(1);
@@ -2210,6 +2226,7 @@ void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
         case ASM_TYPE_QUADWORD:    printf("Quadword\t"); break;
         case ASM_TYPE_LONGWORD:    printf("Longword\t"); break;
         case ASM_TYPE_DOUBLE:      printf("Double\t"); break;
+        case ASM_TYPE_BYTE:        printf("Byte\t"); break;
       }      
 
       printf("is_static: %d\n", symbol->data.object_entry.is_static);

@@ -97,7 +97,8 @@ typedef enum {
 typedef enum {
   ASM_TYPE_LONGWORD,
   ASM_TYPE_QUADWORD,
-  ASM_TYPE_DOUBLE
+  ASM_TYPE_DOUBLE,
+  ASM_TYPE_BYTE
 } AsmType;
 
 typedef struct {
