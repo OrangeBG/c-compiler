@@ -494,7 +494,7 @@ static void print_static_initializer(FILE *file, Types value_type, InitialValue 
     case TYPE_LONG:
       initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.long_value); break;
     case TYPE_DOUBLE:
-      fprintf(file, "\t.double %a", initial_value.double_value); break;
+      fprintf(file, "\t.double %a\n", initial_value.double_value); break;
     case TYPE_ULONG:
     case TYPE_POINTER:
       initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); break;
