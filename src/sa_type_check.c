@@ -260,6 +260,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
       case TYPE_UINT:    initial_value.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node); break;
       case TYPE_ULONG:   initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
       case TYPE_DOUBLE:  initial_value.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node); break;
+      case TYPE_POINTER: initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
       default:
         fprintf(stderr, "ERROR: SA Type Check: Unsupported constant expression type when checking file scope variable\n");
         exit(1);
