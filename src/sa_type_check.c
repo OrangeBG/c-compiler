@@ -427,20 +427,13 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       return expression_type;
     }
     case AST_EXPRESSION_CAST: {
-      // node->data.expression_cast.expression_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
-      //
-      // if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.expression_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.expression_type) == TYPE_DOUBLE) {
-      //   fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
-      //   exit(1);
-      // }
-        node->data.expression_cast.target_type = expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
+      expression_type_check(node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
-        if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) == TYPE_DOUBLE) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
-          exit(1);
-        }
+      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) == TYPE_DOUBLE) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
+        exit(1);
+      }
 
-      //return node->data.expression_cast.expression_type;
       return node->data.expression_cast.target_type;
     }
     case AST_EXPRESSION_UNARY: {
@@ -887,6 +880,6 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
     return convert_to(right_assignment_expression, right_assignment_type, target_type, parser_results);
   }
 
-  fprintf(stderr, "ERROR - Type Check: Cannot convert type for assignment expression\n");
+  fprintf(stderr, "ERROR - Type Check: Cannot convert type for assignment expression (line %d)\n", right_assignment_expression->line_number);
   exit(1);
 }
