@@ -564,13 +564,23 @@ static ExpressionResult* emit_postfix_expression(AstNode *postfix_node, Intermed
 
   AstNode *postfix_expression = postfix_node->data.expression_increment_decrement.expression->data.expression_assignment.left_expression;
 
-  if (postfix_expression->type == AST_EXPRESSION_VARIABLE) {
-    variable->data.value_var.identifier = postfix_expression->data.expression_variable.identifier;
-  } else if (postfix_expression->type == AST_EXPRESSION_UNARY) {
-    variable->data.value_var.identifier = postfix_expression->data.expression_unary.expression->data.expression_variable.identifier;
-  } else {
-    fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Postfix expression\n");
-    exit(1);
+  //TODO: These case statements are often assuming that the expression resolved to an Expression_Variable AST. Confirm that this assumption won't cause any problems.
+  switch (postfix_expression->type) {
+    case AST_EXPRESSION_VARIABLE:
+      variable->data.value_var.identifier = postfix_expression->data.expression_variable.identifier;
+      break;
+    case AST_EXPRESSION_UNARY:
+      variable->data.value_var.identifier = postfix_expression->data.expression_unary.expression->data.expression_variable.identifier;
+      break;
+    case AST_EXPRESSION_DEREFERENCE:
+      variable->data.value_var.identifier = postfix_expression->data.expression_dereference.expression->data.expression_variable.identifier;        
+      break;        
+    case AST_EXPRESSION_CAST:
+      variable->data.value_var.identifier = postfix_expression->data.expression_cast.expression->data.expression_variable.identifier;
+      break;
+    default:
+      fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Postfix expression\n");
+      exit(1);    
   }
 
   ExpressionResult *variable_result = create_expression_result(variable, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
