@@ -632,7 +632,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type, common_type, parser_results);
       node->data.expression_conditional.false_expression = convert_to(node->data.expression_conditional.false_expression, false_expression_type, common_type, parser_results);
 
-      return node->data.expression_conditional.expression_type;
+      return common_type;
     }
     case AST_EXPRESSION_PREFIX_INCREMENT:
     case AST_EXPRESSION_POSTFIX_INCREMENT:
