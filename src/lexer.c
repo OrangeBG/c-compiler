@@ -437,12 +437,8 @@ static void add_constant_token(Lexer *lexer, char *file) {
     }
 
     //Scientific notation
-    if (file[lexer->current_index + 1] == 'E' || file[lexer->current_index + 1] == 'e') {
+    if (file[lexer->current_index + 1] == 'E' || file[lexer->current_index + 1] == 'e' || file[lexer->current_index + 1] == '+' || file[lexer->current_index + 1] == '-') {
       lexer->current_index++;
-
-      if (file[lexer->current_index + 1] == '+' || file[lexer->current_index + 1] == '-') {
-        lexer->current_index++;
-      }
 
       while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
         lexer->current_index++;

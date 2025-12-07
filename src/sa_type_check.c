@@ -274,7 +274,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
 
     declaration_symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
   } else {
-    fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer\n");
+    fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer for variable declaration '%s'\n", variable_declaration_node->data.declaration_variable.name);
     exit(1);
   }
 
