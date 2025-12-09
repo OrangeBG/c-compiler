@@ -146,10 +146,13 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_MOVSX:
+      //lq suffix is assumed for now 
       fprintf(file, "\tmovslq\t\t");
-      save_assembly_file(asm_node->data.instruction_movsx.source, file);
+      // save_assembly_file(asm_node->data.instruction_movsx.source, file);
+      print_register(file, asm_node->data.instruction_movsx.destination, ASM_TYPE_LONGWORD);
       fprintf(file, ", ");
-      save_assembly_file(asm_node->data.instruction_movsx.destination, file);      
+      // save_assembly_file(asm_node->data.instruction_movsx.destination, file);      
+      print_register(file, asm_node->data.instruction_movsx.destination, ASM_TYPE_QUADWORD);
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
@@ -316,9 +319,20 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       print_instruction_suffix(file, asm_node->data.instruction_cvtsi2sd.source_assembly_type);
 
       fprintf(file, "\t\t"); 
-      save_assembly_file(asm_node->data.instruction_cvtsi2sd.source_operand, file);
+
+      if (asm_node->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_REGISTER) {
+        print_register(file, asm_node->data.instruction_cvtsi2sd.source_operand, asm_node->data.instruction_cvtsi2sd.source_assembly_type);
+      } else {
+        save_assembly_file(asm_node->data.instruction_cvtsi2sd.source_operand, file);
+      }
+
       fprintf(file, ", ");
-      save_assembly_file(asm_node->data.instruction_cvtsi2sd.destination_operand, file);
+
+      if (asm_node->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_REGISTER) {
+        print_register(file, asm_node->data.instruction_cvtsi2sd.destination_operand, ASM_TYPE_DOUBLE);
+      } else {
+        save_assembly_file(asm_node->data.instruction_cvtsi2sd.destination_operand, file);
+      }
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_CVTTSD2SI:
@@ -327,16 +341,23 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       print_instruction_suffix(file, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
 
       fprintf(file, "\t"); 
-      save_assembly_file(asm_node->data.instruction_cvttsd2si.source_operand, file);
+      if (asm_node->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_REGISTER) {
+        print_register(file, asm_node->data.instruction_cvttsd2si.source_operand, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
+      } else {
+        save_assembly_file(asm_node->data.instruction_cvttsd2si.source_operand, file);
+      }
       fprintf(file, ", ");
-      save_assembly_file(asm_node->data.instruction_cvttsd2si.destination_operand, file);
+      if (asm_node->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_REGISTER) {
+        print_register(file, asm_node->data.instruction_cvttsd2si.destination_operand, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
+      } else {
+        save_assembly_file(asm_node->data.instruction_cvttsd2si.destination_operand, file);
+      }
       fprintf(file, "\n");
       break;
     case ASM_OPERAND_IMM:
       fprintf(file, "$%ld", asm_node->data.operand_imm.value);
       break;
     case ASM_OPERAND_REGISTER: {
-      //TODO: Check to see if we only pull 32 bit registers here
       switch(asm_node->data.operand_register.op_register) {
         case ASM_REGISTER_XMM0:  fprintf(file, "%%xmm0"); return;
         case ASM_REGISTER_XMM1:  fprintf(file, "%%xmm1"); return;
@@ -352,7 +373,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
           char *operand_register = get_4_byte_register(asm_node->data.operand_register.op_register);
           fprintf(file, "%s", operand_register);
           return;
-        }        
+        }
       }
     }
     case ASM_OPERAND_MEMORY:
