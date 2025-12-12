@@ -438,6 +438,11 @@ static void add_constant_token(Lexer *lexer, char *file) {
 
     //Scientific notation
     if (file[lexer->current_index + 1] == 'E' || file[lexer->current_index + 1] == 'e' || file[lexer->current_index + 1] == '+' || file[lexer->current_index + 1] == '-') {
+      if (file[lexer->current_index + 1] == '-' && !is_numeric_char(file[lexer->current_index + 2])) {
+        fprintf(stderr, "ERROR - Lexer: Exponent on a floating-point constant must be an integer (line %d)\n", lexer->line);
+        exit(1);
+      }
+
       lexer->current_index++;
 
       while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
