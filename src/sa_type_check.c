@@ -199,7 +199,12 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       TypeNode *return_expression_type = expression_type_check(node->data.statement_return.expression, declaration_table, function_declaration_node, parser_results);
       TypeNode *function_return_type = function_declaration_node->data.declaration_function.function_type->data.function_type.return_type;
 
-      if (function_return_type->type == return_expression_type->type) {
+      if (function_return_type->type == TYPE_POINTER && return_expression_type->type == TYPE_POINTER) {
+        if (get_pointer_base_type(return_expression_type) != get_pointer_base_type(function_return_type)) {
+          fprintf(stderr, "ERROR: Type Check - Cannot implicitly convert one pointer type to another\n");
+          exit(1);
+        }        
+      } else if (function_return_type->type == return_expression_type->type) {
         break;
       }
 
