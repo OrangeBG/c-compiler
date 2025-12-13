@@ -155,13 +155,13 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       print_register(file, asm_node->data.instruction_movsx.destination, ASM_TYPE_QUADWORD);
       fprintf(file, "\n");
       break;
-    case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
-      fprintf(file, "\tmovz\t\t");
-      save_assembly_file(asm_node->data.instruction_mov_zero_extend.source, file);
-      fprintf(file, ", ");
-      save_assembly_file(asm_node->data.instruction_mov_zero_extend.destination, file);      
-      fprintf(file, "\n");
-      break;
+    // case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
+    //   fprintf(file, "\tmovz\t\t");
+    //   save_assembly_file(asm_node->data.instruction_mov_zero_extend.source, file);
+    //   fprintf(file, ", ");
+    //   save_assembly_file(asm_node->data.instruction_mov_zero_extend.destination, file);      
+    //   fprintf(file, "\n");
+    //   break;
     case ASM_INSTRUCTION_CMP:
       if (asm_node->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE) {
         fprintf(file, "\tcomisd");

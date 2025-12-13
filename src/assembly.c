@@ -456,7 +456,7 @@ static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNod
     return INSTRUCTION_FIXED;
   }
   
-  if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_IMM) {
+  if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_MEMORY) {
     emit_asm_mov_instruction(function, mov_zero_extend_instruction->data.instruction_mov_zero_extend.source, assembly->register_r11, ASM_TYPE_LONGWORD, assembly);
     emit_asm_mov_instruction(function, assembly->register_r11, mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination, ASM_TYPE_QUADWORD, assembly);
 
