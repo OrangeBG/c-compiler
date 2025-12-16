@@ -542,7 +542,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
           exit(1);
         }
 
-        if (node->data.expression_binary.op_type == AST_BINARY_EQUAL && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
+        if (node->data.expression_binary.op_type == AST_BINARY_EQUAL && right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
           fprintf(stderr, "ERROR - SA Type Check: Cannot compare pointers of different types\n");
           exit(1);
         }
@@ -589,6 +589,11 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
     case AST_EXPRESSION_ASSIGNMENT: {
       TypeNode *left_expression_type = expression_type_check(node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, parser_results);
       TypeNode *right_expression_type = expression_type_check(node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, parser_results);
+
+      if (left_expression_type->type == TYPE_POINTER && right_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {        
+        fprintf(stderr, "ERROR - SA Type Check: Expression assignment of pointers aren't for the same type\n");
+        exit(1);
+      }
 
       node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, parser_results);
 
