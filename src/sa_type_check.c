@@ -541,6 +541,11 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
           fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise LShift operator with a pointer\n");
           exit(1);
         }
+
+        if (node->data.expression_binary.op_type == AST_BINARY_EQUAL && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
+          fprintf(stderr, "ERROR - SA Type Check: Cannot compare pointers of different types\n");
+          exit(1);
+        }
       }
 
       if (node->data.expression_binary.op_type == AST_BINARY_AND || node->data.expression_binary.op_type == AST_BINARY_OR) {
