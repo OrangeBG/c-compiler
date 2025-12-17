@@ -1211,14 +1211,18 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
   AsmNode *destination_node = create_operand(ir_relational_instruction->data.instruction_binary.destination, assembly);
 
   AsmType source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
+  AsmType source_2_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_2, assembly->declaration_symbol_table);
   AsmType destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, assembly->declaration_symbol_table);
-  
+
   emit_asm_cmp_instruction(asm_function, source_2, source_1, source_1_type, assembly);
 
   AsmNode *imm_operand = create_imm_operand(0, assembly);
 
-  emit_asm_mov_instruction(asm_function, imm_operand, destination_node, destination_type, assembly);
-
+  if (source_1_type == ASM_TYPE_DOUBLE && source_2_type == ASM_TYPE_DOUBLE) {
+    emit_asm_mov_instruction(asm_function, imm_operand, destination_node, ASM_TYPE_LONGWORD, assembly);
+  } else {
+    emit_asm_mov_instruction(asm_function, imm_operand, destination_node, destination_type, assembly);
+  }
   AsmConditionCode relational_op;
 
   bool is_signed_condition = is_signed_ir_value_node(ir_relational_instruction->data.instruction_binary.destination, assembly->declaration_symbol_table);
