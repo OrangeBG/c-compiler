@@ -17,7 +17,7 @@ static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_lo
     case AST_STATEMENT_WHILE: {
       StackValue loop_stack_value = {
         .type = STACK_INT,
-        .data.integer = *current_loop_id++
+        .data.integer = (*current_loop_id)++
       };
       stack_push(label_stack, &loop_stack_value);
 
@@ -32,7 +32,7 @@ static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_lo
     case AST_STATEMENT_FOR: {
       StackValue loop_stack_value = {
         .type = STACK_INT,
-        .data.integer = *current_loop_id++
+        .data.integer = (*current_loop_id)++
       };
       stack_push(label_stack, &loop_stack_value);
 
@@ -60,7 +60,7 @@ static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_lo
     case AST_STATEMENT_DO_WHILE: {
         StackValue loop_stack_value = {
           .type = STACK_INT,
-          .data.integer = *current_loop_id++
+          .data.integer = (*current_loop_id)++
         };
         stack_push(label_stack, &loop_stack_value);
 
