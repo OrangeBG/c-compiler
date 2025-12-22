@@ -285,7 +285,11 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       print_instruction_suffix(file, asm_node->data.instruction_idiv.assembly_type);
       fprintf(file, "\t\t");
       
-      save_assembly_file(asm_node->data.instruction_idiv.operand, file);
+      if (asm_node->data.instruction_idiv.operand->type == ASM_OPERAND_REGISTER) {
+        print_register(file, asm_node->data.instruction_idiv.operand, asm_node->data.instruction_idiv.assembly_type);
+      } else {
+        save_assembly_file(asm_node->data.instruction_idiv.operand, file);
+      }
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_DIV:
