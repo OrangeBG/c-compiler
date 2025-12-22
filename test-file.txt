@@ -1,15 +1,10 @@
 int main(void) {
-    int a = 250;
-    int b = 200;
-    int c = 100;
-    int d = 75;
-    int e = 50;
-    int f = 25;
-    int g = 10;
-    int h = 1;
-    int j = 0;
-    int x = 0;
-    x = a &= b *= c |= d = e ^= f += g >>= h <<= j = 1;
-    return (a == 40 && b == 21800 && c == 109 && d == 41 && e == 41 &&
-            f == 27 && g == 2 && h == 2 && j == 1 && x == 40);
+
+    unsigned long ul = 18446460386757245432ul; // 0xfffe_fdfc_fbfa_f9f8
+
+    if (ul != 18446460386757244952ul /* 0xfffe_fdfc_fbfa_f818 */) {
+        return 1; // fail
+    }
+
+    return 0; // success
 }

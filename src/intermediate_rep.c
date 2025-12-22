@@ -236,7 +236,7 @@ void print_intermediate_ret(IRNode *ir_node) {
         case TYPE_INT:     printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
         case TYPE_LONG:    printf("Constant(type = long, value = %ld)", ir_node->data.value_constant.value.long_value); break;          
         case TYPE_UINT:    printf("Constant(type = uint, value = %d)", ir_node->data.value_constant.value.uint_value); break;
-        case TYPE_ULONG:   printf("Constant(type = ulong, value = %ld)", ir_node->data.value_constant.value.ulong_value); break;          
+        case TYPE_ULONG:   printf("Constant(type = ulong, value = %lu)", ir_node->data.value_constant.value.ulong_value); break;
         case TYPE_DOUBLE:  printf("Constant(type = double, value = %f)", ir_node->data.value_constant.value.double_value); break;          
         default:
           fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type->type);
@@ -253,7 +253,7 @@ void print_intermediate_ret(IRNode *ir_node) {
         case TYPE_INT:      printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
         case TYPE_LONG:     printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
         case TYPE_UINT:     printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_ULONG:    printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+        case TYPE_ULONG:    printf("%lu, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
         case TYPE_DOUBLE:   printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
         case TYPE_POINTER:  printf("%ld, type = pointer, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
         default:

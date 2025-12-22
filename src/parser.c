@@ -7,6 +7,7 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "../include/lexer.h"
+#include "types.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -357,7 +358,7 @@ void print_ast(const AstNode *node, int whitespace) {
           printf("Constant(Long(%ld))\n", node->data.expression_constant.long_value);
           break;
         case AST_CONSTANT_TYPE_ULONG:
-          printf("Constant(ULong(%ld))\n", node->data.expression_constant.ulong_value);
+          printf("Constant(ULong(%lu))\n", node->data.expression_constant.ulong_value);
           break;
         case AST_CONSTANT_TYPE_DOUBLE:
           printf("Constant(Double(%f))\n", node->data.expression_constant.double_value);
@@ -1257,8 +1258,9 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
   factor_node->type = AST_EXPRESSION_CONSTANT;
   factor_node->line_number = parser->tokens->line;
 
-  char constant_slice[previous_token(parser)->end_index - previous_token(parser)->start_index]; 
-  strncpy(constant_slice, parser->file + previous_token(parser)->start_index, (previous_token(parser)->end_index - previous_token(parser)->start_index) + 1);
+  char constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index - 2)];
+  strncpy(constant_slice, parser->file + previous_token(parser)->start_index, ((previous_token(parser)->end_index ) - previous_token(parser)->start_index) + 1);
+  constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index) + 1] = '\0';
 
   TypeNode *expression_type = arena_alloc(parser->type_arena);
 
@@ -1271,6 +1273,19 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     factor_node->data.expression_constant.double_value = double_value;
 
     expression_type->type = TYPE_DOUBLE;  
+    
+    factor_node->data.expression_constant.expression_type = expression_type;
+    return;    
+  }
+
+  if (constant_type == TOKEN_CONSTANT_UNSIGNED_LONG) {
+    char *end_pointer;
+    unsigned long ul_value = strtoul(constant_slice, &end_pointer, BASE_TEN);
+
+    factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_ULONG;
+    factor_node->data.expression_constant.ulong_value = ul_value;
+
+    expression_type->type = TYPE_ULONG;  
     
     factor_node->data.expression_constant.expression_type = expression_type;
     return;    
@@ -1306,6 +1321,7 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
     return;
   }
 
+  //TODO: Added unsigned logic above. Re-evaluate this
   if (constant_type == TOKEN_CONSTANT_UNSIGNED_LONG && constant_value >= 0  && constant_value < ULONG_MAX) {
     factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_ULONG;
     factor_node->data.expression_constant.ulong_value = (unsigned long)constant_value;
