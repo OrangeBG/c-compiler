@@ -138,6 +138,7 @@ static ResolveType  resolve_binary_instruction(AsmNode *function, AsmNode *instr
 static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
+static ResolveType resolve_lea_instruction(AsmNode *function, AsmNode *lea_instruction, Assembly *assembly); 
 static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly); 
 static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Assembly *assembly);
 static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
@@ -294,6 +295,9 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
           resolve_type = resolve_binary_mul_instruction(new_function, instruction, assembly);
         }
         break;
+      case ASM_INSTRUCTION_LEA:
+        resolve_type = resolve_lea_instruction(new_function, instruction, assembly);
+        break;
       case ASM_INSTRUCTION_IDIV:
         resolve_type = resolve_idiv_instruction(new_function, instruction, assembly);
         break;
@@ -409,6 +413,18 @@ static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_i
   }
 
   return INSTRUCTION_FIXED;
+}
+
+static ResolveType resolve_lea_instruction(AsmNode *function, AsmNode *lea_instruction, Assembly *assembly) {
+  if (lea_instruction->data.instruction_lea.destination->type == ASM_OPERAND_REGISTER) {
+    return INSTRUCTION_NOT_FIXED;
+  }
+
+  //emit_asm_mov_instruction(function, lea_instruction->data.instruction_lea.destination, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_lea_instruction(function, lea_instruction->data.instruction_lea.source, assembly->register_r10, assembly);
+  emit_asm_mov_instruction(function, assembly->register_r10, lea_instruction->data.instruction_lea.destination, ASM_TYPE_QUADWORD, assembly);
+
+  return INSTRUCTION_FIXED;  
 }
 
 static ResolveType resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Assembly *assembly) {

@@ -143,7 +143,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\tleaq\t\t");
       save_assembly_file(asm_node->data.instruction_lea.source, file);
       fprintf(file, ", ");
-      save_assembly_file(asm_node->data.instruction_lea.destination, file);      
+      //save_assembly_file(asm_node->data.instruction_lea.destination, file);
+      char *operand_register = get_8_byte_register(asm_node->data.instruction_lea.destination->data.operand_register.op_register);
+      fprintf(file, "%s", operand_register);
+
       fprintf(file, "\n");
       break;
     case ASM_INSTRUCTION_MOVSX:
