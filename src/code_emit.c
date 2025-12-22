@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
+#include "assembly.h"
 
 static char* get_8_byte_register(AsmRegisterType register_type); 
 static char* get_4_byte_register(AsmRegisterType register_type); 
@@ -355,7 +356,10 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       break;
     case ASM_OPERAND_IMM:
-      fprintf(file, "$%ld", asm_node->data.operand_imm.value);
+      if (asm_node->data.operand_imm.type == ASM_IMM_SIGNED)
+        fprintf(file, "$%ld", asm_node->data.operand_imm.signed_value);
+      else 
+        fprintf(file, "$%lu", asm_node->data.operand_imm.unsigned_value);
       break;
     case ASM_OPERAND_REGISTER: {
       switch(asm_node->data.operand_register.op_register) {

@@ -101,6 +101,11 @@ typedef enum {
   ASM_TYPE_BYTE
 } AsmType;
 
+typedef enum {
+  ASM_IMM_UNSIGNED,
+  ASM_IMM_SIGNED
+} AsmImmStorageType;
+
 typedef struct {
   int capacity;
   int count;
@@ -152,7 +157,7 @@ typedef struct AsmNode {
     struct AsmInstructionCall { char *identifier; } instruction_call;
     //TODO: Assigning long to immediate value to support long constants. May need to rework this when long long is supported. Read top of pg 266
     //@Bug: Does not work when unsigned value is large. Example: 18446460386757245432ul
-    struct AsmOperandImmediate { long value; } operand_imm;
+    struct AsmOperandImmediate { AsmImmStorageType type; union { long signed_value; unsigned long unsigned_value; }; } operand_imm;
     struct AsmOperandRegister { AsmRegisterType op_register; } operand_register;
     struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;
     struct AsmOperandMemory { AsmRegisterType op_register; int base_offset; } operand_memory;
