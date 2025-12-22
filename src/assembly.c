@@ -355,6 +355,7 @@ static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruc
       instruction->data.instruction_push.operand->type == ASM_OPERAND_IMM &&
       imm_value_fits_into_int(instruction->data.instruction_push.operand)) {
     emit_asm_mov_instruction(function, instruction->data.instruction_push.operand, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
+    //@Bug: I think we need to push r10 to the stack and not to the operand
     emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_push.operand, ASM_TYPE_QUADWORD, assembly);
 
     return INSTRUCTION_FIXED;
