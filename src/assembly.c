@@ -579,7 +579,7 @@ static ResolveType resolve_binary_shift_instruction(AsmNode *function, AsmNode *
 
 static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //CMP instructions cannot have both a source and destination as memory addresses
-  if (instruction->data.instruction_cmp.assembly_type != ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_MEMORY && (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_DATA)) {
+  if (instruction->data.instruction_cmp.assembly_type != ASM_TYPE_DOUBLE && (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_DATA) && (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_DATA)) {
     emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_1, assembly->register_r10, instruction->data.instruction_cmp.assembly_type, assembly);
     emit_asm_cmp_instruction(function, assembly->register_r10, instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, assembly);
 
