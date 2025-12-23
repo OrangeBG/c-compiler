@@ -530,7 +530,7 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
 
 static ResolveType resolve_binary_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //ADD and SUB instructions cannot have both a source and destination as memory addresses
-  if (instruction->data.instruction_binary.operand_1->type != ASM_OPERAND_MEMORY || instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_MEMORY) {
+  if ((instruction->data.instruction_binary.operand_1->type != ASM_OPERAND_MEMORY && instruction->data.instruction_binary.operand_1->type != ASM_OPERAND_DATA) || (instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_MEMORY && instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_DATA)) {
     return INSTRUCTION_NOT_FIXED;
   }
 
