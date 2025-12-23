@@ -1744,6 +1744,12 @@ static Declarator* parse_declarator(Parser *parser) {
         expect(parser, TOKEN_COMMA);
 
         Specifier next_parameter_specifier = parse_specifier(parser, true);
+
+        if (!next_parameter_specifier.specifier_type_found) {
+          fprintf(stderr, "ERROR - Parser: Parameter specifier not found. (Line %d)\n", current_token(parser)->line);
+          exit(1);
+        }
+
         param_declarator = parse_declarator(parser);
 
         add_function_parameter_to_declarator(function_declarator, next_parameter_specifier.specifier_type, param_declarator);
