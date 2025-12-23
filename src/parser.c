@@ -613,6 +613,12 @@ static void parse_program(Parser *parser, AstNode *program_node) {
 
 static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   Specifier specifier = parse_specifier(parser, false);
+
+  if (!specifier.specifier_type_found) {
+    fprintf(stderr, "ERROR - Parser: Declaration type not specified (line %d)\n", current_token(parser)->line);
+    exit(1);
+  }
+  
   Declarator *declarator = parse_declarator(parser);
 
   //TODO: Look into not needing to alloc this type. Can it be derived from specifier?
