@@ -22,6 +22,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_BITWISE_RIGHT_SHIFT_EQUAL",
   "TOKEN_BREAK",
   "TOKEN_CLOSE_BRACE",
+  "TOKEN_CLOSE_BRACKET",
   "TOKEN_CLOSE_PAREN",
   "TOKEN_COLON",
   "TOKEN_COMMA",
@@ -53,6 +54,7 @@ const char* TokenTypeStr[] = {
   "TOKEN_NEGATION_EQUAL",
   "TOKEN_OPEN_PAREN",
   "TOKEN_OPEN_BRACE",
+  "TOKEN_OPEN_BRACKET",
   "TOKEN_PERCENT",
   "TOKEN_PERCENT_EQUAL",
   "TOKEN_PLUS",
@@ -139,6 +141,8 @@ void load_tokens(Lexer *lexer, char *file) {
       case '?': add_token(TOKEN_QUESTION_MARK, lexer); break;
       case ':': add_token(TOKEN_COLON, lexer); break;
       case ',': add_token(TOKEN_COMMA, lexer); break;
+      case '[': add_token(TOKEN_OPEN_BRACKET, lexer); break;
+      case ']': add_token(TOKEN_CLOSE_BRACKET, lexer); break;
       case '+': {
           if (peek_next(lexer, file, '+')) {
             lexer->current_index++;
