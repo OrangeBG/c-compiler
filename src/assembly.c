@@ -609,6 +609,7 @@ static ResolveType resolve_mov_instruction(AsmNode *function, AsmNode *instructi
     //MOV and MOVSD instructions cannot have both a source and destination as memory addresses
     if ((instruction->data.instruction_mov.destination->type != ASM_OPERAND_MEMORY || instruction->data.instruction_mov.source->type != ASM_OPERAND_MEMORY) &&
         (instruction->data.instruction_mov.destination->type != ASM_OPERAND_MEMORY || instruction->data.instruction_mov.source->type != ASM_OPERAND_DATA) &&
+        (instruction->data.instruction_mov.destination->type != ASM_OPERAND_DATA || instruction->data.instruction_mov.source->type != ASM_OPERAND_DATA) &&
         (instruction->data.instruction_mov.destination->type != ASM_OPERAND_DATA || instruction->data.instruction_mov.source->type != ASM_OPERAND_IMM) &&
         (instruction->data.instruction_mov.destination->type != ASM_OPERAND_DATA || instruction->data.instruction_mov.source->type != ASM_OPERAND_MEMORY)) {
       return INSTRUCTION_NOT_FIXED;
