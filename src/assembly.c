@@ -1265,7 +1265,7 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
 
   AsmNode *imm_operand = create_signed_imm_operand(0, assembly);
 
-  if (source_1_type == ASM_TYPE_DOUBLE && source_2_type == ASM_TYPE_DOUBLE) {
+  if (source_1_type == ASM_TYPE_DOUBLE || source_2_type == ASM_TYPE_DOUBLE) {
     emit_asm_mov_instruction(asm_function, imm_operand, destination_node, ASM_TYPE_LONGWORD, assembly);
   } else {
     emit_asm_mov_instruction(asm_function, imm_operand, destination_node, destination_type, assembly);
