@@ -209,7 +209,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
 static Assembly* init_assembly(DeclarationSymbolTable *declaration_symbol_table) {
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
-  arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 1000, true);
+  arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 10000, true);
 
   AsmNodePointers *top_level_declarations = malloc(sizeof(AsmNodePointers));
   init_node_pointer(top_level_declarations);  
@@ -1404,6 +1404,8 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
   function_call_args->stack_arguments = calloc(1, sizeof(StackArgumentList));
   function_call_args->stack_arguments->arguments = malloc(sizeof(AsmNode));
   function_call_args->stack_arguments->argument_types= malloc(sizeof(AsmType));
+  function_call_args->double_register_count = 0;
+  function_call_args->int_register_count = 0;
 
   create_function_call_arguments(function_call_args, ir_function_call_instruction, assembly);
 
