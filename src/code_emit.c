@@ -354,7 +354,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "\t"); 
       if (asm_node->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_cvttsd2si.source_operand, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
+        print_register(file, asm_node->data.instruction_cvttsd2si.source_operand, ASM_TYPE_DOUBLE);
       } else {
         save_assembly_file(asm_node->data.instruction_cvttsd2si.source_operand, file);
       }

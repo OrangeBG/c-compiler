@@ -53,3 +53,4 @@
 	- Look into implementing Global Offset Table - pg 221 - Sandler Nora
 	- Implement NaN - pg 342
 	- Implement function pointers
+	- Variable length array
