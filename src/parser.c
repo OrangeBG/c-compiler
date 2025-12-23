@@ -621,6 +621,11 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   
   Declarator *declarator = parse_declarator(parser);
 
+  if (declarator == NULL) {
+    fprintf(stderr, "ERROR - Parser: Invalid declaration. (Line %d)\n", current_token(parser)->line);
+    exit(1);
+  }
+
   //TODO: Look into not needing to alloc this type. Can it be derived from specifier?
   TypeNode *base_type = arena_alloc(parser->type_arena);
   base_type->type = specifier.specifier_type;  
