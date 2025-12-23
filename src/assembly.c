@@ -1243,7 +1243,12 @@ static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *
 
   AsmNode *imm = create_signed_imm_operand(0, assembly);
 
-  emit_asm_mov_instruction(asm_function, imm, destination_node, destination_type, assembly);
+  if (destination_type == ASM_TYPE_DOUBLE) {
+    emit_asm_mov_instruction(asm_function, imm, destination_node, ASM_TYPE_QUADWORD, assembly);
+  } else {
+    emit_asm_mov_instruction(asm_function, imm, destination_node, destination_type, assembly);
+  }
+
   emit_asm_setcc_instruction(asm_function, ASM_CONDITION_EQUAL, destination_node, assembly);
 }
 
