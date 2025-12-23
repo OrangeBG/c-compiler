@@ -1587,8 +1587,8 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
 
   TokenType type_specifiers[4];
   int type_specifier_count = 0;
-  int unsigned_count = 0;
-  int signed_count = 0;
+  bool has_unsigned_specifier = false;
+  bool has_signed_specifier = false;
 
   specifier.storage_class_type = AST_STORAGE_CLASS_NONE;
 
@@ -1628,9 +1628,19 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       case TOKEN_LONG:
       case TOKEN_DOUBLE: {
         if (current_token(parser)->type == TOKEN_UNSIGNED) {
-          unsigned_count++;
+          if (has_unsigned_specifier) {
+            fprintf(stderr, "ERROR - Parser: Cannot declare unsigned specifier more than once. (Line %d)\n", current_token(parser)->line);
+            exit(1);
+          }
+
+          has_unsigned_specifier = true;
         } else if (current_token(parser)->type == TOKEN_SIGNED) {
-          signed_count++;
+          if (has_signed_specifier) {
+            fprintf(stderr, "ERROR - Parser: Cannot declare signed specifier more than once. (Line %d)\n", current_token(parser)->line);
+            exit(1);
+          }
+
+          has_signed_specifier = true;
         }
         
         type_specifiers[type_specifier_count] = current_token(parser)->type;
@@ -1645,20 +1655,15 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
 
   specifier.specifier_type_found = type_specifier_count == 0 ? false : true;
 
-  if (unsigned_count >= 1 && signed_count > 0) {
-    fprintf(stderr, "ERROR - Parser: Unsigned type contains invalid specifier. Line %d\n", current_token(parser)->line);
-    exit(1);
-  }
-
-  if (signed_count >= 1 && unsigned_count > 0) {
-    fprintf(stderr, "ERROR - Parser: Signed type contains invalid specifier. Line %d\n", current_token(parser)->line);
+  if (has_signed_specifier && has_unsigned_specifier) {
+    fprintf(stderr, "ERROR - Parser: Cannot have both signed and unsigned specifier. (Line %d)\n", current_token(parser)->line);
     exit(1);
   }
 
   for (int i = 0; i < type_specifier_count; i++) {
     if (type_specifiers[i] == TOKEN_DOUBLE) {
       if (type_specifier_count > 1) {
-        fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. Line %d\n", current_token(parser)->line);
+        fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. (Line %d)\n", current_token(parser)->line);
         exit(1);
       } else {
         specifier.specifier_type = TYPE_DOUBLE;
@@ -1667,7 +1672,7 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
     }
     
     if (type_specifiers[i] == TOKEN_LONG) {
-      if (unsigned_count) {
+      if (has_unsigned_specifier) {
         specifier.specifier_type = TYPE_ULONG;
       } else {
         specifier.specifier_type = TYPE_LONG;
@@ -1677,7 +1682,7 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
     }
 
     if (type_specifiers[i] == TOKEN_INT ) {
-      if (unsigned_count) {
+      if (has_unsigned_specifier) {
         specifier.specifier_type = TYPE_UINT;
       } else {
         specifier.specifier_type = TYPE_INT;
@@ -1685,7 +1690,7 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
     }
   }
 
-  if (unsigned_count) {
+  if (has_unsigned_specifier) {
     specifier.specifier_type = TYPE_UINT;
   } else {
     specifier.specifier_type = TYPE_INT;
