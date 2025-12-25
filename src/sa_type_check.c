@@ -68,6 +68,11 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       if (entry != NULL && entry->key != NULL) {
         DeclarationSymbol *existing_function_symbol = entry->value->structure;
 
+        if (existing_function_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
+          fprintf(stderr, "ERROR - SA Type Check: '%s' declared as variable\n", entry->key);
+          exit(1);
+        }
+
         if (existing_function_symbol->data.function_symbol->value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {
           fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
           exit(1);
