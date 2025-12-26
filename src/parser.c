@@ -83,6 +83,8 @@ static Declarator*  parse_declarator(Parser *parser);
 static AbstractDeclarator* parse_abstract_declarator(Parser *parser); 
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
+static void         parse_initializer(Parser *parser, AstNode *initializer_node); 
+static void         parse_compound_initializer(Parser *parser, AstNode *initializer_node, int *compound_count); 
 static void         parse_block(Parser *parser, AstNode *block_node);
 static void         parse_statement(Parser *parser, AstNode **statement_node);
 static void         parse_statement_null(Parser *parser, AstNode *statement_node);
@@ -734,14 +736,57 @@ static void parse_variable_declaration(Parser *parser, AstNode *variable_node, S
     //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
     parser->current_token_index--;
 
-    AstNode *expression_node = arena_alloc(parser->node_arena);
-    parse_expression(parser, &expression_node, 0);
+    // AstNode *expression_node = arena_alloc(parser->node_arena);
+    // parse_expression(parser, &expression_node, 0);
 
-    variable_node->data.declaration_variable.has_expression = true;
-    variable_node->data.declaration_variable.init_expression = expression_node;
+    // variable_node->data.declaration_variable.has_expression = true;
+    // variable_node->data.declaration_variable.init_expression = expression_node;
+
+    AstNode *initializer_node = arena_alloc(parser->node_arena);
+    parse_initializer(parser, initializer_node);
   }
 
   expect(parser, TOKEN_SEMICOLON);
+}
+
+static void parse_initializer(Parser *parser, AstNode *initializer_node) {
+  if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
+    expect(parser, TOKEN_OPEN_BRACE);
+
+    initializer_node->data.initializer.type = AST_INITIALIZER_COMPOUND;
+    initializer_node->data.initializer.initializer_node.compound_capacity = 0;
+    initializer_node->data.initializer.initializer_node.compound_count = 0;
+    
+    parse_initializer(parser, initializer_node);
+
+    AstNode *next_initializer_node = arena_alloc(parser->node_arena);
+    initializer_node->data.initializer.initializer_node.compound_initializer = next_initializer_node;
+
+    expect(parser, TOKEN_CLOSE_BRACE);
+    return;
+  }
+
+  AstNode *expression_node = arena_alloc(parser->node_arena);
+  parse_expression(parser, &expression_node, 0);
+
+  initializer_node->data.initializer.type = AST_INITIALIZER_SINGLE;
+  initializer_node->data.initializer.initializer_node.single_init_expression = expression_node;
+}
+
+static void parse_compound_initializer(Parser *parser, AstNode *initializer_node, int *compound_count) {
+  if (current_token(parser)->type != TOKEN_COMMA) {
+    return;
+  }
+
+  expect(parser, TOKEN_COMMA);
+
+  if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
+    return;
+  }
+  
+  AstNode *expression_node = arena_alloc(parser->node_arena);
+  parse_expression(parser, &expression_node, 0);
+
 }
 
 static void parse_block(Parser *parser, AstNode *block_node) {
@@ -1872,4 +1917,3 @@ static void add_function_parameter_identifier_to_declarator_results(char *identi
   declarator_results->param_identifiers[declarator_results->param_identifiers_count] = identifier;
   declarator_results->param_identifiers_count++;
 }
-
