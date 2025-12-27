@@ -82,6 +82,9 @@ typedef struct AbstractDeclarator {
 static void         parse_program(Parser *parser, AstNode *program_node);
 static void         parse_declaration(Parser *parser, AstNode *declaration_node); 
 static Declarator*  parse_declarator(Parser *parser); 
+static Declarator*  parse_direct_declarator(Parser *parser);
+static Declarator*  parse_simple_declarator(Parser *parser);
+static Declarator*  parse_declarator_suffix(Parser *parser);   
 static AbstractDeclarator* parse_abstract_declarator(Parser *parser); 
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
@@ -1759,6 +1762,25 @@ static Declarator* parse_declarator(Parser *parser) {
     return pointer_declarator;
   }
 
+  return parse_direct_declarator(parser);
+}
+
+static Declarator* parse_direct_declarator(Parser *parser){
+  Declarator *simple_declarator = parse_simple_declarator(parser);
+  Declarator *suffix = parse_declarator_suffix(parser);
+}
+
+static Declarator* parse_simple_declarator(Parser *parser) {
+  if (current_token(parser)->type == TOKEN_IDENTIFIER) {
+    char *identifier = get_identifier(parser);
+
+    Declarator *identifier_declarator = malloc(sizeof(Declarator));
+    identifier_declarator->type = DECLARATOR_TYPE_IDENTIFIER;
+    identifier_declarator->data.identifier.identifier = identifier;
+
+    return identifier_declarator;
+  }
+  
   //Supports casted declarations like '*(var)'
   if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
     expect(parser, TOKEN_OPEN_PAREN);
@@ -1767,50 +1789,10 @@ static Declarator* parse_declarator(Parser *parser) {
     return declarator;
   }
 
-  if (current_token(parser)->type == TOKEN_IDENTIFIER) {
-    char *identifier = get_identifier(parser);
-    Declarator *identifier_declarator = malloc(sizeof(Declarator));
-    identifier_declarator->type = DECLARATOR_TYPE_IDENTIFIER;
-    identifier_declarator->data.identifier.identifier = identifier;
+  return NULL;  
+}
 
-    if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
-      expect(parser, TOKEN_OPEN_PAREN);
-
-      Declarator *function_declarator = malloc(sizeof(Declarator));
-      function_declarator->type = DECLARATOR_FUNCTION;
-      function_declarator->data.function_declarator.declarator = identifier_declarator;
-      function_declarator->data.function_declarator.param_capacity = 0;
-      function_declarator->data.function_declarator.param_count = 0;
-      function_declarator->data.function_declarator.declarator_parameters = NULL;
-
-      Specifier parameter_specifier = parse_specifier(parser, true);
-      Declarator *param_declarator = parse_declarator(parser);
-
-      add_function_parameter_to_declarator(function_declarator, parameter_specifier.specifier_type, param_declarator);
-
-      while(current_token(parser)->type == TOKEN_COMMA) {
-        expect(parser, TOKEN_COMMA);
-
-        Specifier next_parameter_specifier = parse_specifier(parser, true);
-
-        if (!next_parameter_specifier.specifier_type_found) {
-          fprintf(stderr, "ERROR - Parser: Parameter specifier not found. (Line %d)\n", current_token(parser)->line);
-          exit(1);
-        }
-
-        param_declarator = parse_declarator(parser);
-
-        add_function_parameter_to_declarator(function_declarator, next_parameter_specifier.specifier_type, param_declarator);
-      }
-
-      expect(parser, TOKEN_CLOSE_PAREN);
-
-      return function_declarator;
-    } else {
-      return identifier_declarator;
-    }
-  }
-
+static Declarator* parse_declarator_suffix(Parser *parser) {  
   if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
     expect(parser, TOKEN_OPEN_BRACE);
 
@@ -1822,7 +1804,7 @@ static Declarator* parse_declarator(Parser *parser) {
     char constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index - 2)];
     strncpy(constant_slice, parser->file + previous_token(parser)->start_index, ((previous_token(parser)->end_index ) - previous_token(parser)->start_index) + 1);
     constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index) + 1] = '\0';
-    
+  
     char *end_pointer;
 
     switch(current_token(parser)->type) {
@@ -1842,11 +1824,146 @@ static Declarator* parse_declarator(Parser *parser) {
     parser->current_token_index++;
     expect(parser, TOKEN_CLOSE_BRACE);
 
+    array_declarator->data.array_declarator.declarator = parse_declarator_suffix(parser);
+
     return array_declarator;
+  }
+
+  if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+    expect(parser, TOKEN_OPEN_PAREN);
+    
+    Declarator *function_declarator = malloc(sizeof(Declarator));
+    function_declarator->type = DECLARATOR_FUNCTION;
+    // function_declarator->data.function_declarator.declarator = identifier_declarator;
+    function_declarator->data.function_declarator.param_capacity = 0;
+    function_declarator->data.function_declarator.param_count = 0;
+    function_declarator->data.function_declarator.declarator_parameters = NULL;
+
+    Specifier parameter_specifier = parse_specifier(parser, true);
+    Declarator *param_declarator = parse_declarator(parser);
+
+    add_function_parameter_to_declarator(function_declarator, parameter_specifier.specifier_type, param_declarator);
+
+    while(current_token(parser)->type == TOKEN_COMMA) {
+      expect(parser, TOKEN_COMMA);
+
+      Specifier next_parameter_specifier = parse_specifier(parser, true);
+
+      if (!next_parameter_specifier.specifier_type_found) {
+        fprintf(stderr, "ERROR - Parser: Parameter specifier not found. (Line %d)\n", current_token(parser)->line);
+        exit(1);
+      }
+
+      param_declarator = parse_declarator(parser);
+
+      add_function_parameter_to_declarator(function_declarator, next_parameter_specifier.specifier_type, param_declarator);
+    }
+
+    expect(parser, TOKEN_CLOSE_PAREN);
   }
 
   return NULL;
 }
+
+// static Declarator* parse_declarator(Parser *parser) {
+//   if (current_token(parser)->type == TOKEN_ASTERISK) {
+//     expect(parser, TOKEN_ASTERISK);
+
+//     Declarator *pointer_declarator = malloc(sizeof(Declarator));    
+//     pointer_declarator->type = DECLARATOR_TYPE_POINTER;
+//     pointer_declarator->data.pointer_declaration.declarator = parse_declarator(parser);  
+
+//     return pointer_declarator;
+//   }
+
+//   //Supports casted declarations like '*(var)'
+//   if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+//     expect(parser, TOKEN_OPEN_PAREN);
+//     Declarator *declarator = parse_declarator(parser);
+//     expect(parser, TOKEN_CLOSE_PAREN);
+//     return declarator;
+//   }
+
+//   if (current_token(parser)->type == TOKEN_IDENTIFIER) {
+//     char *identifier = get_identifier(parser);
+//     Declarator *identifier_declarator = malloc(sizeof(Declarator));
+//     identifier_declarator->type = DECLARATOR_TYPE_IDENTIFIER;
+//     identifier_declarator->data.identifier.identifier = identifier;
+
+//     if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+//       expect(parser, TOKEN_OPEN_PAREN);
+
+//       Declarator *function_declarator = malloc(sizeof(Declarator));
+//       function_declarator->type = DECLARATOR_FUNCTION;
+//       function_declarator->data.function_declarator.declarator = identifier_declarator;
+//       function_declarator->data.function_declarator.param_capacity = 0;
+//       function_declarator->data.function_declarator.param_count = 0;
+//       function_declarator->data.function_declarator.declarator_parameters = NULL;
+
+//       Specifier parameter_specifier = parse_specifier(parser, true);
+//       Declarator *param_declarator = parse_declarator(parser);
+
+//       add_function_parameter_to_declarator(function_declarator, parameter_specifier.specifier_type, param_declarator);
+
+//       while(current_token(parser)->type == TOKEN_COMMA) {
+//         expect(parser, TOKEN_COMMA);
+
+//         Specifier next_parameter_specifier = parse_specifier(parser, true);
+
+//         if (!next_parameter_specifier.specifier_type_found) {
+//           fprintf(stderr, "ERROR - Parser: Parameter specifier not found. (Line %d)\n", current_token(parser)->line);
+//           exit(1);
+//         }
+
+//         param_declarator = parse_declarator(parser);
+
+//         add_function_parameter_to_declarator(function_declarator, next_parameter_specifier.specifier_type, param_declarator);
+//       }
+
+//       expect(parser, TOKEN_CLOSE_PAREN);
+
+//       return function_declarator;
+//     } else {
+//       return identifier_declarator;
+//     }
+//   }
+
+//   if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
+//     expect(parser, TOKEN_OPEN_BRACE);
+
+//     Declarator *array_declarator = malloc(sizeof(Declarator));
+//     array_declarator->type = DECLARATOR_TYPE_ARRAY;
+
+//     //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
+
+//     char constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index - 2)];
+//     strncpy(constant_slice, parser->file + previous_token(parser)->start_index, ((previous_token(parser)->end_index ) - previous_token(parser)->start_index) + 1);
+//     constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index) + 1] = '\0';
+    
+//     char *end_pointer;
+
+//     switch(current_token(parser)->type) {
+//       case TOKEN_CONSTANT_UNSIGNED_LONG:        
+//         array_declarator->data.array_declarator.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+//         break;
+//       case TOKEN_CONSTANT_INT:
+//       case TOKEN_CONSTANT_LONG:
+//       case TOKEN_CONSTANT_UNSIGNED_INT:        
+//         array_declarator->data.array_declarator.size = strtol(constant_slice, &end_pointer, BASE_TEN);
+//         break;
+//       default:
+//         fprintf(stderr, "ERROR - Parser: Unsupported array size type. (Line %d)", current_token(parser)->line);
+//         break;
+//     }
+
+//     parser->current_token_index++;
+//     expect(parser, TOKEN_CLOSE_BRACE);
+
+//     return array_declarator;
+//   }
+
+//   return NULL;
+// }
 
 static int get_precedence(TokenType token_type) {
   switch (token_type) {
