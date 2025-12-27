@@ -37,6 +37,7 @@ typedef struct Declarator Declarator;
 typedef enum {
   DECLARATOR_TYPE_IDENTIFIER,
   DECLARATOR_TYPE_POINTER,
+  DECLARATOR_TYPE_ARRAY,
   DECLARATOR_FUNCTION
 } DeclaratorType;
 
@@ -50,6 +51,7 @@ typedef struct Declarator {
   union {
     struct Identifier { char* identifier; } identifier;
     struct PointerDeclarator { Declarator *declarator; } pointer_declaration;
+    struct ArrayDeclarator { Declarator *declarator; unsigned long size; } array_declarator;
     struct FunctionDeclarator { DeclaratorParameter *declarator_parameters; int param_count; int param_capacity; Declarator *declarator; } function_declarator;
   } data;  
 } Declarator;
@@ -1758,8 +1760,7 @@ static Declarator* parse_declarator(Parser *parser) {
   }
 
   //Supports casted declarations like '*(var)'
-  if (current_token(parser)->type == TOKEN_OPEN_PAREN)
-  {
+  if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
     expect(parser, TOKEN_OPEN_PAREN);
     Declarator *declarator = parse_declarator(parser);
     expect(parser, TOKEN_CLOSE_PAREN);
@@ -1808,6 +1809,40 @@ static Declarator* parse_declarator(Parser *parser) {
     } else {
       return identifier_declarator;
     }
+  }
+
+  if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
+    expect(parser, TOKEN_OPEN_BRACE);
+
+    Declarator *array_declarator = malloc(sizeof(Declarator));
+    array_declarator->type = DECLARATOR_TYPE_ARRAY;
+
+    //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
+
+    char constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index - 2)];
+    strncpy(constant_slice, parser->file + previous_token(parser)->start_index, ((previous_token(parser)->end_index ) - previous_token(parser)->start_index) + 1);
+    constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index) + 1] = '\0';
+    
+    char *end_pointer;
+
+    switch(current_token(parser)->type) {
+      case TOKEN_CONSTANT_UNSIGNED_LONG:        
+        array_declarator->data.array_declarator.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+        break;
+      case TOKEN_CONSTANT_INT:
+      case TOKEN_CONSTANT_LONG:
+      case TOKEN_CONSTANT_UNSIGNED_INT:        
+        array_declarator->data.array_declarator.size = strtol(constant_slice, &end_pointer, BASE_TEN);
+        break;
+      default:
+        fprintf(stderr, "ERROR - Parser: Unsupported array size type. (Line %d)", current_token(parser)->line);
+        break;
+    }
+
+    parser->current_token_index++;
+    expect(parser, TOKEN_CLOSE_BRACE);
+
+    return array_declarator;
   }
 
   return NULL;
