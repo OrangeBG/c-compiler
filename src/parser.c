@@ -7,12 +7,12 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "../include/lexer.h"
-#include "types.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
 #define FUNCTION_IDENTIFIER_INIT_CAPACITY 4
 #define FUNCTION_DECLARATOR_INIT_CAPACITY 4
+#define COMPOUND_INITIALIZER_CAPACITY 4
 #define NODE_POINTER_CAPACITY 8
 #define BASE_TEN 10
 
@@ -84,7 +84,6 @@ static AbstractDeclarator* parse_abstract_declarator(Parser *parser);
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_initializer(Parser *parser, AstNode *initializer_node); 
-static void         parse_compound_initializer(Parser *parser, AstNode *initializer_node, int *compound_count); 
 static void         parse_block(Parser *parser, AstNode *block_node);
 static void         parse_statement(Parser *parser, AstNode **statement_node);
 static void         parse_statement_null(Parser *parser, AstNode *statement_node);
@@ -128,6 +127,7 @@ static int          get_precedence(TokenType token_type);
 static void         add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 static void         add_function_parameter_to_declarator(Declarator *function_declarator, Types param_type, Declarator *param_declarator); 
 static void         add_function_parameter_identifier_to_declarator_results(char *identifier, DeclaratorResults *declarator_results);   
+static void         add_compound_initializer(AstNode *compound_initializer_node, AstNode *initializer); 
 static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, TypeNode *base_type); 
 static TypeNode*     process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type);
 
@@ -760,7 +760,20 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
     parse_initializer(parser, initializer_node);
 
     AstNode *next_initializer_node = arena_alloc(parser->node_arena);
-    initializer_node->data.initializer.initializer_node.compound_initializer = next_initializer_node;
+    parse_expression(parser, &next_initializer_node, 0);
+    add_compound_initializer(initializer_node, next_initializer_node);
+
+    while(current_token(parser)->type == TOKEN_COMMA) {
+      expect(parser, TOKEN_COMMA);
+
+      if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
+        break;
+      }
+
+      next_initializer_node = arena_alloc(parser->node_arena);
+      parse_initializer(parser, next_initializer_node);      
+      add_compound_initializer(initializer_node, next_initializer_node);
+    }
 
     expect(parser, TOKEN_CLOSE_BRACE);
     return;
@@ -771,22 +784,6 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
 
   initializer_node->data.initializer.type = AST_INITIALIZER_SINGLE;
   initializer_node->data.initializer.initializer_node.single_init_expression = expression_node;
-}
-
-static void parse_compound_initializer(Parser *parser, AstNode *initializer_node, int *compound_count) {
-  if (current_token(parser)->type != TOKEN_COMMA) {
-    return;
-  }
-
-  expect(parser, TOKEN_COMMA);
-
-  if (current_token(parser)->type == TOKEN_CLOSE_BRACE) {
-    return;
-  }
-  
-  AstNode *expression_node = arena_alloc(parser->node_arena);
-  parse_expression(parser, &expression_node, 0);
-
 }
 
 static void parse_block(Parser *parser, AstNode *block_node) {
@@ -1916,4 +1913,15 @@ static void add_function_parameter_identifier_to_declarator_results(char *identi
 
   declarator_results->param_identifiers[declarator_results->param_identifiers_count] = identifier;
   declarator_results->param_identifiers_count++;
+}
+
+static void add_compound_initializer(AstNode *compound_initializer_node, AstNode *initializer) {
+  if (compound_initializer_node->data.initializer.initializer_node.compound_count == compound_initializer_node->data.initializer.initializer_node.compound_capacity) {
+    int size = compound_initializer_node->data.initializer.initializer_node.compound_capacity == 0 ? COMPOUND_INITIALIZER_CAPACITY : compound_initializer_node->data.initializer.initializer_node.compound_capacity * 2;
+    compound_initializer_node->data.initializer.initializer_node.compound_capacity = size;
+    compound_initializer_node->data.initializer.initializer_node.compound_initializer = realloc(compound_initializer_node->data.initializer.initializer_node.compound_initializer, size * sizeof(char*));
+  }
+
+  compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.initializer_node.compound_count] = *initializer;
+  compound_initializer_node->data.initializer.initializer_node.compound_count++;
 }
