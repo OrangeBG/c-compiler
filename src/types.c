@@ -70,6 +70,12 @@ void print_type_node(TypeNode *type_node) {
       print_type_node(type_node->data.pointer_type.reference_type);
       printf(")");
       break;
+    case TYPE_ARRAY:
+      printf("Array(");
+      print_type_node(type_node->data.array_type.element_type);
+      printf(", %lu", type_node->data.array_type.size);
+      printf(")");
+      break;
     default:
       fprintf(stderr, "ERROR - Parser: Could not find Type '%d' when printing\n", type_node->type);
       exit(1);

@@ -7,6 +7,7 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "../include/lexer.h"
+#include "types.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -664,6 +665,14 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
       pointer_type->data.pointer_type.reference_type = base_type;
 
       return process_declarator(parser, declaration_results, declarator->data.pointer_declaration.declarator, pointer_type);
+    }
+    case DECLARATOR_TYPE_ARRAY: {
+      TypeNode *array_type = arena_alloc(parser->type_arena);
+      array_type->type = TYPE_ARRAY;
+      array_type->data.array_type.element_type = base_type;
+      array_type->data.array_type.size = declarator->data.array_declarator.size;
+
+      return process_declarator(parser, declaration_results, declarator->data.array_declarator.declarator, array_type);
     }
     case DECLARATOR_FUNCTION:
       switch(declarator->data.function_declarator.declarator->type) {
@@ -1768,6 +1777,18 @@ static Declarator* parse_declarator(Parser *parser) {
 static Declarator* parse_direct_declarator(Parser *parser){
   Declarator *simple_declarator = parse_simple_declarator(parser);
   Declarator *suffix = parse_declarator_suffix(parser);
+
+  if (suffix != NULL && suffix->type == DECLARATOR_FUNCTION) {
+    suffix->data.function_declarator.declarator = simple_declarator;
+    return suffix;
+  }
+
+  if (suffix != NULL && suffix->type == DECLARATOR_TYPE_ARRAY) {
+    suffix->data.array_declarator.declarator = simple_declarator;
+    return suffix;
+  }
+
+  return simple_declarator;
 }
 
 static Declarator* parse_simple_declarator(Parser *parser) {
@@ -1793,17 +1814,17 @@ static Declarator* parse_simple_declarator(Parser *parser) {
 }
 
 static Declarator* parse_declarator_suffix(Parser *parser) {  
-  if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
-    expect(parser, TOKEN_OPEN_BRACE);
+  if (current_token(parser)->type == TOKEN_OPEN_BRACKET) {
+    expect(parser, TOKEN_OPEN_BRACKET);
 
     Declarator *array_declarator = malloc(sizeof(Declarator));
     array_declarator->type = DECLARATOR_TYPE_ARRAY;
 
     //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
 
-    char constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index - 2)];
-    strncpy(constant_slice, parser->file + previous_token(parser)->start_index, ((previous_token(parser)->end_index ) - previous_token(parser)->start_index) + 1);
-    constant_slice[previous_token(parser)->end_index - (previous_token(parser)->start_index) + 1] = '\0';
+    char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
+    strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
+    constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
   
     char *end_pointer;
 
@@ -1822,7 +1843,7 @@ static Declarator* parse_declarator_suffix(Parser *parser) {
     }
 
     parser->current_token_index++;
-    expect(parser, TOKEN_CLOSE_BRACE);
+    expect(parser, TOKEN_CLOSE_BRACKET);
 
     array_declarator->data.array_declarator.declarator = parse_declarator_suffix(parser);
 
@@ -1860,6 +1881,8 @@ static Declarator* parse_declarator_suffix(Parser *parser) {
     }
 
     expect(parser, TOKEN_CLOSE_PAREN);
+
+    return function_declarator;
   }
 
   return NULL;
