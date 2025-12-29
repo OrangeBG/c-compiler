@@ -107,6 +107,7 @@ static void         parse_expression_postfix(Parser *parser, AstNode *postfix_ex
 static void         parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
 static void         parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
 static void         parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
+static void         parse_expression_unary(Parser *parser, AstNode **unary_expression, AstNode *left_expression, TokenType op_type); 
 static void         parse_factor(Parser *parser, AstNode **factor_node);
 static void         parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type);
 static void         parse_factor_unary(Parser *parser, AstNode *factor_node); 
@@ -1196,6 +1197,11 @@ static void parse_expression_conditional(Parser *parser, AstNode *conditional_ex
   conditional_expression_node->data.expression_conditional.true_expression = middle;
   conditional_expression_node->data.expression_conditional.false_expression = right;
   conditional_expression_node->data.expression_conditional.expression_type = NULL;
+}
+
+static void parse_expression_unary(Parser *parser, AstNode **unary_expression, AstNode *left_expression, TokenType op_type) {
+
+  
 }
 
 static void parse_expression_binary(Parser *parser, AstNode **binary_expression, AstNode *left_expression, TokenType op_type) {
