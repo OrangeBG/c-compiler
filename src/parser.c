@@ -107,8 +107,10 @@ static void         parse_expression_postfix(Parser *parser, AstNode *postfix_ex
 static void         parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
 static void         parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
 static void         parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
-static void         parse_expression_unary(Parser *parser, AstNode **unary_expression, AstNode *left_expression, TokenType op_type); 
 static void         parse_factor(Parser *parser, AstNode **factor_node);
+static void         parse_unary_expression(Parser *parser, AstNode **unary_node); 
+static void         parse_unary_postfix_expression(Parser *parser, AstNode **postfix_node); 
+static void         parse_primary_expression(Parser *parser, AstNode **expression_node); 
 static void         parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type);
 static void         parse_factor_unary(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_prefix_expression(Parser *parser, AstNode *factor_node); 
@@ -523,6 +525,14 @@ void print_ast(const AstNode *node, int whitespace) {
         print_whitespace(whitespace);
         printf("Address Of(\n");        
         print_ast(node->data.expression_address_of.expression, ADD_WHITESPACE);
+        print_whitespace(whitespace);
+        printf(")\n");
+        break;
+      case AST_EXPRESSION_SUBSCRIPT:
+        print_whitespace(whitespace);
+        printf("Subscript(\n");        
+        print_ast(node->data.expression_subscript.expression_1, ADD_WHITESPACE);
+        print_ast(node->data.expression_subscript.expression_2, ADD_WHITESPACE);
         print_whitespace(whitespace);
         printf(")\n");
         break;
@@ -1089,7 +1099,7 @@ static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
 }
 
 static void parse_expression(Parser *parser, AstNode **expression_node, int min_precedence) {
-  parse_factor(parser, expression_node);
+  parse_unary_expression(parser, expression_node);
 
   TokenType next_token = current_token(parser)->type;
 
@@ -1199,11 +1209,6 @@ static void parse_expression_conditional(Parser *parser, AstNode *conditional_ex
   conditional_expression_node->data.expression_conditional.expression_type = NULL;
 }
 
-static void parse_expression_unary(Parser *parser, AstNode **unary_expression, AstNode *left_expression, TokenType op_type) {
-
-  
-}
-
 static void parse_expression_binary(Parser *parser, AstNode **binary_expression, AstNode *left_expression, TokenType op_type) {
   (*binary_expression)->line_number = parser->tokens->line;
   
@@ -1274,6 +1279,86 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
     }
     default:
      return;
+  }
+}
+
+static void parse_unary_expression(Parser *parser, AstNode **unary_node) {
+ if (end_of_file(parser)) {
+    fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
+    exit(1);
+  }
+
+  switch(current_token(parser)->type) {
+    case TOKEN_NEGATION:
+    case TOKEN_BITWISE_NOT:
+    case TOKEN_LOGICAL_NOT:
+      parse_factor_unary(parser, *unary_node); break;
+    case TOKEN_INCREMENT:
+    case TOKEN_DECREMENT:
+      parse_factor_prefix_expression(parser, *unary_node); break;
+    case TOKEN_BITWISE_AND:
+      parse_factor_address_of(parser, *unary_node); break;
+    case TOKEN_ASTERISK:
+      parse_factor_dereference(parser, *unary_node); break;
+    case TOKEN_OPEN_PAREN: {
+      if (is_type_identifier_token(peek_next_token(parser))) {
+        parse_factor_cast_expression(parser, *unary_node); 
+        break;
+      }
+
+      parse_factor_parenthetical_expression(parser, unary_node);
+      break;
+    }
+    default:
+      parse_unary_postfix_expression(parser, unary_node);
+      break;
+  }  
+}
+
+static void parse_unary_postfix_expression(Parser *parser, AstNode **postfix_node) {
+  parse_primary_expression(parser, postfix_node);
+
+  if (current_token(parser)->type != TOKEN_OPEN_BRACKET) {
+    return;
+  }
+
+  expect(parser, TOKEN_OPEN_BRACKET);
+
+  AstNode *subscript_expression = arena_alloc(parser->node_arena);
+  parse_expression(parser, &subscript_expression, 0);
+
+  expect(parser, TOKEN_CLOSE_BRACKET);
+
+  AstNode *subscript_node = arena_alloc(parser->node_arena);
+  subscript_node->type = AST_EXPRESSION_SUBSCRIPT;
+  subscript_node->data.expression_subscript.expression_1 = *postfix_node;
+  subscript_node->data.expression_subscript.expression_2 = subscript_expression;
+
+  *postfix_node = subscript_node;
+}
+
+static void parse_primary_expression(Parser *parser, AstNode **expression_node) {
+  switch(current_token(parser)->type) {
+    case TOKEN_CONSTANT_INT:
+    case TOKEN_CONSTANT_LONG:
+    case TOKEN_CONSTANT_FLOAT:
+    case TOKEN_CONSTANT_UNSIGNED_INT:
+    case TOKEN_CONSTANT_UNSIGNED_LONG:
+      parse_factor_constant(parser, *expression_node, current_token(parser)->type);
+      break;
+    case TOKEN_IDENTIFIER: {    
+      char *identifier = get_identifier(parser);
+
+      switch(current_token(parser)->type) {
+        case TOKEN_OPEN_PAREN: parse_factor_function_call(parser, *expression_node, identifier); break;
+        default:               parse_factor_variable_expression(parser, *expression_node, identifier); break;
+      }      
+      break;
+    }
+    default:
+      fprintf(stderr, "ERROR - Parser: Invalid primary expression (line %d)\n", previous_token(parser)->line);
+      exit(1);
+      break;
   }
 }
 

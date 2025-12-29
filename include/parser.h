@@ -132,6 +132,7 @@ typedef struct AstNode {
     struct CastExpression { TypeNode *target_type; AstNode *expression; } expression_cast;
     struct DereferenceExpression { AstNode *expression; } expression_dereference;
     struct AddressOfExpression { AstNode *expression; } expression_address_of;
+    struct SubscriptExpression { AstNode *expression_1; AstNode *expression_2; } expression_subscript;
   } data;
 } AstNode;
 
