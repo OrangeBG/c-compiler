@@ -12,7 +12,8 @@ typedef enum {
   TYPE_ULONG,
   TYPE_DOUBLE,
   TYPE_FUNCTION,
-  TYPE_POINTER
+  TYPE_POINTER,
+  TYPE_ARRAY
 } Types;
 
 typedef struct TypeNode TypeNode;
@@ -22,6 +23,7 @@ typedef struct TypeNode {
   union {
   struct FunctionType { TypeNode *param_types; int param_type_count; int param_type_capacity; TypeNode *return_type; } function_type;
   struct PointerType { TypeNode *reference_type; } pointer_type;
+  struct ArrayType { TypeNode *element_type; unsigned long size; } array_type;
   } data;
 } TypeNode;
 

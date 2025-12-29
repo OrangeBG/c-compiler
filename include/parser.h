@@ -37,7 +37,8 @@ typedef enum {
   AST_EXPRESSION_PREFIX_DECREMENT,
   AST_EXPRESSION_FUNCTION_CALL,
   AST_EXPRESSION_DEREFERENCE,
-  AST_EXPRESSION_ADDRESS_OF
+  AST_EXPRESSION_ADDRESS_OF,
+  AST_EXPRESSION_SUBSCRIPT
 } NodeType;
 
 typedef enum {
@@ -83,6 +84,11 @@ typedef enum {
   AST_CONSTANT_TYPE_DOUBLE
 } ConstantType;
 
+typedef enum {
+  AST_INITIALIZER_SINGLE,
+  AST_INITIALIZER_COMPOUND
+} InitializerType;
+
 typedef struct {
   int capacity;
   int count;
@@ -102,6 +108,7 @@ typedef struct AstNode {
     //TODO: Seems bad to have param count and have function_type.data.type.function_param_type_count representing the same thing
     struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity; int parameter_identifier_count; AstNode *body_block; TypeNode *function_type; } declaration_function;
     struct VariableDeclaration { char *name; TypeNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } declaration_variable;
+    struct Initializer { InitializerType type; union { AstNode *single_init_expression; AstNode *compound_initializer; int compound_count; int compound_capacity; } initializer_node; } initializer;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } statement_return;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } statement_if;
@@ -125,6 +132,7 @@ typedef struct AstNode {
     struct CastExpression { TypeNode *target_type; AstNode *expression; } expression_cast;
     struct DereferenceExpression { AstNode *expression; } expression_dereference;
     struct AddressOfExpression { AstNode *expression; } expression_address_of;
+    struct SubscriptExpression { AstNode *expression_1; AstNode *expression_2; } expression_subscript;
   } data;
 } AstNode;
 
