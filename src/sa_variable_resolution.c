@@ -149,6 +149,16 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       stack_pop(variable_resolution->declaration_stack);
       break;
     }
+    case AST_INITIALIZER:
+      if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
+        variable_resolve_node(node->data.initializer.initializer_node.single_init_expression, variable_resolution);
+        break;
+      } 
+
+      for (int i = 0; i < node->data.initializer.compound_count; i++) {
+        variable_resolve_node(&node->data.initializer.initializer_node.compound_initializer[i], variable_resolution);
+      }
+      break;
     case AST_EXPRESSION_FUNCTION_CALL: {
       StackValue *declaration_top_stack = stack_top(variable_resolution->declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
