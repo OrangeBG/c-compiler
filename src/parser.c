@@ -236,6 +236,27 @@ void print_ast(const AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")\n");      
       break;
+    case AST_INITIALIZER: {
+      print_whitespace(whitespace);
+      printf("Initializer (\n");
+
+      if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Single (\n");
+        print_whitespace(whitespace);
+        print_ast(node->data.initializer.initializer_node.single_init_expression, ADD_WHITESPACE);
+      } else {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Compound (\n");
+        for (int i = 0; i < node->data.initializer.compound_count; i++) {
+          print_ast(&node->data.initializer.initializer_node.compound_initializer[i], ADD_WHITESPACE);
+        }
+      }
+
+      print_whitespace(whitespace);
+      printf(")\n");      
+      break;
+    }
     case AST_BLOCK:
       print_whitespace(whitespace);
       printf("Block (\n");
@@ -788,15 +809,18 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
   if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
     expect(parser, TOKEN_OPEN_BRACE);
 
+    initializer_node->type = AST_INITIALIZER;
     initializer_node->data.initializer.type = AST_INITIALIZER_COMPOUND;
-    initializer_node->data.initializer.initializer_node.compound_capacity = 0;
-    initializer_node->data.initializer.initializer_node.compound_count = 0;
-    
-    parse_initializer(parser, initializer_node);
+    initializer_node->data.initializer.compound_capacity = 0;
+    initializer_node->data.initializer.compound_count = 0;
+    initializer_node->data.initializer.initializer_node.compound_initializer = NULL;
 
     AstNode *next_initializer_node = arena_alloc(parser->node_arena);
-    parse_expression(parser, &next_initializer_node, 0);
+    parse_initializer(parser, next_initializer_node);
     add_compound_initializer(initializer_node, next_initializer_node);
+
+    //parse_expression(parser, &next_initializer_node, 0);
+    //add_compound_initializer(initializer_node, next_initializer_node);
 
     while(current_token(parser)->type == TOKEN_COMMA) {
       expect(parser, TOKEN_COMMA);
@@ -817,6 +841,7 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
   AstNode *expression_node = arena_alloc(parser->node_arena);
   parse_expression(parser, &expression_node, 0);
 
+  initializer_node->type = AST_INITIALIZER;
   initializer_node->data.initializer.type = AST_INITIALIZER_SINGLE;
   initializer_node->data.initializer.initializer_node.single_init_expression = expression_node;
 }
@@ -2272,12 +2297,12 @@ static void add_function_parameter_identifier_to_declarator_results(char *identi
 }
 
 static void add_compound_initializer(AstNode *compound_initializer_node, AstNode *initializer) {
-  if (compound_initializer_node->data.initializer.initializer_node.compound_count == compound_initializer_node->data.initializer.initializer_node.compound_capacity) {
-    int size = compound_initializer_node->data.initializer.initializer_node.compound_capacity == 0 ? COMPOUND_INITIALIZER_CAPACITY : compound_initializer_node->data.initializer.initializer_node.compound_capacity * 2;
-    compound_initializer_node->data.initializer.initializer_node.compound_capacity = size;
-    compound_initializer_node->data.initializer.initializer_node.compound_initializer = realloc(compound_initializer_node->data.initializer.initializer_node.compound_initializer, size * sizeof(char*));
+  if (compound_initializer_node->data.initializer.compound_count == compound_initializer_node->data.initializer.compound_capacity) {
+    int size = compound_initializer_node->data.initializer.compound_capacity == 0 ? COMPOUND_INITIALIZER_CAPACITY : compound_initializer_node->data.initializer.compound_capacity * 2;
+    compound_initializer_node->data.initializer.compound_capacity = size;
+    compound_initializer_node->data.initializer.initializer_node.compound_initializer = realloc(compound_initializer_node->data.initializer.initializer_node.compound_initializer, size * sizeof(AstNode));
   }
 
-  compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.initializer_node.compound_count] = *initializer;
-  compound_initializer_node->data.initializer.initializer_node.compound_count++;
+  compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.compound_count] = *initializer;
+  compound_initializer_node->data.initializer.compound_count++;
 }

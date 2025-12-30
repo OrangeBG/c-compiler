@@ -12,6 +12,7 @@ typedef enum {
   AST_PROGRAM,
   AST_VARIABLE_DECLARATION,
   AST_FUNCTION_DECLARATION,
+  AST_INITIALIZER,
   AST_BLOCK,
   AST_STATEMENT_RETURN,
   AST_STATEMENT_NULL,
@@ -108,7 +109,7 @@ typedef struct AstNode {
     //TODO: Seems bad to have param count and have function_type.data.type.function_param_type_count representing the same thing
     struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity; int parameter_identifier_count; AstNode *body_block; TypeNode *function_type; } declaration_function;
     struct VariableDeclaration { char *name; TypeNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } declaration_variable;
-    struct Initializer { InitializerType type; union { AstNode *single_init_expression; AstNode *compound_initializer; int compound_count; int compound_capacity; } initializer_node; } initializer;
+    struct Initializer { InitializerType type; union { AstNode *single_init_expression; AstNode *compound_initializer; } initializer_node; int compound_count; int compound_capacity; } initializer;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } statement_return;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } statement_if;
