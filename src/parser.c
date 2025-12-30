@@ -7,7 +7,6 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "../include/lexer.h"
-#include "types.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -68,6 +67,7 @@ typedef struct {
 
 typedef enum {
   ABSTRACT_DECLARATOR_POINTER,
+  ABSTRACT_ARRAY,
   ABSTRACT_DECLARATOR_BASE
 } AbstractDeclaratorType;
 
@@ -77,6 +77,7 @@ typedef struct AbstractDeclarator {
   AbstractDeclaratorType type;
   union {
     struct AbstractPointer { AbstractDeclarator *abstract_declarator; } abstract_pointer;
+    struct AbstractArray { AbstractDeclarator *abstract_declarator; unsigned long size; } abstract_array;
   } data;
 } AbstractDeclarator;
  
@@ -87,6 +88,7 @@ static Declarator*  parse_direct_declarator(Parser *parser);
 static Declarator*  parse_simple_declarator(Parser *parser);
 static Declarator*  parse_declarator_suffix(Parser *parser);   
 static AbstractDeclarator* parse_abstract_declarator(Parser *parser); 
+static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser); 
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
 static void         parse_initializer(Parser *parser, AstNode *initializer_node); 
@@ -234,6 +236,27 @@ void print_ast(const AstNode *node, int whitespace) {
       print_whitespace(whitespace);
       printf(")\n");      
       break;
+    case AST_INITIALIZER: {
+      print_whitespace(whitespace);
+      printf("Initializer (\n");
+
+      if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Single (\n");
+        print_whitespace(whitespace);
+        print_ast(node->data.initializer.initializer_node.single_init_expression, ADD_WHITESPACE);
+      } else {
+        print_whitespace(ADD_WHITESPACE);
+        printf("Compound (\n");
+        for (int i = 0; i < node->data.initializer.compound_count; i++) {
+          print_ast(&node->data.initializer.initializer_node.compound_initializer[i], ADD_WHITESPACE);
+        }
+      }
+
+      print_whitespace(whitespace);
+      printf(")\n");      
+      break;
+    }
     case AST_BLOCK:
       print_whitespace(whitespace);
       printf("Block (\n");
@@ -734,8 +757,7 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
   function_node->data.declaration_function.storage_class_type = storage_class_type;
   function_node->line_number = parser->tokens->line;
 
-  for (int i = 0; i < declaration_results->param_identifiers_count; i++)
-  {
+  for (int i = 0; i < declaration_results->param_identifiers_count; i++) {
     add_function_parameter_identifier(declaration_results->param_identifiers[i], function_node);
   }
 
@@ -758,8 +780,12 @@ static void parse_variable_declaration(Parser *parser, AstNode *variable_node, S
   variable_node->line_number = parser->tokens->line;
 
   if (current_token(parser)->type == TOKEN_EQUAL) {
-    //TODO: Fix as ast_identifier eats the token but we need it to feed into ast_expression();
-    parser->current_token_index--;
+    //@Debt: Fix as ast_identifier eats the token but we need it to feed into ast_expression(); The -=4 are for array subscripts. This is not good and needs to be fixed
+    // if (previous_token(parser)->type == TOKEN_CLOSE_BRACKET) {
+    //   parser->current_token_index -= 4;
+    // } else {
+    //   parser->current_token_index--;
+    // }
 
     // AstNode *expression_node = arena_alloc(parser->node_arena);
     // parse_expression(parser, &expression_node, 0);
@@ -767,8 +793,13 @@ static void parse_variable_declaration(Parser *parser, AstNode *variable_node, S
     // variable_node->data.declaration_variable.has_expression = true;
     // variable_node->data.declaration_variable.init_expression = expression_node;
 
+    expect(parser, TOKEN_EQUAL);
+
     AstNode *initializer_node = arena_alloc(parser->node_arena);
     parse_initializer(parser, initializer_node);
+    
+    variable_node->data.declaration_variable.has_expression = true;
+    variable_node->data.declaration_variable.init_expression = initializer_node;
   }
 
   expect(parser, TOKEN_SEMICOLON);
@@ -778,15 +809,18 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
   if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
     expect(parser, TOKEN_OPEN_BRACE);
 
+    initializer_node->type = AST_INITIALIZER;
     initializer_node->data.initializer.type = AST_INITIALIZER_COMPOUND;
-    initializer_node->data.initializer.initializer_node.compound_capacity = 0;
-    initializer_node->data.initializer.initializer_node.compound_count = 0;
-    
-    parse_initializer(parser, initializer_node);
+    initializer_node->data.initializer.compound_capacity = 0;
+    initializer_node->data.initializer.compound_count = 0;
+    initializer_node->data.initializer.initializer_node.compound_initializer = NULL;
 
     AstNode *next_initializer_node = arena_alloc(parser->node_arena);
-    parse_expression(parser, &next_initializer_node, 0);
+    parse_initializer(parser, next_initializer_node);
     add_compound_initializer(initializer_node, next_initializer_node);
+
+    //parse_expression(parser, &next_initializer_node, 0);
+    //add_compound_initializer(initializer_node, next_initializer_node);
 
     while(current_token(parser)->type == TOKEN_COMMA) {
       expect(parser, TOKEN_COMMA);
@@ -807,6 +841,7 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
   AstNode *expression_node = arena_alloc(parser->node_arena);
   parse_expression(parser, &expression_node, 0);
 
+  initializer_node->type = AST_INITIALIZER;
   initializer_node->data.initializer.type = AST_INITIALIZER_SINGLE;
   initializer_node->data.initializer.initializer_node.single_init_expression = expression_node;
 }
@@ -1617,19 +1652,99 @@ static AbstractDeclarator* parse_abstract_declarator(Parser *parser) {
     return pointer_declarator;
   }
 
+  return parse_direct_abstract_declarator(parser);   
+
+  // if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
+  //   expect(parser, TOKEN_OPEN_PAREN);
+  //   AbstractDeclarator *abstract_declarator = parse_abstract_declarator(parser);
+  //   expect(parser, TOKEN_CLOSE_PAREN);
+
+  //   return abstract_declarator;
+  // }  
+
+  // AbstractDeclarator *base_declarator = malloc(sizeof(AbstractDeclarator));
+  // base_declarator->type = ABSTRACT_DECLARATOR_BASE;
+
+  // return base_declarator;
+}
+
+static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
   if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
     expect(parser, TOKEN_OPEN_PAREN);
     AbstractDeclarator *abstract_declarator = parse_abstract_declarator(parser);
     expect(parser, TOKEN_CLOSE_PAREN);
 
-    return abstract_declarator;
-  }  
+    if (current_token(parser)->type != TOKEN_OPEN_BRACKET) {
+      return abstract_declarator;
+    }
 
+    expect(parser, TOKEN_OPEN_BRACKET);
+        
+    //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
+
+    char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
+    strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
+    constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
+  
+    char *end_pointer;
+    AbstractDeclarator *array_abstract = malloc(sizeof(AbstractDeclarator));
+
+    switch(current_token(parser)->type) {
+      case TOKEN_CONSTANT_UNSIGNED_LONG:        
+        array_abstract->data.abstract_array.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+        break;
+      case TOKEN_CONSTANT_INT:
+      case TOKEN_CONSTANT_LONG:
+      case TOKEN_CONSTANT_UNSIGNED_INT:        
+        array_abstract->data.abstract_array.size = strtol(constant_slice, &end_pointer, BASE_TEN);
+        break;
+      default:
+        fprintf(stderr, "ERROR - Parser: Unsupported array size type. (Line %d)", current_token(parser)->line);
+        break;      
+    }
+
+    parser->current_token_index++;
+    expect(parser, TOKEN_CLOSE_BRACKET);
+
+    array_abstract->data.abstract_array.abstract_declarator = abstract_declarator;
+    return array_abstract;
+  }
+
+  if (current_token(parser)->type == TOKEN_OPEN_BRACKET) {
+    expect(parser, TOKEN_OPEN_BRACKET);
+
+    char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
+    strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
+    constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
+  
+    char *end_pointer;
+    AbstractDeclarator *array_abstract = malloc(sizeof(AbstractDeclarator));
+
+    switch(current_token(parser)->type) {
+      case TOKEN_CONSTANT_UNSIGNED_LONG:        
+        array_abstract->data.abstract_array.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+        break;
+      case TOKEN_CONSTANT_INT:
+      case TOKEN_CONSTANT_LONG:
+      case TOKEN_CONSTANT_UNSIGNED_INT:        
+        array_abstract->data.abstract_array.size = strtol(constant_slice, &end_pointer, BASE_TEN);
+        break;
+      default:
+        fprintf(stderr, "ERROR - Parser: Unsupported array size type. (Line %d)", current_token(parser)->line);
+        break;      
+    }
+    parser->current_token_index++;
+    expect(parser, TOKEN_CLOSE_BRACKET);
+
+    return array_abstract;
+  }
+   
   AbstractDeclarator *base_declarator = malloc(sizeof(AbstractDeclarator));
   base_declarator->type = ABSTRACT_DECLARATOR_BASE;
 
   return base_declarator;
 }
+
 
 static TypeNode* process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type) {
   if (abstract_declarator->type ==  ABSTRACT_DECLARATOR_POINTER) {
@@ -2182,12 +2297,12 @@ static void add_function_parameter_identifier_to_declarator_results(char *identi
 }
 
 static void add_compound_initializer(AstNode *compound_initializer_node, AstNode *initializer) {
-  if (compound_initializer_node->data.initializer.initializer_node.compound_count == compound_initializer_node->data.initializer.initializer_node.compound_capacity) {
-    int size = compound_initializer_node->data.initializer.initializer_node.compound_capacity == 0 ? COMPOUND_INITIALIZER_CAPACITY : compound_initializer_node->data.initializer.initializer_node.compound_capacity * 2;
-    compound_initializer_node->data.initializer.initializer_node.compound_capacity = size;
-    compound_initializer_node->data.initializer.initializer_node.compound_initializer = realloc(compound_initializer_node->data.initializer.initializer_node.compound_initializer, size * sizeof(char*));
+  if (compound_initializer_node->data.initializer.compound_count == compound_initializer_node->data.initializer.compound_capacity) {
+    int size = compound_initializer_node->data.initializer.compound_capacity == 0 ? COMPOUND_INITIALIZER_CAPACITY : compound_initializer_node->data.initializer.compound_capacity * 2;
+    compound_initializer_node->data.initializer.compound_capacity = size;
+    compound_initializer_node->data.initializer.initializer_node.compound_initializer = realloc(compound_initializer_node->data.initializer.initializer_node.compound_initializer, size * sizeof(AstNode));
   }
 
-  compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.initializer_node.compound_count] = *initializer;
-  compound_initializer_node->data.initializer.initializer_node.compound_count++;
+  compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.compound_count] = *initializer;
+  compound_initializer_node->data.initializer.compound_count++;
 }

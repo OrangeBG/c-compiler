@@ -20,7 +20,7 @@ int main(int argc, const char *argv[]) {
    
   //@Temporary: These arguments are to support immediate testing while developing the compiler
   if (argc == 1) {
-    file = load_file("../test-file.txt");
+    file = load_file("../test-file.c");
   } else if (argc == 2) {
     file = load_file(argv[1]);
   } else if (argc == 3) {
