@@ -237,24 +237,21 @@ void print_ast(const AstNode *node, int whitespace) {
       printf(")\n");      
       break;
     case AST_INITIALIZER: {
-      print_whitespace(whitespace);
-      printf("Initializer (\n");
-
       if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
-        print_whitespace(ADD_WHITESPACE);
-        printf("Single (\n");
         print_whitespace(whitespace);
+        printf("Single Init (\n");
         print_ast(node->data.initializer.initializer_node.single_init_expression, ADD_WHITESPACE);
+        print_whitespace(whitespace);
+        printf(")\n");
       } else {
-        print_whitespace(ADD_WHITESPACE);
-        printf("Compound (\n");
+        print_whitespace(whitespace);
+        printf("Compound Init (\n");
         for (int i = 0; i < node->data.initializer.compound_count; i++) {
           print_ast(&node->data.initializer.initializer_node.compound_initializer[i], ADD_WHITESPACE);
         }
+        print_whitespace(whitespace);
+        printf(")\n");
       }
-
-      print_whitespace(whitespace);
-      printf(")\n");      
       break;
     }
     case AST_BLOCK:
