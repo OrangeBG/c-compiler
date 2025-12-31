@@ -2303,3 +2303,26 @@ static void add_compound_initializer(AstNode *compound_initializer_node, AstNode
   compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.compound_count] = *initializer;
   compound_initializer_node->data.initializer.compound_count++;
 }
+
+char* get_binary_op_type_string(BinaryOpType op_type) {
+  switch (op_type) {
+    case AST_BINARY_EQUAL:                return "Equal";
+    case AST_BINARY_NOT_EQUAL:            return "Not Equal";
+    case AST_BINARY_LESS_THAN:            return "Less Than";
+    case AST_BINARY_LESS_OR_EQUAL:        return "Less Equal Than";
+    case AST_BINARY_GREATER_THAN:         return "Greater Than";
+    case AST_BINARY_GREATER_OR_EQUAL:     return "Greater Equal Than";
+    case AST_BINARY_ADD:                  return "Add";
+    case AST_BINARY_SUBTRACT:             return "Subtract";
+    case AST_BINARY_MULTIPLY:             return "Multiply";
+    case AST_BINARY_DIVIDE:               return "Divide";
+    case AST_BINARY_REMAINDER:            return "Modulo";
+    case AST_BINARY_AND:                  return "Logical And";
+    case AST_BINARY_OR:                   return "Local Or";
+    case AST_BINARY_BITWISE_OR:           return "Bitwise OR";
+    case AST_BINARY_BITWISE_AND:          return "Bitwise AND";
+    case AST_BINARY_BITWISE_XOR:          return "Bitwise XOR";
+    case AST_BINARY_BITWISE_LEFT_SHIFT:   return "Bitwise Left Shift";
+    case AST_BINARY_BITWISE_RIGHT_SHIFT:  return "Bitwise Right Shift";
+  }
+}

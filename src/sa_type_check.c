@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <sys/select.h>
 #include "../include/sa_type_check.h"
 #include "../include/arena.h"
 #include "../include/parser.h"
@@ -491,82 +490,37 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *right_expression_type = expression_type_check_and_convert(&node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
 
       if (right_expression_type->type == TYPE_DOUBLE || left_expression_type->type == TYPE_DOUBLE) {
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_OR) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise OR operator with a double value\n");
-          exit(1);
-        } 
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_LEFT_SHIFT) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise left shift operator with a double value\n");
-          exit(1);
+        switch (node->data.expression_binary.op_type) {
+          case AST_BINARY_BITWISE_OR:
+          case AST_BINARY_BITWISE_XOR:
+          case AST_BINARY_BITWISE_RIGHT_SHIFT:
+          case AST_BINARY_BITWISE_LEFT_SHIFT:
+          case AST_BINARY_BITWISE_AND:
+          case AST_BINARY_REMAINDER:
+            fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary %s operator with a double value\n", get_binary_op_type_string(node->data.expression_binary.op_type));
+            exit(1);          
         }
-        
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_RIGHT_SHIFT) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise right shift operator with a double value\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_XOR) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise XOR operator with a double value\n");
-          exit(1);
-        } 
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_AND) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary bitwise AND operator with a double value\n");
-          exit(1);
-        } 
-        
-        if (node->data.expression_binary.op_type == AST_BINARY_REMAINDER) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply modulo operator with a double value\n");
-          exit(1);
-        } 
       }
 
       if (right_expression_type->type == TYPE_POINTER || left_expression_type->type == TYPE_POINTER) {
-        if (node->data.expression_binary.op_type == AST_BINARY_MULTIPLY) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot multiply with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_DIVIDE) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot divide with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_REMAINDER) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply modulo operator with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_AND) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise AND operator with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_XOR) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise XOR operator with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_OR) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise OR operator with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_RIGHT_SHIFT) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise RShift operator with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_BITWISE_LEFT_SHIFT) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot apply bitwise LShift operator with a pointer\n");
-          exit(1);
-        }
-
-        if (node->data.expression_binary.op_type == AST_BINARY_EQUAL && right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
-          fprintf(stderr, "ERROR - SA Type Check: Cannot compare pointers of different types\n");
-          exit(1);
-        }
+        switch (node->data.expression_binary.op_type) {
+          case AST_BINARY_MULTIPLY:
+          case AST_BINARY_DIVIDE:
+          case AST_BINARY_REMAINDER:
+          case AST_BINARY_BITWISE_AND:
+          case AST_BINARY_BITWISE_XOR:
+          case AST_BINARY_OR: 
+          case AST_BINARY_BITWISE_RIGHT_SHIFT:
+          case AST_BINARY_BITWISE_LEFT_SHIFT:
+            fprintf(stderr, "ERROR - SA Type Check: Cannot apply a binary %s operator with a pointer\n", get_binary_op_type_string(node->data.expression_binary.op_type));
+            exit(1);
+          case AST_BINARY_EQUAL:
+            if (right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
+              fprintf(stderr, "ERROR - SA Type Check: Cannot compare pointers of different types\n");
+              exit(1);
+            }
+            break;        
+          }
       }
 
       if (node->data.expression_binary.op_type == AST_BINARY_AND || node->data.expression_binary.op_type == AST_BINARY_OR) {
@@ -721,6 +675,18 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check\n", node->type);
       exit(1);
   }
+}
+
+static TypeNode* expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results) {
+  TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
+  expression_type_node->type = TYPE_INT;
+
+  node->data.expression_binary.expression_type = expression_type_node;
+  return expression_type_node;
+}
+
+static TypeNode* expression_type_check_binary_add() {
+  return NULL;
 }
 
 static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
