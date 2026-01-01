@@ -27,14 +27,26 @@ bool is_type_signed(Types type) {
   }
 }
 
-bool is_arithmetic_type(TypeNode *type) {
-  switch(type->type) {
+bool is_arithmetic_type(TypeNode *type_node) {
+  switch(type_node->type) {
     case TYPE_DOUBLE:
     case TYPE_INT:
     case TYPE_UINT:
     case TYPE_LONG:
     case TYPE_ULONG:
       return true; 
+    default:
+      return false;
+  }
+}
+
+bool is_integer_type(TypeNode *type_node) {
+  switch(type_node->type) {
+    case TYPE_INT:
+    case TYPE_UINT:
+    case TYPE_LONG:
+    case TYPE_ULONG:
+      return true;
     default:
       return false;
   }

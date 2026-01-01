@@ -15,6 +15,10 @@ static void             type_check_file_scope_variable_declaration(AstNode *vari
 static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
 static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
 static TypeNode*        expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
+static TypeNode*        expression_type_check_binary(AstNode *binary_node, AstNode *function_declaration_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results);  
+static TypeNode*        expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results); 
+static TypeNode*        expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type,  DeclarationSymbolTable *declaration_table, ParserResults *parser_results); 
+static TypeNode*        expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results);  
 static TypeNode*        expression_type_check_and_convert(AstNode **node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results);
 static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
 static TypeNode*        get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
@@ -515,6 +519,10 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
             fprintf(stderr, "ERROR - SA Type Check: Cannot apply a binary %s operator with a pointer\n", get_binary_op_type_string(node->data.expression_binary.op_type));
             exit(1);
           case AST_BINARY_EQUAL:
+          case AST_BINARY_LESS_THAN:
+          case AST_BINARY_LESS_OR_EQUAL:
+          case AST_BINARY_GREATER_THAN:
+          case AST_BINARY_GREATER_OR_EQUAL:             
             if (right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
               fprintf(stderr, "ERROR - SA Type Check: Cannot compare pointers of different types\n");
               exit(1);
@@ -523,42 +531,16 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
           }
       }
 
-      if (node->data.expression_binary.op_type == AST_BINARY_AND || node->data.expression_binary.op_type == AST_BINARY_OR) {
-        TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-        expression_type_node->type = TYPE_INT;
-
-        node->data.expression_binary.expression_type = expression_type_node;
-        return expression_type_node;
-      }
-
-      TypeNode *common_type;
-      
-      if ((node->data.expression_binary.op_type == AST_BINARY_EQUAL || node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
-        common_type = get_common_pointer_type(node->data.expression_binary.left_expression, node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
-      } else {
-        common_type = get_common_real_type(left_expression_type, right_expression_type);
-      }
-
-      node->data.expression_binary.left_expression = convert_to(node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
-      node->data.expression_binary.right_expression = convert_to(node->data.expression_binary.right_expression, right_expression_type, common_type, parser_results);
-
-      TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
-      expression_type_node = common_type;
-
-      node->data.expression_binary.expression_type = expression_type_node;
-      
       switch (node->data.expression_binary.op_type) {
+        case AST_BINARY_AND:
+        case AST_BINARY_OR:
+          return expression_type_check_binary_logical(node, parser_results);
         case AST_BINARY_ADD:
+          return expression_type_check_binary_add(node, left_expression_type, right_expression_type, declaration_table, parser_results);
         case AST_BINARY_SUBTRACT:
-        case AST_BINARY_MULTIPLY:
-        case AST_BINARY_DIVIDE:
-        case AST_BINARY_REMAINDER:
-          return expression_type_node;
-        default: {
-          TypeNode *int_type_node = arena_alloc(parser_results->type_node_arena);
-          int_type_node->type = TYPE_INT;
-          return int_type_node;
-        }
+          return expression_type_check_binary_subtract(node, left_expression_type, right_expression_type, declaration_table, parser_results);
+        default:
+          return expression_type_check_binary(node, function_declaration_node, left_expression_type, right_expression_type, declaration_table, parser_results);
       }
     }
     case AST_EXPRESSION_ASSIGNMENT: {
@@ -685,8 +667,96 @@ static TypeNode* expression_type_check_binary_logical(AstNode *node, ParserResul
   return expression_type_node;
 }
 
-static TypeNode* expression_type_check_binary_add() {
-  return NULL;
+static TypeNode* expression_type_check_binary(AstNode *binary_node, AstNode *function_declaration_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results) { 
+  TypeNode *common_type;
+  
+  if ((binary_node->data.expression_binary.op_type == AST_BINARY_EQUAL || binary_node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
+    common_type = get_common_pointer_type(binary_node->data.expression_binary.left_expression, binary_node->data.expression_binary.right_expression, declaration_table, function_declaration_node, parser_results);
+  } else {
+    common_type = get_common_real_type(left_expression_type, right_expression_type);
+  }
+
+  binary_node->data.expression_binary.left_expression = convert_to(binary_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
+  binary_node->data.expression_binary.right_expression = convert_to(binary_node->data.expression_binary.right_expression, right_expression_type, common_type, parser_results);
+
+  TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
+  expression_type_node = common_type;
+
+  binary_node->data.expression_binary.expression_type = expression_type_node;
+  
+  switch (binary_node->data.expression_binary.op_type) {
+    case AST_BINARY_MULTIPLY:
+    case AST_BINARY_DIVIDE:
+    case AST_BINARY_REMAINDER:
+      return expression_type_node;
+    default: {
+      TypeNode *int_type_node = arena_alloc(parser_results->type_node_arena);
+      int_type_node->type = TYPE_INT;
+      return int_type_node;
+    }
+  }
+}
+
+static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results) { 
+  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type);
+
+  if (is_arithmetic_type(left_expression_type) && is_arithmetic_type(right_expression_type)) {
+    add_node->data.expression_binary.left_expression = convert_to(add_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
+    add_node->data.expression_binary.right_expression = convert_to(add_node->data.expression_binary.right_expression, right_expression_type, common_type, parser_results);
+
+    TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
+    expression_type_node = common_type;
+
+    return expression_type_node;
+  }
+
+  //TODO: Look into areas where I'm doing something similar for types that aren't Pointer. No need in allocating the same long, int, etc type nodes. Instead, do it once and point things to it.
+  TypeNode *long_type_node = arena_alloc(parser_results->type_node_arena);
+  long_type_node->type = TYPE_LONG;
+
+  if (left_expression_type->type == TYPE_POINTER && is_integer_type(right_expression_type)) {
+    add_node->data.expression_binary.right_expression = convert_to(add_node->data.expression_binary.right_expression, right_expression_type, long_type_node, parser_results);     
+    return left_expression_type;
+  }
+
+  if (right_expression_type->type == TYPE_POINTER && is_integer_type(left_expression_type)) {
+    add_node->data.expression_binary.left_expression = convert_to(add_node->data.expression_binary.left_expression, left_expression_type, long_type_node, parser_results);     
+    return right_expression_type;
+  }
+
+  fprintf(stderr, "ERROR - SA Type Check: Invalid operands for addition\n");
+  exit(1);
+}
+
+static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results) { 
+  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type);
+
+  if (is_arithmetic_type(left_expression_type) && is_arithmetic_type(right_expression_type)) {
+    subtract_node->data.expression_binary.left_expression = convert_to(subtract_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
+    subtract_node->data.expression_binary.right_expression = convert_to(subtract_node->data.expression_binary.right_expression, right_expression_type, common_type, parser_results);
+
+    TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
+    expression_type_node = common_type;
+
+    return expression_type_node;
+  }
+
+  //TODO: Look into areas where I'm doing something similar for types that aren't Pointer. No need in allocating the same long, int, etc type nodes. Instead, do it once and point things to it.
+  TypeNode *long_type_node = arena_alloc(parser_results->type_node_arena);
+  long_type_node->type = TYPE_LONG;
+
+  if (left_expression_type->type == TYPE_POINTER && is_integer_type(right_expression_type)) {
+    subtract_node->data.expression_binary.right_expression = convert_to(subtract_node->data.expression_binary.right_expression, right_expression_type, long_type_node, parser_results);     
+    return left_expression_type;
+  }
+
+  if (left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) == get_pointer_base_type(right_expression_type)) {
+    subtract_node->data.expression_binary.expression_type = long_type_node;
+    return long_type_node;
+  }
+
+  fprintf(stderr, "ERROR - SA Type Check: Invalid operands for subtraction\n");
+  exit(1);
 }
 
 static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
