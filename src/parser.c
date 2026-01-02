@@ -1716,6 +1716,7 @@ static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
   
     char *end_pointer;
     AbstractDeclarator *array_abstract = malloc(sizeof(AbstractDeclarator));
+    array_abstract->type = ABSTRACT_ARRAY;
 
     switch(current_token(parser)->type) {
       case TOKEN_CONSTANT_UNSIGNED_LONG:        
@@ -1744,12 +1745,21 @@ static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
 
 
 static TypeNode* process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type) {
-  if (abstract_declarator->type ==  ABSTRACT_DECLARATOR_POINTER) {
+  if (abstract_declarator->type == ABSTRACT_DECLARATOR_POINTER) {
     TypeNode *pointer_type = arena_alloc(parser->type_arena);
     pointer_type->type = TYPE_POINTER;
     pointer_type->data.pointer_type.reference_type = base_type;
 
     return process_abstract_declarator(parser, abstract_declarator->data.abstract_pointer.abstract_declarator, pointer_type);
+  }
+
+  if (abstract_declarator->type == ABSTRACT_ARRAY) {
+    TypeNode *pointer_type = arena_alloc(parser->type_arena);
+    pointer_type->type = TYPE_ARRAY;
+    pointer_type->data.array_type.element_type = base_type;
+    pointer_type->data.array_type.size = abstract_declarator->data.abstract_array.size;
+
+    return pointer_type;
   }
 
   return base_type;

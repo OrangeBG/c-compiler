@@ -457,6 +457,11 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
     case AST_EXPRESSION_CAST: {
       TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
+      if (node->data.expression_cast.target_type->type == TYPE_ARRAY) {
+        fprintf(stderr, "ERROR - SA Type Check: Cannot cast to an array type\n");
+        exit(1);
+      }
+      
       if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) == TYPE_DOUBLE) {
         fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
         exit(1);
