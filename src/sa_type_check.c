@@ -671,6 +671,27 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       //TODO: Will this work if it's greater than one level? Example: int** 
       return expression_type->data.pointer_type.reference_type;
     }
+    case AST_EXPRESSION_SUBSCRIPT: {
+      TypeNode *expression_1_type = expression_type_check_and_convert(&node->data.expression_subscript.expression_1, declaration_table, function_declaration_node, parser_results);
+      TypeNode *expression_2_type = expression_type_check_and_convert(&node->data.expression_subscript.expression_2, declaration_table, function_declaration_node, parser_results);
+
+      TypeNode *long_type_node = arena_alloc(parser_results->type_node_arena);
+      long_type_node->type = TYPE_LONG;
+
+      //@Test: Not sure if these returned expression types are correct
+      if (expression_1_type->type == TYPE_POINTER && is_integer_type(expression_2_type)) {
+        node->data.expression_subscript.expression_2 = convert_to(node->data.expression_subscript.expression_2, expression_2_type, long_type_node, parser_results);
+        return expression_1_type;
+      }
+
+      if (expression_2_type->type == TYPE_POINTER && is_integer_type(expression_1_type)) {
+        node->data.expression_subscript.expression_1 = convert_to(node->data.expression_subscript.expression_1, expression_1_type, long_type_node, parser_results);
+        return expression_2_type;
+      }
+
+      fprintf(stderr, "ERROR - SA Type Check: Subscript must have an integer and pointer operand\n");
+      exit(1);
+    }
     default:
       fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check\n", node->type);
       exit(1);
