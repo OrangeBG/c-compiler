@@ -63,6 +63,10 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
 
       if (node->data.declaration_variable.has_expression) {
         function_and_variable_type_check(node->data.declaration_variable.init_expression, declaration_table, function_declaration_node, parser_results);
+
+        //TODO: Something like this will need to get implemented soon
+        // TypeNode *right_expression_type = expression_type_check_and_convert(&node->data.declaration_variable.init_expression, declaration_table, function_declaration_node, parser_results);
+        // node->data.declaration_variable.init_expression = convert_by_assignment(node->data.declaration_variable.init_expression, right_expression_type, node->data.declaration_variable.type, parser_results);
       }
       break;
     }
@@ -529,6 +533,20 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
             }
             break;        
           }
+
+        switch (node->data.expression_binary.op_type) {
+          case AST_BINARY_ADD:
+          case AST_BINARY_SUBTRACT:
+          case AST_BINARY_LESS_THAN:
+          case AST_BINARY_LESS_OR_EQUAL:
+          case AST_BINARY_GREATER_THAN:
+          case AST_BINARY_GREATER_OR_EQUAL:             
+            if (is_null_pointer_constant(node->data.expression_binary.left_expression) || is_null_pointer_constant(node->data.expression_binary.right_expression)) {
+              fprintf(stderr, "ERROR - SA Type Check: Cannot perform %s operation with a null constant\n", get_binary_op_type_string(node->data.expression_binary.op_type));
+              exit(1);
+            }
+            break;
+        }
       }
 
       switch (node->data.expression_binary.op_type) {
