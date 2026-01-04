@@ -13,7 +13,7 @@
 static void             function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results);
 static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
 static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
-static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table); 
+static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table, ParserResults *parser_results); 
 static TypeNode*        expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary(AstNode *binary_node, AstNode *function_declaration_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results);  
 static TypeNode*        expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results); 
@@ -108,9 +108,8 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
           }
 
           //We only want to add function param names for function definitions
-          if (node->data.declaration_function.body_block != NULL)
-          {
-            add_function_parameter_to_symbol_table(&node->data.declaration_function.function_type->data.function_type.param_types[i], node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
+          if (node->data.declaration_function.body_block != NULL) {
+            add_function_parameter_to_symbol_table(&node->data.declaration_function.function_type->data.function_type.param_types[i], node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table, parser_results);
           }
         }
 
@@ -120,6 +119,11 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         }
 
         break;
+      }
+
+      if (node->data.declaration_function.function_type->data.function_type.return_type->type == TYPE_ARRAY) {
+        fprintf(stderr, "ERROR: SA Type Check - Cannot have array as function return type\n");
+        exit(1);
       }
 
       TypeNode *param_types = malloc(sizeof(TypeNode) * node->data.declaration_function.function_type->data.function_type.param_type_count);
@@ -137,10 +141,11 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         }
 
         //We only want to add function param names for function definitions
-        if (node->data.declaration_function.body_block != NULL)
-        {
-          add_function_parameter_to_symbol_table(parameter_type, node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table);
+        if (node->data.declaration_function.body_block == NULL) {
+          continue;
         }
+
+        add_function_parameter_to_symbol_table(parameter_type, node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, declaration_table, parser_results);
       }
 
       DeclarationSymbol *function_declaration_symbol = add_function_declaration_symbol(declaration_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.function_type.return_type, node->data.declaration_function.function_type->data.function_type.param_type_count, param_types, is_global, is_defined);
@@ -888,7 +893,7 @@ static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeN
   return casted_expression;
 }
 
-static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table) {
+static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table, ParserResults *parser_results) {
   if (parameter_type->type == TYPE_VOID) {
     return;
   }
@@ -896,7 +901,16 @@ static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, cha
   char *symbol_key = malloc(IDENTIFIER_BUFFER); 
   snprintf(symbol_key, IDENTIFIER_BUFFER, "%s", parameter_identifier);
 
-  add_automatic_variable_declaration_symbol(declaration_table, parameter_type, symbol_key);
+  //Array decay to pointer
+  if (parameter_type->type == TYPE_ARRAY) {
+    TypeNode *pointer_type_node = arena_alloc(parser_results->type_node_arena);
+    pointer_type_node->type = TYPE_POINTER;
+    pointer_type_node->data.pointer_type.reference_type = parameter_type;
+    
+    add_automatic_variable_declaration_symbol(declaration_table, pointer_type_node, symbol_key);
+  } else {
+    add_automatic_variable_declaration_symbol(declaration_table, parameter_type, symbol_key);
+  }
 }
 
 static long convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node) {
