@@ -14,6 +14,7 @@ static void             function_and_variable_type_check(AstNode *node, Declarat
 static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
 static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
 static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table, ParserResults *parser_results); 
+static TypeNode*        type_check_init(TypeNode *target_type, AstNode *ast_initializer, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary(AstNode *binary_node, AstNode *function_declaration_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results);  
 static TypeNode*        expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results); 
@@ -278,6 +279,13 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check\n", node->type);
       exit(1);
   }  
+}
+
+static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
+  if (ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
+    TypeNode *expression_type = expression_type_check_and_convert(&ast_initializer, declaration_table, function_declaration_node, parser_results);
+    ast_initializer = convert_by_assignment(ast_initializer, expression_type, target_type, parser_results);
+  }
 }
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table) {
