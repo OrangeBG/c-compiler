@@ -137,7 +137,7 @@ typedef struct AstNode {
   } data;
 } AstNode;
 
-void parse_ast(ParserResults *results, Token *tokens, int token_count, char *file);   
+void parse_ast(ParserResults *results, TokenArray *tokens, int token_count, char *file);   
 void print_ast(const AstNode *node, int whitespace);
 char* get_binary_op_type_string(BinaryOpType op_type);
 

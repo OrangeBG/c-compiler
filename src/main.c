@@ -54,7 +54,7 @@ int main(int argc, const char *argv[]) {
   }
 
   ParserResults parser_results;
-  parse_ast(&parser_results, lexer.tokens, lexer.token_count, file);
+  parse_ast(&parser_results, lexer.tokens, lexer.tokens->count, file);
 
   if (print_debug) {
     printf("\n>> AST PRINT <<\n\n");
