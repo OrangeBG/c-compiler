@@ -63,11 +63,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       }
 
       if (node->data.declaration_variable.has_expression) {
-        function_and_variable_type_check(node->data.declaration_variable.init_expression, declaration_table, function_declaration_node, parser_results);
-
-        //TODO: Something like this will need to get implemented soon
-        // TypeNode *right_expression_type = expression_type_check_and_convert(&node->data.declaration_variable.init_expression, declaration_table, function_declaration_node, parser_results);
-        // node->data.declaration_variable.init_expression = convert_by_assignment(node->data.declaration_variable.init_expression, right_expression_type, node->data.declaration_variable.type, parser_results);
+        type_check_init(node->data.declaration_variable.type, node->data.declaration_variable.init_expression, declaration_table, function_declaration_node, parser_results);
       }
       break;
     }
@@ -283,9 +279,18 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
 
 static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   if (ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
-    TypeNode *expression_type = expression_type_check_and_convert(&ast_initializer, declaration_table, function_declaration_node, parser_results);
-    ast_initializer = convert_by_assignment(ast_initializer, expression_type, target_type, parser_results);
+    TypeNode *expression_type = expression_type_check_and_convert(&ast_initializer->data.initializer.initializer_node.single_init_expression, declaration_table, function_declaration_node, parser_results);
+    ast_initializer = convert_by_assignment(ast_initializer->data.initializer.initializer_node.single_init_expression, expression_type, target_type, parser_results);
+
+    return expression_type;
   }
+
+  if (ast_initializer->data.initializer.type == AST_INITIALIZER_COMPOUND && target_type->type == TYPE_ARRAY) {
+    //TODO: Add functionality
+  }
+
+  fprintf(stderr, "ERROR - SA Type Check: Can't initialize a scalar object with a compound initializer\n");
+  exit(1);
 }
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table) {
