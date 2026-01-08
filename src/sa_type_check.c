@@ -31,6 +31,7 @@ static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *v
 static double           convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
 static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results); 
 static bool             is_null_pointer_constant(AstNode *ast_node);
+static AstNode*         zero_initializer(AstNode *initializer, ParserResults *parser_results);
 
 void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declaration_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -286,11 +287,49 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
   }
 
   if (ast_initializer->data.initializer.type == AST_INITIALIZER_COMPOUND && target_type->type == TYPE_ARRAY) {
-    //TODO: Add functionality
+    if (ast_initializer->data.initializer.compound_count > target_type->data.array_type.size) {
+      fprintf(stderr, "ERROR - SA Type Check: %d values initialized for an array of %lu size\n", ast_initializer->data.initializer.compound_count, target_type->data.array_type.size);
+      exit(1);
+    }
+
+    for (int i = 0; i < ast_initializer->data.initializer.compound_count; i++) {
+      type_check_init(target_type->data.array_type.element_type, &ast_initializer->data.initializer.initializer_node.compound_initializer[i], declaration_table, function_declaration_node, parser_results);
+    }
+
+    while (ast_initializer->data.initializer.compound_count < target_type->data.array_type.size) {
+      
+    }
+
+    return target_type;
   }
 
   fprintf(stderr, "ERROR - SA Type Check: Can't initialize a scalar object with a compound initializer\n");
   exit(1);
+}
+
+static AstNode* zero_initializer(AstNode *initializer, ParserResults *parser_results) {
+  if (initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
+    AstNode *constant = arena_alloc(parser_results->ast_node_arena);
+    constant->type = AST_EXPRESSION_CONSTANT;
+    //TODO: Support other constant types
+    constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_INT;
+    constant->data.expression_constant.int_value = 0;
+
+    AstNode *single_init = arena_alloc(parser_results->ast_node_arena);
+    single_init->type = AST_INITIALIZER;
+    single_init->data.initializer.type = AST_INITIALIZER_SINGLE;
+    single_init->data.initializer.initializer_node.single_init_expression = constant;
+
+    return single_init;
+  }
+
+  AstNode *compound_init = arena_alloc(parser_results->ast_node_arena);
+  compound_init->type = AST_INITIALIZER;
+  compound_init->data.initializer.type = AST_INITIALIZER_COMPOUND;
+
+  //TODO: Need to finish
+
+  return compound_init;
 }
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table) {
