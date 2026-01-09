@@ -31,7 +31,7 @@ static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *v
 static double           convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
 static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results); 
 static bool             is_null_pointer_constant(AstNode *ast_node);
-static AstNode*         zero_initializer(AstNode *initializer, ParserResults *parser_results);
+static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
 
 void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declaration_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -296,8 +296,10 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
       type_check_init(target_type->data.array_type.element_type, &ast_initializer->data.initializer.initializer_node.compound_initializer[i], declaration_table, function_declaration_node, parser_results);
     }
 
-    while (ast_initializer->data.initializer.compound_count < target_type->data.array_type.size) {
-      
+
+    for (int i = ast_initializer->data.initializer.compound_count; i < target_type->data.array_type.size; i++) {
+      AstNode *zero_init = zero_initializer(target_type, parser_results);
+      //TODO: Add to initializer
     }
 
     return target_type;
@@ -307,8 +309,8 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
   exit(1);
 }
 
-static AstNode* zero_initializer(AstNode *initializer, ParserResults *parser_results) {
-  if (initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
+static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults *parser_results) {
+  if (type_node->type != TYPE_ARRAY) {
     AstNode *constant = arena_alloc(parser_results->ast_node_arena);
     constant->type = AST_EXPRESSION_CONSTANT;
     //TODO: Support other constant types
