@@ -6,6 +6,8 @@
 #include "../include/types.h"
 #include <stdbool.h>
 
+#define COMPOUND_INITIALIZER_CAPACITY 4
+
 typedef struct AstNode AstNode;
 
 typedef enum {

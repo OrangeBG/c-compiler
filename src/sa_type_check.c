@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "../include/sa_type_check.h"
+#include "../include/dynamic_array.h"
 #include "../include/arena.h"
 #include "../include/parser.h"
 #include "../include/declaration_symbol.h"
@@ -298,8 +299,8 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
 
 
     for (int i = ast_initializer->data.initializer.initializer_node.compound_initializer->count; i < target_type->data.array_type.size; i++) {
-      AstNode *zero_init = zero_initializer(target_type, parser_results);
-      //TODO: Add to initializer
+      AstNode *zero_init = zero_initializer(target_type->data.array_type.element_type, parser_results);
+      dynamic_array_add(ast_initializer->data.initializer.initializer_node.compound_initializer, *zero_init, COMPOUND_INITIALIZER_CAPACITY);
     }
 
     return target_type;
@@ -325,11 +326,19 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
     return single_init;
   }
 
+  CompoundInitArray *compound_array = malloc(sizeof(CompoundInitArray));
+  compound_array->capacity = 0;
+  compound_array->count = 0;
+  compound_array->items = NULL;
+
   AstNode *compound_init = arena_alloc(parser_results->ast_node_arena);
   compound_init->type = AST_INITIALIZER;
   compound_init->data.initializer.type = AST_INITIALIZER_COMPOUND;
+  compound_init->data.initializer.initializer_node.compound_initializer = compound_array;
 
-  //TODO: Need to finish
+  AstNode *array_init = zero_initializer(type_node->data.array_type.element_type, parser_results);
+
+  dynamic_array_add(compound_array, *array_init, COMPOUND_INITIALIZER_CAPACITY);
 
   return compound_init;
 }
