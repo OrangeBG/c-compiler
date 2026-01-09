@@ -186,8 +186,8 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         break;
       } 
 
-      for (int i = 0; i < node->data.initializer.compound_count; i++) {
-        function_and_variable_type_check(&node->data.initializer.initializer_node.compound_initializer[i], declaration_table, function_declaration_node, parser_results);
+      for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
+        function_and_variable_type_check(&node->data.initializer.initializer_node.compound_initializer->items[i], declaration_table, function_declaration_node, parser_results);
       }
       break;
     case AST_EXPRESSION_VARIABLE:
@@ -287,17 +287,17 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
   }
 
   if (ast_initializer->data.initializer.type == AST_INITIALIZER_COMPOUND && target_type->type == TYPE_ARRAY) {
-    if (ast_initializer->data.initializer.compound_count > target_type->data.array_type.size) {
-      fprintf(stderr, "ERROR - SA Type Check: %d values initialized for an array of %lu size\n", ast_initializer->data.initializer.compound_count, target_type->data.array_type.size);
+    if (ast_initializer->data.initializer.initializer_node.compound_initializer->count > target_type->data.array_type.size) {
+      fprintf(stderr, "ERROR - SA Type Check: %d values initialized for an array of %lu size\n", ast_initializer->data.initializer.initializer_node.compound_initializer->count, target_type->data.array_type.size);
       exit(1);
     }
 
-    for (int i = 0; i < ast_initializer->data.initializer.compound_count; i++) {
-      type_check_init(target_type->data.array_type.element_type, &ast_initializer->data.initializer.initializer_node.compound_initializer[i], declaration_table, function_declaration_node, parser_results);
+    for (int i = 0; i < ast_initializer->data.initializer.initializer_node.compound_initializer->count; i++) {
+      type_check_init(target_type->data.array_type.element_type, &ast_initializer->data.initializer.initializer_node.compound_initializer->items[i], declaration_table, function_declaration_node, parser_results);
     }
 
 
-    for (int i = ast_initializer->data.initializer.compound_count; i < target_type->data.array_type.size; i++) {
+    for (int i = ast_initializer->data.initializer.initializer_node.compound_initializer->count; i < target_type->data.array_type.size; i++) {
       AstNode *zero_init = zero_initializer(target_type, parser_results);
       //TODO: Add to initializer
     }

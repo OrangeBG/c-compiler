@@ -7,6 +7,7 @@
 #include "../include/parser.h"
 #include "../include/arena.h"
 #include "../include/lexer.h"
+#include "../include/dynamic_array.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -138,7 +139,6 @@ static int          get_precedence(TokenType token_type);
 static void         add_function_parameter_identifier(char *identifier, AstNode *function_declaration_node);   
 static void         add_function_parameter_to_declarator(Declarator *function_declarator, Types param_type, Declarator *param_declarator); 
 static void         add_function_parameter_identifier_to_declarator_results(char *identifier, DeclaratorResults *declarator_results);   
-static void         add_compound_initializer(AstNode *compound_initializer_node, AstNode *initializer); 
 static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, TypeNode *base_type); 
 static TypeNode*     process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type);
 
@@ -246,8 +246,8 @@ void print_ast(const AstNode *node, int whitespace) {
       } else {
         print_whitespace(whitespace);
         printf("Compound Init (\n");
-        for (int i = 0; i < node->data.initializer.compound_count; i++) {
-          print_ast(&node->data.initializer.initializer_node.compound_initializer[i], ADD_WHITESPACE);
+        for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
+          print_ast(&node->data.initializer.initializer_node.compound_initializer->items[i], ADD_WHITESPACE);
         }
         print_whitespace(whitespace);
         printf(")\n");
@@ -806,13 +806,18 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
 
     initializer_node->type = AST_INITIALIZER;
     initializer_node->data.initializer.type = AST_INITIALIZER_COMPOUND;
-    initializer_node->data.initializer.compound_capacity = 0;
-    initializer_node->data.initializer.compound_count = 0;
-    initializer_node->data.initializer.initializer_node.compound_initializer = NULL;
+
+    CompoundInitArray *compound_init_array = malloc(sizeof(CompoundInitArray));
+    compound_init_array->count = 0;
+    compound_init_array->capacity = 0;
+    compound_init_array->items = NULL;
+
+    initializer_node->data.initializer.initializer_node.compound_initializer = compound_init_array;
 
     AstNode *next_initializer_node = arena_alloc(parser->node_arena);
     parse_initializer(parser, next_initializer_node);
-    add_compound_initializer(initializer_node, next_initializer_node);
+
+    dynamic_array_add(compound_init_array, *next_initializer_node, COMPOUND_INITIALIZER_CAPACITY);
 
     //parse_expression(parser, &next_initializer_node, 0);
     //add_compound_initializer(initializer_node, next_initializer_node);
@@ -826,7 +831,7 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
 
       next_initializer_node = arena_alloc(parser->node_arena);
       parse_initializer(parser, next_initializer_node);      
-      add_compound_initializer(initializer_node, next_initializer_node);
+      dynamic_array_add(compound_init_array, *next_initializer_node, COMPOUND_INITIALIZER_CAPACITY);
     }
 
     expect(parser, TOKEN_CLOSE_BRACE);
@@ -2255,17 +2260,6 @@ static void add_function_parameter_identifier_to_declarator_results(char *identi
 
   declarator_results->param_identifiers[declarator_results->param_identifiers_count] = identifier;
   declarator_results->param_identifiers_count++;
-}
-
-static void add_compound_initializer(AstNode *compound_initializer_node, AstNode *initializer) {
-  if (compound_initializer_node->data.initializer.compound_count == compound_initializer_node->data.initializer.compound_capacity) {
-    int size = compound_initializer_node->data.initializer.compound_capacity == 0 ? COMPOUND_INITIALIZER_CAPACITY : compound_initializer_node->data.initializer.compound_capacity * 2;
-    compound_initializer_node->data.initializer.compound_capacity = size;
-    compound_initializer_node->data.initializer.initializer_node.compound_initializer = realloc(compound_initializer_node->data.initializer.initializer_node.compound_initializer, size * sizeof(AstNode));
-  }
-
-  compound_initializer_node->data.initializer.initializer_node.compound_initializer[compound_initializer_node->data.initializer.compound_count] = *initializer;
-  compound_initializer_node->data.initializer.compound_count++;
 }
 
 char* get_binary_op_type_string(BinaryOpType op_type) {

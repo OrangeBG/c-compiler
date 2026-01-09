@@ -155,8 +155,8 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
         break;
       } 
 
-      for (int i = 0; i < node->data.initializer.compound_count; i++) {
-        variable_resolve_node(&node->data.initializer.initializer_node.compound_initializer[i], variable_resolution);
+      for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
+        variable_resolve_node(&node->data.initializer.initializer_node.compound_initializer->items[i], variable_resolution);
       }
       break;
     case AST_EXPRESSION_FUNCTION_CALL: {
