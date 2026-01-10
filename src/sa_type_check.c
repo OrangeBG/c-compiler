@@ -311,36 +311,59 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
 }
 
 static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults *parser_results) {
-  if (type_node->type != TYPE_ARRAY) {
-    AstNode *constant = arena_alloc(parser_results->ast_node_arena);
-    constant->type = AST_EXPRESSION_CONSTANT;
-    //TODO: Support other constant types
-    constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_INT;
-    constant->data.expression_constant.int_value = 0;
+  if (type_node->type == TYPE_ARRAY) {
+    CompoundInitArray *compound_array = malloc(sizeof(CompoundInitArray));
+    compound_array->capacity = 0;
+    compound_array->count = 0;
+    compound_array->items = NULL;
 
-    AstNode *single_init = arena_alloc(parser_results->ast_node_arena);
-    single_init->type = AST_INITIALIZER;
-    single_init->data.initializer.type = AST_INITIALIZER_SINGLE;
-    single_init->data.initializer.initializer_node.single_init_expression = constant;
+    AstNode *compound_init = arena_alloc(parser_results->ast_node_arena);
+    compound_init->type = AST_INITIALIZER;
+    compound_init->data.initializer.type = AST_INITIALIZER_COMPOUND;
+    compound_init->data.initializer.initializer_node.compound_initializer = compound_array;
 
-    return single_init;
+    AstNode *array_init = zero_initializer(type_node->data.array_type.element_type, parser_results);
+
+    dynamic_array_add(compound_array, *array_init, COMPOUND_INITIALIZER_CAPACITY);
+
+    return compound_init;
   }
 
-  CompoundInitArray *compound_array = malloc(sizeof(CompoundInitArray));
-  compound_array->capacity = 0;
-  compound_array->count = 0;
-  compound_array->items = NULL;
+  AstNode *constant = arena_alloc(parser_results->ast_node_arena);
+  constant->type = AST_EXPRESSION_CONSTANT;
 
-  AstNode *compound_init = arena_alloc(parser_results->ast_node_arena);
-  compound_init->type = AST_INITIALIZER;
-  compound_init->data.initializer.type = AST_INITIALIZER_COMPOUND;
-  compound_init->data.initializer.initializer_node.compound_initializer = compound_array;
+  switch (type_node->type) {
+    case TYPE_INT:      
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_INT;
+      constant->data.expression_constant.int_value = 0;
+      break;
+    case TYPE_LONG:      
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_LONG;
+      constant->data.expression_constant.long_value = 0;
+      break;
+    case TYPE_UINT:      
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_UINT;
+      constant->data.expression_constant.uint_value = 0;
+      break;
+    case TYPE_ULONG:      
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_ULONG;
+      constant->data.expression_constant.ulong_value = 0;
+      break;
+    case TYPE_DOUBLE:
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_DOUBLE;
+      constant->data.expression_constant.double_value = 0;
+      break;
+    default:
+      fprintf(stderr, "ERROR - SA Type Check: Type not found for array zero initializer\n");
+      exit(1);
+  }
 
-  AstNode *array_init = zero_initializer(type_node->data.array_type.element_type, parser_results);
+  AstNode *single_init = arena_alloc(parser_results->ast_node_arena);
+  single_init->type = AST_INITIALIZER;
+  single_init->data.initializer.type = AST_INITIALIZER_SINGLE;
+  single_init->data.initializer.initializer_node.single_init_expression = constant;
 
-  dynamic_array_add(compound_array, *array_init, COMPOUND_INITIALIZER_CAPACITY);
-
-  return compound_init;
+  return single_init;
 }
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table) {

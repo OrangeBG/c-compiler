@@ -89,7 +89,6 @@ typedef struct IRNode {
   struct IRInstructionGetAddress { IRNode *source; IRNode *destination; } instruction_get_address;
   struct IRInstructionLoad { IRNode *source_pointer; IRNode *destination; } instruction_load;
   struct IRInstructionStore { IRNode *source; IRNode *destination_pointer; } instruction_store;
-  // struct IRValueConstant { Types type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
   struct IRValueConstant { TypeNode *type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
