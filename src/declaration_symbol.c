@@ -139,19 +139,8 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
     if (symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
       printf("type: Variable\n");
       printf("\tvalue_type: ");
-
-      switch (symbol->data.variable_symbol->value_type->type) {
-        case TYPE_INT:     printf("int\n"); break;
-        case TYPE_LONG:    printf("long\n"); break;
-        case TYPE_UINT:    printf("uint\n"); break;
-        case TYPE_ULONG:   printf("ulong\n"); break;
-        case TYPE_VOID:    printf("void\n"); break;
-        case TYPE_DOUBLE:  printf("double\n"); break;
-        case TYPE_POINTER: printf("pointer\n"); break;
-        default:
-          fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
-          exit(1);
-      }      
+      print_type_node(symbol->data.variable_symbol->value_type);
+      printf("\n");
 
       printf("\tis_automatic_storage_duration: %d\n", symbol->data.variable_symbol->is_automatic_storage_duration);
 
@@ -167,27 +156,34 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
         case INITIAL_VALUE_TENTATIVE:       printf("Tentative\n"); break;
       }
 
-      printf("\tstatic_initial_value: ");
+      printf("\tstatic_initial_value(s): \n");
 
+      TypeNode *variable_value_type = symbol->data.variable_symbol->value_type;
+
+      if (variable_value_type->type == TYPE_ARRAY) {
+        variable_value_type = variable_value_type->data.array_type.element_type;
+      } 
+      
       for (int i = 0; i < symbol->data.variable_symbol->static_initial_value_array->count; i++) {
-        switch (symbol->data.variable_symbol->value_type->type) {
+
+        switch (variable_value_type->type) {
           case TYPE_INT:
-            printf("%d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].int_value);
+            printf("\t\tint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].int_value);
             break;
           case TYPE_UINT:
-            printf("%d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].uint_value);
+            printf("\t\tuint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].uint_value);
             break;
           case TYPE_LONG:
-            printf("%ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].long_value);
+            printf("\t\tlong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].long_value);
             break;
           case TYPE_ULONG:
-            printf("%ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
+            printf("\t\tulong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
             break;
           case TYPE_DOUBLE:
-            printf("%f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].double_value);
+            printf("\t\tdouble %f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].double_value);
             break;
           case TYPE_POINTER:
-            printf("%ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
+            printf("\t\tpointer %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
             break;
           default:
             fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
