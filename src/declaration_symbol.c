@@ -76,12 +76,11 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
   hash_table_add_entry(declaration_symbol_table->symbol_table, entry); 
 }
 
-// void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
-  variable_symbol->static_initial_value = initial_value;
+  variable_symbol->static_initial_value_array = initial_value_array;
   variable_symbol->static_is_global = is_global;
   variable_symbol->static_initial_type = initial_value_type;
   
@@ -170,16 +169,30 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
 
       printf("\tstatic_initial_value: ");
 
-      switch (symbol->data.variable_symbol->value_type->type) {
-        case TYPE_INT:      printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
-        case TYPE_UINT:     printf("%d\n", symbol->data.variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_LONG:     printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
-        case TYPE_ULONG:    printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
-        case TYPE_DOUBLE:   printf("%f\n", symbol->data.variable_symbol->static_initial_value.double_value); break;
-        case TYPE_POINTER:  printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
-        default:
-          fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
-          exit(1);
+      for (int i = 0; i < symbol->data.variable_symbol->static_initial_value_array->count; i++) {
+        switch (symbol->data.variable_symbol->value_type->type) {
+          case TYPE_INT:
+            printf("%d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].int_value);
+            break;
+          case TYPE_UINT:
+            printf("%d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].uint_value);
+            break;
+          case TYPE_LONG:
+            printf("%ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].long_value);
+            break;
+          case TYPE_ULONG:
+            printf("%ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
+            break;
+          case TYPE_DOUBLE:
+            printf("%f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].double_value);
+            break;
+          case TYPE_POINTER:
+            printf("%ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
+            break;
+          default:
+            fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
+            exit(1);
+        }
       }
 
       printf("\tstatic_is_global: %d\n", symbol->data.variable_symbol->static_is_global);
@@ -220,4 +233,13 @@ void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *in
       fprintf(stderr, "ERROR - Declaration Symbol: Unsupported initial value Type '%d'\n", type_node->type);
       exit(1);
   }
+}
+
+InitialValueArray* initial_value_array_init() {
+  InitialValueArray *initial_value_array = malloc(sizeof(InitialValueArray));
+  initial_value_array->capacity = 0;
+  initial_value_array->count = 0;
+  initial_value_array->items = NULL;
+
+  return initial_value_array;
 }

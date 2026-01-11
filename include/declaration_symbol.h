@@ -6,6 +6,8 @@
 #include "../include/types.h"
 #include <stdbool.h>
 
+#define STATIC_INITIAL_VALUE_CAPACITY 4
+
 typedef enum {
   DECLARATION_SYMBOL_VARIABLE,
   DECLARATION_SYMBOL_FUNCTION
@@ -34,10 +36,16 @@ typedef union {
 } InitialValue;
 
 typedef struct {
+  int count;
+  int capacity;
+  InitialValue *items;
+} InitialValueArray;
+
+typedef struct {
   TypeNode *value_type;
   bool is_automatic_storage_duration;
   InitialValueType static_initial_type;
-  InitialValue static_initial_value;
+  InitialValueArray *static_initial_value_array;
   bool static_is_global;
 } VariableSymbol; 
 
@@ -61,9 +69,10 @@ void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_ta
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
 void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
+InitialValueArray* initial_value_array_init();
 
 #endif

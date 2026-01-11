@@ -249,17 +249,18 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_STATIC_VAR:
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
-      switch (ir_node->data.static_variable.static_variable_symbol->value_type->type) {
-        case TYPE_INT:      printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
-        case TYPE_LONG:     printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
-        case TYPE_UINT:     printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_ULONG:    printf("%lu, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
-        case TYPE_DOUBLE:   printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
-        case TYPE_POINTER:  printf("%ld, type = pointer, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
-        default:
-          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type->type);
-          exit(1);
-      }
+      //@Temporary: Commented until IR supports static initial array
+      // switch (ir_node->data.static_variable.static_variable_symbol->value_type->type) {
+      //   case TYPE_INT:      printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
+      //   case TYPE_LONG:     printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
+      //   case TYPE_UINT:     printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
+      //   case TYPE_ULONG:    printf("%lu, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+      //   case TYPE_DOUBLE:   printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
+      //   case TYPE_POINTER:  printf("%ld, type = pointer, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+      //   default:
+      //     fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type->type);
+      //     exit(1);
+      // }
 
       printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
       break;
