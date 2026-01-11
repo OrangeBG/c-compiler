@@ -25,14 +25,16 @@ static TypeNode*        expression_type_check_and_convert(AstNode **node, Declar
 static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
 static TypeNode*        get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
-static long             convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node); 
-static int              convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node); 
-static unsigned long    convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node); 
-static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node); 
-static double           convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node); 
+static long             convert_variable_declaration_constant_to_long(AstNode *constant_node); 
+static int              convert_variable_declaration_constant_to_int(AstNode *constant_node); 
+static unsigned long    convert_variable_declaration_constant_to_ulong(AstNode *constant_node); 
+static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *constant_node); 
+static double           convert_variable_declaration_constant_to_double(AstNode *constant_node); 
 static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results); 
 static bool             is_null_pointer_constant(AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
+static void             add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
+static void             add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init); 
 
 void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declaration_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -469,56 +471,74 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     
     if (!variable_declaration_node->data.declaration_variable.has_expression) {
       declaration_symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
-    }
-    else if (variable_declaration_node->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
-
-    }
-    else if (variable_declaration_node->data.initializer.type == AST_INITIALIZER_COMPOUND && variable_declaration_node->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
-
-    }
-    // else if (variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
-    //
-    //   Types constant_expression_type = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->data.expression_constant.expression_type->type;
-    //
-    //   switch(variable_declaration_node->data.declaration_variable.type->type) {
-    //     case TYPE_INT:     initial_value.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node); break;
-    //     case TYPE_LONG:    initial_value.long_value = convert_variable_declaration_constant_to_long(variable_declaration_node); break;
-    //     case TYPE_UINT:    initial_value.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node); break;
-    //     case TYPE_ULONG:   initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
-    //     case TYPE_DOUBLE:  initial_value.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node); break;
-    //     case TYPE_POINTER: {
-    //       unsigned long value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
-    //
-    //       if (value != 0) {
-    //         fprintf(stderr, "ERROR - SA Type Check: Cannot assign value '%ld' to a static pointer\n", value);
-    //         exit(1);
-    //       }
-    //
-    //       initial_value.ulong_value = value;
-    //       break;
-    //     }
-    //     default:
-    //       fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",variable_declaration_node->data.declaration_variable.type->type);
-    //       exit(1);
-    //   }
-    // }
-
-    else {
-      fprintf(stderr, "ERROR - SA Type Check: Non-constant initializer on local static variable '%s'\n", variable_declaration_node->data.declaration_variable.name);
-      exit(1);
+      return;
     }
 
-    dynamic_array_add(initial_value_array, initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
+        add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
+        add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIAL_VALUE_INITIALIZED);
+        return;
+    }
 
-    add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIAL_VALUE_INITIALIZED);
-    
-    return;
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
+      add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
+      add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIAL_VALUE_INITIALIZED);
+      return;
+    }
+
+    fprintf(stderr, "ERROR - SA Type Check: Non-constant initializer on local static variable '%s'\n", variable_declaration_node->data.declaration_variable.name);
+    exit(1);
   }   
 
   add_automatic_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name);
 } 
 
-static convert_variable_declaration()
+static void add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init) {
+  InitialValue *initial_value = malloc(sizeof(InitialValue));
+
+  AstNode *constant_node = single_init->data.initializer.initializer_node.single_init_expression; 
+
+  if (declaration_type->type == TYPE_ARRAY) {
+    declaration_type = declaration_type->data.array_type.element_type;
+  }
+
+  switch(declaration_type->type) {
+   case TYPE_INT:     initial_value->int_value = convert_variable_declaration_constant_to_int(constant_node); break;
+   case TYPE_LONG:    initial_value->long_value = convert_variable_declaration_constant_to_long(constant_node); break;
+   case TYPE_UINT:    initial_value->uint_value = convert_variable_declaration_constant_to_uint(constant_node); break;
+   case TYPE_ULONG:   initial_value->ulong_value = convert_variable_declaration_constant_to_ulong(constant_node); break;
+   case TYPE_DOUBLE:  initial_value->double_value = convert_variable_declaration_constant_to_double(constant_node); break;
+   case TYPE_POINTER: {
+     unsigned long value = convert_variable_declaration_constant_to_ulong(constant_node);
+
+     if (value != 0) {
+       fprintf(stderr, "ERROR - SA Type Check: Cannot assign value '%ld' to a static pointer\n", value);
+       exit(1);
+     }
+
+     initial_value->ulong_value = value;
+     break;
+   }
+   default:
+     fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",declaration_type->type);
+     exit(1);
+  }
+
+  dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+}
+
+static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
+  for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
+    AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
+
+    if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
+      add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);      
+      continue;
+    }
+
+    add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
+  }
+}
 
 static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
@@ -1014,75 +1034,65 @@ static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, cha
   }
 }
 
-static long convert_variable_declaration_constant_to_long(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
-
-  switch (constant_expression->data.expression_constant.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (long)constant_expression->data.expression_constant.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (long)constant_expression->data.expression_constant.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (long)constant_expression->data.expression_constant.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (long)constant_expression->data.expression_constant.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return constant_expression->data.expression_constant.long_value;
+static long convert_variable_declaration_constant_to_long(AstNode *constant_node) {
+  switch (constant_node->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (long)constant_node->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (long)constant_node->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (long)constant_node->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (long)constant_node->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return constant_node->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to long\n");
       exit(1);
   }
 }
 
-static int convert_variable_declaration_constant_to_int(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
-
-  switch (constant_expression->data.expression_constant.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return constant_expression->data.expression_constant.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (int)constant_expression->data.expression_constant.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (int)constant_expression->data.expression_constant.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_expression->data.expression_constant.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (int)constant_expression->data.expression_constant.long_value;
+static int convert_variable_declaration_constant_to_int(AstNode *constant_node) {
+  switch (constant_node->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return constant_node->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (int)constant_node->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (int)constant_node->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_node->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (int)constant_node->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to int\n");
       exit(1);
   }
 }
 
-static unsigned int convert_variable_declaration_constant_to_uint(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
-
-  switch (constant_expression->data.expression_constant.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (unsigned int)constant_expression->data.expression_constant.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return constant_expression->data.expression_constant.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_expression->data.expression_constant.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_expression->data.expression_constant.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_expression->data.expression_constant.long_value;
+static unsigned int convert_variable_declaration_constant_to_uint(AstNode *constant_node) {
+  switch (constant_node->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (unsigned int)constant_node->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return constant_node->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_node->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_node->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_node->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
       exit(1);
   }
 }
 
-static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
-
-  switch (constant_expression->data.expression_constant.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (unsigned long)constant_expression->data.expression_constant.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (unsigned long)constant_expression->data.expression_constant.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return constant_expression->data.expression_constant.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_expression->data.expression_constant.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_expression->data.expression_constant.long_value;
+static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *constant_node) {
+  switch (constant_node->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (unsigned long)constant_node->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (unsigned long)constant_node->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return constant_node->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_node->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_node->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
       exit(1);
   }
 }
 
-static double convert_variable_declaration_constant_to_double(AstNode *variable_declaration_node) {
-  AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
-
-  switch (constant_expression->data.expression_constant.constant_type) {
-    case AST_CONSTANT_TYPE_INT:    return (double)constant_expression->data.expression_constant.int_value;
-    case AST_CONSTANT_TYPE_UINT:   return (double)constant_expression->data.expression_constant.uint_value;
-    case AST_CONSTANT_TYPE_ULONG:  return (double)constant_expression->data.expression_constant.ulong_value;
-    case AST_CONSTANT_TYPE_DOUBLE: return constant_expression->data.expression_constant.double_value;
-    case AST_CONSTANT_TYPE_LONG:   return (double)constant_expression->data.expression_constant.long_value;
+static double convert_variable_declaration_constant_to_double(AstNode *constant_node) {
+  switch (constant_node->data.expression_constant.constant_type) {
+    case AST_CONSTANT_TYPE_INT:    return (double)constant_node->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_UINT:   return (double)constant_node->data.expression_constant.uint_value;
+    case AST_CONSTANT_TYPE_ULONG:  return (double)constant_node->data.expression_constant.ulong_value;
+    case AST_CONSTANT_TYPE_DOUBLE: return constant_node->data.expression_constant.double_value;
+    case AST_CONSTANT_TYPE_LONG:   return (double)constant_node->data.expression_constant.long_value;
     default:
       fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to double\n");
       exit(1);
