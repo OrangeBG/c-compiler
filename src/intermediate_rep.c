@@ -4,6 +4,7 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
+#include "../include/error.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -378,8 +379,7 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
           return emit_function(node, intermediate_rep);
       }
       default:
-        fprintf(stderr, "ERROR - IR: ASTNode type %d not found for node emit\n", node->type);
-        exit(1);
+        panic("AST node type '%d' was not found in emit_ast_node()", node->type);
   }
 
   return NULL;

@@ -18,4 +18,13 @@
 #else
   #define assert(compare, message)  // Empty macro if not enabled
 #endif
+
+#define panic(message, ...) \
+  do { \
+      printf(ANSI_COLOR_RED "PANIC: ");\
+      printf(message, ##__VA_ARGS__);\
+      printf(" (%s: %d)\n" ANSI_COLOR_RESET, __FILE__, __LINE__);\
+      exit(1);\
+    } while(0); \
+
 #endif
