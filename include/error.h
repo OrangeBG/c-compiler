@@ -7,9 +7,9 @@
 #define ASSERT_ENABLED 1
 
 #if ASSERT_ENABLED 
-#define assert(compare, message) \
+#define assert(condition, message) \
   do { \
-    if (compare) {\
+    if (!(condition)) {\
       printf(ANSI_COLOR_RED "PANIC: %s (%s: %d)\n" ANSI_COLOR_RESET,  message, __FILE__, __LINE__);\
       exit(1);\
     }\
