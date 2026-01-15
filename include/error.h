@@ -10,7 +10,7 @@
 #define assert(condition, message) \
   do { \
     if (!(condition)) {\
-      printf(ANSI_COLOR_RED "PANIC: %s (%s: %d)\n" ANSI_COLOR_RESET,  message, __FILE__, __LINE__);\
+      fprintf(stderr, ANSI_COLOR_RED "PANIC: %s (%s: %d)\n" ANSI_COLOR_RESET, message, __FILE__, __LINE__);\
       exit(1);\
     }\
   } while(0); \
@@ -21,9 +21,17 @@
 
 #define panic(message, ...) \
   do { \
-      printf(ANSI_COLOR_RED "PANIC: ");\
-      printf(message, ##__VA_ARGS__);\
-      printf(" (%s: %d)\n" ANSI_COLOR_RESET, __FILE__, __LINE__);\
+      fprintf(stderr, ANSI_COLOR_RED "PANIC: ");\
+      fprintf(stderr, message, ##__VA_ARGS__);\
+      fprintf(stderr, " (%s: %d)\n" ANSI_COLOR_RESET, __FILE__, __LINE__);\
+      exit(1);\
+    } while(0); \
+
+#define input_error(message, ...) \
+  do { \
+      fprintf(stderr, ANSI_COLOR_RED "Error: ");\
+      fprintf(stderr, message, ##__VA_ARGS__);\
+      fprintf(stderr, "\n" ANSI_COLOR_RESET);\
       exit(1);\
     } while(0); \
 
