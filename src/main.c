@@ -11,6 +11,7 @@
 #include "../include/sa_loop_labeling.h"
 #include "../include/sa_type_check.h"
 #include "../include/sa_goto_check.h"
+#include "../include/error.h"
 
 static char* load_file(const char *file_path); 
 
@@ -19,22 +20,20 @@ int main(int argc, const char *argv[]) {
   bool print_debug = true;
    
   //@Temporary: These arguments are to support immediate testing while developing the compiler
-  if (argc == 1) {
-    file = load_file("../test-file.c");
-  } else if (argc == 2) {
-    file = load_file(argv[1]);
-  } else if (argc == 3) {
-    //To disable printing when running the tester
-    if (*argv[1] == 't') {
+  switch (argc) {
+    case 1:    file = load_file("../test-file.c"); break;
+    case 2:    load_file(argv[1]); break;
+    case 3: {
+      if (*argv[1] != 't') {
+        input_error("Invalid command '%s'", argv[1]);
+      }
+
       print_debug = false;
       file = load_file(argv[2]);
-    } else {
-      fprintf(stderr, "Invalid command '%s'\n", argv[1]);
-      exit(1);
+      break;
     }
-  } else {
-    fprintf(stderr, "Too many arguments\n");
-    exit(1);
+    default:
+      input_error("Too many arguments");    
   }
 
   if (print_debug) {
@@ -109,7 +108,6 @@ int main(int argc, const char *argv[]) {
   fclose(assembly_file);  
 
   #ifdef __x86_64__
-    // system("as assembly.asm -o assembly.o");
     system("clang -c assembly.asm -o assembly.o");
   #else 
     system("clang -arch x86_64 -c assembly.asm -o assembly.o");
@@ -122,8 +120,7 @@ static char* load_file(const char *file_path) {
   FILE* file = fopen(file_path, "rb");
 
   if (file == NULL) {
-    fprintf(stderr, "Could not open file: \"%s\".\n", file_path);
-    exit(1);
+    panic("Could not open file: \"%s\"", file_path);
   }
 
   fseek(file, 0L, SEEK_END);
@@ -133,8 +130,7 @@ static char* load_file(const char *file_path) {
   char* buffer = (char*)malloc(file_size + 1);
 
   if (buffer == NULL) {
-    fprintf(stderr, "Not enough memory to read: \"%s\".\n", file_path);
-    exit(1);
+    panic("Not enough memory to read: \"%s\"", file_path);
   }
 
   size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
