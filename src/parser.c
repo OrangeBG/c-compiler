@@ -186,7 +186,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_VARIABLE_DECLARATION:
       print_whitespace(whitespace);
-      printf("Variable Declaration (id = \"%s\" ", node->data.declaration_variable.name);
+      printf("Variable Declaration (line = %d, id = \"%s\" ", node->line_number, node->data.declaration_variable.name);
 
       switch (node->data.declaration_variable.storage_class_type) {
         case AST_STORAGE_CLASS_NONE: printf("storage class = \"None\""); break;
@@ -207,7 +207,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_FUNCTION_DECLARATION:
       print_whitespace(whitespace);
-      printf("Function Declaration (name = \"%s\"\n", node->data.declaration_function.name);
+      printf("Function Declaration (line = %d, name = \"%s\"\n", node->line_number, node->data.declaration_function.name);
       print_whitespace(whitespace);
       printf("return type = ");
       print_type_node(node->data.declaration_function.function_type);
@@ -281,7 +281,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_STATEMENT_RETURN:
       print_whitespace(whitespace);
-      printf("Return(\n");
+      printf("Return(Line = %d\n", node->line_number);
       print_ast(node->data.statement_return.expression, ADD_WHITESPACE);
       print_whitespace(whitespace);
       printf(")\n");
@@ -745,6 +745,7 @@ static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *
 }
 
 static void parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results) {
+  function_node->line_number = current_token(parser)->line;
   function_node->type = AST_FUNCTION_DECLARATION;
   function_node->data.declaration_function.name = declaration_results->identifier; 
   function_node->data.declaration_function.function_type = declaration_results->declaration_type;
@@ -768,6 +769,7 @@ static void parse_function_declaration(Parser *parser, AstNode *function_node, S
 }
 
 static void parse_variable_declaration(Parser *parser, AstNode *variable_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results) {
+  variable_node->line_number = current_token(parser)->line;
   variable_node->type = AST_VARIABLE_DECLARATION;
   variable_node->data.declaration_variable.name = declaration_results->identifier;
   variable_node->data.declaration_variable.storage_class_type = storage_class_type;
@@ -957,6 +959,8 @@ static void parse_statement_null(Parser *parser, AstNode *statement_node) {
 }
 
 static void parse_statement_return(Parser *parser, AstNode *statement_node) {
+  statement_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_RETURN);
 
   AstNode *expression = arena_alloc(parser->node_arena);
