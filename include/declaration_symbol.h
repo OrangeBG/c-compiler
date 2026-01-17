@@ -33,6 +33,7 @@ typedef union {
   unsigned int uint_value;
   unsigned long ulong_value;
   double double_value;
+  int zero_init_array_bytes;
 } InitialValue;
 
 typedef struct {

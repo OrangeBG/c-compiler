@@ -528,16 +528,35 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
 }
 
 static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
-  for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
-    AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
+  for (int i = 0; i < declaration_type->data.array_type.size; i++) {
+    if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
+      AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
 
-    if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
-      add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);      
+      if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
+        add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
+        continue;
+      }
+
+      add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
       continue;
     }
 
-    add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
+    if ((i - 1) == compound_init->data.initializer.initializer_node.compound_initializer->count) {
+      //zero init
+    }
+
   }
+
+  // for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
+  //   AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
+  //
+  //   if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
+  //     add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
+  //     continue;
+  //   }
+  //
+  //   add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
+  // }
 }
 
 static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {

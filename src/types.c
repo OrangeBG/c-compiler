@@ -28,6 +28,7 @@ bool is_type_signed(Types type) {
 }
 
 bool is_arithmetic_type(TypeNode *type_node) {
+  //TODO: Add pointers?
   switch(type_node->type) {
     case TYPE_DOUBLE:
     case TYPE_INT:
