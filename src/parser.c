@@ -368,6 +368,10 @@ void print_ast(const AstNode *node, int whitespace) {
         print_ast(node->data.statement_for.post_expression, ADD_WHITESPACE + 5);
       }
 
+      print_whitespace(ADD_WHITESPACE);
+      printf("Statement Body = \n");
+      print_ast(node->data.statement_for.statement_body, ADD_WHITESPACE + 5);
+
       print_whitespace(whitespace);
       printf(")\n");      
       break;
