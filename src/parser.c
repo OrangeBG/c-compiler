@@ -238,13 +238,13 @@ void print_ast(const AstNode *node, int whitespace) {
     case AST_INITIALIZER: {
       if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
         print_whitespace(whitespace);
-        printf("Single Init (\n");
+        printf("Single Init (line = %d\n", node->line_number);
         print_ast(node->data.initializer.initializer_node.single_init_expression, ADD_WHITESPACE);
         print_whitespace(whitespace);
         printf(")\n");
       } else {
         print_whitespace(whitespace);
-        printf("Compound Init (\n");
+        printf("Compound Init (line = %d\n", node->line_number);
         for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
           print_ast(&node->data.initializer.initializer_node.compound_initializer->items[i], ADD_WHITESPACE);
         }
@@ -255,7 +255,7 @@ void print_ast(const AstNode *node, int whitespace) {
     }
     case AST_BLOCK:
       print_whitespace(whitespace);
-      printf("Block (\n");
+      printf("Block (line = %d\n", node->line_number);
       for (int i = 0; i < node->data.block.block_count; i++) {
         AstNode *block_item = node->data.block.block_ptrs->node_pointers[i];
         print_ast(block_item, ADD_WHITESPACE);
@@ -805,6 +805,7 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
   if (current_token(parser)->type == TOKEN_OPEN_BRACE) {
     expect(parser, TOKEN_OPEN_BRACE);
 
+    initializer_node->line_number = current_token(parser)->line;
     initializer_node->type = AST_INITIALIZER;
     initializer_node->data.initializer.type = AST_INITIALIZER_COMPOUND;
 
@@ -843,11 +844,14 @@ static void parse_initializer(Parser *parser, AstNode *initializer_node) {
   parse_expression(parser, &expression_node, 0);
 
   initializer_node->type = AST_INITIALIZER;
+  initializer_node->line_number = current_token(parser)->line;
   initializer_node->data.initializer.type = AST_INITIALIZER_SINGLE;
   initializer_node->data.initializer.initializer_node.single_init_expression = expression_node;
 }
 
 static void parse_block(Parser *parser, AstNode *block_node) {
+  block_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_OPEN_BRACE);
 
   block_node->type = AST_BLOCK;
