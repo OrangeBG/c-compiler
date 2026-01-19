@@ -332,7 +332,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_STATEMENT_DO_WHILE:
       print_whitespace(whitespace);
-      printf("Do (\n");
+      printf("Do (line = %d\n", node->line_number);
       print_whitespace(ADD_WHITESPACE);
       printf("Id = %d\n", node->data.statement_do_while.label_id);
       print_whitespace(ADD_WHITESPACE);
@@ -346,7 +346,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_STATEMENT_FOR:
       print_whitespace(whitespace);
-      printf("For (\n");
+      printf("For (line = %d\n", node->line_number);
       print_whitespace(ADD_WHITESPACE);
       printf("Id = %d\n", node->data.statement_for.label_id);
 
@@ -1051,6 +1051,8 @@ static void parse_statement_while(Parser *parser, AstNode *while_statement_node)
 }
 
 static void parse_statement_do(Parser *parser, AstNode *do_statement_node) {
+  do_statement_node->line_number = current_token(parser)->line;
+  
   expect(parser, TOKEN_DO);
 
   AstNode *statements = arena_alloc(parser->node_arena);
@@ -1071,6 +1073,8 @@ static void parse_statement_do(Parser *parser, AstNode *do_statement_node) {
 }
 
 static void parse_statement_for(Parser *parser, AstNode *for_statement_node) {
+  for_statement_node->line_number = current_token(parser)->line;
+  
   expect(parser, TOKEN_FOR);
   expect(parser, TOKEN_OPEN_PAREN);
 
