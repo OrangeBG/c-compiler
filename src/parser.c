@@ -383,19 +383,19 @@ void print_ast(const AstNode *node, int whitespace) {
 
       switch (node->data.expression_constant.constant_type) {
         case AST_CONSTANT_TYPE_INT:
-          printf("Constant(Int (%d))\n", node->data.expression_constant.int_value);
+          printf("Constant(line = %d, Int (%d))\n",node->line_number, node->data.expression_constant.int_value);
           break;
         case AST_CONSTANT_TYPE_UINT:
-          printf("Constant(UInt (%d))\n", node->data.expression_constant.uint_value);
+          printf("Constant(line = %d, UInt (%d))\n", node->line_number, node->data.expression_constant.uint_value);
           break;
         case AST_CONSTANT_TYPE_LONG:
-          printf("Constant(Long(%ld))\n", node->data.expression_constant.long_value);
+          printf("Constant(line = %d, Long(%ld))\n", node->line_number, node->data.expression_constant.long_value);
           break;
         case AST_CONSTANT_TYPE_ULONG:
-          printf("Constant(ULong(%lu))\n", node->data.expression_constant.ulong_value);
+          printf("Constant(line = %d, ULong(%lu))\n", node->line_number, node->data.expression_constant.ulong_value);
           break;
         case AST_CONSTANT_TYPE_DOUBLE:
-          printf("Constant(Double(%f))\n", node->data.expression_constant.double_value);
+          printf("Constant(line = %d, Double(%f))\n", node->line_number, node->data.expression_constant.double_value);
           break;
         default:
           fprintf(stderr, "ERROR - Parser: Could not find constant type when printing\n");
@@ -447,7 +447,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_EXPRESSION_UNARY:
       print_whitespace(whitespace);
-      printf("Unary (type = ");
+      printf("Unary (line = %d, type = ", node->line_number);
 
       switch (node->data.expression_unary.op_type) {
         case AST_UNARY_COMPLEMENT: printf("Complement"); break;
@@ -496,7 +496,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
       case AST_EXPRESSION_VARIABLE:
         print_whitespace(whitespace);
-        printf("Variable(%s)\n", node->data.expression_variable.identifier);
+        printf("Variable(line = %d, %s)\n", node->line_number, node->data.expression_variable.identifier);
         break;
       case AST_EXPRESSION_ASSIGNMENT: {
         print_whitespace(whitespace);
@@ -1235,7 +1235,7 @@ static void parse_expression_conditional(Parser *parser, AstNode *conditional_ex
   conditional_expression_node->data.expression_conditional.expression_type = NULL;
 }
 
-static void parse_expression_binary(Parser *parser, AstNode **binary_expression, AstNode *left_expression, TokenType op_type) {
+static void parse_expression_binary(Parser *parser, AstNode **binary_expression, AstNode *left_expression, TokenType op_type) {  
   parser-> current_token_index++;
 
   AstNode *right = arena_alloc(parser->node_arena);
@@ -1435,6 +1435,8 @@ static void parse_factor(Parser *parser, AstNode **factor_node) {
 }
 
 static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenType constant_type) {
+  factor_node->line_number = current_token(parser)->line;
+
   expect(parser, constant_type);
 
   factor_node->type = AST_EXPRESSION_CONSTANT;
@@ -1523,6 +1525,8 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
 }
 
 static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
+  factor_node->line_number = current_token(parser)->line;
+  
   UnaryOpType op_type; 
   switch(current_token(parser)->type) {
     case TOKEN_NEGATION:
@@ -1757,6 +1761,7 @@ static void parse_factor_goto_label(Parser *parser, AstNode *factor_node) {
 }
 
 static void parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier) {
+  factor_node->line_number = current_token(parser)->line;
   factor_node->type = AST_EXPRESSION_VARIABLE;
   factor_node->data.expression_variable.identifier = label_identifier;
 }
