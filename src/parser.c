@@ -298,7 +298,7 @@ void print_ast(const AstNode *node, int whitespace) {
      //  break;
     case AST_STATEMENT_IF:      
       print_whitespace(whitespace);
-      printf("If (\n");
+      printf("If (line = %d\n", node->line_number);
       print_ast(node->data.statement_if.condition_expression, ADD_WHITESPACE);
       print_whitespace(whitespace);
       printf(")\n ");
@@ -981,6 +981,8 @@ static void parse_statement_return(Parser *parser, AstNode *statement_node) {
 }
 
 static void parse_statement_if(Parser *parser, AstNode *if_statement_node) {
+  if_statement_node->line_number = current_token(parser)->line;
+  
   expect(parser, TOKEN_IF);
   expect(parser, TOKEN_OPEN_PAREN);
 
