@@ -55,6 +55,8 @@ void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declar
     fprintf(stderr, "ERROR - SA Type Check: Unexpected declaration type\n");
     exit(1);
   } 
+
+  declaration_symbol_table_print(declaration_table);
 }
 
 static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
