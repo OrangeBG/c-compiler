@@ -1098,7 +1098,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   TypeNode *double_type_node = malloc(sizeof(TypeNode));
   double_type_node->type = TYPE_DOUBLE;
   
-  add_static_variable_declaration_symbol(assembly->declaration_symbol_table, double_type_node, initial_value_array, constant_label, true, INITIAL_VALUE_INITIALIZED);  
+  add_static_variable_declaration_symbol(assembly->declaration_symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
 
   HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, constant_label);
 
@@ -1592,7 +1592,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
     TypeNode *long_type_node = malloc(sizeof(TypeNode));
     long_type_node->type = TYPE_LONG;
 
-    add_static_variable_declaration_symbol(assembly->declaration_symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIAL_VALUE_INITIALIZED);       
+    add_static_variable_declaration_symbol(assembly->declaration_symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
   }
 
   AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, assembly);

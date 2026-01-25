@@ -369,12 +369,12 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
 }
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table) {
-  InitialValueType initial_value_type; 
+  InitializationType initialization_type; 
   InitialValueArray *initial_value_array = initial_value_array_init();
   InitialValue initial_value;
 
   if (variable_declaration_node->data.declaration_variable.has_expression && variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
-    initial_value_type = INITIAL_VALUE_INITIALIZED;
+    initialization_type = INITIALIZATION_TYPE_INITIALIZED;
 
     switch (variable_declaration_node->data.declaration_variable.type->type) {
       case TYPE_INT:     initial_value.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node); break;
@@ -389,9 +389,9 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     }
   } else if (!variable_declaration_node->data.declaration_variable.has_expression) {
     if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-      initial_value_type = INITIAL_VALUE_NO_INITIALIZER;
+      initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
     } else {
-      initial_value_type = INITIAL_VALUE_TENTATIVE;
+      initialization_type = INITIALIZATION_TYPE_TENTATIVE;
     }
 
     declaration_symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
@@ -425,13 +425,13 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
       exit(1);
     }
 
-    if (existing_variable_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_INITIALIZED) {
-      if (initial_value_type == INITIAL_VALUE_INITIALIZED) {
+    if (existing_variable_symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
+      if (initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
         fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.declaration_variable.name);
         exit(1);
       }
     } else {
-      existing_variable_symbol->data.variable_symbol->static_initial_type = initial_value_type;
+      existing_variable_symbol->data.variable_symbol->static_initialization_type = initialization_type;
       dynamic_array_add(existing_variable_symbol->data.variable_symbol->static_initial_value_array, initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
 
@@ -439,7 +439,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   }
 
   dynamic_array_add(initial_value_array, initial_value, STATIC_INITIAL_VALUE_CAPACITY);
-  add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, is_global, initial_value_type);  
+  add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, is_global, initialization_type);  
 }
 
 static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name) {
@@ -476,13 +476,13 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
 
     if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
         add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
-        add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIAL_VALUE_INITIALIZED);
+        add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
         return;
     }
 
     if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
       add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
-      add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIAL_VALUE_INITIALIZED);
+      add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
     }
 

@@ -76,13 +76,13 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
   hash_table_add_entry(declaration_symbol_table->symbol_table, entry); 
 }
 
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type) {  
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
   variable_symbol->static_initial_value_array = initial_value_array;
   variable_symbol->static_is_global = is_global;
-  variable_symbol->static_initial_type = initial_value_type;
+  variable_symbol->static_initialization_type = initial_value_type;
   
   DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
   declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
@@ -110,7 +110,7 @@ void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *decla
   declaration_symbol->data.variable_symbol = variable_symbol;
 
   variable_symbol->static_is_global = true;
-  variable_symbol->static_initial_type = INITIAL_VALUE_NO_INITIALIZER;
+  variable_symbol->static_initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
@@ -148,12 +148,12 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
         continue;
       }
 
-      printf("\tstatic_initial_type: ");
+      printf("\tstatic_initialization_type: ");
 
-      switch(symbol->data.variable_symbol->static_initial_type) {
-        case INITIAL_VALUE_INITIALIZED:     printf("Initialized\n"); break;
-        case INITIAL_VALUE_NO_INITIALIZER:  printf("Not Initialized\n"); break;
-        case INITIAL_VALUE_TENTATIVE:       printf("Tentative\n"); break;
+      switch(symbol->data.variable_symbol->static_initialization_type) {
+        case INITIALIZATION_TYPE_INITIALIZED:     printf("Initialized\n"); break;
+        case INITIALIZATION_TYPE_NO_INITIALIZER:  printf("Not Initialized\n"); break;
+        case INITIALIZATION_TYPE_TENTATIVE:       printf("Tentative\n"); break;
       }
 
       printf("\tstatic_initial_value(s): \n");

@@ -1008,7 +1008,7 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
       continue;
     }
 
-    if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_NO_INITIALIZER) {
+    if (declaration_symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_NO_INITIALIZER) {
       continue;
     }
     

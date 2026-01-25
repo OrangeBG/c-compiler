@@ -14,9 +14,18 @@ typedef enum {
 } DeclarationSymbolType;
 
 typedef enum {
-  INITIAL_VALUE_TENTATIVE,
-  INITIAL_VALUE_INITIALIZED,
-  INITIAL_VALUE_NO_INITIALIZER
+  INITIALIZATION_TYPE_TENTATIVE,
+  INITIALIZATION_TYPE_INITIALIZED,
+  INITIALIZATION_TYPE_NO_INITIALIZER
+} InitializationType;
+
+typedef enum {
+  INITIAL_VALUE_TYPE_INT,
+  INITIAL_VALUE_TYPE_LONG,
+  INITIAL_VALUE_TYPE_UINT,
+  INITIAL_VALUE_TYPE_ULONG,
+  INITIAL_VALUE_TYPE_DOUBLE,  
+  INITIAL_VALUE_TYPE_ZERO_INIT  
 } InitialValueType;
 
 typedef struct {
@@ -45,7 +54,7 @@ typedef struct {
 typedef struct {
   TypeNode *value_type;
   bool is_automatic_storage_duration;
-  InitialValueType static_initial_type;
+  InitializationType static_initialization_type;
   InitialValueArray *static_initial_value_array;
   bool static_is_global;
 } VariableSymbol; 
@@ -70,7 +79,7 @@ void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_ta
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
 void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
