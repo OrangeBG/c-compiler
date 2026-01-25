@@ -54,9 +54,7 @@ void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declar
 
     fprintf(stderr, "ERROR - SA Type Check: Unexpected declaration type\n");
     exit(1);
-  } 
-
-  declaration_symbol_table_print(declaration_table);
+  }
 }
 
 static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
@@ -543,8 +541,12 @@ static void add_variable_declaration_compound_init_to_array(InitialValueArray *i
       continue;
     }
 
-    if ((i - 1) == compound_init->data.initializer.initializer_node.compound_initializer->count) {
-      //zero init
+    if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
+      TypeNode *array_type = declaration_type->data.array_type.element_type;
+
+      InitialValue *initial_value = malloc(sizeof(InitialValue));
+      initial_value->zero_init_array_bytes = get_type_size(array_type->type);
+      dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
 
   }
