@@ -36,13 +36,16 @@ typedef struct {
   TypeNode *param_types;
 } FunctionSymbol;
 
-typedef union {
-  int int_value;
-  long long_value;
-  unsigned int uint_value;
-  unsigned long ulong_value;
-  double double_value;
-  int zero_init_array_bytes;
+typedef struct {
+  InitialValueType type;
+  union {
+    int int_value;
+    long long_value;
+    unsigned int uint_value;
+    unsigned long ulong_value;
+    double double_value;
+    int zero_init_array_bytes;
+  } data;
 } InitialValue;
 
 typedef struct {

@@ -529,16 +529,16 @@ static void print_condition_code(FILE *file, AsmConditionCode condition_code) {
 static void print_static_initializer(FILE *file, Types value_type, InitialValue initial_value) {
   switch (value_type) {
     case TYPE_INT:
-      initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.int_value); break;
+      initial_value.data.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.data.int_value); break;
     case TYPE_UINT:
-      initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.uint_value); break;
+      initial_value.data.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.data.uint_value); break;
     case TYPE_LONG:
-      initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.long_value); break;
+      initial_value.data.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.long_value); break;
     case TYPE_DOUBLE:
-      fprintf(file, "\t.double %a\n", initial_value.double_value); break;
+      fprintf(file, "\t.double %a\n", initial_value.data.double_value); break;
     case TYPE_ULONG:
     case TYPE_POINTER:
-      initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); break;
+      initial_value.data.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.ulong_value); break;
     default:
       fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", value_type);
       exit(1);

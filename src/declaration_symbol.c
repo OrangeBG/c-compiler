@@ -165,31 +165,33 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
       } 
       
       for (int i = 0; i < symbol->data.variable_symbol->static_initial_value_array->count; i++) {
-
-        switch (variable_value_type->type) {
-          case TYPE_INT:
-            printf("\t\tint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].int_value);
+        switch (symbol->data.variable_symbol->static_initial_value_array->items[i].type) {
+          case INITIAL_VALUE_TYPE_INT:            
+            printf("\t\tint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.int_value);
             break;
-          case TYPE_UINT:
-            printf("\t\tuint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].uint_value);
+          case INITIAL_VALUE_TYPE_UINT:
+            printf("\t\tuint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.uint_value);
             break;
-          case TYPE_LONG:
-            printf("\t\tlong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].long_value);
+          case INITIAL_VALUE_TYPE_LONG:
+            printf("\t\tlong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.long_value);
             break;
-          case TYPE_ULONG:
-            printf("\t\tulong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
+          case INITIAL_VALUE_TYPE_ULONG:
+            printf("\t\tulong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.ulong_value);
             break;
-          case TYPE_DOUBLE:
-            printf("\t\tdouble %f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].double_value);
+          case INITIAL_VALUE_TYPE_DOUBLE:
+            printf("\t\tdouble %f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.double_value);
             break;
-          case TYPE_POINTER:
-            printf("\t\tpointer %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].ulong_value);
+          // case TYPE_POINTER:
+          //   printf("\t\tpointer %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.ulong_value);
+          //   break;
+          case INITIAL_VALUE_TYPE_ZERO_INIT:            
+            printf("\t\tzero init bytes %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.zero_init_array_bytes);
             break;
           default:
             fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
             exit(1);
+          }
         }
-      }
 
       printf("\tstatic_is_global: %d\n", symbol->data.variable_symbol->static_is_global);
 
@@ -219,12 +221,30 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
 
 void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
   switch (type_node->type) {
-    case TYPE_INT:     initial_value->int_value = 0; break;
-    case TYPE_UINT:    initial_value->uint_value = 0; break;
-    case TYPE_LONG:    initial_value->long_value = 0; break;
-    case TYPE_ULONG:   initial_value->ulong_value = 0; break;
-    case TYPE_DOUBLE:  initial_value->double_value = 0; break;
-    case TYPE_POINTER: initial_value->ulong_value = 0; break;
+    case TYPE_INT:
+      initial_value->type = INITIAL_VALUE_TYPE_INT;
+      initial_value->data.int_value = 0;
+      break;
+    case TYPE_UINT:
+      initial_value->type = INITIAL_VALUE_TYPE_UINT;
+      initial_value->data.uint_value = 0;
+      break;
+    case TYPE_LONG:
+      initial_value->type = INITIAL_VALUE_TYPE_LONG;
+      initial_value->data.long_value = 0;
+      break;
+    case TYPE_ULONG:
+      initial_value->type = INITIAL_VALUE_TYPE_ULONG;
+      initial_value->data.ulong_value = 0;
+      break;
+    case TYPE_DOUBLE:
+      initial_value->type = INITIAL_VALUE_TYPE_DOUBLE;
+      initial_value->data.double_value = 0;
+      break;
+    case TYPE_POINTER:
+      initial_value->type = INITIAL_VALUE_TYPE_ULONG;
+      initial_value->data.ulong_value = 0;
+      break;
     default:
       fprintf(stderr, "ERROR - Declaration Symbol: Unsupported initial value Type '%d'\n", type_node->type);
       exit(1);

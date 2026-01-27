@@ -1068,7 +1068,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
     }
 
     double ir_double = source_double;
-    double top_level_double = assembly->top_level_declarations->asm_pointers[i]->data.static_constant.static_init->static_initial_value_array->items[0].double_value; 
+    double top_level_double = assembly->top_level_declarations->asm_pointers[i]->data.static_constant.static_init->static_initial_value_array->items[0].data.double_value; 
 
     //0.0 and -0.0 should be treated independantly. A new top level entry should be made for both if they are both declared
     //TODO: Look into de-duplicating the data alloc that happend here and below when a top level declaration is new
@@ -1089,7 +1089,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
 
   constant_label_counter++;
 
-  InitialValue initial_value = { .double_value = source_double };  
+  InitialValue initial_value = { .type = INITIAL_VALUE_TYPE_DOUBLE, .data.double_value = source_double };  
   InitialValueArray *initial_value_array = initial_value_array_init();
 
   dynamic_array_add(initial_value_array, initial_value, STATIC_INITIAL_VALUE_CAPACITY);
@@ -1583,7 +1583,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
   HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ".MAX_LONG");
 
   if (entry == NULL || entry->key == NULL) {
-    InitialValue max_long_init = { .long_value = LONG_MAX };
+    InitialValue max_long_init = { .type = INITIAL_VALUE_TYPE_LONG, .data.long_value = LONG_MAX };
     InitialValueArray *initial_value_array = initial_value_array_init();
 
     dynamic_array_add(initial_value_array, max_long_init, STATIC_INITIAL_VALUE_CAPACITY);

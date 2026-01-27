@@ -284,7 +284,12 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
 static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   if (ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
     TypeNode *expression_type = expression_type_check_and_convert(&ast_initializer->data.initializer.initializer_node.single_init_expression, declaration_table, function_declaration_node, parser_results);
-    ast_initializer = convert_by_assignment(ast_initializer->data.initializer.initializer_node.single_init_expression, expression_type, target_type, parser_results);
+
+    if (target_type->type == TYPE_ARRAY) {
+      ast_initializer = convert_by_assignment(ast_initializer->data.initializer.initializer_node.single_init_expression, expression_type, target_type->data.array_type.element_type, parser_results);
+    } else {
+      ast_initializer = convert_by_assignment(ast_initializer->data.initializer.initializer_node.single_init_expression, expression_type, target_type, parser_results);
+    }
 
     return expression_type;
   }
@@ -296,9 +301,10 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
     }
 
     for (int i = 0; i < ast_initializer->data.initializer.initializer_node.compound_initializer->count; i++) {
-      type_check_init(target_type->data.array_type.element_type, &ast_initializer->data.initializer.initializer_node.compound_initializer->items[i], declaration_table, function_declaration_node, parser_results);
+      type_check_init(target_type, &ast_initializer->data.initializer.initializer_node.compound_initializer->items[i], declaration_table, function_declaration_node, parser_results);
     }
 
+    int zero_bytes = 0;
 
     for (int i = ast_initializer->data.initializer.initializer_node.compound_initializer->count; i < target_type->data.array_type.size; i++) {
       AstNode *zero_init = zero_initializer(target_type->data.array_type.element_type, parser_results);
@@ -377,12 +383,30 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     initialization_type = INITIALIZATION_TYPE_INITIALIZED;
 
     switch (variable_declaration_node->data.declaration_variable.type->type) {
-      case TYPE_INT:     initial_value.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node); break;
-      case TYPE_LONG:    initial_value.long_value = convert_variable_declaration_constant_to_long(variable_declaration_node); break;
-      case TYPE_UINT:    initial_value.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node); break;
-      case TYPE_ULONG:   initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
-      case TYPE_DOUBLE:  initial_value.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node); break;
-      case TYPE_POINTER: initial_value.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node); break;
+      case TYPE_INT:
+        initial_value.type = INITIAL_VALUE_TYPE_INT;
+        initial_value.data.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node);
+        break;
+      case TYPE_LONG:
+        initial_value.type = INITIAL_VALUE_TYPE_LONG;
+        initial_value.data.long_value = convert_variable_declaration_constant_to_long(variable_declaration_node);
+        break;
+      case TYPE_UINT:
+        initial_value.type = INITIAL_VALUE_TYPE_UINT;
+        initial_value.data.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node);
+        break;
+      case TYPE_ULONG:
+        initial_value.type = INITIAL_VALUE_TYPE_ULONG;
+        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
+        break;
+      case TYPE_DOUBLE:
+        initial_value.type = INITIAL_VALUE_TYPE_DOUBLE;
+        initial_value.data.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node);
+        break;
+      case TYPE_POINTER:
+        initial_value.type = INITIAL_VALUE_TYPE_ULONG;
+        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
+        break;
       default:
         fprintf(stderr, "ERROR: SA Type Check: Unsupported constant expression type when checking file scope variable\n");
         exit(1);
@@ -503,11 +527,26 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
   }
 
   switch(declaration_type->type) {
-   case TYPE_INT:     initial_value->int_value = convert_variable_declaration_constant_to_int(constant_node); break;
-   case TYPE_LONG:    initial_value->long_value = convert_variable_declaration_constant_to_long(constant_node); break;
-   case TYPE_UINT:    initial_value->uint_value = convert_variable_declaration_constant_to_uint(constant_node); break;
-   case TYPE_ULONG:   initial_value->ulong_value = convert_variable_declaration_constant_to_ulong(constant_node); break;
-   case TYPE_DOUBLE:  initial_value->double_value = convert_variable_declaration_constant_to_double(constant_node); break;
+   case TYPE_INT:
+     initial_value->type = INITIAL_VALUE_TYPE_INT;
+     initial_value->data.int_value = convert_variable_declaration_constant_to_int(constant_node);
+     break;
+   case TYPE_LONG:
+     initial_value->type = INITIAL_VALUE_TYPE_LONG;
+     initial_value->data.long_value = convert_variable_declaration_constant_to_long(constant_node);
+     break;
+   case TYPE_UINT:
+     initial_value->type = INITIAL_VALUE_TYPE_UINT;
+     initial_value->data.uint_value = convert_variable_declaration_constant_to_uint(constant_node);
+     break;
+   case TYPE_ULONG:
+     initial_value->type = INITIAL_VALUE_TYPE_ULONG;
+     initial_value->data.ulong_value = convert_variable_declaration_constant_to_ulong(constant_node);
+     break;
+   case TYPE_DOUBLE:
+     initial_value->type = INITIAL_VALUE_TYPE_DOUBLE;
+     initial_value->data.double_value = convert_variable_declaration_constant_to_double(constant_node);
+     break;
    case TYPE_POINTER: {
      unsigned long value = convert_variable_declaration_constant_to_ulong(constant_node);
 
@@ -516,7 +555,8 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
        exit(1);
      }
 
-     initial_value->ulong_value = value;
+     initial_value->type = INITIAL_VALUE_TYPE_ULONG;
+     initial_value->data.ulong_value = value;
      break;
    }
    default:
@@ -528,6 +568,8 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
 }
 
 static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
+  int zero_init_array_byte_size = 0;
+
   for (int i = 0; i < declaration_type->data.array_type.size; i++) {
     if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
       AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
@@ -542,13 +584,15 @@ static void add_variable_declaration_compound_init_to_array(InitialValueArray *i
     }
 
     if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
+      zero_init_array_byte_size += get_type_size(declaration_type->data.array_type.element_type->type);
+
       TypeNode *array_type = declaration_type->data.array_type.element_type;
 
       InitialValue *initial_value = malloc(sizeof(InitialValue));
-      initial_value->zero_init_array_bytes = get_type_size(array_type->type);
+      initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+      initial_value->data.zero_init_array_bytes = get_type_size(array_type->type);
       dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
-
   }
 
   // for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
