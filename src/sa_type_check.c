@@ -7,6 +7,7 @@
 #include "../include/arena.h"
 #include "../include/parser.h"
 #include "../include/declaration_symbol.h"
+#include "../include/error.h"
 
 //TODO: Check to see how we can better optimize these types of buffers. Exact same use of this buffer is in sa_variable_resolution
 #define IDENTIFIER_BUFFER 256
@@ -78,34 +79,28 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         DeclarationSymbol *existing_function_symbol = entry->value->structure;
 
         if (existing_function_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-          fprintf(stderr, "ERROR - SA Type Check: '%s' declared as variable\n", entry->key);
-          exit(1);
+          input_error_with_line(stderr, node->line_number, "'%s' declared as variable", entry->key);
         }
 
         if (existing_function_symbol->data.function_symbol->value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {
-          fprintf(stderr, "ERROR - SA Type Check: Incompatible function declarations for '%s\n'", entry->key);
-          exit(1);
+          input_error_with_line("Incompatible function declarations for '%s'", node->line_number, entry->key);
         }
 
         if (existing_function_symbol->data.function_symbol->is_defined && node->data.declaration_function.body_block != NULL) {
-          fprintf(stderr, "ERROR - SA Type Check: Function defined more than once '%s'\n", entry->key);
-          exit(1);
+          input_error_with_line("Function defined more than once '%s'", node->line_number, entry->key);
         }
 
         if (existing_function_symbol->data.function_symbol->is_global == node->data.declaration_function.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-          fprintf(stderr, "ERROR - SA Type Check: Static function '%s' declaration follows non-static\n", node->data.declaration_function.name);
-          exit(1);
+          input_error_with_line("Static function '%s' declaration follows non-static", node->line_number, node->data.declaration_function.name);
         }
 
         if (existing_function_symbol->data.function_symbol->param_count != node->data.declaration_function.function_type->data.function_type.param_type_count) {
-          fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.declaration_function.name);
-          exit(1);
+          input_error_with_line("'%s' function declaration has different set parameters", node->line_number, node->data.declaration_function.name);
         }
 
         for (int i = 0; i < node->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
           if (existing_function_symbol->data.function_symbol->param_types[i].type != node->data.declaration_function.function_type->data.function_type.param_types[i].type) {
-            fprintf(stderr, "ERROR - SA Type Check: '%s' function declaration has different set parameters\n", node->data.declaration_function.name);
-            exit(1);
+            input_error_with_line("'%s' function declaration has different set parameters", node->line_number, node->data.declaration_function.name);
           }
 
           //We only want to add function param names for function definitions
@@ -123,8 +118,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       }
 
       if (node->data.declaration_function.function_type->data.function_type.return_type->type == TYPE_ARRAY) {
-        fprintf(stderr, "ERROR: SA Type Check - Cannot have array as function return type\n");
-        exit(1);
+        input_error_with_line("Cannot have array as function return type", node->line_number);
       }
 
       TypeNode *param_types = malloc(sizeof(TypeNode) * node->data.declaration_function.function_type->data.function_type.param_type_count);
@@ -163,13 +157,11 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         DeclarationSymbol *existing_symbol = entry->value->structure;
 
         if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-          fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.expression_function_call.identfier);
-          exit(1);
+          input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identfier);
         }               
 
         if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
-          fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.expression_function_call.identfier);
-          exit(1);
+          input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identfier);
         }
       }
 
@@ -230,8 +222,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
 
       if (function_return_type->type == TYPE_POINTER && return_expression_type->type == TYPE_POINTER) {
         if (get_pointer_base_type(return_expression_type) != get_pointer_base_type(function_return_type)) {
-          fprintf(stderr, "ERROR: Type Check - Cannot implicitly convert one pointer type to another\n");
-          exit(1);
+          input_error_with_line("Cannot implicitly convert one pointer type to another", node->line_number);
         }        
       } else if (function_return_type->type == return_expression_type->type) {
         break;

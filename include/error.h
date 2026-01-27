@@ -35,4 +35,13 @@
       exit(1);\
     } while(0); \
 
+#define input_error_with_line(message, line_number, ...) \
+  do { \
+      fprintf(stderr, ANSI_COLOR_RED "Error: ");\
+      fprintf(stderr, message, ##__VA_ARGS__);\
+      fprintf(stderr, " (line %d)", line_number);\
+      fprintf(stderr, "\n" ANSI_COLOR_RESET);\
+      exit(1);\
+    } while(0); \
+
 #endif
