@@ -1978,7 +1978,13 @@ static Declarator* parse_direct_declarator(Parser *parser){
   }
 
   if (suffix != NULL && suffix->type == DECLARATOR_TYPE_ARRAY) {
-    suffix->data.array_declarator.declarator = simple_declarator;
+    Declarator **inner_declarator = &suffix->data.array_declarator.declarator;
+
+    while (*inner_declarator != NULL) {
+      inner_declarator = &(*inner_declarator)->data.array_declarator.declarator;
+    }
+
+    *inner_declarator = simple_declarator;
     return suffix;
   }
 
