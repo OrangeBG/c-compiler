@@ -399,8 +399,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
         initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
         break;
       default:
-        fprintf(stderr, "ERROR: SA Type Check: Unsupported constant expression type when checking file scope variable\n");
-        exit(1);
+        panic("Unsupported constant expression type when checking file scope variable");
     }
   } else if (!variable_declaration_node->data.declaration_variable.has_expression) {
     if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
@@ -411,8 +410,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
 
     declaration_symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
   } else {
-    fprintf(stderr, "ERROR: SA Type Check: Non-constant initializer for variable declaration '%s'\n", variable_declaration_node->data.declaration_variable.name);
-    exit(1);
+    input_error_with_line("Non-constant initializer for variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
   }
 
   bool is_global = variable_declaration_node->data.declaration_variable.storage_class_type != AST_STORAGE_CLASS_STATIC;
@@ -423,27 +421,23 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     DeclarationSymbol *existing_variable_symbol = entry->value->structure;
 
     if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
-      fprintf(stderr, "ERROR: SA Type Check: Function '%s' redeclared as variable\n", variable_declaration_node->data.declaration_variable.name);
-      exit(1);
+      input_error_with_line("Function '%s' redeclared as variable", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
 
     if (variable_declaration_node->data.declaration_variable.type->type != existing_variable_symbol->data.variable_symbol->value_type->type) {
-      fprintf(stderr, "ERROR: SA Type Check: Previously declared '%s' variable has type of '%s'\n", variable_declaration_node->data.declaration_variable.name, get_type_string(existing_variable_symbol->data.variable_symbol->value_type->type));
-      exit(1);
+      input_error_with_line("Previously declared '%s' variable has type of '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name, get_type_string(existing_variable_symbol->data.variable_symbol->value_type->type));
     }
 
     if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       existing_variable_symbol->data.variable_symbol->static_is_global = true;
     }
     else if (existing_variable_symbol->data.variable_symbol->static_is_global != is_global) {
-      fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting variable linkage\n", variable_declaration_node->data.declaration_variable.name);
-      exit(1);
+      input_error_with_line("Function '%s' conflicting variable linkage", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
 
     if (existing_variable_symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
       if (initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
-        fprintf(stderr, "ERROR: SA Type Check: Function '%s' conflicting file scope variable definitions\n", variable_declaration_node->data.declaration_variable.name);
-        exit(1);
+        input_error_with_line("Function '%s' conflicting file scope variable definitions", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
       }
     } else {
       existing_variable_symbol->data.variable_symbol->static_initialization_type = initialization_type;
@@ -559,44 +553,69 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
 }
 
 static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
-  int zero_init_array_byte_size = 0;
+  for (int i = 0; i < declaration_type->data.array_type.size; i++) {
+    if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
+      add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, compound_init->data.initializer.initializer_node.compound_initializer->items);
+      return;
+    }
+  }
+
+  int zero_init_bytes = 0;
 
   for (int i = 0; i < declaration_type->data.array_type.size; i++) {
     if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
       AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
-
-      if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
-        add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
-        continue;
-      }
-
-      add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
-      continue;
-    }
-
-    if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
-      zero_init_array_byte_size += get_type_size(declaration_type->data.array_type.element_type->type);
-
-      TypeNode *array_type = declaration_type->data.array_type.element_type;
-
-      InitialValue *initial_value = malloc(sizeof(InitialValue));
-      initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
-      initial_value->data.zero_init_array_bytes = get_type_size(array_type->type);
-      dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+      add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
+    } else {
+     zero_init_bytes++;
     }
   }
-
-  // for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
-  //   AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
+}
+  // for (int i = 0; i < declaration_type->data.array_type.size; i++) {
+  //   if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
+  //       AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
   //
-  //   if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
-  //     add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
+  //       if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
+  //         add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
+  //         continue;
+  //       }
+  //
+  //       add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
+  //       continue;
+  //     }
+  //
+  //   if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
+  //
+  //   }
+  // }
+
+  //  int zero_init_array_byte_size = 0;
+  //
+  // for (int i = 0; i < declaration_type->data.array_type.size; i++) {
+  //   if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
+  //     AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
+  //
+  //     if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
+  //       add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
+  //       continue;
+  //     }
+  //
+  //     add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
   //     continue;
   //   }
   //
-  //   add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
+  //   if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
+  //     zero_init_array_byte_size += get_type_size(declaration_type->data.array_type.element_type->type);
+  //
+  //     TypeNode *array_type = declaration_type->data.array_type.element_type;
+  //
+  //     InitialValue *initial_value = malloc(sizeof(InitialValue));
+  //     initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+  //     initial_value->data.zero_init_array_bytes = get_type_size(array_type->type);
+  //     dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+  //   }
   // }
-}
+
 
 static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
