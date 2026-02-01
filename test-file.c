@@ -2,7 +2,7 @@ int main(void) {
     //int my_array[3] = { 1 };
     //static long test = 599;
     // static int nested[2] = {1};
-    static int nested[3][2] = {{100}, {200, 300}};
+    static int nested[1][2] = { { 0, 0 } };
 
     // static int test = 1;
 

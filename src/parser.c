@@ -244,7 +244,7 @@ void print_ast(const AstNode *node, int whitespace) {
         printf(")\n");
       } else {
         print_whitespace(whitespace);
-        printf("Compound Init (line = %d\n", node->line_number);
+        printf("Compound Init (line = %d, count = %d\n", node->line_number, node->data.initializer.initializer_node.compound_initializer->count);
         for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
           print_ast(&node->data.initializer.initializer_node.compound_initializer->items[i], ADD_WHITESPACE);
         }
@@ -2045,7 +2045,21 @@ static Declarator* parse_declarator_suffix(Parser *parser) {
     parser->current_token_index++;
     expect(parser, TOKEN_CLOSE_BRACKET);
 
-    array_declarator->data.array_declarator.declarator = parse_declarator_suffix(parser);
+    //array_declarator->data.array_declarator.declarator = parse_declarator_suffix(parser);
+
+    Declarator *next_declarator = parse_declarator_suffix(parser);
+
+    // if (next_declarator != NULL) {
+    //   array_declarator->data.array_declarator.declarator = next_declarator;
+    // }
+
+    if (next_declarator != NULL) {
+      next_declarator->data.array_declarator.declarator = array_declarator;
+      return next_declarator;
+      //array_declarator->data.array_declarator.declarator = next_declarator;
+    }
+
+
 
     return array_declarator;
   }
