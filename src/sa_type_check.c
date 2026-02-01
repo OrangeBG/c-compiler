@@ -79,7 +79,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
         DeclarationSymbol *existing_function_symbol = entry->value->structure;
 
         if (existing_function_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-          input_error_with_line(stderr, node->line_number, "'%s' declared as variable", entry->key);
+          input_error_with_line("'%s' declared as variable", node->line_number, entry->key);
         }
 
         if (existing_function_symbol->data.function_symbol->value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {

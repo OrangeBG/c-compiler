@@ -2019,6 +2019,7 @@ static Declarator* parse_declarator_suffix(Parser *parser) {
 
     Declarator *array_declarator = malloc(sizeof(Declarator));
     array_declarator->type = DECLARATOR_TYPE_ARRAY;
+    array_declarator->data.array_declarator.declarator = NULL;
 
     //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
 
