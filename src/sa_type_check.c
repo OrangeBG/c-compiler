@@ -14,7 +14,7 @@
 
 static void             function_and_variable_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results);
 static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table); 
-static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name); 
+static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name);
 static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, DeclarationSymbolTable *declaration_table, ParserResults *parser_results); 
 static TypeNode*        type_check_init(TypeNode *target_type, AstNode *ast_initializer, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results); 
@@ -35,7 +35,7 @@ static AstNode*         convert_by_assignment(AstNode *right_assignment_expressi
 static bool             is_null_pointer_constant(AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
 static void             add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
-static void             add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init, int unit_size);
+static void             add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init, Types base_type);
 
 void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declaration_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -292,10 +292,8 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
     }
 
     for (int i = 0; i < ast_initializer->data.initializer.initializer_node.compound_initializer->count; i++) {
-      type_check_init(target_type, &ast_initializer->data.initializer.initializer_node.compound_initializer->items[i], declaration_table, function_declaration_node, parser_results);
+      type_check_init(target_type->data.array_type.element_type, &ast_initializer->data.initializer.initializer_node.compound_initializer->items[i], declaration_table, function_declaration_node, parser_results);
     }
-
-    int zero_bytes = 0;
 
     for (int i = ast_initializer->data.initializer.initializer_node.compound_initializer->count; i < target_type->data.array_type.size; i++) {
       AstNode *zero_init = zero_initializer(target_type->data.array_type.element_type, parser_results);
@@ -490,7 +488,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     }
 
     if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
-      add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, 0);
+      add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, get_array_base_type(variable_declaration_node->data.declaration_variable.type));
       add_static_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
     }
@@ -552,89 +550,41 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
   dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
 }
 
-static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init, int unit_size) {
-  for (int i = 0; i < declaration_type->data.array_type.size; i++) {
+static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init, Types base_array_type) {
     if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
-      add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, compound_init, 0);
+      for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
+        add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i], base_array_type);
+      }
+
+    int compound_diff = declaration_type->data.array_type.size - compound_init->data.initializer.initializer_node.compound_initializer->count;
+
+    if (compound_diff != 0) {
+      size_t size = get_type_size(base_array_type);
+
+      InitialValue *initial_value = malloc(sizeof(InitialValue));
+      initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+      //TODO: Warning. Casting to int.
+      initial_value->data.zero_init_array_bytes = (int)size * (compound_diff * (int)declaration_type->data.array_type.size);
+      dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+    }
+  } else {
+    for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
+      add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i]);
+    }
+
+    int compound_diff = declaration_type->data.array_type.size - compound_init->data.initializer.initializer_node.compound_initializer->count;
+
+    if (compound_diff != 0) {
+      size_t size = get_type_size(base_array_type);
+
+      InitialValue *initial_value = malloc(sizeof(InitialValue));
+      initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+      //TODO: Warning. Casting to int.
+      initial_value->data.zero_init_array_bytes = (int)size * compound_diff;
+      dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
   }
-
-
-
-
-
-
-  // for (int i = 0; i < declaration_type->data.array_type.size; i++) {
-  //   if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
-  //     if (i <= compound_init->data.initializer.initializer_node.compound_initializer->count - 1) {
-  //       add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i]);//compound_init->data.initializer.initializer_node.compound_initializer->items);
-  //     } else {
-  //       //ZERO INIT THE WHOLE THING?
-  //     }
-  //
-  //
-  //     return;
-  //   }
-  //
-  //   int zero_init_bytes = 0;
-  //
-  //   for (int i = 0; i < declaration_type->data.array_type.size; i++) {
-  //     if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
-  //       AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
-  //       add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
-  //     } else {
-  //       zero_init_bytes++;
-  //     }
-  //   }
-  // }
-
-
 }
-  // for (int i = 0; i < declaration_type->data.array_type.size; i++) {
-  //   if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
-  //       AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
-  //
-  //       if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
-  //         add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
-  //         continue;
-  //       }
-  //
-  //       add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
-  //       continue;
-  //     }
-  //
-  //   if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
-  //
-  //   }
-  // }
-
-  //  int zero_init_array_byte_size = 0;
-  //
-  // for (int i = 0; i < declaration_type->data.array_type.size; i++) {
-  //   if (i < compound_init->data.initializer.initializer_node.compound_initializer->count) {
-  //     AstNode *item_init = &compound_init->data.initializer.initializer_node.compound_initializer->items[i];
-  //
-  //     if (item_init->data.initializer.type == AST_INITIALIZER_SINGLE) {
-  //       add_variable_declaration_single_init_to_array(initial_value_array, declaration_type, item_init);
-  //       continue;
-  //     }
-  //
-  //     add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type, item_init);
-  //     continue;
-  //   }
-  //
-  //   if ((i - 1) != compound_init->data.initializer.initializer_node.compound_initializer->count) {
-  //     zero_init_array_byte_size += get_type_size(declaration_type->data.array_type.element_type->type);
-  //
-  //     TypeNode *array_type = declaration_type->data.array_type.element_type;
-  //
-  //     InitialValue *initial_value = malloc(sizeof(InitialValue));
-  //     initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
-  //     initial_value->data.zero_init_array_bytes = get_type_size(array_type->type);
-  //     dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
-  //   }
-  // }
-
 
 static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
