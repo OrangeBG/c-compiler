@@ -1,4 +1,5 @@
 # Bugs
+    - Line number in AST nodes were removed. Need to add logic back in to keep track of it.
 	- Issue with params being pushed into the stack from Assembly:	
 		int accept_unsigned(unsigned int a, unsigned int b, unsigned long c, unsigned long d,
 		                 unsigned int e, unsigned int f, unsigned long g, unsigned int h,

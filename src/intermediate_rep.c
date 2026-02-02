@@ -4,6 +4,7 @@
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
+#include "../include/error.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -249,17 +250,18 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_VALUE_STATIC_VAR:
       printf("Static Var(\"%s\" Initial Value: ", ir_node->data.static_variable.identifier);
 
-      switch (ir_node->data.static_variable.static_variable_symbol->value_type->type) {
-        case TYPE_INT:      printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
-        case TYPE_LONG:     printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
-        case TYPE_UINT:     printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_ULONG:    printf("%lu, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
-        case TYPE_DOUBLE:   printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
-        case TYPE_POINTER:  printf("%ld, type = pointer, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
-        default:
-          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type->type);
-          exit(1);
-      }
+      //@Temporary: Commented until IR supports static initial array
+      // switch (ir_node->data.static_variable.static_variable_symbol->value_type->type) {
+      //   case TYPE_INT:      printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.int_value); break;
+      //   case TYPE_LONG:     printf("%ld, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.long_value); break;
+      //   case TYPE_UINT:     printf("%d, type = int, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value); break;
+      //   case TYPE_ULONG:    printf("%lu, type = long, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+      //   case TYPE_DOUBLE:   printf("%f, type = double, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.double_value); break;
+      //   case TYPE_POINTER:  printf("%ld, type = pointer, ", ir_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value); break;
+      //   default:
+      //     fprintf(stderr, "ERROR - Intermediate Rep: Unsupported declaration type '%d' when attempting to print static variable\n", ir_node->data.static_variable.static_variable_symbol->value_type->type);
+      //     exit(1);
+      // }
 
       printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
       break;
@@ -377,8 +379,7 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
           return emit_function(node, intermediate_rep);
       }
       default:
-        fprintf(stderr, "ERROR - IR: ASTNode type %d not found for node emit\n", node->type);
-        exit(1);
+        panic("AST node type '%d' was not found in emit_ast_node()", node->type);
   }
 
   return NULL;
@@ -1007,7 +1008,7 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
       continue;
     }
 
-    if (declaration_symbol->data.variable_symbol->static_initial_type == INITIAL_VALUE_NO_INITIALIZER) {
+    if (declaration_symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_NO_INITIALIZER) {
       continue;
     }
     

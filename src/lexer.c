@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/lexer.h"
+#include "../include/dynamic_array.h"
 
 #define TOKEN_ARRAY_START_SIZE 64
 
@@ -87,13 +88,17 @@ static TokenType check_keyword(int start, int length, char *rest, TokenType type
 static TokenType get_identifier_type(Lexer *lexer, char *file); 
  
 Lexer init_lexer() {
+  TokenArray *token_array = malloc(sizeof(TokenArray));
+
+  token_array->capacity = 0;
+  token_array->count = 0;
+  token_array->items = NULL;
+
   Lexer lexer = {
     .start_index = 0,
     .current_index = 0,
     .line = 1,
-    .token_capacity = 0,
-    .token_count = 0,
-    .tokens = NULL,
+    .tokens =  token_array,
   };
 
   return lexer;
@@ -347,16 +352,16 @@ void load_tokens(Lexer *lexer, char *file) {
 }
 
 void print_tokens(Lexer *lexer, char *file) {
-  for (int i = 0; i < lexer->token_count; i++) {
-    printf("line %d", lexer->tokens[i].line);
+  for (int i = 0; i < lexer->tokens->count; i++) {
+    printf("line %d", lexer->tokens->items[i].line);
     printf("%*s", 6, "");
 
-    long whitespace = 30 - strlen(TokenTypeStr[lexer->tokens[i].type]);
-    printf("%s", TokenTypeStr[lexer->tokens[i].type]);
+    long whitespace = 30 - strlen(TokenTypeStr[lexer->tokens->items[i].type]);
+    printf("%s", TokenTypeStr[lexer->tokens->items[i].type]);
     printf("%*s", (int)whitespace, "");
     printf(" -> ");
 
-    for (int j = lexer->tokens[i].start_index; j <= lexer->tokens[i].end_index; j++) {
+    for (int j = lexer->tokens->items[i].start_index; j <= lexer->tokens->items[i].end_index; j++) {
       printf("%c", file[j]);
     } 
     printf("\n");
@@ -364,12 +369,6 @@ void print_tokens(Lexer *lexer, char *file) {
 }
 
 static void add_token(TokenType type, Lexer *lexer) {  
-  if (lexer->token_count == lexer->token_capacity) {
-    int size = lexer->token_capacity == 0 ? TOKEN_ARRAY_START_SIZE : lexer->token_capacity * 2;
-    lexer->token_capacity = size;
-    lexer->tokens = realloc(lexer->tokens, size * sizeof(Token));
-  }
-
   Token new_token = {
     .type = type,
     .start_index = lexer->start_index,
@@ -377,8 +376,7 @@ static void add_token(TokenType type, Lexer *lexer) {
     .line = lexer->line
   };
 
-  lexer->tokens[lexer->token_count] = new_token;
-  lexer->token_count++;
+  dynamic_array_add(lexer->tokens, new_token, TOKEN_ARRAY_START_SIZE);
 }
 
 static bool is_alpha_char(char character) {

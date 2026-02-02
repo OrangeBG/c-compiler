@@ -35,5 +35,6 @@ char*  get_type_string(Types type);
 void   print_type_node(TypeNode *type_node); 
 void   add_function_parameter_type(TypeNode *parameter_type, TypeNode *function_type); 
 Types  get_pointer_base_type(TypeNode *pointer_node);
+Types get_array_base_type(TypeNode *array_node);
 
 #endif

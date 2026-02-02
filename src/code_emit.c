@@ -59,25 +59,26 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
 
       switch (asm_node->data.static_variable.static_variable_symbol->value_type->type) {
-        case TYPE_INT:
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
-          break;
-        case TYPE_UINT:
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
-          break;
-        case TYPE_LONG: 
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
-          break;
-        case TYPE_ULONG: 
-        case TYPE_POINTER:
-          asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
-          break;
-        case TYPE_DOUBLE:
-          fprintf(file, "\t.data\n"); 
-          break;
-        default:
-          fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", asm_node->data.static_variable.static_variable_symbol->value_type->type);
-          exit(1);
+        //@Temporary: Commented out until it can support the new initial value array
+        // case TYPE_INT:
+        //   asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+        //   break;
+        // case TYPE_UINT:
+        //   asm_node->data.static_variable.static_variable_symbol->static_initial_value.uint_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+        //   break;
+        // case TYPE_LONG: 
+        //   asm_node->data.static_variable.static_variable_symbol->static_initial_value.long_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+        //   break;
+        // case TYPE_ULONG: 
+        // case TYPE_POINTER:
+        //   asm_node->data.static_variable.static_variable_symbol->static_initial_value.ulong_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
+        //   break;
+        // case TYPE_DOUBLE:
+        //   fprintf(file, "\t.data\n"); 
+        //   break;
+        // default:
+        //   fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", asm_node->data.static_variable.static_variable_symbol->value_type->type);
+        //   exit(1);
       }      
 
       #ifdef __linux__
@@ -90,7 +91,8 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
-      print_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->value_type->type, asm_node->data.static_variable.static_variable_symbol->static_initial_value);
+      //@Temporary: Commented out until it can support the new initial value array
+      // print_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->value_type->type, asm_node->data.static_variable.static_variable_symbol->static_initial_value);
 
       fprintf(file, "\n");
       break;
@@ -107,7 +109,8 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_constant.identifier);
       
-      print_static_initializer(file, asm_node->data.static_constant.static_init->value_type->type, asm_node->data.static_constant.static_init->static_initial_value);
+      //@Temporary: Commented out until it can support the new initial value array
+      // print_static_initializer(file, asm_node->data.static_constant.static_init->value_type->type, asm_node->data.static_constant.static_init->static_initial_value);
 
       #if __APPLE__
         if (asm_node->data.static_constant.alignment == 16) {
@@ -526,16 +529,16 @@ static void print_condition_code(FILE *file, AsmConditionCode condition_code) {
 static void print_static_initializer(FILE *file, Types value_type, InitialValue initial_value) {
   switch (value_type) {
     case TYPE_INT:
-      initial_value.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.int_value); break;
+      initial_value.data.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.data.int_value); break;
     case TYPE_UINT:
-      initial_value.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.uint_value); break;
+      initial_value.data.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.data.uint_value); break;
     case TYPE_LONG:
-      initial_value.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.long_value); break;
+      initial_value.data.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.long_value); break;
     case TYPE_DOUBLE:
-      fprintf(file, "\t.double %a\n", initial_value.double_value); break;
+      fprintf(file, "\t.double %a\n", initial_value.data.double_value); break;
     case TYPE_ULONG:
     case TYPE_POINTER:
-      initial_value.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.ulong_value); break;
+      initial_value.data.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.ulong_value); break;
     default:
       fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", value_type);
       exit(1);

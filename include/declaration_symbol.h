@@ -6,15 +6,26 @@
 #include "../include/types.h"
 #include <stdbool.h>
 
+#define STATIC_INITIAL_VALUE_CAPACITY 4
+
 typedef enum {
   DECLARATION_SYMBOL_VARIABLE,
   DECLARATION_SYMBOL_FUNCTION
 } DeclarationSymbolType;
 
 typedef enum {
-  INITIAL_VALUE_TENTATIVE,
-  INITIAL_VALUE_INITIALIZED,
-  INITIAL_VALUE_NO_INITIALIZER
+  INITIALIZATION_TYPE_TENTATIVE,
+  INITIALIZATION_TYPE_INITIALIZED,
+  INITIALIZATION_TYPE_NO_INITIALIZER
+} InitializationType;
+
+typedef enum {
+  INITIAL_VALUE_TYPE_INT,
+  INITIAL_VALUE_TYPE_LONG,
+  INITIAL_VALUE_TYPE_UINT,
+  INITIAL_VALUE_TYPE_ULONG,
+  INITIAL_VALUE_TYPE_DOUBLE,  
+  INITIAL_VALUE_TYPE_ZERO_INIT  
 } InitialValueType;
 
 typedef struct {
@@ -25,19 +36,29 @@ typedef struct {
   TypeNode *param_types;
 } FunctionSymbol;
 
-typedef union {
-  int int_value;
-  long long_value;
-  unsigned int uint_value;
-  unsigned long ulong_value;
-  double double_value;
+typedef struct {
+  InitialValueType type;
+  union {
+    int int_value;
+    long long_value;
+    unsigned int uint_value;
+    unsigned long ulong_value;
+    double double_value;
+    int zero_init_array_bytes;
+  } data;
 } InitialValue;
+
+typedef struct {
+  int count;
+  int capacity;
+  InitialValue *items;
+} InitialValueArray;
 
 typedef struct {
   TypeNode *value_type;
   bool is_automatic_storage_duration;
-  InitialValueType static_initial_type;
-  InitialValue static_initial_value;
+  InitializationType static_initialization_type;
+  InitialValueArray *static_initial_value_array;
   bool static_is_global;
 } VariableSymbol; 
 
@@ -61,9 +82,10 @@ void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_ta
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type);   
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);   
 void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
 void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
+InitialValueArray* initial_value_array_init();
 
 #endif

@@ -6,6 +6,8 @@
 #include "../include/types.h"
 #include <stdbool.h>
 
+#define COMPOUND_INITIALIZER_CAPACITY 4
+
 typedef struct AstNode AstNode;
 
 typedef enum {
@@ -101,6 +103,12 @@ typedef struct {
  Arena *type_node_arena;
 } ParserResults;
 
+typedef struct {
+  int capacity;
+  int count;
+  AstNode* items;  
+} CompoundInitArray;
+
 typedef struct AstNode {
   int line_number;
   NodeType type;
@@ -109,7 +117,7 @@ typedef struct AstNode {
     //TODO: Seems bad to have param count and have function_type.data.type.function_param_type_count representing the same thing
     struct FunctionDeclaration { char *name; StorageClassType storage_class_type; char **parameter_identifiers; int parameter_identifier_capacity; int parameter_identifier_count; AstNode *body_block; TypeNode *function_type; } declaration_function;
     struct VariableDeclaration { char *name; TypeNode *type;  StorageClassType storage_class_type; bool has_expression; AstNode *init_expression; } declaration_variable;
-    struct Initializer { InitializerType type; union { AstNode *single_init_expression; AstNode *compound_initializer; } initializer_node; int compound_count; int compound_capacity; } initializer;
+    struct Initializer { InitializerType type; union { AstNode *single_init_expression; CompoundInitArray *compound_initializer; } initializer_node; } initializer;
     struct Block { NodePointer *block_ptrs; int block_count; } block;
     struct ReturnStatement { AstNode *expression; } statement_return;
     struct IfStatement { AstNode *condition_expression; AstNode *then_statement; AstNode *else_statement; } statement_if;
@@ -137,7 +145,7 @@ typedef struct AstNode {
   } data;
 } AstNode;
 
-void parse_ast(ParserResults *results, Token *tokens, int token_count, char *file);   
+void parse_ast(ParserResults *results, TokenArray *tokens, int token_count, char *file);   
 void print_ast(const AstNode *node, int whitespace);
 char* get_binary_op_type_string(BinaryOpType op_type);
 

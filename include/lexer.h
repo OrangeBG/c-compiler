@@ -83,12 +83,16 @@ typedef struct {
 } Token;
 
 typedef struct {
+  int capacity;
+  int count;
+  Token* items;  
+} TokenArray;
+
+typedef struct {
   int start_index;
   int current_index;
   int line;
-  int token_capacity;
-  int token_count;
-  Token* tokens;
+  TokenArray *tokens;
 } Lexer;
 
 Lexer init_lexer();

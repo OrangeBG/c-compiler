@@ -28,6 +28,7 @@ bool is_type_signed(Types type) {
 }
 
 bool is_arithmetic_type(TypeNode *type_node) {
+  //TODO: Add pointers?
   switch(type_node->type) {
     case TYPE_DOUBLE:
     case TYPE_INT:
@@ -116,4 +117,17 @@ Types get_pointer_base_type(TypeNode *pointer_node) {
   }
 
   return pointer_node->data.pointer_type.reference_type->type;
+}
+
+Types get_array_base_type(TypeNode *array_node)  {
+  if (array_node->type != TYPE_ARRAY) {
+    fprintf(stderr, "ERROR - Type: Passed non-array to get_array_base_type()\n");
+    exit(1);
+  }
+
+  if (array_node->data.array_type.element_type->type == TYPE_ARRAY) {
+    return get_array_base_type(array_node->data.array_type.element_type);
+  }
+
+  return array_node->data.array_type.element_type->type;
 }

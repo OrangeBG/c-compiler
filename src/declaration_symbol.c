@@ -76,14 +76,13 @@ void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declarati
   hash_table_add_entry(declaration_symbol_table->symbol_table, entry); 
 }
 
-// void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValue initial_value, char *symbol_key, bool is_global, InitialValueType initial_value_type) {  
+void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type) {  
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
-  variable_symbol->static_initial_value = initial_value;
+  variable_symbol->static_initial_value_array = initial_value_array;
   variable_symbol->static_is_global = is_global;
-  variable_symbol->static_initial_type = initial_value_type;
+  variable_symbol->static_initialization_type = initial_value_type;
   
   DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
   declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
@@ -111,7 +110,7 @@ void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *decla
   declaration_symbol->data.variable_symbol = variable_symbol;
 
   variable_symbol->static_is_global = true;
-  variable_symbol->static_initial_type = INITIAL_VALUE_NO_INITIALIZER;
+  variable_symbol->static_initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
@@ -140,19 +139,8 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
     if (symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
       printf("type: Variable\n");
       printf("\tvalue_type: ");
-
-      switch (symbol->data.variable_symbol->value_type->type) {
-        case TYPE_INT:     printf("int\n"); break;
-        case TYPE_LONG:    printf("long\n"); break;
-        case TYPE_UINT:    printf("uint\n"); break;
-        case TYPE_ULONG:   printf("ulong\n"); break;
-        case TYPE_VOID:    printf("void\n"); break;
-        case TYPE_DOUBLE:  printf("double\n"); break;
-        case TYPE_POINTER: printf("pointer\n"); break;
-        default:
-          fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
-          exit(1);
-      }      
+      print_type_node(symbol->data.variable_symbol->value_type);
+      printf("\n");
 
       printf("\tis_automatic_storage_duration: %d\n", symbol->data.variable_symbol->is_automatic_storage_duration);
 
@@ -160,27 +148,50 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
         continue;
       }
 
-      printf("\tstatic_initial_type: ");
+      printf("\tstatic_initialization_type: ");
 
-      switch(symbol->data.variable_symbol->static_initial_type) {
-        case INITIAL_VALUE_INITIALIZED:     printf("Initialized\n"); break;
-        case INITIAL_VALUE_NO_INITIALIZER:  printf("Not Initialized\n"); break;
-        case INITIAL_VALUE_TENTATIVE:       printf("Tentative\n"); break;
+      switch(symbol->data.variable_symbol->static_initialization_type) {
+        case INITIALIZATION_TYPE_INITIALIZED:     printf("Initialized\n"); break;
+        case INITIALIZATION_TYPE_NO_INITIALIZER:  printf("Not Initialized\n"); break;
+        case INITIALIZATION_TYPE_TENTATIVE:       printf("Tentative\n"); break;
       }
 
-      printf("\tstatic_initial_value: ");
+      printf("\tstatic_initial_value(s): \n");
 
-      switch (symbol->data.variable_symbol->value_type->type) {
-        case TYPE_INT:      printf("%d\n", symbol->data.variable_symbol->static_initial_value.int_value); break;
-        case TYPE_UINT:     printf("%d\n", symbol->data.variable_symbol->static_initial_value.uint_value); break;
-        case TYPE_LONG:     printf("%ld\n", symbol->data.variable_symbol->static_initial_value.long_value); break;
-        case TYPE_ULONG:    printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
-        case TYPE_DOUBLE:   printf("%f\n", symbol->data.variable_symbol->static_initial_value.double_value); break;
-        case TYPE_POINTER:  printf("%ld\n", symbol->data.variable_symbol->static_initial_value.ulong_value); break;
-        default:
-          fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
-          exit(1);
-      }
+      TypeNode *variable_value_type = symbol->data.variable_symbol->value_type;
+
+      if (variable_value_type->type == TYPE_ARRAY) {
+        variable_value_type = variable_value_type->data.array_type.element_type;
+      } 
+      
+      for (int i = 0; i < symbol->data.variable_symbol->static_initial_value_array->count; i++) {
+        switch (symbol->data.variable_symbol->static_initial_value_array->items[i].type) {
+          case INITIAL_VALUE_TYPE_INT:            
+            printf("\t\tint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.int_value);
+            break;
+          case INITIAL_VALUE_TYPE_UINT:
+            printf("\t\tuint %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.uint_value);
+            break;
+          case INITIAL_VALUE_TYPE_LONG:
+            printf("\t\tlong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.long_value);
+            break;
+          case INITIAL_VALUE_TYPE_ULONG:
+            printf("\t\tulong %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.ulong_value);
+            break;
+          case INITIAL_VALUE_TYPE_DOUBLE:
+            printf("\t\tdouble %f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.double_value);
+            break;
+          // case TYPE_POINTER:
+          //   printf("\t\tpointer %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.ulong_value);
+          //   break;
+          case INITIAL_VALUE_TYPE_ZERO_INIT:            
+            printf("\t\tzero init bytes %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.zero_init_array_bytes);
+            break;
+          default:
+            fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
+            exit(1);
+          }
+        }
 
       printf("\tstatic_is_global: %d\n", symbol->data.variable_symbol->static_is_global);
 
@@ -210,14 +221,41 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
 
 void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
   switch (type_node->type) {
-    case TYPE_INT:     initial_value->int_value = 0; break;
-    case TYPE_UINT:    initial_value->uint_value = 0; break;
-    case TYPE_LONG:    initial_value->long_value = 0; break;
-    case TYPE_ULONG:   initial_value->ulong_value = 0; break;
-    case TYPE_DOUBLE:  initial_value->double_value = 0; break;
-    case TYPE_POINTER: initial_value->ulong_value = 0; break;
+    case TYPE_INT:
+      initial_value->type = INITIAL_VALUE_TYPE_INT;
+      initial_value->data.int_value = 0;
+      break;
+    case TYPE_UINT:
+      initial_value->type = INITIAL_VALUE_TYPE_UINT;
+      initial_value->data.uint_value = 0;
+      break;
+    case TYPE_LONG:
+      initial_value->type = INITIAL_VALUE_TYPE_LONG;
+      initial_value->data.long_value = 0;
+      break;
+    case TYPE_ULONG:
+      initial_value->type = INITIAL_VALUE_TYPE_ULONG;
+      initial_value->data.ulong_value = 0;
+      break;
+    case TYPE_DOUBLE:
+      initial_value->type = INITIAL_VALUE_TYPE_DOUBLE;
+      initial_value->data.double_value = 0;
+      break;
+    case TYPE_POINTER:
+      initial_value->type = INITIAL_VALUE_TYPE_ULONG;
+      initial_value->data.ulong_value = 0;
+      break;
     default:
       fprintf(stderr, "ERROR - Declaration Symbol: Unsupported initial value Type '%d'\n", type_node->type);
       exit(1);
   }
+}
+
+InitialValueArray* initial_value_array_init() {
+  InitialValueArray *initial_value_array = malloc(sizeof(InitialValueArray));
+  initial_value_array->capacity = 0;
+  initial_value_array->count = 0;
+  initial_value_array->items = NULL;
+
+  return initial_value_array;
 }
