@@ -296,8 +296,7 @@ void print_intermediate_ret(IRNode *ir_node) {
       print_intermediate_ret(ir_node->data.instruction_store.destination_pointer);
       break;
     default:
-      fprintf(stderr, "ERROR - IR: No print for type %d\n", ir_node->type);
-      exit(1);
+      panic("No print for type %d", ir_node->type);
   }
 }
 
@@ -314,8 +313,7 @@ static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *i
   HashTableEntry *found_declaration_entry = hash_table_get_entry(intermediate_rep->declaration_symbol_table->symbol_table, ast_function->data.declaration_function.name);
 
   if (found_declaration_entry == NULL || found_declaration_entry->key == NULL) {
-    fprintf(stderr, "ERROR - IR: Declaration Symbol expected for the following function: '%s'\n", ast_function->data.declaration_function.name);
-    exit(1);
+    panic("Declaration Symbol expected for the following function: '%s'", ast_function->data.declaration_function.name);
   }
 
   DeclarationSymbol *symbol = found_declaration_entry->value->structure;
@@ -580,8 +578,7 @@ static ExpressionResult* emit_postfix_expression(AstNode *postfix_node, Intermed
       variable->data.value_var.identifier = postfix_expression->data.expression_cast.expression->data.expression_variable.identifier;
       break;
     default:
-      fprintf(stderr, "ERROR - Intermediate Rep: Could not resolve variable identifier for Postfix expression\n");
-      exit(1);    
+      panic("Could not resolve variable identifier for Postfix expression");
   }
 
   ExpressionResult *variable_result = create_expression_result(variable, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
@@ -607,8 +604,7 @@ static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *func
     case AST_UNARY_NEGATE:     unary_op_type = IR_UNARY_NEGATE; break;
     case AST_UNARY_NOT:        unary_op_type = IR_UNARY_NOT; break;
     default:
-      fprintf(stderr, "ERROR - Intermediate Rep: Unsupported unary op type");
-      exit(1);
+      panic("Unsupported unary op type");
   }
 
   IRNode *unary_instruction = arena_alloc(intermediate_rep->node_arena);         
@@ -1112,8 +1108,7 @@ static ExpressionResult* create_ast_constant(AstNode *ast_constant, Intermediate
       constant->data.value_constant.value.double_value = ast_constant->data.expression_constant.double_value;
       break;
     default:
-      fprintf(stderr, "ERROR - IR: Attempted to create an unsupported Constant type (%d)\n", ast_constant->data.expression_constant.expression_type->type);
-      exit(1);
+      panic("Attempted to create an unsupported Constant type (%d)", ast_constant->data.expression_constant.expression_type->type);
   }
 
   ExpressionResult *constant_result = create_expression_result(constant, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
@@ -1186,8 +1181,7 @@ static TypeNode* get_node_type(IRNode *node, IntermediateRep *intermediate_rep) 
       return declaration_symbol->data.variable_symbol->value_type;
     }
     default:
-      fprintf(stderr, "ERROR - IR: Unsupported node type '%d' for get_node_type\n", node->type);
-      exit(1);
+      panic("Unsupported node type '%d' for get_node_type", node->type);
   }
 }
 
