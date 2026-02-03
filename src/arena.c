@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../include/arena.h"
+#include "../include/error.h"
 
 void arena_init(Arena *arena, int base_size, int capacity, bool allow_expand) {
   arena->allocation = malloc(capacity);  
@@ -14,8 +15,7 @@ void arena_init(Arena *arena, int base_size, int capacity, bool allow_expand) {
 void* arena_alloc(Arena *arena) {
   if (arena->offset + arena->base_size > arena->capacity) {
     if (!arena->allow_expand) {
-      fprintf(stderr, "ERROR - Arena: Ran out of memory in arena\n");
-      exit(1);
+      panic("Ran out of memory in arena");
     }    
 
     printf("Expanding Arena capacity from %zd to %zd\n", arena->capacity, arena->capacity * 2);

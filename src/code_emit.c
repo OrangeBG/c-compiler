@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "../include/code_emit.h"
 #include "../include/assembly.h"
+#include "../include/error.h"
 
 static char* get_8_byte_register(AsmRegisterType register_type); 
 static char* get_4_byte_register(AsmRegisterType register_type); 
@@ -401,8 +402,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "%s(%%rip)", asm_node->data.operand_data.identifier);
       break;
     default:
-      fprintf(stderr, "ERROR - Code Emit: No assembly type for '%d'\n", asm_node->type);
-      exit(1);
+      panic("No assembly type for '%d'", asm_node->type);
   }
 }
 
@@ -441,8 +441,7 @@ static char* get_8_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_SP:  return "%rsp";
     case ASM_REGISTER_BP:  return "%rbp";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find 8 byte register '%d'\n", register_type);
-      exit(1);
+      panic("Could not find 8 byte register '%d'", register_type);
   }
 }
 
@@ -459,8 +458,7 @@ static char* get_4_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R11: return "%r11d";
     case ASM_REGISTER_SP:  return "%rsp";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find 4 byte register '%d'\n", register_type);
-      exit(1);
+      panic("Could not find 4 byte register '%d'", register_type);
   }
 }
 
@@ -476,8 +474,7 @@ static char* get_1_byte_register(AsmRegisterType register_type) {
     case ASM_REGISTER_R10: return "%r10b";
     case ASM_REGISTER_R11: return "%r11b";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find 1 byte register '%d'\n", register_type);
-      exit(1);
+      panic("Could not find 1 byte register '%d'", register_type);
   }
 }
 
@@ -494,8 +491,7 @@ static char* get_xmm_register(AsmRegisterType register_type) {
     case ASM_REGISTER_XMM14: return "%xmm14";
     case ASM_REGISTER_XMM15: return "%xmm15";
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find xmm register '%d'\n", register_type);
-      exit(1);
+      panic("Could not find xmm register '%d'", register_type);
   }
 }
 
@@ -506,8 +502,7 @@ static void print_instruction_suffix(FILE *file, AsmType type) {
     case ASM_TYPE_QUADWORD:   fprintf(file, "q"); break;
     case ASM_TYPE_DOUBLE:     fprintf(file, "sd"); break;
     default:
-      fprintf(stderr, "ERROR - Code Emit: Could not find AsmType '%d'\n", type);
-      exit(1);  
+      panic("Could not find AsmType '%d'", type);
   }
 }
 
@@ -540,7 +535,6 @@ static void print_static_initializer(FILE *file, Types value_type, InitialValue 
     case TYPE_POINTER:
       initial_value.data.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.ulong_value); break;
     default:
-      fprintf(stderr, "ERROR - Code Emit: Static Variable Symbol Value Type '%d' not found\n", value_type);
-      exit(1);
+      panic("Static Variable Symbol Value Type '%d' not found", value_type);
   }      
 }

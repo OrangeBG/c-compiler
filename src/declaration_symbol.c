@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "../include/declaration_symbol.h"
+#include "../include/error.h"
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table) {
   HashTable *symbol_table = malloc(sizeof(HashTable));
@@ -188,8 +189,7 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
             printf("\t\tzero init bytes %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.zero_init_array_bytes);
             break;
           default:
-            fprintf(stderr, "ERROR - Declaration Symbol: Unsupported value type '%d' when attempting to print\n", symbol->data.variable_symbol->value_type->type);
-            exit(1);
+            panic("Unsupported value type '%d' when attempting to print", symbol->data.variable_symbol->value_type->type);
           }
         }
 
@@ -208,8 +208,7 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
         case TYPE_DOUBLE:   printf("double\n"); break;
         case TYPE_POINTER:  printf("pointer\n"); break;
         default:
-          fprintf(stderr, "ERROR - Declaration Symbol: Unsupported function value type '%d' when attempting to print\n", symbol->data.function_symbol->value_type->type);
-          exit(1);
+          panic("Unsupported function value type '%d' when attempting to print", symbol->data.function_symbol->value_type->type);
       }      
 
       printf("\tparam_count: %d\n", symbol->data.function_symbol->param_count);
@@ -246,8 +245,7 @@ void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *in
       initial_value->data.ulong_value = 0;
       break;
     default:
-      fprintf(stderr, "ERROR - Declaration Symbol: Unsupported initial value Type '%d'\n", type_node->type);
-      exit(1);
+      panic("Unsupported initial value Type '%d'", type_node->type);
   }
 }
 

@@ -11,6 +11,7 @@
 #include "../include/intermediate_rep.h"
 #include "../include/types.h"
 #include "../include/dynamic_array.h"
+#include "../include/error.h"
 
 #define NODE_POINTER_CAPACITY 8
 #define STACK_ARGUMENT_CAPACITY 8
@@ -190,8 +191,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
     pseudo_register_pass(top_level_node, backend_symbol_table, &stack_offset);
     
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
-      fprintf(stderr, "ERROR - Assembler: First instruction is not Binary Instruction for the '%s' function\n", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
-      exit(1);
+      panic("First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
     } 
 
     stack_offset = round_stack_offset(stack_offset);
@@ -761,8 +761,7 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmType instructio
     AsmBackendSymbol *symbol = existing_backend_symbol->value->structure;    
 
     if (symbol->type == ASM_SYMBOL_FUNCTION_ENTRY) {
-      fprintf(stderr, "ERROR - Assembler: ASM backend function symbol '%s' found when attempting to resolve pseudo registers. \n", existing_backend_symbol->key);
-      exit(1);
+      panic("ASM backend function symbol '%s' found when attempting to resolve pseudo registers.", existing_backend_symbol->key);
     }
     
     if (!symbol->data.object_entry.is_static) {
@@ -822,8 +821,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
     HashTableEntry *parameter_variable_symbol_entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function->data.function.parameter_identifiers[i]);
 
     if (parameter_variable_symbol_entry == NULL || parameter_variable_symbol_entry->key == NULL) {
-      fprintf(stderr, "ERROR: Assembler - Could not find '%s' function parameter identifier in symbol table", ir_function->data.function.identifier);
-      exit(1);
+      panic("Could not find '%s' function parameter identifier in symbol table", ir_function->data.function.identifier);
     }
 
     Types parameter_type = ((DeclarationSymbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type->type;
@@ -1022,8 +1020,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           break;
         }
       default:
-        fprintf(stderr, "ERROR - Assembler: Could not resolve instruction type in asm_function\n");
-        exit(1);
+        panic("Could not resolve instruction type in asm_function");
     }
   }
 }
@@ -1046,8 +1043,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD;
       break;
     default:
-      fprintf(stderr, "ERROR: Assembler - Could not assign alignment value to static variable '%s'\n", ir_static_variable->data.static_variable.identifier);
-      exit(1);
+      panic("Could not assign alignment value to static variable '%s'", ir_static_variable->data.static_variable.identifier);
   }  
 }
 
@@ -1103,8 +1099,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, constant_label);
 
   if (entry == NULL || entry->key == NULL) {
-    fprintf(stderr, "ERROR - Assembly: Could not find static constant label '%s' in symbol declaration table\n", constant_label);
-    exit(1);
+    panic("Could not find static constant label '%s' in symbol declaration table", constant_label);
   }
   
   DeclarationSymbol *symbol = entry->value->structure;
@@ -1214,9 +1209,7 @@ static void emit_ir_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_
     case IR_BINARY_BITWISE_RIGHT_SHIFT: binary_op = ASM_BINARY_BITWISE_RIGHT_SHIFT; break;
     case IR_BINARY_DIVIDE:              binary_op = ASM_BINARY_DIV_DOUBLE; break;      
     default:
-      fprintf(stderr, "ERROR - Assembler: Operator type not found for binary operation\n");
-      exit(1);
-      break;
+      panic("Operator type not found for binary operation");
   }
 
   emit_asm_binary_instruction(asm_function, source_2, destination_node, binary_op, source_1_type, assembly);  
@@ -1286,9 +1279,7 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
     case IR_BINARY_LESS_THAN:          relational_op = is_signed_condition ? ASM_CONDITION_LESS : ASM_CONDITION_BELOW; break;
     case IR_BINARY_LESS_OR_EQUAL:      relational_op = is_signed_condition ? ASM_CONDITION_LESS_EQUAL : ASM_CONDITION_BELOW_EQUAL; break;      
     default:
-      fprintf(stderr, "Binary Relational OP type %d is not found", ir_relational_instruction->data.instruction_binary.op_type);
-      exit(1);
-      break;
+      panic("Binary Relational OP type %d is not found", ir_relational_instruction->data.instruction_binary.op_type);
   }
 
   emit_asm_setcc_instruction(asm_function, relational_op, destination_node, assembly);
@@ -1867,8 +1858,7 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
           break;         
         // case TYPE_POINTER: asm_operand->data.operand_imm.value = ir_operand->data.value_constant.value.ulong_value; break;
         default:
-          fprintf(stderr, "ERROR - Assembler: Constant value type %d not found in asm_operand\n", ir_operand->type);
-          exit(1);      
+          panic("Constant value type %d not found in asm_operand", ir_operand->type);
       }
       break;
     case IR_VALUE_VAR: {
@@ -1886,8 +1876,7 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       break;
     }
     default:
-      fprintf(stderr, "ERROR - Assembler: Operand type %d not found in asm_operand\n", ir_operand->type);
-      exit(1);      
+      panic("Operand type %d not found in asm_operand", ir_operand->type);
   }  
 
   return asm_operand;
@@ -2101,9 +2090,7 @@ void print_assembly(AsmNode *node) {
       printf(")\n");
       break;
     default:
-      fprintf(stderr, "ERROR - Assembler: No print debug option for '%d' asm node type\n", node->type);
-      exit(1);
-      break;
+      panic("No print debug option for '%d' asm node type", node->type);
   }
 }
 
@@ -2114,8 +2101,7 @@ static void print_assembly_type(AsmType type) {
     case ASM_TYPE_DOUBLE:   printf("Type(Double) "); return;
     case ASM_TYPE_BYTE:     printf("Type(Byte) "); break;
     default:
-      fprintf(stderr, "ERROR - Assembler: AsmType '%d' not supported for assembly type printing\n", type);
-      exit(1);
+      panic("AsmType '%d' not supported for assembly type printing", type);
   }
 }
 
@@ -2168,8 +2154,7 @@ static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declarati
       break;
     }
     default:
-      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to get node Type\n", ir_node->type);
-      exit(1);
+      panic("Invalid IR Node type '%d' when attempting to get node Type", ir_node->type);
   }
 }
 
@@ -2185,8 +2170,7 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
       return convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type->type);
     }
     default:
-      fprintf(stderr, "ERROR - Assembler: Invalid IR Node type '%d' when attempting to convert to ASM Type\n", ir_node->type);
-      exit(1);
+      panic("Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
   }
 }
 
@@ -2202,9 +2186,7 @@ static AsmType convert_type_to_asm_type(Types type) {
     case TYPE_DOUBLE:
       return ASM_TYPE_DOUBLE;
     default:
-      fprintf(stderr, "ERROR - Assembler: Unsupported Type '%d' when attempting to convert to ASM Variable Type\n", type);
-      exit(1);
-      break;        
+      panic("Unsupported Type '%d' when attempting to convert to ASM Variable Type", type);
   }
 }
 
@@ -2334,8 +2316,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
       value_type = ir_node->data.static_variable.static_variable_symbol->value_type->type;
       break;
     default:
-      fprintf(stderr, "ERROR: Assembly - Unsupported IR node type '%d' when attempting to find if IR Value is signed", ir_node->type);
-      exit(1);
+      panic("Unsupported IR node type '%d' when attempting to find if IR Value is signed", ir_node->type);
   }
 
   switch (value_type) {
@@ -2348,8 +2329,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
     case TYPE_DOUBLE:
       return true;
     default:
-      fprintf(stderr, "ERROR: Assembly - Unsupported value type '%d' when attempting to find if IR Value is signed", value_type);
-      exit(1);
+      panic("Unsupported value type '%d' when attempting to find if IR Value is signed", value_type);
   }  
 }
 

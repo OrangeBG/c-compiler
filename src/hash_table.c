@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "../include/hash_table.h"
+#include "../include/error.h"
 
 #define HASH_TABLE_INITIAL_CAPACITY 8
 #define HASH_TABLE_MAX_LOAD 0.75
@@ -60,8 +61,7 @@ void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
   HashTableEntry *found_entry = hash_table_get_entry(table, entry->key);
 
   if (found_entry != NULL && found_entry->key != NULL) {
-    fprintf(stderr, "ERROR - Hash Table: Added to table with existing '%s' key\n", entry->key);
-    exit(1);
+    panic("Added to table with existing '%s' key", entry->key);
   }
 
   if (table->count + 1 > table->capacity * HASH_TABLE_MAX_LOAD) {
