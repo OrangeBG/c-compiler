@@ -1,5 +1,6 @@
 #include "../include/sa_goto_check.h"
 #include "../include/hash_table.h"
+#include "../include/error.h"
 #include <stdio.h>
 
 //TODO: Need to add VLA check to goto statements when arrays are added to the compiler. Reference C17 ISO: 6.8.6 Jump statements
@@ -52,8 +53,7 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
         }
 
         if (((GotoStatus*)entry->value->structure)->has_label == false) {
-          fprintf(stderr, "ERROR - SA GOTO CHECK: Undefined goto '%s' label\n", entry->key);
-          exit(1);
+          input_error_with_line("Undefined goto '%s' label\n", ast_node->line_number, entry->key);
         }        
 
         //TODO: Check to see if we are leaking memory with this hash table and need to free it after doing this loop
@@ -88,8 +88,7 @@ void check_ast_node(AstNode *ast_node, HashTable *goto_statuses) {
       }
 
       if (((GotoStatus*)existing_goto_entry->value->structure)->has_label) {
-        fprintf(stderr, "ERROR - SA GOTO CHECK: Duplicate '%s' label not allowed\n", ast_node->data.statement_goto_label.label); 
-        exit(1);
+        input_error_with_line("Duplicate '%s' label not allowed", ast_node->line_number, ast_node->data.statement_goto_label.label); 
       }
       
       ((GotoStatus*)existing_goto_entry->value->structure)->has_label = true;      
