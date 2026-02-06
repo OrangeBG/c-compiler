@@ -376,6 +376,19 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
           if (node->data.declaration_function.body_block == NULL) break;
           return emit_function(node, intermediate_rep);
       }
+      case AST_INITIALIZER: {
+          //TODO: Test code here...Clean up once there's a working example
+          if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
+            return emit_ast_node(node->data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
+          } else {
+            ExpressionResult *result;
+            for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
+              //@Warning: Only works for compound of single scalar. Multi-dimensional arrays will break here. Fix.
+              result = emit_ast_node(&node->data.initializer.initializer_node.compound_initializer->items[i], function, intermediate_rep);
+            }
+            return result;
+          }
+        }
       default:
         panic("AST node type '%d' was not found in emit_ast_node()", node->type);
   }
