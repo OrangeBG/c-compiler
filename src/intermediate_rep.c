@@ -382,9 +382,19 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
             return emit_ast_node(node->data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
           } else {
             ExpressionResult *result;
+            int offset = 0;
             for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
               //@Warning: Only works for compound of single scalar. Multi-dimensional arrays will break here. Fix.
               result = emit_ast_node(&node->data.initializer.initializer_node.compound_initializer->items[i], function, intermediate_rep);
+              size_t constant_size = get_type_size(result->operand_value->data.value_constant.type->type);
+
+              IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
+              copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
+              copy_to_offset->data.instruction_copy_to_offset.source = result->operand_value;
+              copy_to_offset->data.instruction_copy_to_offset.offset = offset;
+              //add identifier
+
+              offset += (int)constant_size;
             }
             return result;
           }
