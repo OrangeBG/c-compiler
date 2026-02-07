@@ -51,6 +51,7 @@ static void              emit_for(AstNode *for_node, IRNode *function, Intermedi
 static void              emit_continue(int label_id, IRNode *function, IntermediateRep *intermediate_rep);
 static void              emit_break(int label_id, IRNode *function, IntermediateRep *intermediate_rep);
 static void              emit_block(AstNode *block_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static void              emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_jump(char *label, IRNode *function, IntermediateRep *intermediate_rep);
 static IRNode*           emit_jump_if_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_jump_if_not_zero(char *label, IRNode *condition, IRNode *function, IntermediateRep *intermediate_rep); 
@@ -65,7 +66,6 @@ static IRNode*           emit_double_to_int(IRNode *source, IRNode *destination,
 static IRNode*           emit_double_to_uint(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_int_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static IRNode*           emit_uint_to_double(IRNode *source, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
-static ExpressionResult* emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static ExpressionResult* emit_conditional_expression(AstNode *condition_node, IRNode *function, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep);
@@ -371,34 +371,11 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
       case AST_EXPRESSION_CAST:              { return emit_cast_expression(node, function, intermediate_rep); } 
       case AST_EXPRESSION_ADDRESS_OF:        { return emit_address_of_expression(node, function, intermediate_rep); }
       case AST_EXPRESSION_DEREFERENCE:       { return emit_dereference_expression(node, function, intermediate_rep); }
-      case AST_VARIABLE_DECLARATION:         { return emit_declaration(node, function, intermediate_rep); }
+      case AST_VARIABLE_DECLARATION:         { emit_declaration(node, function, intermediate_rep); }
       case AST_FUNCTION_DECLARATION:         {
           if (node->data.declaration_function.body_block == NULL) break;
           return emit_function(node, intermediate_rep);
       }
-      case AST_INITIALIZER: {
-          //TODO: Test code here...Clean up once there's a working example
-          if (node->data.initializer.type == AST_INITIALIZER_SINGLE) {
-            return emit_ast_node(node->data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
-          } else {
-            ExpressionResult *result;
-            int offset = 0;
-            for (int i = 0; i < node->data.initializer.initializer_node.compound_initializer->count; i++) {
-              //@Warning: Only works for compound of single scalar. Multi-dimensional arrays will break here. Fix.
-              result = emit_ast_node(&node->data.initializer.initializer_node.compound_initializer->items[i], function, intermediate_rep);
-              size_t constant_size = get_type_size(result->operand_value->data.value_constant.type->type);
-
-              IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
-              copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
-              copy_to_offset->data.instruction_copy_to_offset.source = result->operand_value;
-              copy_to_offset->data.instruction_copy_to_offset.offset = offset;
-              //add identifier
-
-              offset += (int)constant_size;
-            }
-            return result;
-          }
-        }
       default:
         panic("AST node type '%d' was not found in emit_ast_node()", node->type);
   }
@@ -544,16 +521,40 @@ static void emit_break(int label_id, IRNode *function, IntermediateRep *intermed
   emit_jump(break_label_identifier, function, intermediate_rep);
 }
 
-static ExpressionResult* emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep) {
+static void emit_declaration(AstNode *declaration_node, IRNode *function, IntermediateRep *intermediate_rep) {
   if (!declaration_node->data.declaration_variable.has_expression) {
-    return NULL;
+    return;
   }
 
-  IRNode *node = emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);    
+  // IRNode *node = emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);    
+
+
+  if (declaration_node->data.initializer.type == AST_INITIALIZER_SINGLE) {
+    emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);
+  } else {
+    IRNode *result;
+    int offset = 0;
+    for (int i = 0; i < declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.compound_initializer->count; i++) {
+      //@Warning: Only works for compound of single scalar. Multi-dimensional arrays will break here. Fix.
+      result = emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.compound_initializer->items[i].data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
+      //@Warning: Won't always be a constant
+      size_t constant_size = get_type_size(result->data.value_constant.type->type);
+
+      IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
+      copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
+      copy_to_offset->data.instruction_copy_to_offset.source = result;
+      copy_to_offset->data.instruction_copy_to_offset.offset = offset;
+      //add identifier
+
+      offset += (int)constant_size;
+    }
+  }
+
+
+  
   add_postfix_operations(function, intermediate_rep);
 
-  ExpressionResult *expression_result = create_expression_result(node, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
-  return expression_result;
+  // ExpressionResult *expression_result = create_expression_result(node, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
 }
 
 static ExpressionResult* emit_conditional_expression(AstNode *conditional_node, IRNode *function, IntermediateRep *intermediate_rep) {
