@@ -232,7 +232,7 @@ void print_intermediate_ret(IRNode *ir_node) {
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY_TO_OFFSET) {
           printf("Copy to Offset(Source(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.source);
-          printf(") (Identifier(%s)\n(Offset(%d)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
+          printf(") (Identifier(%s) (Offset(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
         }
       }
     }
@@ -545,12 +545,12 @@ static void emit_copy_to_offset_for_compound_initializer(char *declaration_ident
   for (int i = 0; i < compound_initializer_node->data.initializer.initializer_node.compound_initializer->count; i++) {
     if (compound_initializer_node->data.initializer.initializer_node.compound_initializer->items[i].data.initializer.type == AST_INITIALIZER_COMPOUND) {
       emit_copy_to_offset_for_compound_initializer(declaration_identifier, offset, &compound_initializer_node->data.initializer.initializer_node.compound_initializer->items[i], function, intermediate_rep);
-      return;
+      continue;
     }
     
     IRNode *result = emit_ast_node_and_convert_lvalue(compound_initializer_node->data.initializer.initializer_node.compound_initializer->items[i].data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
     
-    //@Warning: Won't always be a constant
+    //@Warning: Result IR Node won't always be a constant
     size_t constant_size = get_type_size(result->data.value_constant.type->type);
 
     IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
