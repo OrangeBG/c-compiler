@@ -71,6 +71,8 @@ static ExpressionResult* emit_conditional_expression(AstNode *condition_node, IR
 static ExpressionResult* emit_postfix_expression(AstNode *postfix_node, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *function, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_binary_and_or_expression(AstNode *binary_node, IRNode *source_1, IRNode *source_2, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
+static ExpressionResult* emit_binary_pointer_add_arithmetic_expression(IRNode *source_1, TypeNode *source_1_type, IRNode *source_2, TypeNode *source_2_type, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep); 
 static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
@@ -91,7 +93,7 @@ static void              add_to_node_pointer(IRNode *ir_node, IRNodePointer *ir_
 static void              init_node_pointer(IRNodePointer *ir_node_pointer); 
 static TypeNode*         get_node_type(IRNode *node, IntermediateRep *intermediate_rep); 
 static void              add_function_parameter_identifier(char *identifier, IRNode *function_node);  
-static bool              is_pointer_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep); 
+static bool              is_pointer_add_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep); 
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
@@ -660,6 +662,7 @@ static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *func
   return destination_result;
 }
 
+//TODO: There are a lot of branching paths in this function that makes it a little hard to follow. See if we can clean it up some to see these branches in an easier way. 
 static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *source_1 = emit_ast_node_and_convert_lvalue(binary_node->data.expression_binary.left_expression, function, intermediate_rep);
   IRNode *source_2 = emit_ast_node_and_convert_lvalue(binary_node->data.expression_binary.right_expression, function, intermediate_rep);
@@ -667,53 +670,118 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   TypeNode *source_1_type = get_node_type(source_1, intermediate_rep); 
   TypeNode *source_2_type = get_node_type(source_2, intermediate_rep); 
 
-  //TODO: Warning, setting hard buffer limit
+  //@Warning: Setting hard buffer limit
   char *destination_name = create_temp_register(intermediate_rep);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
-  if (is_pointer_arithmetic(binary_node, source_1_type, source_2_type, intermediate_rep)) {
-    IRNode *pointer_node;
-    IRNode *int_node;
-    TypeNode *pointer_type_node;
+  BinaryOpType op_type = binary_node->data.expression_binary.op_type;
 
-    if (source_1_type->type == TYPE_INT) {
-      int_node = source_1;
-      pointer_node = source_2;
-      pointer_type_node = source_2_type;
-    } else {
-      int_node = source_2;
-      pointer_node = source_1;
-      pointer_type_node = source_1_type;
-    }
+  if (op_type == AST_BINARY_AND || op_type == AST_BINARY_OR) {
+    return emit_binary_and_or_expression(binary_node, source_1, source_2, destination, function, intermediate_rep); 
+  }
 
-    int scale = 0;
+  if (is_pointer_add_arithmetic(binary_node, source_1_type, source_2_type, intermediate_rep)) {
+    return emit_binary_pointer_add_arithmetic_expression(source_1, source_1_type, source_2, source_2_type, destination, function, intermediate_rep); 
+  }      
 
-    if (pointer_type_node->type == TYPE_ARRAY) {
-      scale = get_type_size(get_array_base_type(pointer_type_node));
-    } else {
-      scale = get_type_size(get_pointer_base_type(pointer_type_node));
-    }
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
 
-    IRNode *add_pointer_instruction = arena_alloc(intermediate_rep->node_arena);
-    add_pointer_instruction->type = IR_INSTRUCTION_ADD_POINTER;
-    add_pointer_instruction->data.instruction_add_pointer.pointer = pointer_node;
-    add_pointer_instruction->data.instruction_add_pointer.index = int_node;
-    add_pointer_instruction->data.instruction_add_pointer.scale = scale;
-    add_pointer_instruction->data.instruction_add_pointer.destination = destination;
+  IRBinaryOpType binary_op_type;
 
-    add_instruction_to_function(function, add_pointer_instruction);
-    
-    ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
-    return destination_result;
-  } else if (binary_node->data.expression_binary.op_type == AST_BINARY_AND || binary_node->data.expression_binary.op_type == AST_BINARY_OR) {
+  switch (binary_node->data.expression_binary.op_type) {
+    case AST_BINARY_ADD:                  binary_op_type = IR_BINARY_ADD; break;
+    case AST_BINARY_SUBTRACT:             binary_op_type = IR_BINARY_SUBTRACT; break;
+    case AST_BINARY_DIVIDE:               binary_op_type = IR_BINARY_DIVIDE; break;
+    case AST_BINARY_MULTIPLY:             binary_op_type = IR_BINARY_MULTIPLY; break;
+    case AST_BINARY_REMAINDER:            binary_op_type = IR_BINARY_REMAINDER; break;
+    case AST_BINARY_BITWISE_AND:          binary_op_type = IR_BINARY_BITWISE_AND; break;
+    case AST_BINARY_BITWISE_OR:           binary_op_type = IR_BINARY_BITWISE_OR; break;
+    case AST_BINARY_BITWISE_XOR:          binary_op_type = IR_BINARY_BITWISE_XOR; break;            
+    case AST_BINARY_BITWISE_LEFT_SHIFT:   binary_op_type = IR_BINARY_BITWISE_LEFT_SHIFT; break;
+    case AST_BINARY_BITWISE_RIGHT_SHIFT:  binary_op_type = IR_BINARY_BITWISE_RIGHT_SHIFT; break;
+    case AST_BINARY_EQUAL:                binary_op_type = IR_BINARY_EQUAL; break;
+    case AST_BINARY_NOT_EQUAL:            binary_op_type = IR_BINARY_NOT_EQUAL; break;
+    case AST_BINARY_LESS_THAN:            binary_op_type = IR_BINARY_LESS_THAN; break;
+    case AST_BINARY_LESS_OR_EQUAL:        binary_op_type = IR_BINARY_LESS_OR_EQUAL; break;
+    case AST_BINARY_GREATER_THAN:         binary_op_type = IR_BINARY_GREATER_THAN; break;
+    case AST_BINARY_GREATER_OR_EQUAL:     binary_op_type = IR_BINARY_GREATER_OR_EQUAL; break;
+    default: break;
+  }      
+
+  IRNode *binary_instruction = arena_alloc(intermediate_rep->node_arena);         
+  binary_instruction->type = IR_INSTRUCTION_BINARY;
+  binary_instruction->data.instruction_binary.op_type = binary_op_type;
+  binary_instruction->data.instruction_binary.source_1 = source_1;
+  binary_instruction->data.instruction_binary.source_2 = source_2;
+  binary_instruction->data.instruction_binary.destination = destination;
+
+  add_instruction_to_function(function, binary_instruction);
+
+  ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return destination_result;
+}
+
+static bool is_pointer_add_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep) { 
+  if (binary_node->data.expression_binary.op_type != AST_BINARY_ADD) {
+    return false;
+  }
+
+  if (source_1_type->type != TYPE_POINTER && source_1_type->type != TYPE_ARRAY && source_2_type->type != TYPE_POINTER && source_2_type->type != TYPE_ARRAY) {
+    return false;
+  }
+
+  if (source_1_type->type == TYPE_INT || source_2_type->type != TYPE_INT) {
+    return true;
+  }
+
+  return false;
+}
+
+static ExpressionResult* emit_binary_pointer_add_arithmetic_expression(IRNode *source_1, TypeNode *source_1_type, IRNode *source_2, TypeNode *source_2_type, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
+  IRNode *pointer_node;
+  IRNode *int_node;
+  TypeNode *pointer_type_node;
+
+  if (source_1_type->type == TYPE_INT) {
+    int_node = source_1;
+    pointer_node = source_2;
+    pointer_type_node = source_2_type;
+  } else {
+    int_node = source_2;
+    pointer_node = source_1;
+    pointer_type_node = source_1_type;
+  }
+
+  int scale = 0;
+
+  if (pointer_type_node->type == TYPE_ARRAY) {
+    scale = get_type_size(get_array_base_type(pointer_type_node));
+  } else {
+    scale = get_type_size(get_pointer_base_type(pointer_type_node));
+  }
+
+  IRNode *add_pointer_instruction = arena_alloc(intermediate_rep->node_arena);
+  add_pointer_instruction->type = IR_INSTRUCTION_ADD_POINTER;
+  add_pointer_instruction->data.instruction_add_pointer.pointer = pointer_node;
+  add_pointer_instruction->data.instruction_add_pointer.index = int_node;
+  add_pointer_instruction->data.instruction_add_pointer.scale = scale;
+  add_pointer_instruction->data.instruction_add_pointer.destination = destination;
+
+  add_instruction_to_function(function, add_pointer_instruction);
+
+  ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return destination_result;
+}
+
+static ExpressionResult* emit_binary_and_or_expression(AstNode *binary_node, IRNode *source_1, IRNode *source_2, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
     //@Temp: Malloc'ing node to satisfy the need to padd it into the add function. Look into a way to add to the type arena
     TypeNode *int_type_node = malloc(sizeof(TypeNode));
     int_type_node->type = TYPE_INT;
 
-    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, int_type_node, destination_name);    
+    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, int_type_node, destination->data.value_var.identifier);    
 
     char *label_name = create_temp_label(intermediate_rep);
 
@@ -759,59 +827,6 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
 
     ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
     return destination_result;
-  }
-
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
-
-  IRBinaryOpType binary_op_type;
-
-  switch (binary_node->data.expression_binary.op_type) {
-    case AST_BINARY_ADD:                  binary_op_type = IR_BINARY_ADD; break;
-    case AST_BINARY_SUBTRACT:             binary_op_type = IR_BINARY_SUBTRACT; break;
-    case AST_BINARY_DIVIDE:               binary_op_type = IR_BINARY_DIVIDE; break;
-    case AST_BINARY_MULTIPLY:             binary_op_type = IR_BINARY_MULTIPLY; break;
-    case AST_BINARY_REMAINDER:            binary_op_type = IR_BINARY_REMAINDER; break;
-    case AST_BINARY_BITWISE_AND:          binary_op_type = IR_BINARY_BITWISE_AND; break;
-    case AST_BINARY_BITWISE_OR:           binary_op_type = IR_BINARY_BITWISE_OR; break;
-    case AST_BINARY_BITWISE_XOR:          binary_op_type = IR_BINARY_BITWISE_XOR; break;            
-    case AST_BINARY_BITWISE_LEFT_SHIFT:   binary_op_type = IR_BINARY_BITWISE_LEFT_SHIFT; break;
-    case AST_BINARY_BITWISE_RIGHT_SHIFT:  binary_op_type = IR_BINARY_BITWISE_RIGHT_SHIFT; break;
-    case AST_BINARY_EQUAL:                binary_op_type = IR_BINARY_EQUAL; break;
-    case AST_BINARY_NOT_EQUAL:            binary_op_type = IR_BINARY_NOT_EQUAL; break;
-    case AST_BINARY_LESS_THAN:            binary_op_type = IR_BINARY_LESS_THAN; break;
-    case AST_BINARY_LESS_OR_EQUAL:        binary_op_type = IR_BINARY_LESS_OR_EQUAL; break;
-    case AST_BINARY_GREATER_THAN:         binary_op_type = IR_BINARY_GREATER_THAN; break;
-    case AST_BINARY_GREATER_OR_EQUAL:     binary_op_type = IR_BINARY_GREATER_OR_EQUAL; break;
-    default: break;
-  }      
-
-  IRNode *binary_instruction = arena_alloc(intermediate_rep->node_arena);         
-  binary_instruction->type = IR_INSTRUCTION_BINARY;
-  binary_instruction->data.instruction_binary.op_type = binary_op_type;
-  binary_instruction->data.instruction_binary.source_1 = source_1;
-  binary_instruction->data.instruction_binary.source_2 = source_2;
-  binary_instruction->data.instruction_binary.destination = destination;
-
-  add_instruction_to_function(function, binary_instruction);
-
-  ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
-  return destination_result;
-}
-
-static bool is_pointer_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep) { 
-  if (binary_node->data.expression_binary.op_type != AST_BINARY_ADD) {
-    return false;
-  }
-
-  if (source_1_type->type != TYPE_POINTER && source_1_type->type != TYPE_ARRAY && source_2_type->type != TYPE_POINTER && source_2_type->type != TYPE_ARRAY) {
-    return false;
-  }
-
-  if (source_1_type->type == TYPE_INT || source_2_type->type != TYPE_INT) {
-    return true;
-  }
-
-  return false;
 }
 
 static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IRNode *function, IntermediateRep *intermediate_rep) {
