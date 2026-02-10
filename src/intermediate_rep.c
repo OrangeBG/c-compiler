@@ -740,6 +740,26 @@ static bool is_pointer_add_arithmetic(AstNode *binary_node, TypeNode *source_1_t
   return false;
 }
 
+static bool is_pointer_subtract_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep) { 
+  if (binary_node->data.expression_binary.op_type != AST_BINARY_SUBTRACT) {
+    return false;
+  }
+
+  if (source_1_type->type != TYPE_POINTER && source_1_type->type != TYPE_ARRAY && source_2_type->type != TYPE_POINTER && source_2_type->type != TYPE_ARRAY) {
+    return false;
+  }
+
+  if (source_1_type->type == TYPE_INT || source_2_type->type != TYPE_INT) {
+    return true;
+  }
+
+  if (source_1_type->type == TYPE_POINTER || source_1_type->type == TYPE_ARRAY || source_2_type->type == TYPE_POINTER || source_2_type->type != TYPE_ARRAY) {
+    return true;
+  }
+
+  return false;
+}
+
 static ExpressionResult* emit_binary_pointer_add_arithmetic_expression(IRNode *source_1, TypeNode *source_1_type, IRNode *source_2, TypeNode *source_2_type, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *pointer_node;
   IRNode *int_node;
