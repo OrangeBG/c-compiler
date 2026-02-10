@@ -5,7 +5,6 @@
 #include "../include/arena.h"
 #include "../include/declaration_symbol.h"
 #include "../include/error.h"
-#include "types.h"
 
 #define INSTRUCTION_CAPACITY 8
 #define FUNCTION_CAPACITY 8
@@ -240,11 +239,12 @@ void print_intermediate_ret(IRNode *ir_node) {
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.source);
           printf(") (Identifier(%s) (Offset(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_ADD_POINTER) {
-          printf("Copy to Offset(Pointer(");
+          printf("Add Pointer(Pointer(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.pointer);
           printf(") Index(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.index);
           printf(") Scale(%d) Destination(", function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.scale);
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.destination);
           printf(")\n");
         }
       }
@@ -691,7 +691,7 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   }      
 
   if (is_pointer_subtract_arithmetic(binary_node, source_1_type, source_2_type, intermediate_rep)) {
-
+    return emit_binary_pointer_subtract_arithmetic_expression(source_1, source_1_type, source_2, source_2_type, destination, function, intermediate_rep); 
   }
 
   add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
@@ -807,6 +807,7 @@ static ExpressionResult* emit_binary_pointer_add_arithmetic_expression(IRNode *s
   return destination_result;
 }
 
+//TODO: This function is handling when the source nodes are either pointers or arrays... Check to see if arrays are supposed to be converted to pointers in the type checker prior to reaching this code
 static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNode *source_1, TypeNode *source_1_type, IRNode *source_2, TypeNode *source_2_type, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
   //TODO: Support Array's as well?
   if (source_1_type->type == TYPE_POINTER && source_2_type->type == TYPE_POINTER) {
@@ -845,27 +846,48 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
   unary_negate->data.instruction_unary.op_type = IR_UNARY_NEGATE;
   unary_negate->data.instruction_unary.destination = destination;
 
-  if (source_1_type->type == TYPE_INT) {
-    unary_negate->data.instruction_unary.source = source_1;
-  } else {
+  if (source_1_type->type == TYPE_POINTER || source_1_type->type == TYPE_ARRAY) {
     unary_negate->data.instruction_unary.source = source_2;
+  } else {
+    unary_negate->data.instruction_unary.source = source_1;
   }
   
   char *add_pointer_destination_name = create_temp_register(intermediate_rep);
 
   IRNode *add_pointer_destination = arena_alloc(intermediate_rep->node_arena);
-  destination->type = IR_VALUE_VAR;
-  destination->data.value_var.identifier = add_pointer_destination_name;
+  add_pointer_destination->type = IR_VALUE_VAR;
+  add_pointer_destination->data.value_var.identifier = add_pointer_destination_name;
 
   IRNode *add_pointer_instruction = arena_alloc(intermediate_rep->node_arena);
   add_pointer_instruction->type = IR_INSTRUCTION_ADD_POINTER;
   add_pointer_instruction->data.instruction_add_pointer.destination = add_pointer_destination;
 
-  if (source_1_type->type == TYPE_POINTER) {
+  int scale = 0;
+
+  if (source_1_type->type == TYPE_POINTER || source_1_type->type == TYPE_ARRAY) {
     add_pointer_instruction->data.instruction_add_pointer.pointer = source_1;
+
+    if (source_1_type->type == TYPE_POINTER) {
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_pointer_base_type(source_1_type));
+    } else {
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_array_base_type(source_1_type));
+    }
+    add_pointer_instruction->data.instruction_add_pointer.index = source_2;
   } else {
     add_pointer_instruction->data.instruction_add_pointer.pointer = source_2;
+
+    if (source_2_type->type == TYPE_POINTER) {
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_pointer_base_type(source_2_type));
+    } else {
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_array_base_type(source_2_type));
+    }
+    add_pointer_instruction->data.instruction_add_pointer.index = source_1;
   }
+
+  add_instruction_to_function(function, add_pointer_instruction);
+
+  ExpressionResult *destination_result = create_expression_result(add_pointer_destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
+  return destination_result;
 }
 
 static ExpressionResult* emit_binary_and_or_expression(AstNode *binary_node, IRNode *source_1, IRNode *source_2, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {

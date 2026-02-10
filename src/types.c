@@ -36,6 +36,19 @@ bool is_arithmetic_type(TypeNode *type_node) {
     case TYPE_LONG:
     case TYPE_ULONG:
       return true; 
+    case TYPE_POINTER: {
+      Types base_pointer_type = get_pointer_base_type(type_node);
+
+      switch(base_pointer_type) {
+        case TYPE_INT:
+        case TYPE_LONG:
+        case TYPE_UINT:
+        case TYPE_ULONG:
+          return true;
+        default:
+          return false;
+      }
+    }
     default:
       return false;
   }
@@ -114,6 +127,10 @@ Types get_pointer_base_type(TypeNode *pointer_node) {
 
   if (pointer_node->data.pointer_type.reference_type->type == TYPE_POINTER) {
     return get_pointer_base_type(pointer_node->data.pointer_type.reference_type);    
+  }
+
+  if (pointer_node->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+    return get_array_base_type(pointer_node->data.pointer_type.reference_type);
   }
 
   return pointer_node->data.pointer_type.reference_type->type;
