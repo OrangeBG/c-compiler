@@ -29,6 +29,8 @@ typedef enum {
   IR_INSTRUCTION_GET_ADDRESS,
   IR_INSTRUCTION_LOAD,
   IR_INSTRUCTION_STORE,
+  IR_INSTRUCTION_ADD_POINTER,
+  IR_INSTRUCTION_COPY_TO_OFFSET,
   IR_VALUE_CONSTANT,
   IR_VALUE_VAR,
   IR_VALUE_STATIC_VAR
@@ -89,6 +91,8 @@ typedef struct IRNode {
   struct IRInstructionGetAddress { IRNode *source; IRNode *destination; } instruction_get_address;
   struct IRInstructionLoad { IRNode *source_pointer; IRNode *destination; } instruction_load;
   struct IRInstructionStore { IRNode *source; IRNode *destination_pointer; } instruction_store;
+  struct IRInstructionAddPointer { IRNode *pointer; IRNode *index; int scale; IRNode *destination; } instruction_add_pointer;
+  struct IRInstructionCopyToOffset { IRNode *source; char *identifier; int offset; } instruction_copy_to_offset;
   struct IRValueConstant { TypeNode *type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;
