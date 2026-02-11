@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "../include/types.h"
+#include "../include/error.h"
 
 #define FUNCTION_PARAMETER_TYPE_INIT_CAPACITY 4
 
@@ -12,8 +13,7 @@ size_t get_type_size(Types type) {
     case TYPE_DOUBLE:  return sizeof(double);
     case TYPE_POINTER: return sizeof(int*);
     default:
-      fprintf(stderr, "ERROR - Types: Unsupported type when attempting to get Type size\n");
-      exit(1);
+      panic("Unsupported type when attempting to get Type size");
   }
 }
 
@@ -77,8 +77,7 @@ char* get_type_string(Types type) {
     case TYPE_FUNCTION: return "function";
     case TYPE_POINTER:  return "pointer";
     default:
-      fprintf(stderr, "ERROR - Types: get_type_string() type %d not supported\n", type);
-      exit(1);
+      panic("get_type_string() type %d not supported", type);
   }
 }
 
@@ -103,8 +102,7 @@ void print_type_node(TypeNode *type_node) {
       printf(")");
       break;
     default:
-      fprintf(stderr, "ERROR - Parser: Could not find Type '%d' when printing\n", type_node->type);
-      exit(1);
+      panic("Could not find Type '%d' when printing", type_node->type);
   }
 }
 
@@ -121,8 +119,7 @@ void add_function_parameter_type(TypeNode *parameter_type, TypeNode *function_ty
 
 Types get_pointer_base_type(TypeNode *pointer_node) {
   if (pointer_node->type != TYPE_POINTER) {
-    fprintf(stderr, "ERROR - Type: Passed non-pointer to get_pointer_base_type()\n");
-    exit(1);
+    panic("Passed non-pointer to get_pointer_base_type()");
   }
 
   if (pointer_node->data.pointer_type.reference_type->type == TYPE_POINTER) {
@@ -138,8 +135,7 @@ Types get_pointer_base_type(TypeNode *pointer_node) {
 
 Types get_array_base_type(TypeNode *array_node)  {
   if (array_node->type != TYPE_ARRAY) {
-    fprintf(stderr, "ERROR - Type: Passed non-array to get_array_base_type()\n");
-    exit(1);
+    panic("Passed non-array to get_array_base_type()");
   }
 
   if (array_node->data.array_type.element_type->type == TYPE_ARRAY) {
