@@ -271,6 +271,10 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
     case AST_EXPRESSION_DEREFERENCE:
       variable_resolve_node(node->data.expression_dereference.expression, variable_resolution);
       break;
+    case AST_EXPRESSION_SUBSCRIPT:
+      variable_resolve_node(node->data.expression_subscript.expression_1, variable_resolution);
+      variable_resolve_node(node->data.expression_subscript.expression_2, variable_resolution);
+      break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(variable_resolution->declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
