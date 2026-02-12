@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "../include/stack.h"
+#include "../include/error.h"
 
 void stack_init(Stack *stack, int capacity) {
   stack->stack = malloc(sizeof(StackValue) * capacity);
@@ -9,8 +10,7 @@ void stack_init(Stack *stack, int capacity) {
 
 void stack_push(Stack *stack, StackValue *value) {
   if (stack->count == stack->capacity) {
-    fprintf(stderr, "Ran out of memory in stack");
-    exit(1);
+    panic("Ran out of memory in stack");
   }
 
   stack->stack[stack->count] = *value;
