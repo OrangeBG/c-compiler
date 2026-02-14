@@ -6,6 +6,7 @@
 #include "../include/hash_table.h"
 #include "../include/stack.h"
 #include "../include/parser.h"
+#include "../include/error.h"
 
 #define VARIABLE_RESOLUTION_STACK_SIZE 16
 #define IDENTIFIER_BUFFER 256
@@ -91,8 +92,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       //Duplicate declarations at the file scope level are allowed. Only error when declarations in the same scope within functions are found
       if (existing_variable != NULL && existing_variable->key != NULL && variable_resolution->declaration_stack->count != 1) {      
         if (((Declaration*)existing_variable->value->structure)->from_current_scope) {
-          fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' variable found in block\n", node->data.declaration_variable.name);
-          exit(1);
+          input_error("Duplicate '%s' variable found in block", node->data.declaration_variable.name);
         }
       }
 
@@ -121,8 +121,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
         Declaration *previous_declaration = table_entry->value->structure;
 
         if (previous_declaration->from_current_scope && previous_declaration->has_linkage) {
-            fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate function declaration '%s'\n", function_identifier);
-            exit(1);
+          input_error("Duplicate function declaration '%s'", function_identifier);
         }        
       } else {
         Declaration *new_declaration = malloc(sizeof(Declaration));
@@ -165,8 +164,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       HashTableEntry *table_entry = hash_table_get_entry(declaration_table, node->data.expression_function_call.identfier);
 
       if (table_entry == NULL || table_entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared function '%s'\n", node->data.expression_function_call.identfier);
-        exit(1);
+        input_error("Undeclared function '%s'", node->data.expression_function_call.identfier);
       }
 
       for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
@@ -271,6 +269,10 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
     case AST_EXPRESSION_DEREFERENCE:
       variable_resolve_node(node->data.expression_dereference.expression, variable_resolution);
       break;
+    case AST_EXPRESSION_SUBSCRIPT:
+      variable_resolve_node(node->data.expression_subscript.expression_1, variable_resolution);
+      variable_resolve_node(node->data.expression_subscript.expression_2, variable_resolution);
+      break;
     case AST_EXPRESSION_VARIABLE: {
       StackValue *declaration_top_stack = stack_top(variable_resolution->declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
@@ -326,8 +328,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       } 
 
       if (entry == NULL || entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Variable Resolution: Undeclared variable hash table entry for '%s'\n", node->data.expression_variable.identifier);
-        exit(1);
+        panic("Undeclared variable hash table entry for '%s'", node->data.expression_variable.identifier);
       }
       node->data.expression_variable.identifier = identifier;
       break;
@@ -340,8 +341,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
     case AST_STATEMENT_GOTO_LABEL:
       break;
     default:
-      fprintf(stderr, "ERROR - SA Variable Resolution: Unsupported AST Type '%d' when resolving node\n", node->type);
-      exit(1);
+      panic("Unsupported AST Type '%d' when resolving node", node->type);
       break;
   }
 } 
@@ -371,8 +371,7 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
 
     if (previous_declaration->from_current_scope) {
       if (!(previous_declaration->has_linkage && ast_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN)) {
-        fprintf(stderr, "ERROR: SA Variable Resolution: Conflicting local '%s' declarations\n", identifier);
-        exit(1);
+        input_error("Conflicting local '%s' declarations", identifier);
       }
     }
   }  
@@ -453,8 +452,7 @@ static void resolve_function_parameter(TypeNode *param_type_node, AstNode *funct
 
   if (existing_variable != NULL && existing_variable->key != NULL) {
     if (variable_resolution->declaration_stack->count == ((Declaration*)existing_variable->value->structure)->stack_declaration_offset) {
-      fprintf(stderr, "ERROR - SA Variable Resolution: Duplicate '%s' function variable found\n", converted_identifier);
-      exit(1);
+      input_error("Duplicate '%s' function variable found", converted_identifier);
     }      
 
     function_declaration_node->data.declaration_function.parameter_identifiers[identifier_idx] = converted_identifier;
