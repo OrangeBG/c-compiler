@@ -106,7 +106,7 @@ static void         parse_statement_for(Parser *parser, AstNode *for_statement_n
 static void         parse_statement_compound_statement(Parser *parser, AstNode *compound_statement_node); 
 static void         parse_expression(Parser *parser, AstNode **expression_node, int min_precedence);
 static void         parse_expression_postfix(Parser *parser, AstNode *postfix_expression, AstNode *left_expression,  TokenType postfix_token);
-static void         parse_subscript_expression(Parser *parser, AstNode *subscript_node);
+static void         parse_subscript_expression(Parser *parser, AstNode *postfix_node, AstNode *subscript_node);
 static void         parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token); 
 static void         parse_expression_conditional(Parser *parser, AstNode *conditional_expression_node, AstNode *left_expression, TokenType conditional_token); 
 static void         parse_expression_binary(Parser *parser, AstNode **binary_expression_node, AstNode *left_expression, TokenType op_type);
@@ -1348,35 +1348,36 @@ static void parse_unary_postfix_expression(Parser *parser, AstNode **postfix_nod
   if (current_token(parser)->type != TOKEN_OPEN_BRACKET) {
     return;
   }
-
+  
   AstNode *subscript_node = arena_alloc(parser->node_arena);
   subscript_node->type = AST_EXPRESSION_SUBSCRIPT;
-  subscript_node->data.expression_subscript.expression_1 = *postfix_node;
 
-  parse_subscript_expression(parser, subscript_node);
+  parse_subscript_expression(parser, *postfix_node, subscript_node);
 
-  *postfix_node = subscript_node;  
+  *postfix_node = subscript_node;
 }
 
-static void parse_subscript_expression(Parser *parser, AstNode *subscript_node) {
+static void parse_subscript_expression(Parser *parser, AstNode *postfix_node, AstNode *subscript_node) {
   expect(parser, TOKEN_OPEN_BRACKET);
 
   AstNode *subscript_expression = arena_alloc(parser->node_arena);
   parse_expression(parser, &subscript_expression, 0);
 
-  subscript_node->data.expression_subscript.expression_2 = subscript_expression;
-
   expect(parser, TOKEN_CLOSE_BRACKET);
 
-  if (current_token(parser)->type == TOKEN_OPEN_BRACKET) {
-    AstNode *next_subscript_node = arena_alloc(parser->node_arena);
-    next_subscript_node->type = AST_EXPRESSION_SUBSCRIPT;
-    next_subscript_node->data.expression_subscript.expression_1 = subscript_expression;
-
-    parse_subscript_expression(parser, next_subscript_node);
-
-    subscript_node->data.expression_subscript.expression_2 = next_subscript_node;
+  if (current_token(parser)->type != TOKEN_OPEN_BRACKET) {
+    subscript_node->type = AST_EXPRESSION_SUBSCRIPT;
+    subscript_node->data.expression_subscript.expression_1 = postfix_node;
+    subscript_node->data.expression_subscript.expression_2 = subscript_expression;
+    return;
   }
+
+  AstNode *next_subscript_node = arena_alloc(parser->node_arena);
+  parse_subscript_expression(parser, postfix_node, next_subscript_node); 
+
+  subscript_node->type = AST_EXPRESSION_SUBSCRIPT;
+  subscript_node->data.expression_subscript.expression_1 = next_subscript_node;
+  subscript_node->data.expression_subscript.expression_2 = subscript_expression;
 }
 
 static void parse_primary_expression(Parser *parser, AstNode **expression_node) {
