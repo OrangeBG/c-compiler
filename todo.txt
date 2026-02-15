@@ -1,4 +1,7 @@
 # Bugs
+	- Type checker should not allow casting an expression to an array type:
+		(int[3])foo;
+
 	- Issue with params being pushed into the stack from Assembly:	
 		int accept_unsigned(unsigned int a, unsigned int b, unsigned long c, unsigned long d,
 		                 unsigned int e, unsigned int f, unsigned long g, unsigned int h,
