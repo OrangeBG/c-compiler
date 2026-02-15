@@ -28,7 +28,6 @@ void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_ta
   free(declaration_symbol_table->symbol_table);
 }
 
-// DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, Types function_value_type, int parameter_count, Types *param_types, bool is_global, bool is_defined) {
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined) {
   FunctionSymbol *function_symbol = arena_alloc(declaration_symbol_table->function_symbol_arena);
 
@@ -55,7 +54,6 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
   return function_declaration_symbol;
 }
 
-// void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key) {  
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key) {  
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->value_type = value_type;
@@ -100,7 +98,6 @@ void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_
   hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
 }
 
-// void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, Types value_type, char *symbol_key) {
 void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key) {
   VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;

@@ -8,6 +8,7 @@
 #include "../include/arena.h"
 #include "../include/lexer.h"
 #include "../include/dynamic_array.h"
+#include "../include/error.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -170,8 +171,7 @@ void parse_ast(ParserResults *results, TokenArray *tokens, int token_count, char
   expect(&parser, TOKEN_EOF);
 
   if (token_count > parser.current_token_index) {
-    fprintf(stderr, "ERROR - Parser: Identifier declared outside of program scope (line %d)\n", parser.tokens->items[parser.current_token_index].line);
-    exit(1);
+    panic("Identifier declared outside of program scope");
   }
 }
 
@@ -399,8 +399,7 @@ void print_ast(const AstNode *node, int whitespace) {
           printf("Constant(line = %d, Double(%f))\n", node->line_number, node->data.expression_constant.double_value);
           break;
         default:
-          fprintf(stderr, "ERROR - Parser: Could not find constant type when printing\n");
-          exit(1);
+          panic("Could not find constant type when printing");
       }
       break;
     case AST_EXPRESSION_POSTFIX_INCREMENT:
@@ -561,8 +560,7 @@ void print_ast(const AstNode *node, int whitespace) {
         printf(")\n");
         break;
       default: {
-        printf("ERROR - Parser: Missing ast node type for printing: %d\n", node->type);
-        exit(1);
+        panic("Missing ast node type for printing: %d", node->type);
     }
   }    
 }
@@ -658,15 +656,13 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   Specifier specifier = parse_specifier(parser, false);
 
   if (!specifier.specifier_type_found) {
-    fprintf(stderr, "ERROR - Parser: Declaration type not specified (line %d)\n", current_token(parser)->line);
-    exit(1);
+    input_error_with_line("Declaration type not specified", current_token(parser)->line);
   }
   
   Declarator *declarator = parse_declarator(parser);
 
   if (declarator == NULL) {
-    fprintf(stderr, "ERROR - Parser: Invalid declaration. (Line %d)\n", current_token(parser)->line);
-    exit(1);
+    input_error_with_line("Invalid declaration", current_token(parser)->line);
   }
 
   //TODO: Look into not needing to alloc this type. Can it be derived from specifier?
@@ -781,19 +777,6 @@ static void parse_variable_declaration(Parser *parser, AstNode *variable_node, S
   variable_node->data.declaration_variable.type = declaration_results->declaration_type; 
 
   if (current_token(parser)->type == TOKEN_EQUAL) {
-    //@Debt: Fix as ast_identifier eats the token but we need it to feed into ast_expression(); The -=4 are for array subscripts. This is not good and needs to be fixed
-    // if (previous_token(parser)->type == TOKEN_CLOSE_BRACKET) {
-    //   parser->current_token_index -= 4;
-    // } else {
-    //   parser->current_token_index--;
-    // }
-
-    // AstNode *expression_node = arena_alloc(parser->node_arena);
-    // parse_expression(parser, &expression_node, 0);
-
-    // variable_node->data.declaration_variable.has_expression = true;
-    // variable_node->data.declaration_variable.init_expression = expression_node;
-
     expect(parser, TOKEN_EQUAL);
 
     AstNode *initializer_node = arena_alloc(parser->node_arena);
@@ -902,8 +885,7 @@ static char* get_identifier(Parser *parser) {
   int end = current_token(parser)->end_index;
 
   if (parser->file[start] >= 48 && parser->file[start] <= 57) {
-    printf("ERROR - Parser: Identifier cannot start with a number (line %d)\n", current_token(parser)->line);
-    exit(1);
+    input_error_with_line("Identifier cannot start with a number", current_token(parser)->line);
   }
 
   //+2 -> One for the Null operator, one for the index
@@ -924,8 +906,7 @@ static char* get_identifier(Parser *parser) {
 
 static void parse_statement(Parser *parser, AstNode **statement_node) { 
   if (end_of_file(parser)) {
-    fprintf(stderr, "ERROR - Parser: Incomplete statement (line %d)\n", previous_token(parser)->line);
-    exit(1);
+    panic("Incomplete statement");
   }
 
   switch (current_token(parser)->type) {
@@ -1012,6 +993,8 @@ static void parse_statement_if(Parser *parser, AstNode *if_statement_node) {
 }
 
 static void parse_statement_goto(Parser *parser, AstNode *goto_statement_node) {
+  goto_statement_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_GOTO);
 
   char *goto_label = get_identifier(parser);
@@ -1023,6 +1006,8 @@ static void parse_statement_goto(Parser *parser, AstNode *goto_statement_node) {
 }
 
 static void parse_statement_break(Parser *parser, AstNode *break_statement_node) {
+  break_statement_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_BREAK);
   expect(parser, TOKEN_SEMICOLON);
 
@@ -1030,6 +1015,8 @@ static void parse_statement_break(Parser *parser, AstNode *break_statement_node)
 }
   
 static void parse_statement_continue(Parser *parser, AstNode *continue_statement_node) {
+  continue_statement_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_CONTINUE);
   expect(parser, TOKEN_SEMICOLON);
 
@@ -1037,6 +1024,8 @@ static void parse_statement_continue(Parser *parser, AstNode *continue_statement
 }
 
 static void parse_statement_while(Parser *parser, AstNode *while_statement_node) {
+  while_statement_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_WHILE);
   expect(parser, TOKEN_OPEN_PAREN);
 
@@ -1280,8 +1269,7 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   binary_expression_pointer->data.expression_binary.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
     case TOKEN_BITWISE_LEFT_SHIFT_EQUAL:    binary_expression_pointer->data.expression_binary.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
     default:
-      fprintf(stderr, "ERROR - Parser: Expected Binary op token, found %d", op_type);
-      exit(1);
+      panic("Expected Binary op token, found %d", op_type);
   }
 
   switch (op_type) {
@@ -1311,8 +1299,7 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
 
 static void parse_unary_expression(Parser *parser, AstNode **unary_node) {
  if (end_of_file(parser)) {
-    fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
-    exit(1);
+    panic("Incomplete expression");
   }
 
   switch(current_token(parser)->type) {
@@ -1407,8 +1394,7 @@ static void parse_primary_expression(Parser *parser, AstNode **expression_node) 
 
 static void parse_factor(Parser *parser, AstNode **factor_node) {
  if (end_of_file(parser)) {
-    fprintf(stderr, "ERROR - Parser: Incomplete expression (line %d)\n", previous_token(parser)->line);
-    exit(1);
+    panic("Incomplete expression");
   }
 
   switch(current_token(parser)->type) {
@@ -1448,8 +1434,7 @@ static void parse_factor(Parser *parser, AstNode **factor_node) {
       break;
     }
     default:
-      fprintf(stderr, "ERROR - Parser: Failed to parse factor for '%s' token (line %d)\n", TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
-      exit(1);    
+      panic("Failed to parse factor for '%s' token", TokenTypeStr[current_token(parser)->type]);
   }
 }
 
@@ -1558,8 +1543,7 @@ static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
       op_type = AST_UNARY_NOT;
       break;
     default:
-      fprintf(stderr, "ERROR - Parser: Unary token type not found for ast_factor()");
-      exit(1);
+      panic("Unary token type not found for ast_factor()");
   }
   
   parser->current_token_index++;
@@ -1655,20 +1639,7 @@ static AbstractDeclarator* parse_abstract_declarator(Parser *parser) {
     return pointer_declarator;
   }
 
-  return parse_direct_abstract_declarator(parser);   
-
-  // if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
-  //   expect(parser, TOKEN_OPEN_PAREN);
-  //   AbstractDeclarator *abstract_declarator = parse_abstract_declarator(parser);
-  //   expect(parser, TOKEN_CLOSE_PAREN);
-
-  //   return abstract_declarator;
-  // }  
-
-  // AbstractDeclarator *base_declarator = malloc(sizeof(AbstractDeclarator));
-  // base_declarator->type = ABSTRACT_DECLARATOR_BASE;
-
-  // return base_declarator;
+  return parse_direct_abstract_declarator(parser);
 }
 
 static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
@@ -1702,8 +1673,7 @@ static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
         array_abstract->data.abstract_array.size = strtol(constant_slice, &end_pointer, BASE_TEN);
         break;
       default:
-        fprintf(stderr, "ERROR - Parser: Unsupported array size type. (Line %d)", current_token(parser)->line);
-        break;      
+        panic("Unsupported array size type");
     }
 
     parser->current_token_index++;
@@ -1748,7 +1718,6 @@ static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
 
   return base_declarator;
 }
-
 
 static TypeNode* process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type) {
   if (abstract_declarator->type == ABSTRACT_DECLARATOR_POINTER) {
@@ -1826,8 +1795,7 @@ static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
   parse_factor(parser, &address_of_expression);
 
   if (address_of_expression->type == AST_EXPRESSION_ASSIGNMENT) {
-    fprintf(stderr, "ERROR - Parser: Illegal to take an address of an assignment\n");
-    exit(1);
+    input_error_with_line("Illegal to take an address of an assignment", current_token(parser)->line);
   }
 
   factor_node->data.expression_address_of.expression = address_of_expression;
@@ -1868,13 +1836,11 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
     switch (current_token(parser)->type) {
       case TOKEN_STATIC:
         if (error_if_storage_class_found) {
-          fprintf(stderr, "ERROR - Parser: Declared type cannot contain 'static' storage class (line %d)\n", current_token(parser)->line);
-          exit(1);
+          input_error_with_line("Declared type cannot contain 'static' storage class", current_token(parser)->line);
         }
 
         if (specifier.storage_class_type != AST_STORAGE_CLASS_NONE) {
-          fprintf(stderr, "ERROR - Parser: Declared 'static' cannot be included (line %d)\n", current_token(parser)->line);
-          exit(1);
+          input_error_with_line("Declared 'static' cannot be included", current_token(parser)->line);
         }
         
         specifier.storage_class_type = AST_STORAGE_CLASS_STATIC;
@@ -1882,13 +1848,11 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
         continue;
       case TOKEN_EXTERN:
         if (error_if_storage_class_found) {
-          fprintf(stderr, "ERROR - Parser: Declared type cannot contain 'extern' storage class (line %d)\n", current_token(parser)->line);
-          exit(1);
+          input_error_with_line("Declared type cannot contain 'extern' storage class", current_token(parser)->line);
         }
 
         if (specifier.storage_class_type != AST_STORAGE_CLASS_NONE) {
-          fprintf(stderr, "ERROR - Parser: Declared 'static' cannot be included (line %d)\n", current_token(parser)->line);
-          exit(1);
+          input_error_with_line("Declared 'static' cannot be included", current_token(parser)->line);
         }
 
         specifier.storage_class_type = AST_STORAGE_CLASS_EXTERN;
@@ -1901,15 +1865,13 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       case TOKEN_DOUBLE: {
         if (current_token(parser)->type == TOKEN_UNSIGNED) {
           if (has_unsigned_specifier) {
-            fprintf(stderr, "ERROR - Parser: Cannot declare unsigned specifier more than once. (Line %d)\n", current_token(parser)->line);
-            exit(1);
+            input_error_with_line("Cannot declare unsigned specifier more than once.", current_token(parser)->line);
           }
 
           has_unsigned_specifier = true;
         } else if (current_token(parser)->type == TOKEN_SIGNED) {
           if (has_signed_specifier) {
-            fprintf(stderr, "ERROR - Parser: Cannot declare signed specifier more than once. (Line %d)\n", current_token(parser)->line);
-            exit(1);
+            input_error_with_line("Cannot declare signed specifier more than once.", current_token(parser)->line);
           }
 
           has_signed_specifier = true;
@@ -1928,15 +1890,13 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
   specifier.specifier_type_found = type_specifier_count == 0 ? false : true;
 
   if (has_signed_specifier && has_unsigned_specifier) {
-    fprintf(stderr, "ERROR - Parser: Cannot have both signed and unsigned specifier. (Line %d)\n", current_token(parser)->line);
-    exit(1);
+    input_error_with_line("Cannot have both signed and unsigned specifier.", current_token(parser)->line);
   }
 
   for (int i = 0; i < type_specifier_count; i++) {
     if (type_specifiers[i] == TOKEN_DOUBLE) {
       if (type_specifier_count > 1) {
-        fprintf(stderr, "ERROR - Parser: Double cannot contain another type specifier. (Line %d)\n", current_token(parser)->line);
-        exit(1);
+        input_error_with_line("Double cannot contain another type specifier.", current_token(parser)->line);
       } else {
         specifier.specifier_type = TYPE_DOUBLE;
         return specifier;
@@ -2056,28 +2016,18 @@ static Declarator* parse_declarator_suffix(Parser *parser) {
         array_declarator->data.array_declarator.size = strtol(constant_slice, &end_pointer, BASE_TEN);
         break;
       default:
-        fprintf(stderr, "ERROR - Parser: Unsupported array size type. (Line %d)", current_token(parser)->line);
-        break;
+        panic("Unsupported array size type in parser_declarator_suffix()");
     }
 
     parser->current_token_index++;
     expect(parser, TOKEN_CLOSE_BRACKET);
 
-    //array_declarator->data.array_declarator.declarator = parse_declarator_suffix(parser);
-
     Declarator *next_declarator = parse_declarator_suffix(parser);
-
-    // if (next_declarator != NULL) {
-    //   array_declarator->data.array_declarator.declarator = next_declarator;
-    // }
 
     if (next_declarator != NULL) {
       next_declarator->data.array_declarator.declarator = array_declarator;
       return next_declarator;
-      //array_declarator->data.array_declarator.declarator = next_declarator;
     }
-
-
 
     return array_declarator;
   }

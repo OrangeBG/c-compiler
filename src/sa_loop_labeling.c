@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "../include/sa_loop_labeling.h"
 #include "../include/stack.h"
+#include "../include/error.h"
 
 static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_loop_id); 
 
@@ -76,8 +77,7 @@ static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_lo
         StackValue *current_loop_label = stack_top(label_stack);
 
         if (current_loop_label == NULL) {
-          fprintf(stderr, "ERROR: SA LOOP LABELING - Null loop label value for 'break'\n");
-          exit(1);
+          input_error_with_line("Loop not not found for 'break' statement", ast_node->line_number);
         }
 
         ast_node->data.statement_break.label_id = current_loop_label->data.integer;
@@ -87,8 +87,7 @@ static void sa_label_loop(AstNode *ast_node, Stack *label_stack, int *current_lo
         StackValue *current_loop_label = stack_top(label_stack);
 
         if (current_loop_label == NULL) {
-          fprintf(stderr, "ERROR: SA LOOP LABELING - Null loop label value for 'continue'\n");
-          exit(1);
+          input_error_with_line("Loop not found for 'continue' statement", ast_node->line_number);
         }
 
         ast_node->data.statement_continue.label_id = current_loop_label->data.integer;
