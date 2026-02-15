@@ -1190,12 +1190,12 @@ static TypeNode* expression_type_check_and_convert(AstNode **node, DeclarationSy
   address_of_array->type = AST_EXPRESSION_ADDRESS_OF;
   address_of_array->data.expression_address_of.expression = *node;
 
-  node = &address_of_array;
+  *node = address_of_array;
 
   //@Test: Test that this is the correct reference type that we want to add. I think this is wrong and it should be the indexed element
-  TypeNode *address_of_array_pointer = arena_alloc(parser_results->type_node_arena);
-  address_of_array_pointer->type = TYPE_POINTER;
-  address_of_array_pointer->data.pointer_type.reference_type = expression_type;
+   TypeNode *address_of_array_pointer = arena_alloc(parser_results->type_node_arena);
+   address_of_array_pointer->type = TYPE_POINTER;
+   address_of_array_pointer->data.pointer_type.reference_type = expression_type;
 
   return address_of_array_pointer;
 }
