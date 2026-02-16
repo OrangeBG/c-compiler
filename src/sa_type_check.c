@@ -53,8 +53,7 @@ void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declar
       continue;
     }
 
-    fprintf(stderr, "ERROR - SA Type Check: Unexpected declaration type\n");
-    exit(1);
+    panic("Unexpected declaration type");
   }
 }
 
@@ -267,8 +266,7 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
     case AST_STATEMENT_NULL:
       break;
     default:    
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported AST type '%d' found in function and variable type check\n", node->type);
-      exit(1);
+      panic("Unsupported AST type '%d' found in function and variable type check", node->type);
   }  
 }
 
@@ -287,8 +285,7 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
 
   if (ast_initializer->data.initializer.type == AST_INITIALIZER_COMPOUND && target_type->type == TYPE_ARRAY) {
     if (ast_initializer->data.initializer.initializer_node.compound_initializer->count > target_type->data.array_type.size) {
-      fprintf(stderr, "ERROR - SA Type Check: %d values initialized for an array of %lu size\n", ast_initializer->data.initializer.initializer_node.compound_initializer->count, target_type->data.array_type.size);
-      exit(1);
+      input_error_with_line("%d values initialized for an array of %lu size", ast_initializer->line_number, ast_initializer->data.initializer.initializer_node.compound_initializer->count, target_type->data.array_type.size);
     }
 
     for (int i = 0; i < ast_initializer->data.initializer.initializer_node.compound_initializer->count; i++) {
@@ -303,8 +300,7 @@ static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer
     return target_type;
   }
 
-  fprintf(stderr, "ERROR - SA Type Check: Can't initialize a scalar object with a compound initializer\n");
-  exit(1);
+  input_error_with_line("Can't initialize a scalar object with a compound initializer", ast_initializer->line_number);
 }
 
 static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults *parser_results) {
@@ -351,8 +347,7 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
       constant->data.expression_constant.double_value = 0;
       break;
     default:
-      fprintf(stderr, "ERROR - SA Type Check: Type not found for array zero initializer\n");
-      exit(1);
+      panic("Type not found for array zero initializer");
   }
 
   AstNode *single_init = arena_alloc(parser_results->ast_node_arena);
@@ -452,8 +447,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
 static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, DeclarationSymbolTable *declaration_table, char *function_name) {
   if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
     if (variable_declaration_node->data.declaration_variable.has_expression) {
-      fprintf(stderr, "ERROR - SA Type Check: Initializer on local extern variable declaration '%s'\n", variable_declaration_node->data.declaration_variable.name);
-      exit(1);
+      input_error_with_line("Initializer on local extern variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
     
     HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.declaration_variable.name);
@@ -462,8 +456,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       DeclarationSymbol *existing_variable_symbol = entry->value->structure;
 
       if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {        
-        fprintf(stderr, "ERROR - SA Type Check: Function redeclared as variable\n");
-        exit(1);
+        input_error_with_line("Function redeclared as variable", variable_declaration_node->line_number);
       }
     } else {
       add_static_extern_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name); 
@@ -493,8 +486,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       return;
     }
 
-    fprintf(stderr, "ERROR - SA Type Check: Non-constant initializer on local static variable '%s'\n", variable_declaration_node->data.declaration_variable.name);
-    exit(1);
+    input_error_with_line("Non-constant initializer on local static variable '%s'\n", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
   }   
 
   add_automatic_variable_declaration_symbol(declaration_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name);
@@ -543,8 +535,7 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
      break;
    }
    default:
-     fprintf(stderr, "ERROR - SA Type Check: Unsupported initial value AST Type '%d'\n",declaration_type->type);
-     exit(1);
+     panic("Unsupported initial value AST Type '%d'", declaration_type->type);
   }
 
   dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
@@ -592,15 +583,13 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_variable.identifier);
 
       if (entry == NULL || entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Type Check: Expression variable '%s' not found in declaration symbol table\n", node->data.expression_variable.identifier);
-        exit(1);
+        panic("Expression variable '%s' not found in declaration symbol table", node->data.expression_variable.identifier);
       }
 
       DeclarationSymbol* symbol = entry->value->structure; 
 
       if (symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
-        fprintf(stderr, "ERROR - SA Type Check: Function name '%s' is being used as a variable\n", node->data.expression_variable.identifier);
-        exit(1);
+        input_error_with_line("Function name '%s' is being used as a variable", node->line_number, node->data.expression_variable.identifier);
       }
 
       //@NOTE: Experimenting with something here. Rather than creating a new type node. Pass the pointer to the existing one. 
@@ -618,8 +607,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         case AST_CONSTANT_TYPE_ULONG:  expression_type->type = TYPE_ULONG; break;
         case AST_CONSTANT_TYPE_DOUBLE: expression_type->type = TYPE_DOUBLE; break;
         default:
-          fprintf(stderr, "ERROR - Type Check: Could not resolve value type in variable symbol\n");
-          exit(1);
+          panic("Could not resolve value type in variable symbol");
       }
 
       node->data.expression_constant.expression_type = expression_type;
@@ -630,18 +618,15 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_cast.expression, declaration_table, function_declaration_node, parser_results);
 
       if (node->data.expression_cast.target_type->type == TYPE_ARRAY) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot cast to an array type\n");
-        exit(1);
+        input_error_with_line("Cannot cast to an array type", node->line_number);
       }
       
       if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) == TYPE_DOUBLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot cast double pointer to double\n");
-        exit(1);
+        input_error_with_line("Cannot cast double pointer to double", node->line_number);
       }
 
       if (expression_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) != TYPE_DOUBLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Double cannot be cast to pointer type\n");
-        exit(1);
+        input_error_with_line("Double cannot be cast to pointer type", node->line_number);
       }
 
       return node->data.expression_cast.target_type;
@@ -650,13 +635,11 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_unary.expression, declaration_table, function_declaration_node, parser_results);
 
       if (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT && expression_type->type == TYPE_DOUBLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement operator to a double\n");
-        exit(1);
+        input_error_with_line("Cannot apply unary complement operator to a double", node->line_number);
       }
 
       if (expression_type->type == TYPE_POINTER && (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT || node->data.expression_unary.op_type == AST_UNARY_NEGATE)) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot apply unary complement or negate operator to a pointer\n");
-        exit(1);
+        input_error_with_line("Cannot apply unary complement or negate operator to a pointer", node->line_number);
       }
 
       node->data.expression_unary.expression_type = expression_type;
@@ -682,8 +665,8 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
           case AST_BINARY_BITWISE_LEFT_SHIFT:
           case AST_BINARY_BITWISE_AND:
           case AST_BINARY_REMAINDER:
-            fprintf(stderr, "ERROR - SA Type Check: Cannot apply binary %s operator with a double value\n", get_binary_op_type_string(node->data.expression_binary.op_type));
-            exit(1);          
+            input_error_with_line("Cannot apply binary %s operator with a double value", node->line_number, get_binary_op_type_string(node->data.expression_binary.op_type));
+          default: break;
         }
       }
 
@@ -697,18 +680,17 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
           case AST_BINARY_OR: 
           case AST_BINARY_BITWISE_RIGHT_SHIFT:
           case AST_BINARY_BITWISE_LEFT_SHIFT:
-            fprintf(stderr, "ERROR - SA Type Check: Cannot apply a binary %s operator with a pointer\n", get_binary_op_type_string(node->data.expression_binary.op_type));
-            exit(1);
+            input_error_with_line("Cannot apply a binary %s operator with a pointer", node->line_number, get_binary_op_type_string(node->data.expression_binary.op_type));
           case AST_BINARY_EQUAL:
           case AST_BINARY_LESS_THAN:
           case AST_BINARY_LESS_OR_EQUAL:
           case AST_BINARY_GREATER_THAN:
           case AST_BINARY_GREATER_OR_EQUAL:             
             if (right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
-              fprintf(stderr, "ERROR - SA Type Check: Cannot compare pointers of different types\n");
-              exit(1);
+              input_error_with_line("Cannot compare pointers of different types", node->line_number);
             }
             break;        
+          default: break;
           }
 
         switch (node->data.expression_binary.op_type) {
@@ -719,10 +701,10 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
           case AST_BINARY_GREATER_THAN:
           case AST_BINARY_GREATER_OR_EQUAL:             
             if (is_null_pointer_constant(node->data.expression_binary.left_expression) || is_null_pointer_constant(node->data.expression_binary.right_expression)) {
-              fprintf(stderr, "ERROR - SA Type Check: Cannot perform %s operation with a null constant\n", get_binary_op_type_string(node->data.expression_binary.op_type));
-              exit(1);
+              input_error_with_line("Cannot perform %s operation with a null constant", node->line_number, get_binary_op_type_string(node->data.expression_binary.op_type));
             }
             break;
+          default: break;
         }
       }
 
@@ -742,15 +724,13 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *left_expression_type = expression_type_check_and_convert(&node->data.expression_assignment.left_expression, declaration_table, function_declaration_node, parser_results);
 
       if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT) {
-        fprintf(stderr, "ERROR - SA Type Check: Tried to assign to a non-lvalue\n");
-        exit(1);
+        input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
 
       TypeNode *right_expression_type = expression_type_check_and_convert(&node->data.expression_assignment.right_expression, declaration_table, function_declaration_node, parser_results);
 
       if (left_expression_type->type == TYPE_POINTER && right_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {        
-        fprintf(stderr, "ERROR - SA Type Check: Expression assignment of pointers aren't for the same type\n");
-        exit(1);
+        input_error_with_line("Expression assignment of pointers aren't for the same type", node->line_number);
       }
 
       node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, parser_results);
@@ -760,20 +740,17 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
     case AST_EXPRESSION_FUNCTION_CALL: {
       HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_function_call.identfier);
       if (entry == NULL && entry->key == NULL) {
-        fprintf(stderr, "ERROR - SA Type Check: Called function '%s' not found in symbol table\n", node->data.expression_function_call.identfier);
-        exit(1);
+        panic("Called function '%s' not found in symbol table", node->data.expression_function_call.identfier);
       }
 
       DeclarationSymbol *existing_symbol = entry->value->structure;
 
       if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-        fprintf(stderr, "ERROR - SA Type Check: Variable '%s' is used as a function name\n", node->data.expression_function_call.identfier);
-        exit(1);
+        input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identfier);
       }               
 
       if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
-        fprintf(stderr, "ERROR - SA Type Check: Function '%s' called with incorrect number of arguments\n", node->data.expression_function_call.identfier);
-        exit(1);
+        input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identfier);
       }
       
       for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
@@ -824,8 +801,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       */
 
       if (node->data.expression_address_of.expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_address_of.expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_address_of.expression->type != AST_EXPRESSION_SUBSCRIPT) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot take the address of a non-lvalue\n");
-        exit(1);
+        input_error_with_line("Cannot take the address of a non-lvalue", node->line_number);
       }
 
       //@Note: Do not call 'expression_type_check_convert()' for address_of operand
@@ -841,8 +817,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_dereference.expression, declaration_table, function_declaration_node, parser_results);
 
       if (expression_type->type != TYPE_POINTER) {
-        fprintf(stderr, "ERROR - SA Type Check: Cannot dereference a non-pointer\n");
-        exit(1);
+        input_error_with_line("Cannot dereference a non-pointer", node->line_number);
       }
 
       //TODO: Will this work if it's greater than one level? Example: int** 
@@ -866,12 +841,10 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
         return expression_2_type->data.pointer_type.reference_type;
       }
 
-      fprintf(stderr, "ERROR - SA Type Check: Subscript must have an integer and pointer operand\n");
-      exit(1);
+      input_error_with_line("Subscript must have an integer and pointer operand", node->line_number);
     }
     default:
-      fprintf(stderr, "ERROR - SA Type Check: Invalid AST type '%d' found in expression type check\n", node->type);
-      exit(1);
+      panic("Invalid AST type '%d' found in expression type check", node->type);
   }
 }
 
@@ -940,8 +913,7 @@ static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *l
     return right_expression_type;
   }
 
-  fprintf(stderr, "ERROR - SA Type Check: Invalid operands for addition\n");
-  exit(1);
+  input_error_with_line("Invalid operands for addition", add_node->line_number);
 }
 
 static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, DeclarationSymbolTable *declaration_table, ParserResults *parser_results) { 
@@ -971,8 +943,7 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
     return long_type_node;
   }
 
-  fprintf(stderr, "ERROR - SA Type Check: Invalid operands for subtraction\n");
-  exit(1);
+  input_error_with_line("Invalid operands for subtraction", subtract_node->line_number);
 }
 
 static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
@@ -1087,9 +1058,7 @@ static long convert_variable_declaration_constant_to_long(AstNode *constant_node
     case AST_CONSTANT_TYPE_ULONG:  return (long)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (long)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return constant_node->data.expression_constant.long_value;
-    default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to long\n");
-      exit(1);
+    default:                       panic("Unsupported constant type when converting to long");
   }
 }
 
@@ -1100,9 +1069,7 @@ static int convert_variable_declaration_constant_to_int(AstNode *constant_node) 
     case AST_CONSTANT_TYPE_ULONG:  return (int)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (int)constant_node->data.expression_constant.long_value;
-    default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to int\n");
-      exit(1);
+    default:                       panic("Unsupported constant type when converting to int");
   }
 }
 
@@ -1113,9 +1080,7 @@ static unsigned int convert_variable_declaration_constant_to_uint(AstNode *const
     case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_node->data.expression_constant.long_value;
-    default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
-      exit(1);
+    default:                       panic("Unsupported constant type when converting to uint");
   }
 }
 
@@ -1126,9 +1091,7 @@ static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *con
     case AST_CONSTANT_TYPE_ULONG:  return constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_node->data.expression_constant.long_value;
-    default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to uint\n");
-      exit(1);
+    default:                       panic("Unsupported constant type when converting to uint");
   }
 }
 
@@ -1139,9 +1102,7 @@ static double convert_variable_declaration_constant_to_double(AstNode *constant_
     case AST_CONSTANT_TYPE_ULONG:  return (double)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (double)constant_node->data.expression_constant.long_value;
-    default:
-      fprintf(stderr, "ERROR - SA Type Check: Unsupported constant type when converting to double\n");
-      exit(1);
+    default:                       panic("Unsupported constant type when converting to double");
   }
 }
 
