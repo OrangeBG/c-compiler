@@ -78,7 +78,8 @@ static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IR
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep); 
 static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *function, IntermediateRep *intermediate_rep);
 static ExpressionResult* emit_address_of_expression(AstNode *address_of_node, IRNode *function, IntermediateRep *intermediate_rep); 
-static ExpressionResult* emit_dereference_expression(AstNode *dereference_node, IRNode *function, IntermediateRep *intermediate_rep); 
+static ExpressionResult* emit_dereference_expression(AstNode *dereference_node, IRNode *function, IntermediateRep *intermediate_rep);
+static ExpressionResult* emit_subscript_expression(AstNode *subscript_node, IRNode *function, IntermediateRep *intermediate_rep);
 static void              emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_program,  IntermediateRep *intermediate_rep); 
 static void              add_instruction_to_function(IRNode *ir_function, IRNode *ir_instruction); 
 static void              add_top_level_declaration_to_program(IRNode *ir_program, IRNode *ir_function); 
@@ -390,6 +391,7 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
       case AST_EXPRESSION_CAST:              { return emit_cast_expression(node, function, intermediate_rep); } 
       case AST_EXPRESSION_ADDRESS_OF:        { return emit_address_of_expression(node, function, intermediate_rep); }
       case AST_EXPRESSION_DEREFERENCE:       { return emit_dereference_expression(node, function, intermediate_rep); }
+      case AST_EXPRESSION_SUBSCRIPT:         { return emit_subscript_expression(node, function, intermediate_rep); }
       case AST_FUNCTION_DECLARATION:         {
           if (node->data.declaration_function.body_block == NULL) break;
           return emit_function(node, intermediate_rep);
@@ -1060,6 +1062,49 @@ static ExpressionResult* emit_dereference_expression(AstNode *dereference_node, 
   IRNode *dereference_instruction = emit_ast_node_and_convert_lvalue(dereference_node->data.expression_dereference.expression, function, intermediate_rep);
 
   ExpressionResult *dereference_result = create_expression_result(dereference_instruction, EXPRESSION_RESULT_DEREFERENCED_POINTER, intermediate_rep);
+  return dereference_result;
+}
+
+static ExpressionResult* emit_subscript_expression(AstNode *subscript_node, IRNode *function, IntermediateRep *intermediate_rep) {
+  ExpressionResult *expression_1_result = emit_ast_node(subscript_node->data.expression_subscript.expression_1, function, intermediate_rep);
+  ExpressionResult *expression_2_result = emit_ast_node(subscript_node->data.expression_subscript.expression_2, function, intermediate_rep);
+  
+  char *pointer_destination_name = create_temp_register(intermediate_rep);
+  TypeNode *pointer_result_type = get_node_type(expression_2_result->operand_value, intermediate_rep);
+
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, pointer_result_type, pointer_destination_name);
+
+  IRNode *pointer_destination = arena_alloc(intermediate_rep->node_arena);
+  pointer_destination->type = IR_VALUE_VAR;
+  pointer_destination->data.value_var.identifier = pointer_destination_name;
+
+  IRNode *add_pointer_instruction = arena_alloc(intermediate_rep->node_arena);
+  add_pointer_instruction->type = IR_INSTRUCTION_ADD_POINTER;
+  add_pointer_instruction->data.instruction_add_pointer.pointer = expression_1_result->operand_value;
+  add_pointer_instruction->data.instruction_add_pointer.destination = pointer_destination;
+  add_pointer_instruction->data.instruction_add_pointer.index = expression_2_result->operand_value;
+  add_pointer_instruction->data.instruction_add_pointer.scale = 0; //@Warning @Bug: Temp '0' value. Change
+
+  add_instruction_to_function(function, add_pointer_instruction);
+
+  char *load_destination_name = create_temp_register(intermediate_rep);
+  TypeNode *load_result_type = get_node_type(expression_2_result->operand_value, intermediate_rep);
+
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, load_result_type, load_destination_name);
+
+  IRNode *load_destination = arena_alloc(intermediate_rep->node_arena);
+  load_destination->type = IR_VALUE_VAR;
+  load_destination->data.value_var.identifier = load_destination_name;
+
+  IRNode *load_instruction = arena_alloc(intermediate_rep->node_arena);
+  load_instruction->type = IR_INSTRUCTION_LOAD;
+  load_instruction->data.instruction_load.source_pointer = expression_2_result->operand_value;
+  load_instruction->data.instruction_load.destination = load_destination;
+
+  add_instruction_to_function(function, load_instruction);
+
+  //@TODO: Check if passing load_destination is correct
+  ExpressionResult *dereference_result = create_expression_result(load_destination, EXPRESSION_RESULT_DEREFERENCED_POINTER, intermediate_rep);
   return dereference_result;
 }
 
