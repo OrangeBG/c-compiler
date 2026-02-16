@@ -858,12 +858,12 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       //@Test: Not sure if these returned expression types are correct
       if (expression_1_type->type == TYPE_POINTER && is_integer_type(expression_2_type)) {
         node->data.expression_subscript.expression_2 = convert_to(node->data.expression_subscript.expression_2, expression_2_type, long_type_node, parser_results);
-        return expression_1_type;
+        return expression_1_type->data.pointer_type.reference_type;
       }
 
       if (expression_2_type->type == TYPE_POINTER && is_integer_type(expression_1_type)) {
         node->data.expression_subscript.expression_1 = convert_to(node->data.expression_subscript.expression_1, expression_1_type, long_type_node, parser_results);
-        return expression_2_type;
+        return expression_2_type->data.pointer_type.reference_type;
       }
 
       fprintf(stderr, "ERROR - SA Type Check: Subscript must have an integer and pointer operand\n");
@@ -1198,4 +1198,5 @@ static TypeNode* expression_type_check_and_convert(AstNode **node, DeclarationSy
    address_of_array_pointer->data.pointer_type.reference_type = expression_type;
 
   return address_of_array_pointer;
+  //return expression_type;
 }
