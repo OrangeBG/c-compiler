@@ -1,4 +1,10 @@
 # Bugs
+	- Subscript expressions are not forming correctly. Example: 
+		     int nested[3][2] = { { 0, 0 }, { 1, 2 }, { 3, 5 } };
+		     int i = 1;
+			 int j = 0;
+		    return nested[i][j];
+		In this exmple, after type checking, it should look like pg.409. However, an additional AddrOf node is being added to the root subscript. This is because the convert function that is called when processing the Return statement is processing the array reference that is being returned by the subscript type checking. 
 	- Type checker should not allow casting an expression to an array type:
 		(int[3])foo;
 
