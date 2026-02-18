@@ -896,6 +896,8 @@ static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *l
     TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
     expression_type_node = common_type;
 
+    add_node->data.expression_binary.expression_type = expression_type_node;
+
     return expression_type_node;
   }
 
@@ -925,6 +927,8 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
 
     TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
     expression_type_node = common_type;
+
+    subtract_node->data.expression_binary.expression_type = expression_type_node;
 
     return expression_type_node;
   }
