@@ -1,7 +1,4 @@
 # Bugs
-	- The following binary expression is segfaulting in Assembly:		
-	    int i = 1 + 2;
-	    return i;
 	- Subscript expressions are not forming correctly. Example: 
 		     int nested[3][2] = { { 0, 0 }, { 1, 2 }, { 3, 5 } };
 		     int i = 1;
