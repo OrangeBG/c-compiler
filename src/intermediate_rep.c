@@ -157,27 +157,30 @@ void print_intermediate_ret(IRNode *ir_node) {
 
       for (int i = 0; i < function->instruction_count; i++) {
         if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_RET) {
-          printf("Return(");
+          printf("\tReturn(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_ret.value);
           printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_UNARY) {      
           struct IRInstructionUnary* unary = &function->instruction_ptrs->node_pointers[i]->data.instruction_unary;
 
+          printf("\t");
+          print_intermediate_ret(unary->destination);
+          printf(" = ");
+
           switch (unary->op_type) {
-            case IR_UNARY_NEGATE:     printf("Negate, "); break;
-            case IR_UNARY_COMPLEMENT: printf("Complement, "); break;
-            case IR_UNARY_NOT:        printf("Not, "); break;
+            case IR_UNARY_NEGATE:     printf("Negate( "); break;
+            case IR_UNARY_COMPLEMENT: printf("Complement( "); break;
+            case IR_UNARY_NOT:        printf("Not( "); break;
           }
           
           print_intermediate_ret(unary->source);            
-          printf(",");
-          print_intermediate_ret(unary->destination);
-          printf(")");
-          printf("\n");
+          printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_BINARY) {
           struct IRInstructionBinary* binary = &function->instruction_ptrs->node_pointers[i]->data.instruction_binary;
 
-          printf("Binary(");
+          printf("\t");
+          print_intermediate_ret(binary->destination);
+          printf(" = Binary(");
     
           switch (binary->op_type) {
             case IR_BINARY_ADD:                 printf("Add, "); break;
@@ -199,54 +202,52 @@ void print_intermediate_ret(IRNode *ir_node) {
           }
           
           print_intermediate_ret(binary->source_1);            
-          printf(",");
+          printf(", ");
           print_intermediate_ret(binary->source_2);            
-          printf(",");
-          print_intermediate_ret(binary->destination);
           printf(")");
           printf("\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP_IF_ZERO) {
-          printf("Jump If Zero(");
+          printf("\tJump If Zero(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_zero.condition);
           printf(", %s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_zero.target);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP_IF_NOT_ZERO) {
-          printf("Jump If Not Zero(");
+          printf("\tJump If Not Zero(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_not_zero.condition);
           printf(" , %s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_not_zero.target);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP) {
-          printf("Jump(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump.target);
+          printf("\tJump(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump.target);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY) {
-          printf("Copy(Source(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.source);
-          printf(") (Destination(");
+          printf("\t");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.destination);
+          printf(" = Copy(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.source);
           printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_LABEL) {
-          printf("Label(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_label.identifier);
+          printf("\tLabel(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_label.identifier);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_TRUNCATE) {
-          printf("Truncate(Source(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.source);
-          printf(") (Destination(");
+          printf("\t");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.destination);
+          printf(" = Truncate(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.source);
           printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_SIGN_EXTEND) {
-          printf("Sign Extend(Source(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.source);
-          printf(") (Destination(");
+          printf("\t");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.destination);
+          printf(" = Sign Extend(");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.source);
           printf(")\n");
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY_TO_OFFSET) {
-          printf("Copy to Offset(Source(");
+          printf("\tCopy to Offset(Source(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.source);
           printf(") (Identifier(%s) (Offset(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_ADD_POINTER) {
-          printf("Add Pointer(Pointer(");
+          printf("\t");
+          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.destination);
+          printf(" = Add Pointer(Pointer(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.pointer);
           printf(") Index(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.index);
-          printf(") Scale(%d) Destination(", function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.scale);
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.destination);
-          printf(")\n");
+          printf(") Scale(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.scale);
         }
       }
     }
@@ -285,7 +286,7 @@ void print_intermediate_ret(IRNode *ir_node) {
       printf("Is Global = %d)\n", ir_node->data.static_variable.is_global);
       break;
     case IR_INSTRUCTION_FUNCTION_CALL:
-      printf("Function Call(name=%s ", ir_node->data.instruction_function_call.identifier);
+      printf("\tFunction Call(name=%s ", ir_node->data.instruction_function_call.identifier);
 
       for (int i = 0; i < ir_node->data.instruction_function_call.arg_count; i++) {
         printf("Argument(");
@@ -295,24 +296,25 @@ void print_intermediate_ret(IRNode *ir_node) {
       printf(")");
       break;
     case IR_INSTRUCTION_GET_ADDRESS:
-      printf("Get Address(Source(");
-      print_intermediate_ret(ir_node->data.instruction_get_address.source);
-      printf(") (Destination(");
+      printf("\t");
       print_intermediate_ret(ir_node->data.instruction_get_address.destination);
+      printf(" = Get Address(");
+      print_intermediate_ret(ir_node->data.instruction_get_address.source);
       printf(")\n");
       break;
     case IR_INSTRUCTION_LOAD:
-      printf("Load(Source(");
-      print_intermediate_ret(ir_node->data.instruction_load.source_pointer);
-      printf(") (Destination(");
+      printf("\t");
       print_intermediate_ret(ir_node->data.instruction_load.destination);
+      printf(" = Load(");
+      print_intermediate_ret(ir_node->data.instruction_load.source_pointer);
       printf(")\n");
       break;
     case IR_INSTRUCTION_STORE:
-      printf("Store(Source(");
-      print_intermediate_ret(ir_node->data.instruction_store.source);
-      printf(") (Destination(");
+      printf("\t");
       print_intermediate_ret(ir_node->data.instruction_store.destination_pointer);
+      printf(" = Store(");
+      print_intermediate_ret(ir_node->data.instruction_store.source);
+      printf(")\n");
       break;
     default:
       panic("No print for type %d", ir_node->type);
