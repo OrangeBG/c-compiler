@@ -4,6 +4,7 @@
 #include <string.h>
 #include "../include/lexer.h"
 #include "../include/dynamic_array.h"
+#include "../include/error.h"
 
 #define TOKEN_ARRAY_START_SIZE 64
 
@@ -125,8 +126,7 @@ void load_tokens(Lexer *lexer, char *file) {
       lexer->current_index = lexer->start_index;
 
       if (!is_valid_post_constant_character(file[lexer->current_index])) {
-        fprintf(stderr, "ERROR - Lexer: Invalid character '%c' in constant (line %d)\n", file[lexer->current_index], lexer->line);
-        exit(1);
+        input_error_with_line("Invalid character '%c' in constant", lexer->line, file[lexer->current_index]);
       }
 
       continue;
@@ -340,8 +340,7 @@ void load_tokens(Lexer *lexer, char *file) {
         add_token(TOKEN_BITWISE_XOR, lexer);
         break;
       default:
-        fprintf(stderr, "ERROR - Lexer: Invalid token '%c' (line %d)\n", cur_char, lexer->line);
-        exit(1);
+        input_error_with_line("Invalid token '%c'", lexer->line, cur_char);
     }
 
     lexer->current_index++;
@@ -441,8 +440,7 @@ static void add_constant_token(Lexer *lexer, char *file) {
     //Scientific notation
     if (file[lexer->current_index + 1] == 'E' || file[lexer->current_index + 1] == 'e' || file[lexer->current_index + 1] == '+' || file[lexer->current_index + 1] == '-') {
       if (file[lexer->current_index + 1] == '-' && !is_numeric_char(file[lexer->current_index + 2])) {
-        fprintf(stderr, "ERROR - Lexer: Exponent on a floating-point constant must be an integer (line %d)\n", lexer->line);
-        exit(1);
+        input_error_with_line("Exponent on a floating-point constant must be an integer", lexer->line);
       }
 
       lexer->current_index++;
