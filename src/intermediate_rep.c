@@ -331,14 +331,9 @@ static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *i
   function->data.function.instruction_count = 0;
   function->data.function.instruction_ptrs = ir_node_pointer;
 
-  HashTableEntry *found_declaration_entry = hash_table_get_entry(intermediate_rep->declaration_symbol_table->symbol_table, ast_function->data.declaration_function.name);
+  DeclarationSymbol *function_symbol = get_declaration_symbol(ast_function->data.declaration_function.name, intermediate_rep->declaration_symbol_table, true);
 
-  if (found_declaration_entry == NULL || found_declaration_entry->key == NULL) {
-    panic("Declaration Symbol expected for the following function: '%s'", ast_function->data.declaration_function.name);
-  }
-
-  DeclarationSymbol *symbol = found_declaration_entry->value->structure;
-  function->data.function.is_global = symbol->data.function_symbol->is_global;
+  function->data.function.is_global = function_symbol->data.function_symbol->is_global;
 
   for (int i = 0; i < ast_function->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
     add_function_parameter_identifier(ast_function->data.declaration_function.parameter_identifiers[i], function);
@@ -1442,11 +1437,8 @@ static TypeNode* get_node_type(IRNode *node, IntermediateRep *intermediate_rep) 
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
     case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type;
     case IR_VALUE_VAR: {
-      //TODO: Error check to make sure we actually have a variable symbol.
       //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
-      HashTableEntry *entry = hash_table_get_entry(intermediate_rep->declaration_symbol_table->symbol_table, node->data.value_var.identifier);
-      DeclarationSymbol *declaration_symbol = entry->value->structure;
-
+      DeclarationSymbol *declaration_symbol = get_declaration_symbol(node->data.value_var.identifier, intermediate_rep->declaration_symbol_table, true);
       return declaration_symbol->data.variable_symbol->value_type;
     }
     default:

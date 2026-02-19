@@ -1095,14 +1095,8 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   double_type_node->type = TYPE_DOUBLE;
   
   add_static_variable_declaration_symbol(assembly->declaration_symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
-
-  HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, constant_label);
-
-  if (entry == NULL || entry->key == NULL) {
-    panic("Could not find static constant label '%s' in symbol declaration table", constant_label);
-  }
   
-  DeclarationSymbol *symbol = entry->value->structure;
+  DeclarationSymbol *symbol = get_declaration_symbol(constant_label, assembly->declaration_symbol_table, true);
 
   AsmNode *static_constant = arena_alloc(assembly->asm_arena);
   static_constant->type = ASM_STATIC_CONSTANT;
@@ -1453,8 +1447,7 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
   //retrieve return value 
   AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
 
-  HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function_call_instruction->data.instruction_function_call.identifier);
-  DeclarationSymbol *declaration_symbol = entry->value->structure;
+  DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_function_call_instruction->data.instruction_function_call.identifier, assembly->declaration_symbol_table, true);
   
   AsmType return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type->type);
 
@@ -2137,21 +2130,12 @@ static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declarati
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT: return ir_node->data.value_constant.type->type;
     case IR_VALUE_VAR: {
-      //TODO: Add some error checking
-      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
-     
-      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-
+      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
       return declaration_symbol->data.variable_symbol->value_type->type;
     }
     case IR_INSTRUCTION_FUNCTION_CALL: {
-      //TODO: Add some error checking
-      HashTableEntry *function_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.instruction_function_call.identifier);
-     
-      DeclarationSymbol *declaration_symbol = function_hash_entry->value->structure;
-
+      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.instruction_function_call.identifier, declaration_symbol_table, true);
       return declaration_symbol->data.function_symbol->value_type->type;
-      break;
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to get node Type", ir_node->type);
@@ -2163,10 +2147,7 @@ static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTa
     case IR_VALUE_CONSTANT:
       return convert_type_to_asm_type(ir_node->data.value_constant.type->type);
     case IR_VALUE_VAR: {
-      //TODO: Add some error checking
-      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);
-      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-
+      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
       return convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type->type);
     }
     default:
@@ -2231,10 +2212,8 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
       continue;
     } 
     
-    HashTableEntry *declaration_symbol_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, declaration_symbol_table->symbol_table->entries[i].key);
-    
     AsmBackendSymbol *asm_backend_symbol = arena_alloc(backend_symbol_table->symbol_arena);   
-    DeclarationSymbol *declaration_symbol = declaration_symbol_entry->value->structure;    
+    DeclarationSymbol *declaration_symbol = get_declaration_symbol(declaration_symbol_table->symbol_table->entries[i].key, declaration_symbol_table, true);    
 
     if (declaration_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
       asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
@@ -2256,7 +2235,7 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
     hash_value->structure = asm_backend_symbol;
 
     HashTableEntry *hash_entry = malloc(sizeof(HashTableEntry));
-    hash_entry->key = declaration_symbol_entry->key;
+    hash_entry->key = declaration_symbol_table->symbol_table->entries[i].key;
     hash_entry->value = hash_value;
 
     hash_table_add_entry(backend_symbol_table->symbol_table, hash_entry);    
@@ -2307,8 +2286,7 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
       value_type = ir_node->data.value_constant.type->type;
       break;
     case IR_VALUE_VAR: {
-      HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_node->data.value_var.identifier);     
-      DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
       value_type = declaration_symbol->data.variable_symbol->value_type->type;
       break;
     }
