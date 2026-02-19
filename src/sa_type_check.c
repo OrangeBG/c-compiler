@@ -724,12 +724,7 @@ static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *de
       return left_expression_type;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_function_call.identfier);
-      if (entry == NULL && entry->key == NULL) {
-        panic("Called function '%s' not found in symbol table", node->data.expression_function_call.identfier);
-      }
-
-      DeclarationSymbol *existing_symbol = entry->value->structure;
+      DeclarationSymbol *existing_symbol = get_declaration_symbol(node->data.expression_function_call.identfier, declaration_table, true);
 
       if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
         input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identfier);
