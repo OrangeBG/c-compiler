@@ -80,6 +80,7 @@ typedef struct {
 
 void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table);
 void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
+DeclarationSymbol* get_declaration_symbol(char *identifier, DeclarationSymbolTable *declaration_symbol_table, bool error_if_null);
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
 void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);  
 void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   

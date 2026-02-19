@@ -72,21 +72,19 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       break;
     }
     case AST_FUNCTION_DECLARATION: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.declaration_function.name);
+      DeclarationSymbol *existing_function_symbol = get_declaration_symbol(node->data.declaration_function.name, declaration_table, false);
 
-      if (entry != NULL && entry->key != NULL) {
-        DeclarationSymbol *existing_function_symbol = entry->value->structure;
-
+      if (existing_function_symbol != NULL ) {
         if (existing_function_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
-          input_error_with_line("'%s' declared as variable", node->line_number, entry->key);
+          input_error_with_line("'%s' declared as variable", node->line_number, node->data.declaration_function.name);
         }
 
         if (existing_function_symbol->data.function_symbol->value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {
-          input_error_with_line("Incompatible function declarations for '%s'", node->line_number, entry->key);
+          input_error_with_line("Incompatible function declarations for '%s'", node->line_number, node->data.declaration_function.name);
         }
 
         if (existing_function_symbol->data.function_symbol->is_defined && node->data.declaration_function.body_block != NULL) {
-          input_error_with_line("Function defined more than once '%s'", node->line_number, entry->key);
+          input_error_with_line("Function defined more than once '%s'", node->line_number, node->data.declaration_function.name);
         }
 
         if (existing_function_symbol->data.function_symbol->is_global == node->data.declaration_function.storage_class_type == AST_STORAGE_CLASS_STATIC) {
@@ -150,11 +148,9 @@ static void function_and_variable_type_check(AstNode *node, DeclarationSymbolTab
       break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_function_call.identfier);
+      DeclarationSymbol *existing_symbol = get_declaration_symbol(node->data.expression_function_call.identfier, declaration_table, false);
 
-      if (entry != NULL && entry->key != NULL) {
-        DeclarationSymbol *existing_symbol = entry->value->structure;
-
+      if (existing_symbol != NULL) {
         if (existing_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
           input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identfier);
         }               
@@ -408,11 +404,9 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
 
   bool is_global = variable_declaration_node->data.declaration_variable.storage_class_type != AST_STORAGE_CLASS_STATIC;
 
-  HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.declaration_variable.name);
+  DeclarationSymbol *existing_variable_symbol = get_declaration_symbol(variable_declaration_node->data.declaration_variable.name, declaration_table, false);
 
-  if (entry != NULL && entry->key != NULL) {
-    DeclarationSymbol *existing_variable_symbol = entry->value->structure;
-
+  if (existing_variable_symbol != NULL) {
     if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
       input_error_with_line("Function '%s' redeclared as variable", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
@@ -450,11 +444,9 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
       input_error_with_line("Initializer on local extern variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
     
-    HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, variable_declaration_node->data.declaration_variable.name);
+    DeclarationSymbol *existing_variable_symbol = get_declaration_symbol(variable_declaration_node->data.declaration_variable.name, declaration_table, false);
 
-    if (entry != NULL && entry->key != NULL) {
-      DeclarationSymbol *existing_variable_symbol = entry->value->structure;
-
+    if (existing_variable_symbol != NULL) {
       if (existing_variable_symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {        
         input_error_with_line("Function redeclared as variable", variable_declaration_node->line_number);
       }
@@ -580,13 +572,7 @@ static void add_variable_declaration_compound_init_to_array(InitialValueArray *i
 static TypeNode* expression_type_check(AstNode *node, DeclarationSymbolTable *declaration_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
     case AST_EXPRESSION_VARIABLE: {
-      HashTableEntry *entry = hash_table_get_entry(declaration_table->symbol_table, node->data.expression_variable.identifier);
-
-      if (entry == NULL || entry->key == NULL) {
-        panic("Expression variable '%s' not found in declaration symbol table", node->data.expression_variable.identifier);
-      }
-
-      DeclarationSymbol* symbol = entry->value->structure; 
+      DeclarationSymbol* symbol = get_declaration_symbol(node->data.expression_variable.identifier, declaration_table, true);
 
       if (symbol->symbol_type == DECLARATION_SYMBOL_FUNCTION) {
         input_error_with_line("Function name '%s' is being used as a variable", node->line_number, node->data.expression_variable.identifier);

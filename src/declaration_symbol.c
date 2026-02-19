@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "../include/declaration_symbol.h"
 #include "../include/error.h"
 
@@ -26,6 +27,20 @@ void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_ta
   arena_free(declaration_symbol_table->declaration_symbol_arena);
   arena_free(declaration_symbol_table->function_symbol_arena);
   free(declaration_symbol_table->symbol_table);
+}
+
+DeclarationSymbol* get_declaration_symbol(char *identifier, DeclarationSymbolTable *declaration_symbol_table, bool error_if_null) {
+  HashTableEntry *symbol_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, identifier);
+
+  if (symbol_entry == NULL || symbol_entry->key == NULL) {
+    if (error_if_null) {
+      panic("Declaration symbol '%s' not found in symbol table", identifier);
+    }
+
+    return NULL;
+  }
+
+  return symbol_entry->value->structure;  
 }
 
 DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined) {
