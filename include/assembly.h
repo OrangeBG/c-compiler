@@ -36,7 +36,9 @@ typedef enum {
   ASM_OPERAND_REGISTER,
   ASM_OPERAND_PSEUDO_REGISTER,
   ASM_OPERAND_DATA,
-  ASM_OPERAND_MEMORY
+  ASM_OPERAND_MEMORY,
+  ASM_OPERAND_PSEUDOMEM,
+  ASM_OPERAND_INDEXED
 } AsmNodeType;
 
 typedef enum {
@@ -162,6 +164,8 @@ typedef struct AsmNode {
     struct AsmOperandPseudoRegister { char *identifier; } operand_pseudo_register;
     struct AsmOperandMemory { AsmRegisterType op_register; int base_offset; } operand_memory;
     struct AsmOperandData { char *identifier; } operand_data;
+    struct AsmOperandPseudoMem { char *identifier; int byte_offset; } operand_pseudo_mem;
+    struct AsmOperandIndexed { AsmRegisterType base_register; AsmRegisterType index_register; int scale; } operand_indexed;
   } data;
 } AsmNode;
 
