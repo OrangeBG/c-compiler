@@ -418,10 +418,10 @@ static void print_register(FILE *file, AsmNode *register_node, AsmType asm_type)
   char *register_name;
 
   switch (asm_type) {
-  case ASM_TYPE_BYTE:      register_name = get_1_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_LONGWORD:  register_name = get_4_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_QUADWORD:  register_name = get_8_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_DOUBLE:    register_name = get_xmm_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_BYTE_ARRAY: register_name = get_1_byte_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_LONGWORD:   register_name = get_4_byte_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_QUADWORD:   register_name = get_8_byte_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_DOUBLE:     register_name = get_xmm_register(register_node->data.operand_register.op_register); break;
   }
 
   fprintf(file, "%s", register_name);
@@ -497,7 +497,7 @@ static char* get_xmm_register(AsmRegisterType register_type) {
 
 static void print_instruction_suffix(FILE *file, AsmType type) {
   switch (type) {
-    case ASM_TYPE_BYTE:       fprintf(file, "l"); break;
+    case ASM_TYPE_BYTE_ARRAY: fprintf(file, "l"); break;
     case ASM_TYPE_LONGWORD:   fprintf(file, "l"); break;
     case ASM_TYPE_QUADWORD:   fprintf(file, "q"); break;
     case ASM_TYPE_DOUBLE:     fprintf(file, "sd"); break;

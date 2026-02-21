@@ -107,6 +107,7 @@ static void         emit_ir_instruction_get_address(AsmNode *asm_function, IRNod
 static void         emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly);
+static void         emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly);
 static AsmNode*     create_register(AsmRegisterType register_type, Assembly *assembly);
 static AsmNode*     create_signed_imm_operand(long value, Assembly *assembly);
 static AsmNode*     create_memory_operand(AsmRegisterType register_type, int offset, Assembly *assembly);
@@ -142,7 +143,7 @@ static ResolveType  resolve_binary_instruction(AsmNode *function, AsmNode *instr
 static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
-static ResolveType resolve_lea_instruction(AsmNode *function, AsmNode *lea_instruction, Assembly *assembly); 
+static ResolveType  resolve_lea_instruction(AsmNode *function, AsmNode *lea_instruction, Assembly *assembly); 
 static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly); 
 static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Assembly *assembly);
 static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
@@ -568,14 +569,13 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
   return INSTRUCTION_FIXED;
 }
 
-
 static ResolveType resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   if (instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_MEMORY) {
     return INSTRUCTION_NOT_FIXED;
   }
 
   emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_cx, ASM_TYPE_LONGWORD, assembly);
-  emit_asm_binary_instruction(function, assembly->register_cx, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.binary_op, ASM_TYPE_BYTE, assembly);
+  emit_asm_binary_instruction(function, assembly->register_cx, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.binary_op, ASM_TYPE_BYTE_ARRAY, assembly);
   
   return INSTRUCTION_FIXED;
 } 
@@ -972,6 +972,9 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           break;
         case IR_INSTRUCTION_COPY_TO_OFFSET:
           emit_ir_instruction_copy_to_offset(asm_function, current_ir_node, assembly);
+          break;
+        case IR_INSTRUCTION_ADD_POINTER:
+          emit_ir_instruction_add_pointer(asm_function, current_ir_node, assembly);
           break;
         case IR_INSTRUCTION_LABEL:
           emit_ir_instruction_label(asm_function, current_ir_node, assembly);
@@ -1654,6 +1657,13 @@ static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir
   emit_asm_mov_instruction(asm_function, source, pseudo_mem, source_type, assembly);
 }
 
+static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly) {
+  AsmNode *pointer = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
+  AsmType pointer_type = convert_ir_value_to_asm_type(ir_add_pointer_instruction->data.instruction_add_pointer.pointer, assembly->declaration_symbol_table);
+  
+  printf("hi");
+}
+
 static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembly) {
   AsmNode *register_node = arena_alloc(assembly->asm_arena);
   register_node->type = ASM_OPERAND_REGISTER;
@@ -1885,6 +1895,7 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       // }
       
       //DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
+      declaration_symbol_table_print(assembly->declaration_symbol_table);
 
       asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
       asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
@@ -2111,10 +2122,10 @@ void print_assembly(AsmNode *node) {
 
 static void print_assembly_type(AsmType type) {
   switch(type) {
-    case ASM_TYPE_QUADWORD: printf("Type(Quadword) "); return;
-    case ASM_TYPE_LONGWORD: printf("Type(Longword) "); return;
-    case ASM_TYPE_DOUBLE:   printf("Type(Double) "); return;
-    case ASM_TYPE_BYTE:     printf("Type(Byte) "); break;
+    case ASM_TYPE_QUADWORD:    printf("Type(Quadword) "); return;
+    case ASM_TYPE_LONGWORD:    printf("Type(Longword) "); return;
+    case ASM_TYPE_DOUBLE:      printf("Type(Double) "); return;
+    case ASM_TYPE_BYTE_ARRAY:  printf("Type(Byte Array) "); break;
     default:
       panic("AsmType '%d' not supported for assembly type printing", type);
   }
@@ -2285,7 +2296,7 @@ void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
         case ASM_TYPE_QUADWORD:    printf("Quadword\t"); break;
         case ASM_TYPE_LONGWORD:    printf("Longword\t"); break;
         case ASM_TYPE_DOUBLE:      printf("Double\t"); break;
-        case ASM_TYPE_BYTE:        printf("Byte\t"); break;
+        case ASM_TYPE_BYTE_ARRAY:  printf("Byte Array\t"); break;
       }      
 
       printf("is_static: %d\n", symbol->data.object_entry.is_static);
