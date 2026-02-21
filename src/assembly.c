@@ -1895,10 +1895,17 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       // }
       
       //DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-      declaration_symbol_table_print(assembly->declaration_symbol_table);
 
-      asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
-      asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
+      DeclarationSymbol *variable_symbol = get_declaration_symbol(ir_operand->data.value_var.identifier, assembly->declaration_symbol_table, true);
+      
+      if (variable_symbol->data.variable_symbol->value_type->type == TYPE_ARRAY) {
+        asm_operand->type = ASM_OPERAND_PSEUDOMEM;
+        asm_operand->data.operand_pseudo_mem.identifier = ir_operand->data.value_var.identifier;
+        asm_operand->data.operand_pseudo_mem.byte_offset = 0;
+      } else {
+        asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
+        asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
+      }
       break;
     }
     default:
