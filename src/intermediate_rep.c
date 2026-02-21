@@ -239,7 +239,7 @@ void print_intermediate_ret(IRNode *ir_node) {
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY_TO_OFFSET) {
           printf("\tCopy to Offset(Source(");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.source);
-          printf(") (Identifier(%s) (Offset(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
+          printf(") (Identifier(%s) (Offset(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.destination_identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
         } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_ADD_POINTER) {
           printf("\t");
           print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.destination);
@@ -568,7 +568,7 @@ static void emit_copy_to_offset_for_compound_initializer(char *declaration_ident
     IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
     copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
     copy_to_offset->data.instruction_copy_to_offset.source = result;
-    copy_to_offset->data.instruction_copy_to_offset.identifier = declaration_identifier;
+    copy_to_offset->data.instruction_copy_to_offset.destination_identifier = declaration_identifier;
     copy_to_offset->data.instruction_copy_to_offset.offset = *offset;
 
     add_instruction_to_function(function, copy_to_offset);

@@ -92,7 +92,7 @@ typedef struct IRNode {
   struct IRInstructionLoad { IRNode *source_pointer; IRNode *destination; } instruction_load;
   struct IRInstructionStore { IRNode *source; IRNode *destination_pointer; } instruction_store;
   struct IRInstructionAddPointer { IRNode *pointer; IRNode *index; int scale; IRNode *destination; } instruction_add_pointer;
-  struct IRInstructionCopyToOffset { IRNode *source; char *identifier; int offset; } instruction_copy_to_offset;
+  struct IRInstructionCopyToOffset { IRNode *source; char *destination_identifier; int offset; } instruction_copy_to_offset;
   struct IRValueConstant { TypeNode *type; union { int int_value; unsigned uint_value; long long_value; unsigned long ulong_value; double double_value; } value; } value_constant;
   struct IRValueVar { char *identifier; } value_var;
   struct IRFunctionCall { char *identifier; IRNode *args; int arg_count; int arg_capacity; IRNode *destination; } instruction_function_call;

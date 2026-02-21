@@ -106,9 +106,11 @@ static void         emit_ir_instruction_double_to_ulong(AsmNode *asm_function, I
 static void         emit_ir_instruction_get_address(AsmNode *asm_function, IRNode *ir_get_address_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_instruction, Assembly *assembly); 
+static void         emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly);
 static AsmNode*     create_register(AsmRegisterType register_type, Assembly *assembly);
 static AsmNode*     create_signed_imm_operand(long value, Assembly *assembly);
 static AsmNode*     create_memory_operand(AsmRegisterType register_type, int offset, Assembly *assembly);
+static AsmNode*     create_pseudo_mem_operand(char *identifier, int offset, Assembly *assembly); 
 static void         emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
 static void         emit_asm_mov_zero_extend_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly);
 static void         emit_asm_lea_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly); 
@@ -968,6 +970,9 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
         case IR_INSTRUCTION_COPY:
           emit_ir_instruction_copy(asm_function, current_ir_node, assembly);
           break;
+        case IR_INSTRUCTION_COPY_TO_OFFSET:
+          emit_ir_instruction_copy_to_offset(asm_function, current_ir_node, assembly);
+          break;
         case IR_INSTRUCTION_LABEL:
           emit_ir_instruction_label(asm_function, current_ir_node, assembly);
           break;
@@ -1641,6 +1646,14 @@ static void emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_in
   emit_asm_mov_instruction(asm_function, memory_operand, source_node, source_type, assembly);
 }
 
+static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly) {
+  AsmNode *source = create_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly);
+  AsmNode *pseudo_mem = create_pseudo_mem_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.destination_identifier,  ir_copy_to_offset_instruction->data.instruction_copy_to_offset.offset, assembly);
+  AsmType source_type = convert_ir_value_to_asm_type(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly->declaration_symbol_table);
+  
+  emit_asm_mov_instruction(asm_function, source, pseudo_mem, source_type, assembly);
+}
+
 static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembly) {
   AsmNode *register_node = arena_alloc(assembly->asm_arena);
   register_node->type = ASM_OPERAND_REGISTER;
@@ -1667,6 +1680,15 @@ static AsmNode* create_memory_operand(AsmRegisterType register_type, int offset,
   memory_operand->data.operand_memory.op_register = register_type;
 
   return memory_operand;
+}
+
+static AsmNode* create_pseudo_mem_operand(char *identifier, int offset, Assembly *assembly) {
+  AsmNode *pseudo_mem = arena_alloc(assembly->asm_arena);
+  pseudo_mem->type = ASM_OPERAND_PSEUDOMEM;
+  pseudo_mem->data.operand_pseudo_mem.identifier = identifier;
+  pseudo_mem->data.operand_pseudo_mem.byte_offset = offset;
+
+  return pseudo_mem;
 }
 
 static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly) {
