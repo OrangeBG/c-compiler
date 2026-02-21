@@ -100,8 +100,14 @@ typedef enum {
   ASM_TYPE_LONGWORD,
   ASM_TYPE_QUADWORD,
   ASM_TYPE_DOUBLE,
-  ASM_TYPE_BYTE
+  ASM_TYPE_BYTE_ARRAY
 } AsmType;
+
+typedef struct {
+  AsmType type;
+  int byte_array_size;
+  int byte_array_alignment;
+} AsmTypeNode;
 
 typedef enum {
   ASM_IMM_UNSIGNED,
