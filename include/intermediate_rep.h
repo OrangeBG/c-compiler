@@ -101,5 +101,6 @@ typedef struct IRNode {
 
 IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table);
 void print_intermediate_ret(IRNode *ir_node);
+char* get_intermediate_rep_type_name(IRNode *ir_node);
 
 #endif
