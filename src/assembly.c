@@ -1658,10 +1658,23 @@ static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir
 }
 
 static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly) {
+  //@incomplete
   AsmNode *pointer = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
-  AsmType pointer_type = convert_ir_value_to_asm_type(ir_add_pointer_instruction->data.instruction_add_pointer.pointer, assembly->declaration_symbol_table);
+
+  Types index_type = get_ir_node_type(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly->declaration_symbol_table);
+
+  if (ir_add_pointer_instruction->data.instruction_add_pointer.index->type == IR_VALUE_CONSTANT) {
+    emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
+
+    // AsmNode *imm_scale = create_signed_imm_operand(ir_add_pointer_instruction->data.instruction_add_pointer.scale * ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.value. 
+    
+    //emit_asm_lea_instruction(asm_function, assembly->register_ax,
+
+  }
   
-  printf("hi");
+  if (ir_add_pointer_instruction->data.instruction_add_pointer.index->type == IR_VALUE_VAR) {
+    
+  }
 }
 
 static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembly) {
@@ -1887,17 +1900,9 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       }
       break;
     case IR_VALUE_VAR: {
-      // HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_operand->data.value_var.identifier);
-      //
-      // if (variable_hash_entry == NULL || variable_hash_entry->key == NULL) {
-      //   fprintf(stderr, "ERROR - Assembler: Var value type %s not found in declaration symbol table\n", ir_operand->data.static_variable.identifier);
-      //   exit(1);
-      // }
-      
-      //DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-
       DeclarationSymbol *variable_symbol = get_declaration_symbol(ir_operand->data.value_var.identifier, assembly->declaration_symbol_table, true);
       
+      //Pseudo mem assigned for aggregate values. Scalar values are assigned pseudo registers. 
       if (variable_symbol->data.variable_symbol->value_type->type == TYPE_ARRAY) {
         asm_operand->type = ASM_OPERAND_PSEUDOMEM;
         asm_operand->data.operand_pseudo_mem.identifier = ir_operand->data.value_var.identifier;

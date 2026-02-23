@@ -679,6 +679,8 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
+  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
+
   BinaryOpType op_type = binary_node->data.expression_binary.op_type;
 
   if (op_type == AST_BINARY_AND || op_type == AST_BINARY_OR) {
@@ -692,8 +694,6 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   if (is_pointer_subtract_arithmetic(binary_node, source_1_type, source_2_type, intermediate_rep)) {
     return emit_binary_pointer_subtract_arithmetic_expression(source_1, source_1_type, source_2, source_2_type, destination, function, intermediate_rep); 
   }
-
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
 
   IRBinaryOpType binary_op_type;
 
