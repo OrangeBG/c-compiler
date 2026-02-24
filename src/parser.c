@@ -9,6 +9,7 @@
 #include "../include/lexer.h"
 #include "../include/dynamic_array.h"
 #include "../include/error.h"
+#include "../include/token.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -620,8 +621,7 @@ static void init_node_pointer(NodePointer *node_pointer) {
 
 static void expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
-    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], previous_token(parser)->line);
-    exit(1);
+    input_error_with_line("Expected %s (line %d)", current_token(parser)->line, get_token_name(expected_type), previous_token(parser)->line);
   }
 
   if (current_token(parser)->type == expected_type) {
@@ -629,8 +629,7 @@ static void expect(Parser *parser, TokenType expected_type) {
     return;
   } 
 
-  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)\n", TokenTypeStr[expected_type],TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
-  exit(1);
+  input_error_with_line("Expected %s, but found %s",current_token(parser)->line, get_token_name(expected_type), get_token_name(current_token(parser)->type));
 }
 
 static void parse_program(Parser *parser, AstNode *program_node) {
@@ -1434,7 +1433,7 @@ static void parse_factor(Parser *parser, AstNode **factor_node) {
       break;
     }
     default:
-      panic("Failed to parse factor for '%s' token", TokenTypeStr[current_token(parser)->type]);
+      panic("Failed to parse factor for '%s' token", get_token_name(current_token(parser)->type));
   }
 }
 
