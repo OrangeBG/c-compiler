@@ -882,6 +882,8 @@ static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *l
     return expression_type_node;
   }
 
+  //@Bug: Not adding the binary.expression_type
+
   //TODO: Look into areas where I'm doing something similar for types that aren't Pointer. No need in allocating the same long, int, etc type nodes. Instead, do it once and point things to it.
   TypeNode *long_type_node = arena_alloc(parser_results->type_node_arena);
   long_type_node->type = TYPE_LONG;
