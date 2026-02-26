@@ -1659,26 +1659,23 @@ static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir
 }
 
 static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly) {
-  //@Warning - 2/2/26: In the function, there are assumptions that the IR node is a constant, that it is a long type. Anything other than a long looks to being casted to a long. Need to check whether this is valid logic. Until then, keep the panic below in case we see any deviations from my initial assumption. 
-  // if (ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.type->type != TYPE_LONG) {
-  //   panic("Expected Long index value when attempting to create add pointer instruction");
-  // }
-
   AsmNode *pointer = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
-
-  declaration_symbol_table_print(assembly->declaration_symbol_table);
-  
   AsmNode *destination = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.destination, assembly);
 
   Types index_type = get_ir_node_type(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly->declaration_symbol_table);
 
   if (ir_add_pointer_instruction->data.instruction_add_pointer.index->type == IR_VALUE_CONSTANT) {
-    emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
-    int offset = ir_add_pointer_instruction->data.instruction_add_pointer.scale * ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.value.long_value;
+    //@Warning - 2/2/26: In the function, there are assumptions that the IR node is a constant, that it is a long type. Anything other than a long looks to being casted to a long. Need to check whether this is valid logic. Until then, keep the panic below in case we see any deviations from my initial assumption. 
+    if (ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.type->type != TYPE_LONG) {
+      panic("Expected Long index value when attempting to create add pointer instruction");
+    }
 
+    int offset = ir_add_pointer_instruction->data.instruction_add_pointer.scale * ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.value.long_value;
     AsmNode *memory_operand = create_memory_operand(ASM_REGISTER_AX, offset, assembly);
-    
+
+    emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
     emit_asm_lea_instruction(asm_function, memory_operand, destination, assembly);
+
     return;
   }
   
@@ -1689,31 +1686,25 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
   int scale = ir_add_pointer_instruction->data.instruction_add_pointer.scale;
 
   if (scale == 1 || scale == 2 || scale == 4 || scale == 8) {
+    DeclarationSymbol *var_symbol = get_declaration_symbol(ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_var.identifier, assembly->declaration_symbol_table, true);
+    AsmNode *index_operand = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
+    AsmNode *scale_operand = create_indexed_operand(ASM_REGISTER_AX, ASM_REGISTER_DX,ir_add_pointer_instruction->data.instruction_add_pointer.scale, assembly); 
+
     emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(asm_function, index_operand, assembly->register_dx, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_lea_instruction(asm_function, scale_operand, destination, assembly);
 
-    AsmNode *imm_index = create_signed_imm_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.value.long_value, assembly); 
-    return;
-    
-    emit_asm_mov_instruction(asm_function, imm_index, assembly->register_dx, ASM_TYPE_QUADWORD, assembly);
-
-    AsmNode *indexed_operand = create_indexed_operand(ASM_REGISTER_AX, ASM_REGISTER_DX,ir_add_pointer_instruction->data.instruction_add_pointer.scale, assembly); 
-
-    emit_asm_lea_instruction(asm_function, indexed_operand, destination, assembly);
     return;
   }
 
   emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
 
-  AsmNode *imm_index = create_signed_imm_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.value.long_value, assembly); 
-  
-  emit_asm_mov_instruction(asm_function, imm_index, assembly->register_dx, ASM_TYPE_QUADWORD, assembly);
-
+  AsmNode *index_operand = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
   AsmNode *imm_scale = create_signed_imm_operand(ir_add_pointer_instruction->data.instruction_add_pointer.scale, assembly); 
-
-  emit_asm_binary_instruction(asm_function, imm_scale, assembly->register_dx, ASM_BINARY_MULT, ASM_TYPE_QUADWORD, assembly);
-
   AsmNode *indexed_operand = create_indexed_operand(ASM_REGISTER_AX, ASM_REGISTER_DX, 1, assembly); 
-
+  
+  emit_asm_mov_instruction(asm_function, index_operand, assembly->register_dx, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_binary_instruction(asm_function, imm_scale, assembly->register_dx, ASM_BINARY_MULT, ASM_TYPE_QUADWORD, assembly);
   emit_asm_lea_instruction(asm_function, indexed_operand, destination, assembly);
 }
 
@@ -2160,6 +2151,11 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_OPERAND_DATA:
       printf("Data %s ", node->data.operand_data.identifier);
+      break;
+    case ASM_OPERAND_PSEUDOMEM:
+      printf("Pseudo Mem -> identifier: %s, byte_offset %d", node->data.operand_pseudo_mem.identifier, node->data.operand_pseudo_mem.byte_offset);
+    case ASM_OPERAND_INDEXED:
+      printf("Indexed -> base_register: %s, index_register: %s, scale: %d", get_register_string(node->data.operand_indexed.base_register), get_register_string(node->data.operand_indexed.index_register), node->data.operand_indexed.scale);
       break;
     case ASM_INSTRUCTION_PUSH:
       printf("Push ->");

@@ -882,19 +882,19 @@ static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *l
     return expression_type_node;
   }
 
-  //@Bug: Not adding the binary.expression_type
-
   //TODO: Look into areas where I'm doing something similar for types that aren't Pointer. No need in allocating the same long, int, etc type nodes. Instead, do it once and point things to it.
   TypeNode *long_type_node = arena_alloc(parser_results->type_node_arena);
   long_type_node->type = TYPE_LONG;
 
   if (left_expression_type->type == TYPE_POINTER && is_integer_type(right_expression_type)) {
-    add_node->data.expression_binary.right_expression = convert_to(add_node->data.expression_binary.right_expression, right_expression_type, long_type_node, parser_results);     
+    add_node->data.expression_binary.right_expression = convert_to(add_node->data.expression_binary.right_expression, right_expression_type, long_type_node, parser_results);
+    add_node->data.expression_binary.expression_type = left_expression_type;
     return left_expression_type;
   }
 
   if (right_expression_type->type == TYPE_POINTER && is_integer_type(left_expression_type)) {
-    add_node->data.expression_binary.left_expression = convert_to(add_node->data.expression_binary.left_expression, left_expression_type, long_type_node, parser_results);     
+    add_node->data.expression_binary.left_expression = convert_to(add_node->data.expression_binary.left_expression, left_expression_type, long_type_node, parser_results);
+    add_node->data.expression_binary.expression_type = right_expression_type;
     return right_expression_type;
   }
 
