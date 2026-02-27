@@ -515,7 +515,7 @@ void print_ast(const AstNode *node, int whitespace) {
       }
       case AST_EXPRESSION_FUNCTION_CALL: {
         print_whitespace(whitespace);
-        printf("Function Call(name= '%s' args=\n", node->data.expression_function_call.identfier);
+        printf("Function Call(name= '%s' args=\n", node->data.expression_function_call.identifier);
 
         for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
           AstNode *argument = node->data.expression_function_call.argument_ptrs->node_pointers[i];
@@ -1755,7 +1755,7 @@ static void parse_factor_function_call(Parser *parser, AstNode *factor_node, cha
   expect(parser, TOKEN_OPEN_PAREN);
 
   factor_node->type = AST_EXPRESSION_FUNCTION_CALL;
-  factor_node->data.expression_function_call.identfier = identifier;
+  factor_node->data.expression_function_call.identifier = identifier;
   factor_node->data.expression_function_call.argument_count = 0;
   factor_node->data.expression_function_call.expression_type = NULL;
   

@@ -1014,7 +1014,7 @@ static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IR
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *ir_function_call = arena_alloc(intermediate_rep->node_arena);
   ir_function_call->type = IR_INSTRUCTION_FUNCTION_CALL;
-  ir_function_call->data.instruction_function_call.identifier = function_call_node->data.expression_function_call.identfier;
+  ir_function_call->data.instruction_function_call.identifier = function_call_node->data.expression_function_call.identifier;
   ir_function_call->data.instruction_function_call.arg_capacity = 0;
   ir_function_call->data.instruction_function_call.arg_count = 0;
   ir_function_call->data.instruction_function_call.args = NULL;

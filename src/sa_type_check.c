@@ -148,15 +148,15 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       break;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      Symbol *existing_symbol = get_symbol(node->data.expression_function_call.identfier, symbol_table, false);
+      Symbol *existing_symbol = get_symbol(node->data.expression_function_call.identifier, symbol_table, false);
 
       if (existing_symbol != NULL) {
         if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
-          input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identfier);
+          input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identifier);
         }               
 
         if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
-          input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identfier);
+          input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identifier);
         }
       }
 
@@ -724,14 +724,14 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return left_expression_type;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
-      Symbol *existing_symbol = get_symbol(node->data.expression_function_call.identfier, symbol_table, true);
+      Symbol *existing_symbol = get_symbol(node->data.expression_function_call.identifier, symbol_table, true);
 
       if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
-        input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identfier);
+        input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identifier);
       }               
 
       if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
-        input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identfier);
+        input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identifier);
       }
       
       for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
