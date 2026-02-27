@@ -1,36 +1,36 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "../include/declaration_symbol.h"
+#include "../include/symbol.h"
 #include "../include/error.h"
 
-void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table) {
-  HashTable *symbol_table = malloc(sizeof(HashTable));
-  hash_table_init(symbol_table);
+void symbol_table_init(SymbolTable *symbol_table) {
+  HashTable *symbol_hash_table = malloc(sizeof(HashTable));
+  hash_table_init(symbol_hash_table);
   
   //TODO: Hard coded allocation count
-  Arena *declaration_symbol_arena = malloc(sizeof(Arena));
-  arena_init(declaration_symbol_arena, sizeof(DeclarationSymbol), sizeof(DeclarationSymbol) * 1000, true);
+  Arena *symbol_arena = malloc(sizeof(Arena));
+  arena_init(symbol_arena, sizeof(Symbol), sizeof(Symbol) * 1000, true);
   Arena *variable_symbol_arena = malloc(sizeof(Arena));
   arena_init(variable_symbol_arena, sizeof(VariableSymbol), sizeof(VariableSymbol) * 1000, true);
   Arena *function_symbol_arena = malloc(sizeof(Arena));
   arena_init(function_symbol_arena, sizeof(FunctionSymbol), sizeof(FunctionSymbol) * 1000, true);
 
-  declaration_symbol_table->symbol_table = symbol_table;
-  declaration_symbol_table->declaration_symbol_arena = declaration_symbol_arena;
-  declaration_symbol_table->variable_symbol_arena = variable_symbol_arena;
-  declaration_symbol_table->function_symbol_arena = function_symbol_arena;
+  symbol_table->symbol_table = symbol_hash_table;
+  symbol_table->symbol_arena = symbol_arena;
+  symbol_table->variable_symbol_arena = variable_symbol_arena;
+  symbol_table->function_symbol_arena = function_symbol_arena;
 }
 
-void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table) {
-  arena_free(declaration_symbol_table->variable_symbol_arena);
-  arena_free(declaration_symbol_table->declaration_symbol_arena);
-  arena_free(declaration_symbol_table->function_symbol_arena);
-  free(declaration_symbol_table->symbol_table);
+void symbol_table_free(SymbolTable *symbol_table) {
+  arena_free(symbol_table->variable_symbol_arena);
+  arena_free(symbol_table->symbol_arena);
+  arena_free(symbol_table->function_symbol_arena);
+  free(symbol_table->symbol_table);
 }
 
-DeclarationSymbol* get_declaration_symbol(char *identifier, DeclarationSymbolTable *declaration_symbol_table, bool error_if_null) {
-  HashTableEntry *symbol_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, identifier);
+Symbol* get_symbol(char *identifier, SymbolTable *symbol_table, bool error_if_null) {
+  HashTableEntry *symbol_entry = hash_table_get_entry(symbol_table->symbol_table, identifier);
 
   if (symbol_entry == NULL || symbol_entry->key == NULL) {
     if (error_if_null) {
@@ -43,8 +43,8 @@ DeclarationSymbol* get_declaration_symbol(char *identifier, DeclarationSymbolTab
   return symbol_entry->value->structure;  
 }
 
-DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined) {
-  FunctionSymbol *function_symbol = arena_alloc(declaration_symbol_table->function_symbol_arena);
+Symbol* add_function_symbol(SymbolTable *symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined) {
+  FunctionSymbol *function_symbol = arena_alloc(symbol_table->function_symbol_arena);
 
   function_symbol->value_type = function_value_type;
   function_symbol->is_defined = is_defined;
@@ -52,104 +52,104 @@ DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *decla
   function_symbol->param_count = parameter_count;
   function_symbol->param_types = param_types;
 
-  DeclarationSymbol *function_declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
-  function_declaration_symbol->symbol_type = DECLARATION_SYMBOL_FUNCTION;
-  function_declaration_symbol->data.function_symbol = function_symbol;
+  Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
+  symbol->symbol_type = SYMBOL_FUNCTION;
+  symbol->data.function_symbol = function_symbol;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
-  new_value->structure = function_declaration_symbol;
+  new_value->structure = symbol;
 
   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
   new_entry->key = function_name;
   new_entry->value = new_value;
 
-  hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
+  hash_table_add_entry(symbol_table->symbol_table, new_entry);
 
-  return function_declaration_symbol;
+  return symbol;
 }
 
-void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key) {  
-  VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
+void add_automatic_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key) {  
+  VariableSymbol *variable_symbol = arena_alloc(symbol_table->variable_symbol_arena);
   variable_symbol->value_type = value_type;
   variable_symbol->is_automatic_storage_duration = true;
 
-  DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
-  declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-  declaration_symbol->data.variable_symbol = variable_symbol;
+  Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
+  symbol->symbol_type = SYMBOL_VARIABLE;
+  symbol->data.variable_symbol = variable_symbol;
 
   HashTableEntry *entry = malloc(sizeof(HashTableEntry));
   entry->key = symbol_key;
 
   HashValue *value = malloc(sizeof(HashValue));
   value->type = HASH_STRUCT;
-  value->structure = declaration_symbol;
+  value->structure = symbol;
 
   entry->value = value;
 
-  hash_table_add_entry(declaration_symbol_table->symbol_table, entry); 
+  hash_table_add_entry(symbol_table->symbol_table, entry); 
 }
 
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type) {  
-  VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
+void add_static_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type) {  
+  VariableSymbol *variable_symbol = arena_alloc(symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
   variable_symbol->static_initial_value_array = initial_value_array;
   variable_symbol->static_is_global = is_global;
   variable_symbol->static_initialization_type = initial_value_type;
   
-  DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);
-  declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-  declaration_symbol->data.variable_symbol = variable_symbol;
+  Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
+  symbol->symbol_type = SYMBOL_VARIABLE;
+  symbol->data.variable_symbol = variable_symbol;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
-  new_value->structure = declaration_symbol;
+  new_value->structure = symbol;
 
   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
   new_entry->key = symbol_key;
   new_entry->value = new_value;
 
-  hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
+  hash_table_add_entry(symbol_table->symbol_table, new_entry);
 }
 
-void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key) {
-  VariableSymbol *variable_symbol = arena_alloc(declaration_symbol_table->variable_symbol_arena);
+void add_static_extern_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key) {
+  VariableSymbol *variable_symbol = arena_alloc(symbol_table->variable_symbol_arena);
   variable_symbol->is_automatic_storage_duration = false;
   variable_symbol->value_type = value_type;
 
-  DeclarationSymbol *declaration_symbol = arena_alloc(declaration_symbol_table->declaration_symbol_arena);;
-  declaration_symbol->symbol_type = DECLARATION_SYMBOL_VARIABLE;
-  declaration_symbol->data.variable_symbol = variable_symbol;
+  Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
+  symbol->symbol_type = SYMBOL_VARIABLE;
+  symbol->data.variable_symbol = variable_symbol;
 
   variable_symbol->static_is_global = true;
   variable_symbol->static_initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
 
   HashValue *new_value = malloc(sizeof(HashValue));
   new_value->type = HASH_STRUCT;
-  new_value->structure = declaration_symbol;
+  new_value->structure = symbol;
 
   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
   new_entry->key = symbol_key;
   new_entry->value = new_value;
 
-  hash_table_add_entry(declaration_symbol_table->symbol_table, new_entry);
+  hash_table_add_entry(symbol_table->symbol_table, new_entry);
 }   
 
-void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table) {
-  printf("Declaration Table: \n");
+void symbol_table_print(SymbolTable *symbol_table) {
+  printf("Symbol Table: \n");
 
-  for (int i = 0; i < declaration_symbol_table->symbol_table->capacity; i++) {
-    if (declaration_symbol_table->symbol_table->entries[i].key == NULL) {
+  for (int i = 0; i < symbol_table->symbol_table->capacity; i++) {
+    if (symbol_table->symbol_table->entries[i].key == NULL) {
       continue;
     }
     
-    printf("index: %d\tkey: %s \t", i, declaration_symbol_table->symbol_table->entries[i].key);    
+    printf("index: %d\tkey: %s \t", i, symbol_table->symbol_table->entries[i].key);    
     
-    HashValue *hash_value = declaration_symbol_table->symbol_table->entries[i].value;
-    DeclarationSymbol *symbol = hash_value->structure;
+    HashValue *hash_value = symbol_table->symbol_table->entries[i].value;
+    Symbol *symbol = hash_value->structure;
 
-    if (symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
+    if (symbol->symbol_type == SYMBOL_VARIABLE) {
       printf("type: Variable\n");
       printf("\tvalue_type: ");
       print_type_node(symbol->data.variable_symbol->value_type);
@@ -230,7 +230,7 @@ void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_t
   }
 }
 
-void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
+void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
   switch (type_node->type) {
     case TYPE_INT:
       initial_value->type = INITIAL_VALUE_TYPE_INT;

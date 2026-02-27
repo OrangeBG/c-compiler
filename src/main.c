@@ -64,10 +64,10 @@ int main(int argc, const char *argv[]) {
   AstNode *program_node = arena_get_by_index(parser_results.ast_node_arena, 0);
   sa_variable_resolution(program_node);
 
-  DeclarationSymbolTable declaration_symbol_table;
-  declaration_symbol_table_init(&declaration_symbol_table);
+  SymbolTable symbol_table;
+  symbol_table_init(&symbol_table);
   
-  sa_type_check(&parser_results, &declaration_symbol_table);
+  sa_type_check(&parser_results, &symbol_table);
   sa_loop_labeling(program_node);
   sa_goto_check(program_node);
 
@@ -77,7 +77,7 @@ int main(int argc, const char *argv[]) {
     print_ast(program_node, 0);
   }
 
-  IRNode *ir = generate_intermediate_rep(program_node, &declaration_symbol_table);
+  IRNode *ir = generate_intermediate_rep(program_node, &symbol_table);
 
   if (print_debug) {
     printf("\n>> IR PRINT <<\n\n");
@@ -89,7 +89,7 @@ int main(int argc, const char *argv[]) {
   AsmBackendSymbolTable backend_symbol_table;
   backend_symbol_table_init(&backend_symbol_table);
 
-  AsmNode *asm_nodes = generate_assembly(ir, &declaration_symbol_table, &backend_symbol_table);
+  AsmNode *asm_nodes = generate_assembly(ir, &symbol_table, &backend_symbol_table);
   if (print_debug) {
     printf("\n>> ASSEMBLY PRINT <<\n\n");
     print_assembly(asm_nodes);

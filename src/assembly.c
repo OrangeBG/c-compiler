@@ -7,7 +7,7 @@
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
-#include "../include/declaration_symbol.h"
+#include "../include/symbol.h"
 #include "../include/intermediate_rep.h"
 #include "../include/types.h"
 #include "../include/dynamic_array.h"
@@ -26,7 +26,7 @@ typedef enum {
 } ResolveType;
 
 typedef struct {
-  DeclarationSymbolTable *declaration_symbol_table;
+  SymbolTable *symbol_table;
   AsmNodePointers *top_level_declarations;
   AsmNodePointers *static_constants;
   Arena *asm_arena;
@@ -134,7 +134,7 @@ static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCo
 static void         emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
-static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
+static Assembly*    init_assembly(SymbolTable *symbol_table);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
 static void         pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly); 
 static void         replace_pseudo_register(AsmNode *instruction, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
@@ -154,12 +154,12 @@ static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNo
 static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Assembly *assembly); 
-static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table, Assembly *assembly); 
+static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, SymbolTable *symbol_table, Assembly *assembly); 
 static AsmTypeNode* convert_type_to_asm_type(TypeNode *type_node, Assembly *assembly); 
-static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
-static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table, Assembly *assembly); 
+static Types        get_ir_node_type(IRNode *ir_node, SymbolTable *symbol_table); 
+static void         convert_declaration_table_to_backend_table(SymbolTable *symbol_table, AsmBackendSymbolTable *backend_symbol_table, Assembly *assembly); 
 static int          round_stack_offset(int stack_offset); 
-static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
+static bool         is_signed_ir_value_node(IRNode *ir_node, SymbolTable *symbol_table);
 static void         print_assembly_type(AsmTypeNode *type); 
 static GetInstructionTypeResult      get_instruction_type(AsmNode *instruction); 
 static void         create_function_call_arguments(FunctionCallArguments *function_call_arguments, IRNode *ir_function_call_instruction, Assembly *assembly);
@@ -167,8 +167,8 @@ static void         push_function_argument_to_stack_list(AsmNode *argument, AsmT
 static char*        get_register_string(AsmRegisterType register_type); 
 static bool         imm_value_fits_into_int(AsmNode *imm_node);
 
-AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {   
-  Assembly *assembly = init_assembly(declaration_symbol_table);
+AsmNode* generate_assembly(IRNode *ir_nodes, SymbolTable *symbol_table, AsmBackendSymbolTable *backend_symbol_table) {   
+  Assembly *assembly = init_assembly(symbol_table);
 
   AsmNode *program = arena_alloc(assembly->asm_arena);
   program->type = ASM_PROGRAM;
@@ -186,7 +186,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
    }    
   }
 
-  convert_declaration_table_to_backend_table(declaration_symbol_table, backend_symbol_table, assembly);
+  convert_declaration_table_to_backend_table(symbol_table, backend_symbol_table, assembly);
 
   for (int i = 0; i < assembly->top_level_declarations->count; i++) {
     AsmNode *top_level_node = assembly->top_level_declarations->asm_pointers[i];
@@ -215,7 +215,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
   return program;
 }
 
-static Assembly* init_assembly(DeclarationSymbolTable *declaration_symbol_table) {
+static Assembly* init_assembly(SymbolTable *symbol_table) {
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 10000, true);
@@ -228,7 +228,7 @@ static Assembly* init_assembly(DeclarationSymbolTable *declaration_symbol_table)
 
   Assembly *assembly = malloc(sizeof(Assembly));
   assembly->asm_arena = asm_arena;
-  assembly->declaration_symbol_table = declaration_symbol_table;
+  assembly->symbol_table = symbol_table;
   assembly->top_level_declarations = top_level_declarations;
   assembly->static_constants = static_constant_node_pointers;
 
@@ -663,6 +663,7 @@ static ResolveType resolve_mov_instruction(AsmNode *function, AsmNode *instructi
     return INSTRUCTION_FIXED;
 }
 
+//@TODO: Rename since we are now also checking for PseudoMem
 static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
@@ -842,13 +843,13 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
   int floating_point_register_count = 0;
 
   for (int i = 0; i < ir_function->data.function.parameter_count; i++) {    
-    HashTableEntry *parameter_variable_symbol_entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function->data.function.parameter_identifiers[i]);
+    HashTableEntry *parameter_variable_symbol_entry = hash_table_get_entry(assembly->symbol_table->symbol_table, ir_function->data.function.parameter_identifiers[i]);
 
     if (parameter_variable_symbol_entry == NULL || parameter_variable_symbol_entry->key == NULL) {
       panic("Could not find '%s' function parameter identifier in symbol table", ir_function->data.function.identifier);
     }
 
-    TypeNode *parameter_type = ((DeclarationSymbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type;
+    TypeNode *parameter_type = ((Symbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type;
     
     AsmNode *source_operand = arena_alloc(assembly->asm_arena);
 
@@ -902,7 +903,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
         emit_ir_instruction_return(asm_function, current_ir_node, assembly);
         break;
       case IR_INSTRUCTION_UNARY: {
-        AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_unary.source, assembly->declaration_symbol_table, assembly);
+        AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_unary.source, assembly->symbol_table, assembly);
 
         if (current_ir_node->data.instruction_unary.op_type != IR_UNARY_NOT) {
           if (current_ir_node->data.instruction_unary.op_type == IR_UNARY_NEGATE && source_type->type == ASM_TYPE_DOUBLE) {
@@ -943,13 +944,13 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
             emit_ir_instruction_binary_relational(asm_function, current_ir_node, assembly);
             break;
           case IR_BINARY_DIVIDE: {
-            AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, assembly->declaration_symbol_table, assembly);
-            AsmTypeNode *source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, assembly->declaration_symbol_table, assembly);
+            AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, assembly->symbol_table, assembly);
+            AsmTypeNode *source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, assembly->symbol_table, assembly);
 
             if (source_1_type->type == ASM_TYPE_DOUBLE || source_2_type->type == ASM_TYPE_DOUBLE) {
               emit_ir_instruction_binary(asm_function, current_ir_node, assembly);
             } else {
-              if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->declaration_symbol_table)) {
+              if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->symbol_table)) {
                 emit_ir_instruction_binary_signed_division(asm_function, current_ir_node, assembly);            
               } else {
                 emit_ir_instruction_binary_unsigned_division(asm_function, current_ir_node, assembly);
@@ -958,7 +959,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
             break;
           }
           case IR_BINARY_REMAINDER:
-            if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->declaration_symbol_table)) {
+            if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->symbol_table)) {
               emit_ir_instruction_binary_signed_division(asm_function, current_ir_node, assembly);            
             } else {
               emit_ir_instruction_binary_unsigned_division(asm_function, current_ir_node, assembly);
@@ -970,7 +971,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           emit_ir_instruction_jump(asm_function, current_ir_node, assembly);
           break;
         case IR_INSTRUCTION_JUMP_IF_ZERO: {
-          AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_zero.condition, assembly->declaration_symbol_table, assembly);
+          AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_zero.condition, assembly->symbol_table, assembly);
 
           if (source_type->type == ASM_TYPE_DOUBLE) {
             emit_ir_instruction_jump_if_zero_double(asm_function, current_ir_node, assembly);
@@ -980,7 +981,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           break;
         }
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO: {
-          AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_not_zero.condition, assembly->declaration_symbol_table, assembly);
+          AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_not_zero.condition, assembly->symbol_table, assembly);
 
           if (source_type->type == ASM_TYPE_DOUBLE) {
             emit_ir_instruction_jump_if_not_zero_double(asm_function, current_ir_node, assembly);
@@ -1029,7 +1030,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           emit_ir_instruction_cvttsd2si(asm_function, current_ir_node, assembly);
           break;
         case IR_INSTRUCTION_UINT_TO_DOUBLE: {
-          Types type = get_ir_node_type(current_ir_node->data.instruction_uint_to_double.source, assembly->declaration_symbol_table);
+          Types type = get_ir_node_type(current_ir_node->data.instruction_uint_to_double.source, assembly->symbol_table);
 
           if (type == TYPE_UINT) {
             emit_ir_instruction_uint_to_double(asm_function, current_ir_node, assembly);
@@ -1040,7 +1041,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           break;
         }
         case IR_INSTRUCTION_DOUBLE_TO_UINT: {
-          Types type = get_ir_node_type(current_ir_node->data.instruction_double_to_uint.source, assembly->declaration_symbol_table);
+          Types type = get_ir_node_type(current_ir_node->data.instruction_double_to_uint.source, assembly->symbol_table);
 
           if (type == TYPE_UINT) {
             emit_ir_instruction_double_to_uint(asm_function, current_ir_node, assembly);
@@ -1124,9 +1125,9 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   TypeNode *double_type_node = malloc(sizeof(TypeNode));
   double_type_node->type = TYPE_DOUBLE;
   
-  add_static_variable_declaration_symbol(assembly->declaration_symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
+  add_static_variable_symbol(assembly->symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
   
-  DeclarationSymbol *symbol = get_declaration_symbol(constant_label, assembly->declaration_symbol_table, true);
+  Symbol *symbol = get_symbol(constant_label, assembly->symbol_table, true);
 
   AsmNode *static_constant = arena_alloc(assembly->asm_arena);
   static_constant->type = ASM_STATIC_CONSTANT;
@@ -1161,7 +1162,7 @@ static void emit_ir_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_inst
   AsmNode *source = create_operand(ir_copy_instruction->data.instruction_copy.source, assembly);
   AsmNode *destination = create_operand(ir_copy_instruction->data.instruction_copy.destination, assembly);
 
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source, destination, source_type, assembly);
 }
@@ -1216,7 +1217,7 @@ static void emit_ir_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
 
-  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source_1, destination_node, source_1_type, assembly);
 
@@ -1243,8 +1244,8 @@ static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode 
   AsmNode *source = create_operand(ir_unary_not_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.instruction_unary.destination, assembly);
 
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.source, assembly->declaration_symbol_table, assembly);
-  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.source, assembly->symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->symbol_table, assembly);
   
   AsmNode *imm_operand = create_signed_imm_operand(0, assembly);
 
@@ -1256,7 +1257,7 @@ static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode 
 static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Assembly *assembly) {
   AsmNode *source = create_operand(ir_unary_not_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.instruction_unary.destination, assembly);
-  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->symbol_table, assembly);
 
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
   emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, assembly->type_double, assembly);  
@@ -1278,9 +1279,9 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
   AsmNode *source_2 = create_operand(ir_relational_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_relational_instruction->data.instruction_binary.destination, assembly);
 
-  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table, assembly);
-  AsmTypeNode *source_2_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_2, assembly->declaration_symbol_table, assembly);
-  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
+  AsmTypeNode *source_2_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_2, assembly->symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, assembly->symbol_table, assembly);
 
   emit_asm_cmp_instruction(asm_function, source_2, source_1, source_1_type, assembly);
 
@@ -1293,7 +1294,7 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
   }
   AsmConditionCode relational_op;
 
-  bool is_signed_condition = is_signed_ir_value_node(ir_relational_instruction->data.instruction_binary.destination, assembly->declaration_symbol_table);
+  bool is_signed_condition = is_signed_ir_value_node(ir_relational_instruction->data.instruction_binary.destination, assembly->symbol_table);
 
   switch (ir_relational_instruction->data.instruction_binary.op_type) {
     case IR_BINARY_EQUAL:              relational_op = ASM_CONDITION_EQUAL; break;
@@ -1314,7 +1315,7 @@ static void emit_ir_instruction_binary_signed_division(AsmNode *asm_function, co
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
 
-  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
 
   //@Bug: When dividing with DOUBLE Type
   emit_asm_mov_instruction(asm_function, source_1, assembly->register_ax, source_1_type, assembly);
@@ -1344,7 +1345,7 @@ static void emit_ir_instruction_binary_unsigned_division(AsmNode *asm_function, 
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
 
-  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source_1, assembly->register_ax, source_1_type, assembly);
 
@@ -1369,7 +1370,7 @@ static void emit_ir_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_in
   AsmNode *source_node = create_operand(ir_unary_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_instruction->data.instruction_unary.destination, assembly);
 
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.instruction_unary.source, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.instruction_unary.source, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source_node, destination_node, source_type, assembly);
   
@@ -1399,7 +1400,7 @@ static void emit_ir_instruction_return(AsmNode *asm_function, IRNode *ir_return_
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
     AsmNode *source_node = create_operand(ir_return_instruction->data.instruction_ret.value, assembly);
-    AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, assembly->declaration_symbol_table, assembly);
+    AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, assembly->symbol_table, assembly);
 
     AsmNode *destination_node;
 
@@ -1477,9 +1478,9 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
   //retrieve return value 
   AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
 
-  DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_function_call_instruction->data.instruction_function_call.identifier, assembly->declaration_symbol_table, true);
+  Symbol *symbol = get_symbol(ir_function_call_instruction->data.instruction_function_call.identifier, assembly->symbol_table, true);
   
-  AsmTypeNode *return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type, assembly);
+  AsmTypeNode *return_type = convert_type_to_asm_type(symbol->data.function_symbol->value_type, assembly);
 
   AsmNode *dest_register;
    
@@ -1489,7 +1490,7 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
     dest_register = assembly->register_ax;
   }
   
-  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, dest_register, assembly_destination, destination_type, assembly); 
 }
@@ -1525,7 +1526,7 @@ static void add_instruction_to_function(AsmNode *function, AsmNode *instruction)
 static void emit_ir_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_int_to_double.destination, assembly);
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly->symbol_table, assembly);
 
   emit_asm_cvtsi2sd_instruction(asm_function, source_node, destination_node, source_type, assembly);
 }
@@ -1533,7 +1534,7 @@ static void emit_ir_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_t
 static void emit_ir_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.source, assembly);
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly);
-  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly->symbol_table, assembly);
 
   emit_asm_cvttsd2si_instruction(asm_function, source_node, destination_node, destination_type, assembly);
 }
@@ -1549,7 +1550,7 @@ static void emit_ir_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir
 static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.destination, assembly);
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly->symbol_table, assembly);
   AsmNode *imm_0 = create_signed_imm_operand(0, assembly);  
 
   emit_asm_cmp_instruction(asm_function, imm_0, source_node, source_type, assembly);
@@ -1594,7 +1595,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
   AsmNode *source_node = create_operand(ir_double_to_ulong_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_double_to_ulong_instruction->data.instruction_uint_to_double.destination, assembly);
 
-  HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ".MAX_LONG");
+  HashTableEntry *entry = hash_table_get_entry(assembly->symbol_table->symbol_table, ".MAX_LONG");
 
   if (entry == NULL || entry->key == NULL) {
     InitialValue max_long_init = { .type = INITIAL_VALUE_TYPE_LONG, .data.long_value = LONG_MAX };
@@ -1606,7 +1607,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
     TypeNode *long_type_node = malloc(sizeof(TypeNode));
     long_type_node->type = TYPE_LONG;
 
-    add_static_variable_declaration_symbol(assembly->declaration_symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
+    add_static_variable_symbol(assembly->symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
   }
 
   AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, assembly);
@@ -1653,7 +1654,7 @@ static void emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_inst
 
   emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, assembly->type_quadword, assembly);
 
-  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_load_instruction->data.instruction_load.destination, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_load_instruction->data.instruction_load.destination, assembly->symbol_table, assembly);
   AsmNode *memory_operand = create_memory_operand(ASM_REGISTER_AX, 0, assembly);
   
   emit_asm_mov_instruction(asm_function, memory_operand, destination_node, destination_type, assembly);
@@ -1665,7 +1666,7 @@ static void emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_in
 
   emit_asm_mov_instruction(asm_function, destination_node, assembly->register_ax, assembly->type_quadword, assembly);
 
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_store_instruction->data.instruction_load.source_pointer, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_store_instruction->data.instruction_load.source_pointer, assembly->symbol_table, assembly);
 
   AsmNode *memory_operand = create_memory_operand(ASM_REGISTER_AX, 0, assembly);
   
@@ -1675,7 +1676,7 @@ static void emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_in
 static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly) {
   AsmNode *source = create_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly);
   AsmNode *pseudo_mem = create_pseudo_mem_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.destination_identifier,  ir_copy_to_offset_instruction->data.instruction_copy_to_offset.offset, assembly);
-  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly->declaration_symbol_table, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly->symbol_table, assembly);
   
   emit_asm_mov_instruction(asm_function, source, pseudo_mem, source_type, assembly);
 }
@@ -1684,7 +1685,7 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
   AsmNode *pointer = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
   AsmNode *destination = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.destination, assembly);
 
-  Types index_type = get_ir_node_type(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly->declaration_symbol_table);
+  Types index_type = get_ir_node_type(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly->symbol_table);
 
   if (ir_add_pointer_instruction->data.instruction_add_pointer.index->type == IR_VALUE_CONSTANT) {
     //@Warning - 2/2/26: In the function, there are assumptions that the IR node is a constant, that it is a long type. Anything other than a long looks to being casted to a long. Need to check whether this is valid logic. Until then, keep the panic below in case we see any deviations from my initial assumption. 
@@ -1708,7 +1709,7 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
   int scale = ir_add_pointer_instruction->data.instruction_add_pointer.scale;
 
   if (scale == 1 || scale == 2 || scale == 4 || scale == 8) {
-    DeclarationSymbol *var_symbol = get_declaration_symbol(ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_var.identifier, assembly->declaration_symbol_table, true);
+    Symbol *var_symbol = get_symbol(ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_var.identifier, assembly->symbol_table, true);
     AsmNode *index_operand = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
     AsmNode *scale_operand = create_indexed_operand(ASM_REGISTER_AX, ASM_REGISTER_DX,ir_add_pointer_instruction->data.instruction_add_pointer.scale, assembly); 
 
@@ -1963,7 +1964,7 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       }
       break;
     case IR_VALUE_VAR: {
-      DeclarationSymbol *variable_symbol = get_declaration_symbol(ir_operand->data.value_var.identifier, assembly->declaration_symbol_table, true);
+      Symbol *variable_symbol = get_symbol(ir_operand->data.value_var.identifier, assembly->symbol_table, true);
       
       //Pseudo mem assigned for aggregate values. Scalar values are assigned pseudo registers. 
       if (variable_symbol->data.variable_symbol->value_type->type == TYPE_ARRAY) {
@@ -2239,29 +2240,29 @@ static void init_node_pointer(AsmNodePointers *asm_node_pointer) {
   asm_node_pointer->asm_pointers = NULL;
 }
 
-static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+static Types get_ir_node_type(IRNode *ir_node, SymbolTable *symbol_table) {
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT: return ir_node->data.value_constant.type->type;
     case IR_VALUE_VAR: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
-      return declaration_symbol->data.variable_symbol->value_type->type;
+      Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
+      return symbol->data.variable_symbol->value_type->type;
     }
     case IR_INSTRUCTION_FUNCTION_CALL: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.instruction_function_call.identifier, declaration_symbol_table, true);
-      return declaration_symbol->data.function_symbol->value_type->type;
+      Symbol *symbol = get_symbol(ir_node->data.instruction_function_call.identifier, symbol_table, true);
+      return symbol->data.function_symbol->value_type->type;
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to get node Type", ir_node->type);
   }
 }
 
-static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table, Assembly *assembly) {
+static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, SymbolTable *symbol_table, Assembly *assembly) {
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
       return convert_type_to_asm_type(ir_node->data.value_constant.type, assembly);
     case IR_VALUE_VAR: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
-      return convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type, assembly);
+      Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
+      return convert_type_to_asm_type(symbol->data.variable_symbol->value_type, assembly);
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
@@ -2336,28 +2337,28 @@ void backend_symbol_table_free(AsmBackendSymbolTable *backend_symbol_table) {
   free(backend_symbol_table->symbol_table);
 }
 
-static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table, Assembly *assembly) {
-  for (int i = 0; i < declaration_symbol_table->symbol_table->capacity; i++) {
-    if (&declaration_symbol_table->symbol_table->entries[i] == NULL || declaration_symbol_table->symbol_table->entries[i].key == NULL) {
+static void convert_declaration_table_to_backend_table(SymbolTable *symbol_table, AsmBackendSymbolTable *backend_symbol_table, Assembly *assembly) {
+  for (int i = 0; i < symbol_table->symbol_table->capacity; i++) {
+    if (&symbol_table->symbol_table->entries[i] == NULL || symbol_table->symbol_table->entries[i].key == NULL) {
       continue;
     } 
     
     AsmBackendSymbol *asm_backend_symbol = arena_alloc(backend_symbol_table->symbol_arena);   
-    DeclarationSymbol *declaration_symbol = get_declaration_symbol(declaration_symbol_table->symbol_table->entries[i].key, declaration_symbol_table, true);    
+    Symbol *symbol = get_symbol(symbol_table->symbol_table->entries[i].key, symbol_table, true);    
 
-    if (declaration_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
+    if (symbol->symbol_type == SYMBOL_VARIABLE) {
       asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
-      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type, assembly);
+      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(symbol->data.variable_symbol->value_type, assembly);
 
-      if (declaration_symbol->data.variable_symbol->value_type->type == TYPE_DOUBLE) {
+      if (symbol->data.variable_symbol->value_type->type == TYPE_DOUBLE) {
         //TODO: Confirm that this is always the case
         asm_backend_symbol->data.object_entry.is_constant = true;
       }
 
-      asm_backend_symbol->data.object_entry.is_static = !declaration_symbol->data.variable_symbol->is_automatic_storage_duration;      
+      asm_backend_symbol->data.object_entry.is_static = !symbol->data.variable_symbol->is_automatic_storage_duration;      
     } else {
       asm_backend_symbol->type = ASM_SYMBOL_FUNCTION_ENTRY;
-      asm_backend_symbol->data.function_entry.is_defined = declaration_symbol->data.function_symbol->is_defined;
+      asm_backend_symbol->data.function_entry.is_defined = symbol->data.function_symbol->is_defined;
     }
     
     HashValue *hash_value = malloc(sizeof(HashValue));
@@ -2365,7 +2366,7 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
     hash_value->structure = asm_backend_symbol;
 
     HashTableEntry *hash_entry = malloc(sizeof(HashTableEntry));
-    hash_entry->key = declaration_symbol_table->symbol_table->entries[i].key;
+    hash_entry->key = symbol_table->symbol_table->entries[i].key;
     hash_entry->value = hash_value;
 
     hash_table_add_entry(backend_symbol_table->symbol_table, hash_entry);    
@@ -2394,7 +2395,7 @@ void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
         case ASM_TYPE_LONGWORD:    printf("Longword\t"); break;
         case ASM_TYPE_DOUBLE:      printf("Double\t"); break;
         case ASM_TYPE_BYTE:        printf("Byte\t"); break;
-        defailt:                   panic("Assembly type not found when printing backend symbol table");
+        default:                   panic("Assembly type not found when printing backend symbol table");
       }      
 
       printf("is_static: %d\n", symbol->data.object_entry.is_static);
@@ -2410,15 +2411,15 @@ static int round_stack_offset(int stack_offset) {
   return ((stack_offset + 15) / 16) * 16;
 }
 
-static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+static bool is_signed_ir_value_node(IRNode *ir_node, SymbolTable *symbol_table) {
   Types value_type;
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
       value_type = ir_node->data.value_constant.type->type;
       break;
     case IR_VALUE_VAR: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
-      value_type = declaration_symbol->data.variable_symbol->value_type->type;
+      Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
+      value_type = symbol->data.variable_symbol->value_type->type;
       break;
     }
     case IR_VALUE_STATIC_VAR:
@@ -2445,8 +2446,8 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
 static void create_function_call_arguments(FunctionCallArguments *function_call_arguments, IRNode *ir_function_call_instruction, Assembly *assembly) {
   for (int i = 0; i < ir_function_call_instruction->data.instruction_function_call.arg_count; i++) {
     AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly);   
-    // Types node_type = get_ir_node_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
-    AsmTypeNode *asm_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table, assembly);
+    // Types node_type = get_ir_node_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->symbol_table);
+    AsmTypeNode *asm_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->symbol_table, assembly);
 
     if (asm_type->type == ASM_TYPE_DOUBLE) {
       if (function_call_arguments->double_register_count < DOUBLE_ARGUMENT_LIMIT) {

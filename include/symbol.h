@@ -1,5 +1,5 @@
-#ifndef DECLARATION_SYMBOL
-#define DECLARATION_SYMBOL
+#ifndef SYMBOL
+#define SYMBOL
 
 #include "../include/hash_table.h"
 #include "../include/arena.h"
@@ -9,9 +9,9 @@
 #define STATIC_INITIAL_VALUE_CAPACITY 4
 
 typedef enum {
-  DECLARATION_SYMBOL_VARIABLE,
-  DECLARATION_SYMBOL_FUNCTION
-} DeclarationSymbolType;
+  SYMBOL_VARIABLE,
+  SYMBOL_FUNCTION
+} SymbolType;
 
 typedef enum {
   INITIALIZATION_TYPE_TENTATIVE,
@@ -63,30 +63,30 @@ typedef struct {
 } VariableSymbol; 
 
 typedef struct {
-  DeclarationSymbolType symbol_type;
+  SymbolType symbol_type;
   union {
     FunctionSymbol *function_symbol;
     VariableSymbol *variable_symbol;
   } data;
-} DeclarationSymbol;
+} Symbol;
 
 typedef struct {
   HashTable *symbol_table;
   //TODO: May not need to keep 3 separate arenas if I change the union to be the structs themselves rather than pointers to the struct.
-  Arena *declaration_symbol_arena;
+  Arena *symbol_arena;
   Arena *variable_symbol_arena;
   Arena *function_symbol_arena;
-} DeclarationSymbolTable;
+} SymbolTable;
 
-void declaration_symbol_table_init(DeclarationSymbolTable *declaration_symbol_table);
-void declaration_symbol_table_free(DeclarationSymbolTable *declaration_symbol_table);
-DeclarationSymbol* get_declaration_symbol(char *identifier, DeclarationSymbolTable *declaration_symbol_table, bool error_if_null);
-DeclarationSymbol* add_function_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
-void add_automatic_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);  
-void add_static_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   
-void add_static_extern_variable_declaration_symbol(DeclarationSymbolTable *declaration_symbol_table, TypeNode *value_type, char *symbol_key);   
-void declaration_symbol_table_print(DeclarationSymbolTable *declaration_symbol_table); 
-void declaration_symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
+void symbol_table_init(SymbolTable *symbol_table);
+void symbol_table_free(SymbolTable *symbol_table);
+Symbol* get_symbol(char *identifier, SymbolTable *symbol_table, bool error_if_null);
+Symbol* add_function_symbol(SymbolTable *symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
+void add_automatic_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key);  
+void add_static_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   
+void add_static_extern_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key);   
+void symbol_table_print(SymbolTable *symbol_table); 
+void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
 InitialValueArray* initial_value_array_init();
 
 #endif

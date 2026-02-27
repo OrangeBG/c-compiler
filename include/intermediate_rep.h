@@ -1,7 +1,7 @@
 #ifndef INTERMEDIATE_REP
 #define INTERMEDIATE_REP
 
-#include "declaration_symbol.h"
+#include "symbol.h"
 #include "parser.h"
 #include "types.h"
 
@@ -99,7 +99,7 @@ typedef struct IRNode {
  } data; 
 } IRNode;
 
-IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table);
+IRNode* generate_intermediate_rep(AstNode *ast_node, SymbolTable *symbol_table);
 void print_intermediate_ret(IRNode *ir_node);
 char* get_intermediate_rep_type_name(IRNode *ir_node);
 
