@@ -77,6 +77,7 @@ char* get_type_string(Types type) {
     case TYPE_DOUBLE:   return "double";
     case TYPE_FUNCTION: return "function";
     case TYPE_POINTER:  return "pointer";
+    case TYPE_ARRAY:    return "array";
     default:
       panic("get_type_string() type %d not supported", type);
   }

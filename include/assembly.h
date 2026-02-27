@@ -100,6 +100,7 @@ typedef enum {
   ASM_TYPE_LONGWORD,
   ASM_TYPE_QUADWORD,
   ASM_TYPE_DOUBLE,
+  ASM_TYPE_BYTE,
   ASM_TYPE_BYTE_ARRAY
 } AsmType;
 
@@ -128,7 +129,7 @@ typedef enum {
 typedef struct {
   AsmBackendSymbolType type;
   union {
-    struct ObjectEntry { AsmType assembly_type; bool is_static; bool is_constant; } object_entry;
+    struct ObjectEntry { AsmTypeNode *assembly_type; bool is_static; bool is_constant; } object_entry;
     struct FunctionEntry { bool is_defined; } function_entry;
   } data;
 } AsmBackendSymbol;
@@ -145,18 +146,18 @@ typedef struct AsmNode {
     struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
     struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol *static_variable_symbol; } static_variable;
     struct AsmStaticConstant { char *identifier; int alignment; VariableSymbol *static_init; } static_constant;
-    struct AsmInstructionMov { AsmType assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
+    struct AsmInstructionMov { AsmTypeNode *assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionMovsx { AsmNode *source; AsmNode *destination; } instruction_movsx;
     struct AsmInstructionMovZeroExtend { AsmNode *source; AsmNode *destination; } instruction_mov_zero_extend;
     struct AsmInstructionLea { AsmNode *source; AsmNode *destination; } instruction_lea;
-    struct AsmInstructionCvttsd2si { AsmType destination_assembly_type; AsmNode *source_operand; AsmNode *destination_operand; } instruction_cvttsd2si; 
-    struct AsmInstructionCvtsi2sd { AsmType source_assembly_type; AsmNode *source_operand; AsmNode *destination_operand; } instruction_cvtsi2sd; 
-    struct AsmInstructionUnary { AsmType assembly_type; AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
-    struct AsmInstructionBinary { AsmType assembly_type; AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
-    struct AsmInstructionIdiv { AsmType assembly_type; AsmNode *operand; } instruction_idiv;
-    struct AsmInstructionDiv { AsmType assembly_type; AsmNode *operand; } instruction_div;
-    struct AsmInstructionCmp { AsmType assembly_type; AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
-    struct AsmInstructionCdq { AsmType assembly_type; } instruction_cdq;
+    struct AsmInstructionCvttsd2si { AsmTypeNode *destination_assembly_type; AsmNode *source_operand; AsmNode *destination_operand; } instruction_cvttsd2si; 
+    struct AsmInstructionCvtsi2sd { AsmTypeNode *source_assembly_type; AsmNode *source_operand; AsmNode *destination_operand; } instruction_cvtsi2sd; 
+    struct AsmInstructionUnary { AsmTypeNode *assembly_type; AsmUnaryOpType unary_op; AsmNode *operand; } instruction_unary;
+    struct AsmInstructionBinary { AsmTypeNode *assembly_type; AsmBinaryOpType binary_op; AsmNode *operand_1; AsmNode *operand_2; } instruction_binary;
+    struct AsmInstructionIdiv { AsmTypeNode *assembly_type; AsmNode *operand; } instruction_idiv;
+    struct AsmInstructionDiv { AsmTypeNode *assembly_type; AsmNode *operand; } instruction_div;
+    struct AsmInstructionCmp { AsmTypeNode *assembly_type; AsmNode *operand_1; AsmNode *operand_2; } instruction_cmp;
+    struct AsmInstructionCdq { AsmTypeNode *assembly_type; } instruction_cdq;
     struct AsmInstructionJmp { char *identifier; } instruction_jmp;
     struct AsmInstructionJmpCC { AsmConditionCode condition_code; char *identifier; } instruction_jmp_cc;
     struct AsmInstructionSetCC { AsmConditionCode condition_code; AsmNode *operand; } instruction_set_cc;
