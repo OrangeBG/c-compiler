@@ -2280,12 +2280,20 @@ static AsmTypeNode* convert_type_to_asm_type(TypeNode *type_node, Assembly *asse
     case TYPE_DOUBLE:
       return assembly->type_double;
     case TYPE_ARRAY: {
-      // if (type_node->data.array_type.size == 16) {
-      //   //@incomplete
-      // } else {
-      //   //@incomplete
-      // }
-      break;
+      AsmTypeNode *byte_array_type = malloc(sizeof(AsmTypeNode));
+      byte_array_type->type = ASM_TYPE_BYTE_ARRAY;
+      
+      int array_element_size = get_type_size(type_node->data.array_type.element_type->type);
+
+      if (type_node->data.array_type.size >= 16) {
+        byte_array_type->byte_array_alignment = 16;
+        byte_array_type->byte_array_size = array_element_size * type_node->data.array_type.size;
+      } else {
+        byte_array_type->byte_array_alignment = array_element_size;
+        byte_array_type->byte_array_size = array_element_size * type_node->data.array_type.size;
+      }
+
+      return byte_array_type;
     }
     default:
       panic("Unsupported Type '%s' when attempting to convert to ASM Variable Type", get_type_string(type_node->type));
