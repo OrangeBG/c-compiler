@@ -824,6 +824,10 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmTypeNode *instr
       pseudo_register->data.operand_memory.op_register = ASM_REGISTER_BP;
 }
 
+static void replace_pseudo_memory(AsmNode *pseudo_memory, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
+  
+}
+
 static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembly *assembly) {
   asm_function->type = ASM_FUNCTION;
   asm_function->data.function.name = ir_function->data.function.identifier;

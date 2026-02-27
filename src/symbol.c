@@ -34,7 +34,7 @@ Symbol* get_symbol(char *identifier, SymbolTable *symbol_table, bool error_if_nu
 
   if (symbol_entry == NULL || symbol_entry->key == NULL) {
     if (error_if_null) {
-      panic("Declaration symbol '%s' not found in symbol table", identifier);
+      panic("Symbol '%s' not found in symbol table", identifier);
     }
 
     return NULL;
