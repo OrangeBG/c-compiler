@@ -2181,6 +2181,7 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_OPERAND_PSEUDOMEM:
       printf("Pseudo Mem -> identifier: %s, byte_offset %d", node->data.operand_pseudo_mem.identifier, node->data.operand_pseudo_mem.byte_offset);
+      break;
     case ASM_OPERAND_INDEXED:
       printf("Indexed -> base_register: %s, index_register: %s, scale: %d", get_register_string(node->data.operand_indexed.base_register), get_register_string(node->data.operand_indexed.index_register), node->data.operand_indexed.scale);
       break;
