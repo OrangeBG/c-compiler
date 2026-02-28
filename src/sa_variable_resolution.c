@@ -161,10 +161,10 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
     case AST_EXPRESSION_FUNCTION_CALL: {
       StackValue *declaration_top_stack = stack_top(variable_resolution->declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
-      HashTableEntry *table_entry = hash_table_get_entry(declaration_table, node->data.expression_function_call.identfier);
+      HashTableEntry *table_entry = hash_table_get_entry(declaration_table, node->data.expression_function_call.identifier);
 
       if (table_entry == NULL || table_entry->key == NULL) {
-        input_error("Undeclared function '%s'", node->data.expression_function_call.identfier);
+        input_error("Undeclared function '%s'", node->data.expression_function_call.identifier);
       }
 
       for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {

@@ -137,7 +137,7 @@ typedef struct AstNode {
     struct AssignmentExpression { AstNode *left_expression; AstNode *right_expression; TypeNode *expression_type; } expression_assignment;
     struct IncrementDecrementExpression { AstNode *expression; TypeNode *expression_type; } expression_increment_decrement;
     struct ConditionalExpression { AstNode *condition; AstNode *true_expression; AstNode *false_expression; TypeNode *expression_type; } expression_conditional;
-    struct FunctionCallExpression { char *identfier; NodePointer *argument_ptrs; TypeNode *expression_type; int argument_count; } expression_function_call;
+    struct FunctionCallExpression { char *identifier; NodePointer *argument_ptrs; TypeNode *expression_type; int argument_count; } expression_function_call;
     struct CastExpression { TypeNode *target_type; AstNode *expression; } expression_cast;
     struct DereferenceExpression { AstNode *expression; } expression_dereference;
     struct AddressOfExpression { AstNode *expression; } expression_address_of;

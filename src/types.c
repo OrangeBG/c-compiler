@@ -37,17 +37,18 @@ bool is_arithmetic_type(TypeNode *type_node) {
     case TYPE_ULONG:
       return true; 
     case TYPE_POINTER: {
-      Types base_pointer_type = get_pointer_base_type(type_node);
-
-      switch(base_pointer_type) {
-        case TYPE_INT:
-        case TYPE_LONG:
-        case TYPE_UINT:
-        case TYPE_ULONG:
-          return true;
-        default:
+      //@Note: 2/22/26 - Commenting for now and returning false. When something like 'j+1' occurred where j is a pointer, this is_arithmetic_type() check done on Binary expressions in the type checker was passing ans treating both expressions as arithmetic types. However, below that code, it's handling when one expression results in a pointer and the other a constant. Keeping this commented until I find a need to bring something like this back.
+      // Types base_pointer_type = get_pointer_base_type(type_node);
+      //
+      // switch(base_pointer_type) {
+      //   case TYPE_INT:
+      //   case TYPE_LONG:
+      //   case TYPE_UINT:
+      //   case TYPE_ULONG:
+      //     return true;
+      //   default:
           return false;
-      }
+      //}
     }
     default:
       return false;
@@ -76,6 +77,7 @@ char* get_type_string(Types type) {
     case TYPE_DOUBLE:   return "double";
     case TYPE_FUNCTION: return "function";
     case TYPE_POINTER:  return "pointer";
+    case TYPE_ARRAY:    return "array";
     default:
       panic("get_type_string() type %d not supported", type);
   }

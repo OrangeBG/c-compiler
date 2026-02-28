@@ -8,76 +8,6 @@
 
 #define TOKEN_ARRAY_START_SIZE 64
 
-const char* TokenTypeStr[] = {
-  "TOKEN_ASTERISK",
-  "TOKEN_ASTERISK_EQUAL",
-  "TOKEN_BITWISE_AND",
-  "TOKEN_BITWISE_AND_EQUAL",
-  "TOKEN_BITWISE_NOT",
-  "TOKEN_BITWISE_OR",
-  "TOKEN_BITWISE_OR_EQUAL",
-  "TOKEN_BITWISE_XOR", 
-  "TOKEN_BITWISE_XOR_EQUAL", 
-  "TOKEN_BITWISE_LEFT_SHIFT",
-  "TOKEN_BITWISE_LEFT_SHIFT_EQUAL",
-  "TOKEN_BITWISE_RIGHT_SHIFT",
-  "TOKEN_BITWISE_RIGHT_SHIFT_EQUAL",
-  "TOKEN_BREAK",
-  "TOKEN_CLOSE_BRACE",
-  "TOKEN_CLOSE_BRACKET",
-  "TOKEN_CLOSE_PAREN",
-  "TOKEN_COLON",
-  "TOKEN_COMMA",
-  "TOKEN_CONSTANT_FLOAT",
-  "TOKEN_CONSTANT_INT",
-  "TOKEN_CONSTANT_LONG",
-  "TOKEN_CONSTANT_UNSIGNED_INT",
-  "TOKEN_CONSTANT_UNSIGNED_LONG",
-  "TOKEN_CONTINUE",
-  "TOKEN_DECREMENT",
-  "TOKEN_DO",
-  "TOKEN_DOUBLE",
-  "TOKEN_ELSE",
-  "TOKEN_EQUAL",
-  "TOKEN_EXTERN",
-  "TOKEN_FOR",
-  "TOKEN_FORWARD_SLASH",
-  "TOKEN_FORWARD_SLASH_EQUAL",
-  "TOKEN_GOTO",
-  "TOKEN_IDENTIFIER",
-  "TOKEN_IF",
-  "TOKEN_INCREMENT",
-  "TOKEN_INT",
-  "TOKEN_LOGICAL_AND",
-  "TOKEN_LOGICAL_OR",
-  "TOKEN_LOGICAL_NOT",  
-  "TOKEN_LONG",
-  "TOKEN_NEGATION",
-  "TOKEN_NEGATION_EQUAL",
-  "TOKEN_OPEN_PAREN",
-  "TOKEN_OPEN_BRACE",
-  "TOKEN_OPEN_BRACKET",
-  "TOKEN_PERCENT",
-  "TOKEN_PERCENT_EQUAL",
-  "TOKEN_PLUS",
-  "TOKEN_PLUS_EQUAL",
-  "TOKEN_QUESTION_MARK",
-  "TOKEN_RELATIONAL_EQUAL",
-  "TOKEN_RELATIONAL_NOT_EQUAL",
-  "TOKEN_RELATIONAL_LESS_THAN",
-  "TOKEN_RELATIONAL_LESS_OR_EQUAL",
-  "TOKEN_RELATIONAL_GREATER_THAN",
-  "TOKEN_RELATIONAL_GREATER_OR_EQUAL",
-  "TOKEN_RETURN",
-  "TOKEN_SEMICOLON",
-  "TOKEN_SIGNED",
-  "TOKEN_STATIC",
-  "TOKEN_UNSIGNED",
-  "TOKEN_VOID", 
-  "TOKEN_WHILE",
-  "TOKEN_EOF"
-};
-
 static bool is_alpha_char(char character);
 static bool is_numeric_char(char character);
 static bool is_valid_post_constant_character(char character);
@@ -99,7 +29,7 @@ Lexer init_lexer() {
     .start_index = 0,
     .current_index = 0,
     .line = 1,
-    .tokens =  token_array,
+    .tokens =  token_array
   };
 
   return lexer;
@@ -355,8 +285,8 @@ void print_tokens(Lexer *lexer, char *file) {
     printf("line %d", lexer->tokens->items[i].line);
     printf("%*s", 6, "");
 
-    long whitespace = 30 - strlen(TokenTypeStr[lexer->tokens->items[i].type]);
-    printf("%s", TokenTypeStr[lexer->tokens->items[i].type]);
+    long whitespace = 30 - strlen(get_token_name(lexer->tokens->items[i].type));
+    printf("%s", get_token_name(lexer->tokens->items[i].type));
     printf("%*s", (int)whitespace, "");
     printf(" -> ");
 

@@ -9,6 +9,7 @@
 #include "../include/lexer.h"
 #include "../include/dynamic_array.h"
 #include "../include/error.h"
+#include "../include/token.h"
 
 #define ADD_WHITESPACE (whitespace + 5)
 #define POINTER_ARENA_INIT_CAPACITY 8
@@ -514,7 +515,7 @@ void print_ast(const AstNode *node, int whitespace) {
       }
       case AST_EXPRESSION_FUNCTION_CALL: {
         print_whitespace(whitespace);
-        printf("Function Call(name= '%s' args=\n", node->data.expression_function_call.identfier);
+        printf("Function Call(name= '%s' args=\n", node->data.expression_function_call.identifier);
 
         for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
           AstNode *argument = node->data.expression_function_call.argument_ptrs->node_pointers[i];
@@ -620,8 +621,7 @@ static void init_node_pointer(NodePointer *node_pointer) {
 
 static void expect(Parser *parser, TokenType expected_type) {
   if (parser->current_token_index == parser->token_count) {
-    fprintf(stderr, "ERROR - Parser: Expected %s (line %d)\n", TokenTypeStr[expected_type], previous_token(parser)->line);
-    exit(1);
+    input_error_with_line("Expected %s (line %d)", current_token(parser)->line, get_token_name(expected_type), previous_token(parser)->line);
   }
 
   if (current_token(parser)->type == expected_type) {
@@ -629,8 +629,7 @@ static void expect(Parser *parser, TokenType expected_type) {
     return;
   } 
 
-  fprintf(stderr, "ERROR - Parser: Expected %s, but found %s (line %d)\n", TokenTypeStr[expected_type],TokenTypeStr[current_token(parser)->type], current_token(parser)->line);
-  exit(1);
+  input_error_with_line("Expected %s, but found %s",current_token(parser)->line, get_token_name(expected_type), get_token_name(current_token(parser)->type));
 }
 
 static void parse_program(Parser *parser, AstNode *program_node) {
@@ -1269,7 +1268,7 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:   binary_expression_pointer->data.expression_binary.op_type = AST_BINARY_BITWISE_RIGHT_SHIFT; break;
     case TOKEN_BITWISE_LEFT_SHIFT_EQUAL:    binary_expression_pointer->data.expression_binary.op_type = AST_BINARY_BITWISE_LEFT_SHIFT; break;
     default:
-      panic("Expected Binary op token, found %d", op_type);
+      panic("Expected Binary op token, found '%s'", get_token_name(op_type));
   }
 
   switch (op_type) {
@@ -1386,9 +1385,7 @@ static void parse_primary_expression(Parser *parser, AstNode **expression_node) 
       break;
     }
     default:
-      fprintf(stderr, "ERROR - Parser: Invalid primary expression (line %d)\n", previous_token(parser)->line);
-      exit(1);
-      break;
+      panic("Invalid primary expression token '%s'", get_token_name(current_token(parser)->type));
   }
 }
 
@@ -1434,7 +1431,7 @@ static void parse_factor(Parser *parser, AstNode **factor_node) {
       break;
     }
     default:
-      panic("Failed to parse factor for '%s' token", TokenTypeStr[current_token(parser)->type]);
+      panic("Failed to parse factor for '%s' token", get_token_name(current_token(parser)->type));
   }
 }
 
@@ -1543,7 +1540,7 @@ static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
       op_type = AST_UNARY_NOT;
       break;
     default:
-      panic("Unary token type not found for ast_factor()");
+      panic("Unary token type '%s' not found", get_token_name(current_token(parser)->type));
   }
   
   parser->current_token_index++;
@@ -1673,7 +1670,7 @@ static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
         array_abstract->data.abstract_array.size = strtol(constant_slice, &end_pointer, BASE_TEN);
         break;
       default:
-        panic("Unsupported array size type");
+        panic("Unsupported array size type '%s'", get_token_name(current_token(parser)->type));
     }
 
     parser->current_token_index++;
@@ -1758,7 +1755,7 @@ static void parse_factor_function_call(Parser *parser, AstNode *factor_node, cha
   expect(parser, TOKEN_OPEN_PAREN);
 
   factor_node->type = AST_EXPRESSION_FUNCTION_CALL;
-  factor_node->data.expression_function_call.identfier = identifier;
+  factor_node->data.expression_function_call.identifier = identifier;
   factor_node->data.expression_function_call.argument_count = 0;
   factor_node->data.expression_function_call.expression_type = NULL;
   
@@ -1836,11 +1833,11 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
     switch (current_token(parser)->type) {
       case TOKEN_STATIC:
         if (error_if_storage_class_found) {
-          input_error_with_line("Declared type cannot contain 'static' storage class", current_token(parser)->line);
+          input_error_with_line("Declared type '%s' cannot contain 'static' storage class", current_token(parser)->line, get_token_name(current_token(parser)->type));
         }
 
         if (specifier.storage_class_type != AST_STORAGE_CLASS_NONE) {
-          input_error_with_line("Declared 'static' cannot be included", current_token(parser)->line);
+          input_error_with_line("Declared 'static' cannot be included with '%s'", current_token(parser)->line, get_token_name(current_token(parser)->type));
         }
         
         specifier.storage_class_type = AST_STORAGE_CLASS_STATIC;
@@ -1848,11 +1845,11 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
         continue;
       case TOKEN_EXTERN:
         if (error_if_storage_class_found) {
-          input_error_with_line("Declared type cannot contain 'extern' storage class", current_token(parser)->line);
+          input_error_with_line("Declared '%s' type cannot contain 'extern' storage class", current_token(parser)->line, get_token_name(current_token(parser)->type));
         }
 
         if (specifier.storage_class_type != AST_STORAGE_CLASS_NONE) {
-          input_error_with_line("Declared 'static' cannot be included", current_token(parser)->line);
+          input_error_with_line("Declared 'static' cannot be included with '%s'", current_token(parser)->line, get_token_name(current_token(parser)->type));
         }
 
         specifier.storage_class_type = AST_STORAGE_CLASS_EXTERN;
@@ -2016,7 +2013,7 @@ static Declarator* parse_declarator_suffix(Parser *parser) {
         array_declarator->data.array_declarator.size = strtol(constant_slice, &end_pointer, BASE_TEN);
         break;
       default:
-        panic("Unsupported array size type in parser_declarator_suffix()");
+        panic("Unsupported array size type '%s' in declarator suffix", get_token_name(current_token(parser)->type));
     }
 
     parser->current_token_index++;

@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
-#include "../include/declaration_symbol.h"
+#include "../include/symbol.h"
 #include "../include/error.h"
 
 #define INSTRUCTION_CAPACITY 8
@@ -24,7 +24,7 @@ typedef struct {
 typedef struct {
   Arena *node_arena;
   IREmitStatus *emit_status;
-  DeclarationSymbolTable *declaration_symbol_table;
+  SymbolTable *symbol_table;
 } IntermediateRep;
 
 typedef enum {
@@ -98,7 +98,7 @@ static void              add_function_parameter_identifier(char *identifier, IRN
 static bool              is_pointer_add_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep); 
 static bool              is_pointer_subtract_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep);  
 
-IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *declaration_symbol_table) {
+IRNode* generate_intermediate_rep(AstNode *ast_node, SymbolTable *symbol_table) {
   Arena *node_arena = malloc(sizeof(Arena));
 
   //TODO: Hardcoded capacity
@@ -119,7 +119,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *dec
   };
 
   IntermediateRep intermediate_rep = {
-    .declaration_symbol_table = declaration_symbol_table,
+    .symbol_table = symbol_table,
     .emit_status = &emit_status,
     .node_arena = node_arena
   };
@@ -135,7 +135,7 @@ IRNode* generate_intermediate_rep(AstNode *ast_node, DeclarationSymbolTable *dec
     add_top_level_declaration_to_program(program, top_level_declaration->operand_value);        
   }
 
-  emit_symbol_declarations(declaration_symbol_table->symbol_table, program, &intermediate_rep);
+  emit_symbol_declarations(symbol_table->symbol_table, program, &intermediate_rep);
 
   return program;
 }
@@ -154,104 +154,127 @@ void print_intermediate_ret(IRNode *ir_node) {
     case IR_FUNCTION: {
       struct IRFunction *function = &ir_node->data.function; 
       printf("Function(name = %s, is_global = %d)\n", function->identifier, function->is_global);
-
       for (int i = 0; i < function->instruction_count; i++) {
-        if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_RET) {
-          printf("\tReturn(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_ret.value);
-          printf(")\n");
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_UNARY) {      
-          struct IRInstructionUnary* unary = &function->instruction_ptrs->node_pointers[i]->data.instruction_unary;
-
-          printf("\t");
-          print_intermediate_ret(unary->destination);
-          printf(" = ");
-
-          switch (unary->op_type) {
-            case IR_UNARY_NEGATE:     printf("Negate( "); break;
-            case IR_UNARY_COMPLEMENT: printf("Complement( "); break;
-            case IR_UNARY_NOT:        printf("Not( "); break;
-          }
-          
-          print_intermediate_ret(unary->source);            
-          printf(")\n");
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_BINARY) {
-          struct IRInstructionBinary* binary = &function->instruction_ptrs->node_pointers[i]->data.instruction_binary;
-
-          printf("\t");
-          print_intermediate_ret(binary->destination);
-          printf(" = Binary(");
-    
-          switch (binary->op_type) {
-            case IR_BINARY_ADD:                 printf("Add, "); break;
-            case IR_BINARY_SUBTRACT:            printf("Subtract, "); break;
-            case IR_BINARY_DIVIDE:              printf("Divide, "); break;
-            case IR_BINARY_MULTIPLY:            printf("Multiply, "); break;
-            case IR_BINARY_REMAINDER:           printf("Remainder, "); break;
-            case IR_BINARY_BITWISE_AND:         printf("Bitwise AND, "); break;
-            case IR_BINARY_BITWISE_OR:          printf("Bitwise OR, "); break;
-            case IR_BINARY_BITWISE_XOR:         printf("Bitwise XOR, "); break;
-            case IR_BINARY_BITWISE_LEFT_SHIFT:  printf("Bitwise Left S., "); break;
-            case IR_BINARY_BITWISE_RIGHT_SHIFT: printf("Bitwise Right S., "); break;
-            case IR_BINARY_EQUAL:               printf("Equal, "); break;
-            case IR_BINARY_NOT_EQUAL:           printf("Not Equal, "); break;
-            case IR_BINARY_LESS_THAN:           printf("Less Than, "); break;
-            case IR_BINARY_LESS_OR_EQUAL:       printf("Less or Equal, "); break;
-            case IR_BINARY_GREATER_THAN:        printf("Greater Than, "); break;
-            case IR_BINARY_GREATER_OR_EQUAL:    printf("Greater or Equal, "); break;
-          }
-          
-          print_intermediate_ret(binary->source_1);            
-          printf(", ");
-          print_intermediate_ret(binary->source_2);            
-          printf(")");
-          printf("\n");
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP_IF_ZERO) {
-          printf("\tJump If Zero(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_zero.condition);
-          printf(", %s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_zero.target);
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP_IF_NOT_ZERO) {
-          printf("\tJump If Not Zero(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_not_zero.condition);
-          printf(" , %s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump_if_not_zero.target);
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_JUMP) {
-          printf("\tJump(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_jump.target);
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY) {
-          printf("\t");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.destination);
-          printf(" = Copy(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy.source);
-          printf(")\n");
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_LABEL) {
-          printf("\tLabel(%s)\n", function->instruction_ptrs->node_pointers[i]->data.instruction_label.identifier);
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_TRUNCATE) {
-          printf("\t");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.destination);
-          printf(" = Truncate(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_truncate.source);
-          printf(")\n");
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_SIGN_EXTEND) {
-          printf("\t");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.destination);
-          printf(" = Sign Extend(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_sign_extend.source);
-          printf(")\n");
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_COPY_TO_OFFSET) {
-          printf("\tCopy to Offset(Source(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.source);
-          printf(") (Identifier(%s) (Offset(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.identifier,function->instruction_ptrs->node_pointers[i]->data.instruction_copy_to_offset.offset);
-        } else if (function->instruction_ptrs->node_pointers[i]->type == IR_INSTRUCTION_ADD_POINTER) {
-          printf("\t");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.destination);
-          printf(" = Add Pointer(Pointer(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.pointer);
-          printf(") Index(");
-          print_intermediate_ret(function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.index);
-          printf(") Scale(%d))\n", function->instruction_ptrs->node_pointers[i]->data.instruction_add_pointer.scale);
-        }
+        print_intermediate_ret(function->instruction_ptrs->node_pointers[i]);
       }
+      break;
     }
-    break;
+    case IR_INSTRUCTION_RET: {
+      printf("\tReturn(");
+      print_intermediate_ret(ir_node->data.instruction_ret.value);
+      printf(")\n");
+      break;
+    }
+    case IR_INSTRUCTION_UNARY: {
+      struct IRInstructionUnary* unary = &ir_node->data.instruction_unary;
+
+      printf("\t");
+      print_intermediate_ret(unary->destination);
+      printf(" = ");
+
+      switch (unary->op_type) {
+        case IR_UNARY_NEGATE:     printf("Negate( "); break;
+        case IR_UNARY_COMPLEMENT: printf("Complement( "); break;
+        case IR_UNARY_NOT:        printf("Not( "); break;
+      }
+    
+      print_intermediate_ret(unary->source);            
+      printf(")\n");
+      break;
+    }
+    case IR_INSTRUCTION_BINARY: {
+      struct IRInstructionBinary binary = ir_node->data.instruction_binary;
+
+      printf("\t");
+      print_intermediate_ret(binary.destination);
+      printf(" = Binary(");
+
+      switch (binary.op_type) {
+        case IR_BINARY_ADD:                 printf("Add, "); break;
+        case IR_BINARY_SUBTRACT:            printf("Subtract, "); break;
+        case IR_BINARY_DIVIDE:              printf("Divide, "); break;
+        case IR_BINARY_MULTIPLY:            printf("Multiply, "); break;
+        case IR_BINARY_REMAINDER:           printf("Remainder, "); break;
+        case IR_BINARY_BITWISE_AND:         printf("Bitwise AND, "); break;
+        case IR_BINARY_BITWISE_OR:          printf("Bitwise OR, "); break;
+        case IR_BINARY_BITWISE_XOR:         printf("Bitwise XOR, "); break;
+        case IR_BINARY_BITWISE_LEFT_SHIFT:  printf("Bitwise Left S., "); break;
+        case IR_BINARY_BITWISE_RIGHT_SHIFT: printf("Bitwise Right S., "); break;
+        case IR_BINARY_EQUAL:               printf("Equal, "); break;
+        case IR_BINARY_NOT_EQUAL:           printf("Not Equal, "); break;
+        case IR_BINARY_LESS_THAN:           printf("Less Than, "); break;
+        case IR_BINARY_LESS_OR_EQUAL:       printf("Less or Equal, "); break;
+        case IR_BINARY_GREATER_THAN:        printf("Greater Than, "); break;
+        case IR_BINARY_GREATER_OR_EQUAL:    printf("Greater or Equal, "); break;
+      }
+  
+      print_intermediate_ret(binary.source_1);            
+      printf(", ");
+      print_intermediate_ret(binary.source_2);            
+      printf(")");
+      printf("\n");
+      break;
+    }
+    case IR_INSTRUCTION_JUMP_IF_ZERO: {
+      printf("\tJump If Zero(");
+      print_intermediate_ret(ir_node->data.instruction_jump_if_zero.condition);
+      printf(", %s)\n", ir_node->data.instruction_jump_if_zero.target);
+      break;
+    }
+    case IR_INSTRUCTION_JUMP_IF_NOT_ZERO: {
+      printf("\tJump If Not Zero(");
+      print_intermediate_ret(ir_node->data.instruction_jump_if_not_zero.condition);
+      printf(" , %s)\n", ir_node->data.instruction_jump_if_not_zero.target);
+      break;
+    }
+    case IR_INSTRUCTION_JUMP: {
+      printf("\tJump(%s)\n", ir_node->data.instruction_jump.target);
+      break;
+    }
+    case IR_INSTRUCTION_COPY: {
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_copy.destination);
+      printf(" = Copy(");
+      print_intermediate_ret(ir_node->data.instruction_copy.source);
+      printf(")\n");
+      break;
+    }
+    case IR_INSTRUCTION_LABEL: {
+      printf("\tLabel(%s)\n", ir_node->data.instruction_label.identifier);
+      break;
+    }
+    case IR_INSTRUCTION_TRUNCATE: {
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_truncate.destination);
+      printf(" = Truncate(");
+      print_intermediate_ret(ir_node->data.instruction_truncate.source);
+      printf(")\n");
+      break;
+    }
+    case IR_INSTRUCTION_SIGN_EXTEND: {
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_sign_extend.destination);
+      printf(" = Sign Extend(");
+      print_intermediate_ret(ir_node->data.instruction_sign_extend.source);
+      printf(")\n");
+      break;
+    }
+    case IR_INSTRUCTION_COPY_TO_OFFSET: {
+      printf("\tCopy to Offset(Source(");
+      print_intermediate_ret(ir_node->data.instruction_copy_to_offset.source);
+      printf(") (Identifier(%s) (Offset(%d))\n", ir_node->data.instruction_copy_to_offset.destination_identifier, ir_node->data.instruction_copy_to_offset.offset);
+      break;
+    }
+    case IR_INSTRUCTION_ADD_POINTER: {
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_add_pointer.destination);
+      printf(" = Add Pointer(Pointer(");
+      print_intermediate_ret(ir_node->data.instruction_add_pointer.pointer);
+      printf(") Index(");
+      print_intermediate_ret(ir_node->data.instruction_add_pointer.index);
+      printf(") Scale(%d))\n", ir_node->data.instruction_add_pointer.scale);
+      break;
+    }
     case IR_VALUE_CONSTANT:
       switch (ir_node->data.value_constant.type->type) {
         case TYPE_INT:     printf("Constant(type = int, value = %d)", ir_node->data.value_constant.value.int_value); break;
@@ -260,8 +283,7 @@ void print_intermediate_ret(IRNode *ir_node) {
         case TYPE_ULONG:   printf("Constant(type = ulong, value = %lu)", ir_node->data.value_constant.value.ulong_value); break;
         case TYPE_DOUBLE:  printf("Constant(type = double, value = %f)", ir_node->data.value_constant.value.double_value); break;          
         default:
-          fprintf(stderr, "ERROR - Intermediate Rep: Unsupported type '%d' when attempting to print constant\n", ir_node->data.value_constant.type->type);
-          exit(1);
+          panic("Unsupported type '%d' when attempting to print constant", ir_node->data.value_constant.type->type);
       }
       break;
     case IR_VALUE_VAR:
@@ -317,7 +339,38 @@ void print_intermediate_ret(IRNode *ir_node) {
       printf(")\n");
       break;
     default:
-      panic("No print for type %d", ir_node->type);
+      panic("No intermediate print type found for '%s'", get_intermediate_rep_type_name(ir_node));
+  }
+}
+
+char* get_intermediate_rep_type_name(IRNode *ir_node) {
+  switch (ir_node->type) {
+      case IR_PROGRAM:                          return "Program";
+      case IR_FUNCTION:                         return "Function";
+      case IR_INSTRUCTION_RET:                  return "Return";
+      case IR_INSTRUCTION_UNARY:                return "Unary";
+      case IR_INSTRUCTION_BINARY:               return "Binary";
+      case IR_INSTRUCTION_COPY:                 return "Copy";
+      case IR_INSTRUCTION_JUMP:                 return "Jump";
+      case IR_INSTRUCTION_JUMP_IF_ZERO:         return "Jump If Zero";
+      case IR_INSTRUCTION_JUMP_IF_NOT_ZERO:     return "Jump If Not Zero";
+      case IR_INSTRUCTION_LABEL:                return "Label";
+      case IR_INSTRUCTION_FUNCTION_CALL:        return "Function Call";
+      case IR_INSTRUCTION_SIGN_EXTEND:          return "Sign Extend";
+      case IR_INSTRUCTION_ZERO_EXTEND:          return "Zero Extend";
+      case IR_INSTRUCTION_TRUNCATE:             return "Truncate";
+      case IR_INSTRUCTION_DOUBLE_TO_INT:        return "Double To Int";
+      case IR_INSTRUCTION_DOUBLE_TO_UINT:       return "Double To UInt";
+      case IR_INSTRUCTION_INT_TO_DOUBLE:        return "Int To Double";
+      case IR_INSTRUCTION_UINT_TO_DOUBLE:       return "UInt to Double";
+      case IR_INSTRUCTION_GET_ADDRESS:          return "Get Address";
+      case IR_INSTRUCTION_LOAD:                 return "Load";
+      case IR_INSTRUCTION_STORE:                return "Store";
+      case IR_INSTRUCTION_ADD_POINTER:          return "Add Pointer";
+      case IR_INSTRUCTION_COPY_TO_OFFSET:       return "Copy To Offset";
+      case IR_VALUE_CONSTANT:                   return "Constant";
+      case IR_VALUE_VAR:                        return "Var";
+      case IR_VALUE_STATIC_VAR:                 return "Static Var";
   }
 }
 
@@ -331,7 +384,7 @@ static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *i
   function->data.function.instruction_count = 0;
   function->data.function.instruction_ptrs = ir_node_pointer;
 
-  DeclarationSymbol *function_symbol = get_declaration_symbol(ast_function->data.declaration_function.name, intermediate_rep->declaration_symbol_table, true);
+  Symbol *function_symbol = get_symbol(ast_function->data.declaration_function.name, intermediate_rep->symbol_table, true);
 
   function->data.function.is_global = function_symbol->data.function_symbol->is_global;
 
@@ -410,7 +463,7 @@ static IRNode* emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function,
   char *destination_name = create_temp_register(intermediate_rep);
   TypeNode *result_type = get_node_type(result->operand_value, intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, result_type, destination_name);
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, result_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -543,8 +596,11 @@ static void emit_declaration(AstNode *declaration_node, IRNode *function, Interm
     return;
   }
 
+  ExpressionResult *variable = create_variable(declaration_node->data.declaration_variable.name, intermediate_rep);
+
   if (declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
-    emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
+    IRNode *result = emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
+      emit_copy(result, variable->operand_value, function, intermediate_rep);
   } else {
     int offset = 0;
     emit_copy_to_offset_for_compound_initializer(declaration_node->data.declaration_variable.name, &offset, declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);  
@@ -568,7 +624,7 @@ static void emit_copy_to_offset_for_compound_initializer(char *declaration_ident
     IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
     copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
     copy_to_offset->data.instruction_copy_to_offset.source = result;
-    copy_to_offset->data.instruction_copy_to_offset.identifier = declaration_identifier;
+    copy_to_offset->data.instruction_copy_to_offset.destination_identifier = declaration_identifier;
     copy_to_offset->data.instruction_copy_to_offset.offset = *offset;
 
     add_instruction_to_function(function, copy_to_offset);
@@ -635,7 +691,7 @@ static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *func
   //TODO: Warning, setting hard buffer limit
   char *destination_name = create_temp_register(intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, unary_node->data.expression_unary.expression_type, destination_name);
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, unary_node->data.expression_unary.expression_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -679,6 +735,8 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
+
   BinaryOpType op_type = binary_node->data.expression_binary.op_type;
 
   if (op_type == AST_BINARY_AND || op_type == AST_BINARY_OR) {
@@ -692,8 +750,6 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   if (is_pointer_subtract_arithmetic(binary_node, source_1_type, source_2_type, intermediate_rep)) {
     return emit_binary_pointer_subtract_arithmetic_expression(source_1, source_1_type, source_2, source_2_type, destination, function, intermediate_rep); 
   }
-
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
 
   IRBinaryOpType binary_op_type;
 
@@ -894,7 +950,7 @@ static ExpressionResult* emit_binary_and_or_expression(AstNode *binary_node, IRN
     TypeNode *int_type_node = malloc(sizeof(TypeNode));
     int_type_node->type = TYPE_INT;
 
-    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, int_type_node, destination->data.value_var.identifier);    
+    add_automatic_variable_symbol(intermediate_rep->symbol_table, int_type_node, destination->data.value_var.identifier);    
 
     char *label_name = create_temp_label(intermediate_rep);
 
@@ -961,14 +1017,14 @@ static ExpressionResult* emit_assignment_expression(AstNode *assignment_node, IR
 static ExpressionResult* emit_function_call_expression(AstNode *function_call_node, IRNode *function, IntermediateRep *intermediate_rep) {
   IRNode *ir_function_call = arena_alloc(intermediate_rep->node_arena);
   ir_function_call->type = IR_INSTRUCTION_FUNCTION_CALL;
-  ir_function_call->data.instruction_function_call.identifier = function_call_node->data.expression_function_call.identfier;
+  ir_function_call->data.instruction_function_call.identifier = function_call_node->data.expression_function_call.identifier;
   ir_function_call->data.instruction_function_call.arg_capacity = 0;
   ir_function_call->data.instruction_function_call.arg_count = 0;
   ir_function_call->data.instruction_function_call.args = NULL;
 
   char *destination_name = create_temp_register(intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, function_call_node->data.expression_function_call.expression_type, destination_name);
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, function_call_node->data.expression_function_call.expression_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -1002,7 +1058,7 @@ static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *functi
   }
 
   char *temp_destination = create_temp_register(intermediate_rep);
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, target_type, temp_destination);
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, target_type, temp_destination);
 
   ExpressionResult *var_destination_node = create_variable(temp_destination, intermediate_rep);
 
@@ -1038,7 +1094,7 @@ static ExpressionResult* emit_address_of_expression(AstNode *address_of_node, IR
     char *destination_name = create_temp_register(intermediate_rep);
     TypeNode *result_type = get_node_type(address_of_result->operand_value, intermediate_rep);
 
-    add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, result_type, destination_name);
+    add_automatic_variable_symbol(intermediate_rep->symbol_table, result_type, destination_name);
 
     IRNode *destination = arena_alloc(intermediate_rep->node_arena);
     destination->type = IR_VALUE_VAR;
@@ -1069,7 +1125,7 @@ static ExpressionResult* emit_subscript_expression(AstNode *subscript_node, IRNo
   char *pointer_destination_name = create_temp_register(intermediate_rep);
   TypeNode *pointer_result_type = get_node_type(expression_2_result->operand_value, intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, pointer_result_type, pointer_destination_name);
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, pointer_result_type, pointer_destination_name);
 
   IRNode *pointer_destination = arena_alloc(intermediate_rep->node_arena);
   pointer_destination->type = IR_VALUE_VAR;
@@ -1087,7 +1143,7 @@ static ExpressionResult* emit_subscript_expression(AstNode *subscript_node, IRNo
   char *load_destination_name = create_temp_register(intermediate_rep);
   TypeNode *load_result_type = get_node_type(expression_2_result->operand_value, intermediate_rep);
 
-  add_automatic_variable_declaration_symbol(intermediate_rep->declaration_symbol_table, load_result_type, load_destination_name);
+  add_automatic_variable_symbol(intermediate_rep->symbol_table, load_result_type, load_destination_name);
 
   IRNode *load_destination = arena_alloc(intermediate_rep->node_arena);
   load_destination->type = IR_VALUE_VAR;
@@ -1262,13 +1318,13 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
       continue;
     }
 
-    DeclarationSymbol *declaration_symbol= entry->value->structure;
+    Symbol *symbol= entry->value->structure;
 
-    if (declaration_symbol->symbol_type != DECLARATION_SYMBOL_VARIABLE || declaration_symbol->data.variable_symbol->is_automatic_storage_duration) {
+    if (symbol->symbol_type != SYMBOL_VARIABLE || symbol->data.variable_symbol->is_automatic_storage_duration) {
       continue;
     }
 
-    if (declaration_symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_NO_INITIALIZER) {
+    if (symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_NO_INITIALIZER) {
       continue;
     }
     
@@ -1276,8 +1332,8 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
 
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
-    static_node->data.static_variable.is_global = declaration_symbol->data.variable_symbol->static_is_global;
-    static_node->data.static_variable.static_variable_symbol = declaration_symbol->data.variable_symbol;
+    static_node->data.static_variable.is_global = symbol->data.variable_symbol->static_is_global;
+    static_node->data.static_variable.static_variable_symbol = symbol->data.variable_symbol;
 
     add_top_level_declaration_to_program(ir_program, static_node);    
   }
@@ -1438,11 +1494,11 @@ static TypeNode* get_node_type(IRNode *node, IntermediateRep *intermediate_rep) 
     case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type;
     case IR_VALUE_VAR: {
       //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(node->data.value_var.identifier, intermediate_rep->declaration_symbol_table, true);
-      return declaration_symbol->data.variable_symbol->value_type;
+      Symbol *symbol = get_symbol(node->data.value_var.identifier, intermediate_rep->symbol_table, true);
+      return symbol->data.variable_symbol->value_type;
     }
     default:
-      panic("Unsupported node type '%d' for get_node_type", node->type);
+      panic("Unsupported node type '%s' for get_node_type", get_intermediate_rep_type_name(node));
   }
 }
 

@@ -21,6 +21,7 @@
 
 # Incomplete
 	- IR 'If' statement does not support else statements
+	- Fix up instruction section: pg. 418
 
 # Tech Debt
 	- Type Check: Similar to Assembly, have TypeNodes for basic types that can be used rather than malloc'ing each time you need something like int, long, etc. This will still allow use to dynamically allocate pointers

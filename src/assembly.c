@@ -7,7 +7,7 @@
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
-#include "../include/declaration_symbol.h"
+#include "../include/symbol.h"
 #include "../include/intermediate_rep.h"
 #include "../include/types.h"
 #include "../include/dynamic_array.h"
@@ -26,7 +26,7 @@ typedef enum {
 } ResolveType;
 
 typedef struct {
-  DeclarationSymbolTable *declaration_symbol_table;
+  SymbolTable *symbol_table;
   AsmNodePointers *top_level_declarations;
   AsmNodePointers *static_constants;
   Arena *asm_arena;
@@ -50,23 +50,27 @@ typedef struct {
   AsmNode *register_xmm7;
   AsmNode *register_xmm14;    
   AsmNode *register_xmm15;
+  AsmTypeNode *type_longword;
+  AsmTypeNode *type_quadword;
+  AsmTypeNode *type_double;
+  AsmTypeNode *type_byte;
 } Assembly;
 
 typedef struct {
   bool instruction_type_found;
-  AsmType found_type;
+  AsmTypeNode *found_type;
 } GetInstructionTypeResult;
 
 typedef struct {
   int count;
   int capacity;  
   AsmNode *arguments;
-  AsmType *argument_types; 
+  AsmTypeNode *argument_types; 
 } StackArgumentList;
 
 typedef struct {
   AsmNode *int_register_arguments[INT_ARGUMENT_LIMIT];
-  AsmType int_register_types[INT_ARGUMENT_LIMIT];
+  AsmTypeNode *int_register_types[INT_ARGUMENT_LIMIT];
   int int_register_count;
   AsmNode *double_register_arguments[DOUBLE_ARGUMENT_LIMIT];
   int double_register_count;
@@ -87,9 +91,9 @@ static void         emit_ir_instruction_binary_signed_division(AsmNode *asm_func
 static void         emit_ir_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Assembly *assembly); 
 static void         emit_ir_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_instruction, Assembly *assembly); 
-static void         emit_ir_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, AsmType asm_source_type, Assembly *assembly); 
+static void         emit_ir_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, AsmTypeNode *asm_source_type, Assembly *assembly); 
 static void         emit_ir_instruction_jump_if_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Assembly *assembly); 
-static void         emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmType asm_source_type, Assembly *assembly); 
+static void         emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmTypeNode *asm_source_type, Assembly *assembly); 
 static void         emit_ir_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Assembly *assembly);   
 static void         emit_ir_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_instruction, Assembly *assembly);
 static void         emit_ir_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Assembly *assembly); 
@@ -106,30 +110,35 @@ static void         emit_ir_instruction_double_to_ulong(AsmNode *asm_function, I
 static void         emit_ir_instruction_get_address(AsmNode *asm_function, IRNode *ir_get_address_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_instruction, Assembly *assembly); 
+static void         emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly);
+static void         emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly);
 static AsmNode*     create_register(AsmRegisterType register_type, Assembly *assembly);
 static AsmNode*     create_signed_imm_operand(long value, Assembly *assembly);
 static AsmNode*     create_memory_operand(AsmRegisterType register_type, int offset, Assembly *assembly);
-static void         emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
+static AsmNode*     create_pseudo_mem_operand(char *identifier, int offset, Assembly *assembly); 
+static AsmNode*     create_indexed_operand(AsmRegisterType base_register, AsmRegisterType index_register, int scale, Assembly *assembly); 
+static void         emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly);
 static void         emit_asm_mov_zero_extend_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly);
 static void         emit_asm_lea_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly); 
-static void         emit_asm_cmp_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmType type, Assembly *assembly);
-static void         emit_asm_binary_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
-static void         emit_asm_div_instruction(AsmNode *function, AsmNode *operand, AsmType type, Assembly *assembly);
-static void         emit_asm_idiv_instruction(AsmNode *function, AsmNode *operand, AsmType type, Assembly *assembly);
+static void         emit_asm_cmp_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmTypeNode *type, Assembly *assembly);
+static void         emit_asm_binary_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmTypeNode *assembly_type, Assembly *assembly); 
+static void         emit_asm_div_instruction(AsmNode *function, AsmNode *operand, AsmTypeNode *type, Assembly *assembly);
+static void         emit_asm_idiv_instruction(AsmNode *function, AsmNode *operand, AsmTypeNode *type, Assembly *assembly);
 static void         emit_asm_push_instruction(AsmNode *function, AsmNode *operand, Assembly *assembly);
-static void         emit_asm_unary_instruction(AsmNode *function, AsmNode *operand, AsmUnaryOpType op_type, AsmType assembly_type, Assembly *assembly); 
+static void         emit_asm_unary_instruction(AsmNode *function, AsmNode *operand, AsmUnaryOpType op_type, AsmTypeNode *assembly_type, Assembly *assembly); 
 static void         emit_asm_label_instruction(AsmNode *function, char *identifier, Assembly *assembly);
-static void         emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly);
-static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly); 
+static void         emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly);
+static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly); 
 static void         emit_asm_jmp_instruction(AsmNode *function, char *identifier, Assembly *assembly); 
 static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly); 
 static void         emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly); 
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
-static Assembly*    init_assembly(DeclarationSymbolTable *declaration_symbol_table);
+static Assembly*    init_assembly(SymbolTable *symbol_table);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
-static void         pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
-static void         replace_pseudo_register(AsmNode *instruction, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
+static void         pseudo_operand_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly); 
+static void         replace_pseudo_register(AsmNode *instruction, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
+static void         replace_pseudo_memory(AsmNode *pseudo_memory, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 static AsmNode*     create_operand(IRNode *ir_operand, Assembly *assembly);
 static AsmNode*     resolve_instructions(AsmNode *function, Assembly *assembly); 
 static ResolveType  resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Assembly *assembly);
@@ -140,27 +149,27 @@ static ResolveType  resolve_binary_instruction(AsmNode *function, AsmNode *instr
 static ResolveType  resolve_binary_mul_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_binary_double_instructions(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
-static ResolveType resolve_lea_instruction(AsmNode *function, AsmNode *lea_instruction, Assembly *assembly); 
+static ResolveType  resolve_lea_instruction(AsmNode *function, AsmNode *lea_instruction, Assembly *assembly); 
 static ResolveType  resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_instruction, Assembly *assembly); 
 static ResolveType  resolve_mov_zero_extend_instruction(AsmNode *function, AsmNode *mov_zero_extend_instruction, Assembly *assembly);
 static ResolveType  resolve_large_imm_operand(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly); 
 static ResolveType  resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvtsi2sd_instruction, Assembly *assembly); 
-static AsmType      convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
-static AsmType      convert_type_to_asm_type(Types type); 
-static Types        get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table); 
-static void         convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table); 
+static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, SymbolTable *symbol_table, Assembly *assembly); 
+static AsmTypeNode* convert_type_to_asm_type(TypeNode *type_node, Assembly *assembly); 
+static Types        get_ir_node_type(IRNode *ir_node, SymbolTable *symbol_table); 
+static void         convert_declaration_table_to_backend_table(SymbolTable *symbol_table, AsmBackendSymbolTable *backend_symbol_table, Assembly *assembly); 
 static int          round_stack_offset(int stack_offset); 
-static bool         is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table);
-static void         print_assembly_type(AsmType type); 
+static bool         is_signed_ir_value_node(IRNode *ir_node, SymbolTable *symbol_table);
+static void         print_assembly_type(AsmTypeNode *type); 
 static GetInstructionTypeResult      get_instruction_type(AsmNode *instruction); 
 static void         create_function_call_arguments(FunctionCallArguments *function_call_arguments, IRNode *ir_function_call_instruction, Assembly *assembly);
-static void         push_function_argument_to_stack_list(AsmNode *argument, AsmType type, StackArgumentList *stack_argument_list); 
+static void         push_function_argument_to_stack_list(AsmNode *argument, AsmTypeNode *type, StackArgumentList *stack_argument_list); 
 static char*        get_register_string(AsmRegisterType register_type); 
 static bool         imm_value_fits_into_int(AsmNode *imm_node);
 
-AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {   
-  Assembly *assembly = init_assembly(declaration_symbol_table);
+AsmNode* generate_assembly(IRNode *ir_nodes, SymbolTable *symbol_table, AsmBackendSymbolTable *backend_symbol_table) {   
+  Assembly *assembly = init_assembly(symbol_table);
 
   AsmNode *program = arena_alloc(assembly->asm_arena);
   program->type = ASM_PROGRAM;
@@ -178,7 +187,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
    }    
   }
 
-  convert_declaration_table_to_backend_table(declaration_symbol_table, backend_symbol_table);
+  convert_declaration_table_to_backend_table(symbol_table, backend_symbol_table, assembly);
 
   for (int i = 0; i < assembly->top_level_declarations->count; i++) {
     AsmNode *top_level_node = assembly->top_level_declarations->asm_pointers[i];
@@ -188,7 +197,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
     }
     
     int stack_offset = 0;
-    pseudo_register_pass(top_level_node, backend_symbol_table, &stack_offset);
+    pseudo_operand_pass(top_level_node, backend_symbol_table, &stack_offset, assembly);
     
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
       panic("First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
@@ -207,7 +216,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, DeclarationSymbolTable *declaration
   return program;
 }
 
-static Assembly* init_assembly(DeclarationSymbolTable *declaration_symbol_table) {
+static Assembly* init_assembly(SymbolTable *symbol_table) {
   Arena *asm_arena = malloc(sizeof(Arena));
   //TODO: Hardcoded capacity
   arena_init(asm_arena, sizeof(AsmNode), sizeof(AsmNode) * 10000, true);
@@ -220,30 +229,44 @@ static Assembly* init_assembly(DeclarationSymbolTable *declaration_symbol_table)
 
   Assembly *assembly = malloc(sizeof(Assembly));
   assembly->asm_arena = asm_arena;
-  assembly->declaration_symbol_table = declaration_symbol_table;
+  assembly->symbol_table = symbol_table;
   assembly->top_level_declarations = top_level_declarations;
   assembly->static_constants = static_constant_node_pointers;
 
-  assembly->register_ax = create_register(ASM_REGISTER_AX, assembly);
-  assembly->register_cx = create_register(ASM_REGISTER_CX, assembly);
-  assembly->register_dx = create_register(ASM_REGISTER_DX, assembly);
-  assembly->register_di = create_register(ASM_REGISTER_DI, assembly);
-  assembly->register_si = create_register(ASM_REGISTER_SI, assembly);
-  assembly->register_r8 = create_register(ASM_REGISTER_R8, assembly);
-  assembly->register_r9 = create_register(ASM_REGISTER_R9, assembly);
-  assembly->register_r10 = create_register(ASM_REGISTER_R10, assembly);
-  assembly->register_r11 = create_register(ASM_REGISTER_R11, assembly);
-  assembly->register_sp = create_register(ASM_REGISTER_SP, assembly);
-  assembly->register_xmm0 = create_register(ASM_REGISTER_XMM0, assembly);
-  assembly->register_xmm1 = create_register(ASM_REGISTER_XMM1, assembly);
-  assembly->register_xmm2 = create_register(ASM_REGISTER_XMM2, assembly);
-  assembly->register_xmm3 = create_register(ASM_REGISTER_XMM3, assembly);
-  assembly->register_xmm4 = create_register(ASM_REGISTER_XMM4, assembly);
-  assembly->register_xmm5 = create_register(ASM_REGISTER_XMM5, assembly);
-  assembly->register_xmm6 = create_register(ASM_REGISTER_XMM6, assembly);
-  assembly->register_xmm7 = create_register(ASM_REGISTER_XMM7, assembly);
+  assembly->register_ax    = create_register(ASM_REGISTER_AX, assembly);
+  assembly->register_cx    = create_register(ASM_REGISTER_CX, assembly);
+  assembly->register_dx    = create_register(ASM_REGISTER_DX, assembly);
+  assembly->register_di    = create_register(ASM_REGISTER_DI, assembly);
+  assembly->register_si    = create_register(ASM_REGISTER_SI, assembly);
+  assembly->register_r8    = create_register(ASM_REGISTER_R8, assembly);
+  assembly->register_r9    = create_register(ASM_REGISTER_R9, assembly);
+  assembly->register_r10   = create_register(ASM_REGISTER_R10, assembly);
+  assembly->register_r11   = create_register(ASM_REGISTER_R11, assembly);
+  assembly->register_sp    = create_register(ASM_REGISTER_SP, assembly);
+  assembly->register_xmm0  = create_register(ASM_REGISTER_XMM0, assembly);
+  assembly->register_xmm1  = create_register(ASM_REGISTER_XMM1, assembly);
+  assembly->register_xmm2  = create_register(ASM_REGISTER_XMM2, assembly);
+  assembly->register_xmm3  = create_register(ASM_REGISTER_XMM3, assembly);
+  assembly->register_xmm4  = create_register(ASM_REGISTER_XMM4, assembly);
+  assembly->register_xmm5  = create_register(ASM_REGISTER_XMM5, assembly);
+  assembly->register_xmm6  = create_register(ASM_REGISTER_XMM6, assembly);
+  assembly->register_xmm7  = create_register(ASM_REGISTER_XMM7, assembly);
   assembly->register_xmm14 = create_register(ASM_REGISTER_XMM14, assembly);    
   assembly->register_xmm15 = create_register(ASM_REGISTER_XMM15, assembly);
+
+  AsmTypeNode *type_longword = malloc(sizeof(AsmTypeNode));
+  type_longword->type = ASM_TYPE_LONGWORD;
+  AsmTypeNode *type_quadword = malloc(sizeof(AsmTypeNode));
+  type_quadword->type = ASM_TYPE_QUADWORD;
+  AsmTypeNode *type_double = malloc(sizeof(AsmTypeNode));
+  type_double->type = ASM_TYPE_DOUBLE;
+  AsmTypeNode *type_byte = malloc(sizeof(AsmTypeNode));
+  type_byte->type = ASM_TYPE_BYTE;
+
+  assembly->type_longword = type_longword;
+  assembly->type_quadword = type_quadword;
+  assembly->type_double   = type_double;
+  assembly->type_byte     = type_byte;
 
   return assembly;
 }
@@ -281,7 +304,7 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
         resolve_type = resolve_cmp_instruction(new_function, instruction, assembly);
         break;
       case ASM_INSTRUCTION_BINARY:
-        if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
+        if (instruction->data.instruction_binary.assembly_type->type == ASM_TYPE_DOUBLE) {
           resolve_type = resolve_binary_double_instructions(new_function, instruction, assembly);
           continue;
         }
@@ -311,6 +334,8 @@ static AsmNode* resolve_instructions(AsmNode *function, Assembly *assembly) {
       case ASM_INSTRUCTION_CVTSI2SD:
         resolve_type = resolve_cvtsi2sd_instruction(new_function, instruction, assembly);
         break;
+      default:
+        break;
     }
 
     if (resolve_type == INSTRUCTION_FIXED) {
@@ -337,21 +362,21 @@ static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruc
   //The quadword versions of binary arithmetic instructions (addq, imulq, and subq) can’t handle immediate values that don’t fit into an int,
   //and neither can cmpq or pushq. If the source of any of these instructions is a constant outside the range of int, we’ll need to copy it into R10 before we can use it.
   if (instruction->type == ASM_INSTRUCTION_BINARY &&
-      instruction->data.instruction_binary.assembly_type == ASM_TYPE_QUADWORD &&
+      instruction->data.instruction_binary.assembly_type->type == ASM_TYPE_QUADWORD &&
       instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_IMM &&
       imm_value_fits_into_int(instruction->data.instruction_binary.operand_1)) {
-    emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
-    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_binary.operand_2, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_r10, assembly->type_quadword, assembly);
+    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_binary.operand_2, assembly->type_quadword, assembly);
 
     return INSTRUCTION_FIXED;
   }
 
   if (instruction->type == ASM_INSTRUCTION_CMP &&
-      instruction->data.instruction_cmp.assembly_type == ASM_TYPE_QUADWORD &&
+      instruction->data.instruction_cmp.assembly_type->type == ASM_TYPE_QUADWORD &&
       instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_IMM &&
       imm_value_fits_into_int(instruction->data.instruction_cmp.operand_1)) {
-    emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_1, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
-    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_cmp.operand_2, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_1, assembly->register_r10, assembly->type_quadword, assembly);
+    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_cmp.operand_2, assembly->type_quadword, assembly);
 
     return INSTRUCTION_FIXED;
   }
@@ -359,19 +384,19 @@ static ResolveType resolve_large_imm_operand(AsmNode *function, AsmNode *instruc
   if (instruction->type == ASM_INSTRUCTION_PUSH &&
       instruction->data.instruction_push.operand->type == ASM_OPERAND_IMM &&
       imm_value_fits_into_int(instruction->data.instruction_push.operand)) {
-    emit_asm_mov_instruction(function, instruction->data.instruction_push.operand, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, instruction->data.instruction_push.operand, assembly->register_r10, assembly->type_quadword, assembly);
     //@Bug: I think we need to push r10 to the stack and not to the operand
-    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_push.operand, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_push.operand, assembly->type_quadword, assembly);
 
     return INSTRUCTION_FIXED;
   }
 
   if (instruction->type == ASM_INSTRUCTION_MOV &&
-      instruction->data.instruction_mov.assembly_type == ASM_TYPE_QUADWORD &&
+      instruction->data.instruction_mov.assembly_type->type == ASM_TYPE_QUADWORD &&
       instruction->data.instruction_mov.source->type == ASM_OPERAND_IMM &&
       imm_value_fits_into_int(instruction->data.instruction_mov.source)) {
-    emit_asm_mov_instruction(function, instruction->data.instruction_mov.source, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
-    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_mov.destination, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, instruction->data.instruction_mov.source, assembly->register_r10, assembly->type_quadword, assembly);
+    emit_asm_mov_instruction(function, assembly->register_r10, instruction->data.instruction_mov.destination, assembly->type_quadword, assembly);
 
     return INSTRUCTION_FIXED;
   }
@@ -397,7 +422,7 @@ static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_i
   new_movsx->type = ASM_INSTRUCTION_MOVSX;
 
   if (movsx_instruction->data.instruction_movsx.source->type == ASM_OPERAND_IMM) {
-    emit_asm_mov_instruction(function, movsx_instruction->data.instruction_movsx.source, assembly->register_r10, ASM_TYPE_LONGWORD, assembly);    
+    emit_asm_mov_instruction(function, movsx_instruction->data.instruction_movsx.source, assembly->register_r10, assembly->type_longword, assembly);    
     new_movsx->data.instruction_movsx.source = assembly->register_r10;
   } else {
     new_movsx->data.instruction_movsx.source = movsx_instruction->data.instruction_movsx.source;
@@ -407,7 +432,7 @@ static ResolveType resolve_movsx_instruction(AsmNode *function, AsmNode *movsx_i
     new_movsx->data.instruction_movsx.destination = assembly->register_r11;
     add_instruction_to_function(function, new_movsx);
 
-    emit_asm_mov_instruction(function, assembly->register_r11, movsx_instruction->data.instruction_movsx.destination, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, assembly->register_r11, movsx_instruction->data.instruction_movsx.destination, assembly->type_quadword, assembly);
   } else {
     new_movsx->data.instruction_movsx.destination = movsx_instruction->data.instruction_movsx.destination;
     add_instruction_to_function(function, new_movsx);
@@ -423,7 +448,7 @@ static ResolveType resolve_lea_instruction(AsmNode *function, AsmNode *lea_instr
 
   //emit_asm_mov_instruction(function, lea_instruction->data.instruction_lea.destination, assembly->register_r10, ASM_TYPE_QUADWORD, assembly);
   emit_asm_lea_instruction(function, lea_instruction->data.instruction_lea.source, assembly->register_r10, assembly);
-  emit_asm_mov_instruction(function, assembly->register_r10, lea_instruction->data.instruction_lea.destination, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(function, assembly->register_r10, lea_instruction->data.instruction_lea.destination, assembly->type_quadword, assembly);
 
   return INSTRUCTION_FIXED;  
 }
@@ -457,8 +482,8 @@ static ResolveType resolve_cvttsd2si_instruction(AsmNode *function, AsmNode *cvt
     return INSTRUCTION_NOT_FIXED;
   }
 
-  emit_asm_cvttsd2si_instruction(function, cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand, assembly->register_r11, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_mov_instruction(function, assembly->register_r11, cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_cvttsd2si_instruction(function, cvttsd2si_instruction->data.instruction_cvttsd2si.source_operand, assembly->register_r11, assembly->type_quadword, assembly);
+  emit_asm_mov_instruction(function, assembly->register_r11, cvttsd2si_instruction->data.instruction_cvttsd2si.destination_operand, assembly->type_quadword, assembly);
   
   return INSTRUCTION_FIXED;
 }
@@ -471,15 +496,15 @@ static ResolveType resolve_cvtsi2sd_instruction(AsmNode *function, AsmNode *cvts
   AsmNode *source_node = cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand;
 
   if (source_node->type == ASM_OPERAND_IMM) {
-    emit_asm_mov_instruction(function, cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand, assembly->register_r10, ASM_TYPE_LONGWORD, assembly);
+    emit_asm_mov_instruction(function, cvtsi2sd_instruction->data.instruction_cvtsi2sd.source_operand, assembly->register_r10, assembly->type_longword, assembly);
     source_node = assembly->register_r10;
   }
 
   if (cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand->type != ASM_OPERAND_REGISTER) {
-    emit_asm_cvtsi2sd_instruction(function, source_node, assembly->register_xmm15, ASM_TYPE_LONGWORD, assembly);
-    emit_asm_mov_instruction(function, assembly->register_xmm15, cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand, ASM_TYPE_DOUBLE, assembly);
+    emit_asm_cvtsi2sd_instruction(function, source_node, assembly->register_xmm15, assembly->type_longword, assembly);
+    emit_asm_mov_instruction(function, assembly->register_xmm15, cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand, assembly->type_double, assembly);
   } else {
-    emit_asm_cvtsi2sd_instruction(function, source_node, cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand, ASM_TYPE_LONGWORD, assembly);
+    emit_asm_cvtsi2sd_instruction(function, source_node, cvtsi2sd_instruction->data.instruction_cvtsi2sd.destination_operand, assembly->type_longword, assembly);
   }
 
   return INSTRUCTION_FIXED;
@@ -499,8 +524,8 @@ static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNod
   }
   
   if (mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_MEMORY) {
-    emit_asm_mov_instruction(function, mov_zero_extend_instruction->data.instruction_mov_zero_extend.source, assembly->register_r11, ASM_TYPE_LONGWORD, assembly);
-    emit_asm_mov_instruction(function, assembly->register_r11, mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_mov_instruction(function, mov_zero_extend_instruction->data.instruction_mov_zero_extend.source, assembly->register_r11, assembly->type_longword, assembly);
+    emit_asm_mov_instruction(function, assembly->register_r11, mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination, assembly->type_quadword, assembly);
 
     return INSTRUCTION_FIXED;
   }
@@ -516,7 +541,7 @@ static ResolveType resolve_binary_mul_instruction(AsmNode *function, AsmNode *in
   
   AsmNode *destination;
 
-  if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
+  if (instruction->data.instruction_binary.assembly_type->type == ASM_TYPE_DOUBLE) {
     destination = assembly->register_xmm15;
   } else {
     destination = assembly->register_r11;
@@ -537,7 +562,7 @@ static ResolveType resolve_binary_instruction(AsmNode *function, AsmNode *instru
 
   AsmNode *destination;
 
-  if (instruction->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
+  if (instruction->data.instruction_binary.assembly_type->type == ASM_TYPE_DOUBLE) {
     destination = assembly->register_xmm15;    
   } else {
     destination = assembly->register_r10;
@@ -560,27 +585,27 @@ static ResolveType resolve_binary_double_instructions(AsmNode *function, AsmNode
     return INSTRUCTION_NOT_FIXED;
   }
 
-  emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_2, assembly->register_xmm15, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_2, assembly->register_xmm15, assembly->type_double, assembly);
   emit_asm_binary_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_xmm15, instruction->data.instruction_binary.binary_op, instruction->data.instruction_binary.assembly_type, assembly);
 
   return INSTRUCTION_FIXED;
 }
-
 
 static ResolveType resolve_binary_shift_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   if (instruction->data.instruction_binary.operand_2->type != ASM_OPERAND_MEMORY) {
     return INSTRUCTION_NOT_FIXED;
   }
 
-  emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_cx, ASM_TYPE_LONGWORD, assembly);
-  emit_asm_binary_instruction(function, assembly->register_cx, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.binary_op, ASM_TYPE_BYTE, assembly);
+  emit_asm_mov_instruction(function, instruction->data.instruction_binary.operand_1, assembly->register_cx, assembly->type_longword, assembly);
+
+  emit_asm_binary_instruction(function, assembly->register_cx, instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.binary_op, assembly->type_byte, assembly);
   
   return INSTRUCTION_FIXED;
 } 
 
 static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instruction, Assembly *assembly) {
   //CMP instructions cannot have both a source and destination as memory addresses
-  if (instruction->data.instruction_cmp.assembly_type != ASM_TYPE_DOUBLE && (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_DATA) && (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_DATA)) {
+  if (instruction->data.instruction_cmp.assembly_type->type != ASM_TYPE_DOUBLE && (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_DATA) && (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_MEMORY || instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_DATA)) {
     emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_1, assembly->register_r10, instruction->data.instruction_cmp.assembly_type, assembly);
     emit_asm_cmp_instruction(function, assembly->register_r10, instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, assembly);
 
@@ -589,16 +614,16 @@ static ResolveType resolve_cmp_instruction(AsmNode *function, AsmNode *instructi
 
   //CMP instructions cannot have a constant as the second operand.
   //TODO: Investigate if this is also needed for sub, add, and imul instructions
-  if (instruction->data.instruction_cmp.assembly_type != ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
+  if (instruction->data.instruction_cmp.assembly_type->type != ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_IMM) {
     emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_2, assembly->register_r11, instruction->data.instruction_cmp.assembly_type, assembly);
     emit_asm_cmp_instruction(function, assembly->register_ax, assembly->register_r11, instruction->data.instruction_cmp.assembly_type, assembly);
 
     return INSTRUCTION_FIXED;
   }
 
-  if (instruction->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_2->type != ASM_OPERAND_REGISTER) {
-    emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_2, assembly->register_xmm15, ASM_TYPE_DOUBLE, assembly);
-    emit_asm_cmp_instruction(function, instruction->data.instruction_cmp.operand_1, assembly->register_xmm15, ASM_TYPE_DOUBLE, assembly);
+  if (instruction->data.instruction_cmp.assembly_type->type == ASM_TYPE_DOUBLE && instruction->data.instruction_cmp.operand_2->type != ASM_OPERAND_REGISTER) {
+    emit_asm_mov_instruction(function, instruction->data.instruction_cmp.operand_2, assembly->register_xmm15, assembly->type_double, assembly);
+    emit_asm_cmp_instruction(function, instruction->data.instruction_cmp.operand_1, assembly->register_xmm15, assembly->type_double, assembly);
 
     return INSTRUCTION_FIXED;
   }
@@ -618,7 +643,7 @@ static ResolveType resolve_mov_instruction(AsmNode *function, AsmNode *instructi
 
     AsmNode *new_destination;
 
-    if (instruction->data.instruction_mov.assembly_type == ASM_TYPE_DOUBLE) {
+    if (instruction->data.instruction_mov.assembly_type->type == ASM_TYPE_DOUBLE) {
       new_destination = assembly->register_xmm15;
     } else {
       new_destination = assembly->register_r10;
@@ -628,7 +653,7 @@ static ResolveType resolve_mov_instruction(AsmNode *function, AsmNode *instructi
 
     AsmNode *new_source;
 
-    if (instruction->data.instruction_mov.assembly_type == ASM_TYPE_DOUBLE) {
+    if (instruction->data.instruction_mov.assembly_type->type == ASM_TYPE_DOUBLE) {
       new_source = assembly->register_xmm15;
     } else {
       new_source = assembly->register_r10;
@@ -639,7 +664,7 @@ static ResolveType resolve_mov_instruction(AsmNode *function, AsmNode *instructi
     return INSTRUCTION_FIXED;
 }
 
-static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
+static void pseudo_operand_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
   
@@ -650,93 +675,133 @@ static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *b
       case ASM_INSTRUCTION_MOV:        
         if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_mov.source, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDOMEM) {        
+         replace_pseudo_memory(instruction->data.instruction_mov.source, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_mov.destination, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_mov.destination, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_MOVSX:
         if (instruction->data.instruction_movsx.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         replace_pseudo_register(instruction->data.instruction_movsx.source, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+         replace_pseudo_register(instruction->data.instruction_movsx.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_movsx.source->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_movsx.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_movsx.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         replace_pseudo_register(instruction->data.instruction_movsx.destination, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+         replace_pseudo_register(instruction->data.instruction_movsx.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_movsx.destination->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_movsx.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
         if (instruction->data.instruction_mov_zero_extend.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         replace_pseudo_register(instruction->data.instruction_mov_zero_extend.source, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+         replace_pseudo_register(instruction->data.instruction_mov_zero_extend.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_mov_zero_extend.source->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_mov_zero_extend.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-         replace_pseudo_register(instruction->data.instruction_mov_zero_extend.destination, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+         replace_pseudo_register(instruction->data.instruction_mov_zero_extend.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_mov_zero_extend.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_unary.operand, instruction->data.instruction_unary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_unary.operand, instruction->data.instruction_unary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_binary.operand_1, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_binary.operand_1, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
 
         if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_IDIV:
         if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_idiv.operand, instruction->data.instruction_idiv.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_idiv.operand, instruction->data.instruction_idiv.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_DIV:
         if (instruction->data.instruction_div.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_div.operand, instruction->data.instruction_div.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_div.operand->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_div.operand, instruction->data.instruction_div.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_CMP:
         if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cmp.operand_1, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cmp.operand_1, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }        
 
         if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }        
         break;
       case ASM_INSTRUCTION_PUSH:
         if (instruction->data.instruction_push.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          replace_pseudo_register(instruction->data.instruction_push.operand, ASM_TYPE_LONGWORD, &stack_location_table, backend_symbol_table, stack_offset);
+          replace_pseudo_register(instruction->data.instruction_push.operand, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_push.operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_push.operand, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_CVTSI2SD:
         if (instruction->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvtsi2sd.source_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvtsi2sd.source_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvtsi2sd.destination_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvtsi2sd.destination_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_CVTTSD2SI:
         if (instruction->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvttsd2si.source_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvttsd2si.source_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvttsd2si.destination_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvttsd2si.destination_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_LEA:
         if (instruction->data.instruction_lea.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          replace_pseudo_register(instruction->data.instruction_lea.source, ASM_TYPE_QUADWORD, &stack_location_table, backend_symbol_table, stack_offset);
+          replace_pseudo_register(instruction->data.instruction_lea.source, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_lea.source->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_lea.source, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_lea.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
-          replace_pseudo_register(instruction->data.instruction_lea.destination, ASM_TYPE_QUADWORD, &stack_location_table, backend_symbol_table, stack_offset);
+          replace_pseudo_register(instruction->data.instruction_lea.destination, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_lea.destination->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_lea.destination, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
         }
       default:
         break;
@@ -744,10 +809,11 @@ static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *b
   }
 }
 
-static void replace_pseudo_register(AsmNode *pseudo_register, AsmType instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
+static void replace_pseudo_register(AsmNode *pseudo_register, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
   if (table_entry != NULL && table_entry->key != NULL) {
+    //Converting pseudo_register operand to memory. First Nulling pseudo_register identifier and then fill in Memory operand.
     pseudo_register->data.operand_pseudo_register.identifier = NULL;
     pseudo_register->type = ASM_OPERAND_MEMORY;
     pseudo_register->data.operand_memory.op_register = ASM_REGISTER_BP;
@@ -774,7 +840,7 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmType instructio
   }
 
   process_pseudo_register:
-      if (instruction_type == ASM_TYPE_QUADWORD || instruction_type == ASM_TYPE_DOUBLE) {
+      if (instruction_type->type == ASM_TYPE_QUADWORD || instruction_type->type == ASM_TYPE_DOUBLE) {
         *stack_offset += 8;
         *stack_offset = round_stack_offset(*stack_offset);
       } else {
@@ -799,6 +865,59 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmType instructio
       pseudo_register->data.operand_memory.op_register = ASM_REGISTER_BP;
 }
 
+static void replace_pseudo_memory(AsmNode *pseudo_memory, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
+  HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_memory->data.operand_pseudo_mem.identifier);
+
+  if (table_entry != NULL && table_entry->key != NULL) {
+    //Converting pseudo_memory operand to memory. First Nulling pseudo_memory identifier and then fill in Memory operand.
+    int pseudo_mem_byte_offset = pseudo_memory->data.operand_pseudo_mem.byte_offset;
+    pseudo_memory->data.operand_pseudo_mem.identifier = NULL;
+    pseudo_memory->type = ASM_OPERAND_MEMORY;
+    pseudo_memory->data.operand_memory.op_register = ASM_REGISTER_BP;
+    pseudo_memory->data.operand_memory.base_offset = table_entry->value->integer + pseudo_mem_byte_offset;
+    return;
+  }  
+
+  HashTableEntry *existing_backend_symbol = hash_table_get_entry(backend_symbol_table->symbol_table, pseudo_memory->data.operand_pseudo_mem.identifier);
+
+  if (existing_backend_symbol != NULL && existing_backend_symbol->key != NULL) {    
+    AsmBackendSymbol *symbol = existing_backend_symbol->value->structure;    
+
+    if (symbol->type == ASM_SYMBOL_FUNCTION_ENTRY) {
+      panic("ASM backend function symbol '%s' found when attempting to resolve pseudo memory.", existing_backend_symbol->key);
+    }
+    
+    if (!symbol->data.object_entry.is_static) {
+      goto process_pseudo_memory;
+    }
+    
+    pseudo_memory->type = ASM_OPERAND_DATA;
+    pseudo_memory->data.operand_data.identifier = pseudo_memory->data.operand_pseudo_mem.identifier;
+    return;
+  }
+
+  process_pseudo_memory: {  
+      *stack_offset += pseudo_memory->data.operand_pseudo_mem.byte_offset;
+
+      HashValue value = {
+        .integer = *stack_offset,
+        .type = HASH_INT
+      };
+  
+      HashTableEntry new_entry = {
+        .key = pseudo_memory->data.operand_pseudo_mem.identifier,
+        .value = &value
+      };
+
+      hash_table_add_entry(stack_location_table, &new_entry);    
+
+      pseudo_memory->type = ASM_OPERAND_MEMORY;
+      pseudo_memory->data.operand_pseudo_mem.identifier = NULL;
+      pseudo_memory->data.operand_memory.base_offset = *stack_offset;
+      pseudo_memory->data.operand_memory.op_register = ASM_REGISTER_BP;
+  }
+}
+
 static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembly *assembly) {
   asm_function->type = ASM_FUNCTION;
   asm_function->data.function.name = ir_function->data.function.identifier;
@@ -818,17 +937,17 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
   int floating_point_register_count = 0;
 
   for (int i = 0; i < ir_function->data.function.parameter_count; i++) {    
-    HashTableEntry *parameter_variable_symbol_entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ir_function->data.function.parameter_identifiers[i]);
+    HashTableEntry *parameter_variable_symbol_entry = hash_table_get_entry(assembly->symbol_table->symbol_table, ir_function->data.function.parameter_identifiers[i]);
 
     if (parameter_variable_symbol_entry == NULL || parameter_variable_symbol_entry->key == NULL) {
       panic("Could not find '%s' function parameter identifier in symbol table", ir_function->data.function.identifier);
     }
 
-    Types parameter_type = ((DeclarationSymbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type->type;
+    TypeNode *parameter_type = ((Symbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type;
     
     AsmNode *source_operand = arena_alloc(assembly->asm_arena);
 
-    if (parameter_type != TYPE_DOUBLE && general_register_count < 6) {
+    if (parameter_type->type != TYPE_DOUBLE && general_register_count < 6) {
       switch (general_register_count) {
         case 0:   source_operand->data.operand_register.op_register = ASM_REGISTER_DI; break;
         case 1:   source_operand->data.operand_register.op_register = ASM_REGISTER_SI; break;
@@ -840,7 +959,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
     
       source_operand->type = ASM_OPERAND_REGISTER;
       general_register_count++;
-    } else if (parameter_type == TYPE_DOUBLE && floating_point_register_count < 8) {
+    } else if (parameter_type->type == TYPE_DOUBLE && floating_point_register_count < 8) {
       switch (floating_point_register_count) {
         case 0:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM0; break;
         case 1:   source_operand->data.operand_register.op_register = ASM_REGISTER_XMM1; break;
@@ -865,7 +984,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
     destination_pseudo_register->type = ASM_OPERAND_PSEUDO_REGISTER;
     destination_pseudo_register->data.operand_pseudo_register.identifier = ir_function->data.function.parameter_identifiers[i];
 
-    AsmType assembly_type = convert_type_to_asm_type(parameter_type); 
+    AsmTypeNode *assembly_type = convert_type_to_asm_type(parameter_type, assembly); 
 
     emit_asm_mov_instruction(asm_function, source_operand, destination_pseudo_register, assembly_type, assembly);
   }
@@ -878,10 +997,10 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
         emit_ir_instruction_return(asm_function, current_ir_node, assembly);
         break;
       case IR_INSTRUCTION_UNARY: {
-        AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_unary.source, assembly->declaration_symbol_table);
+        AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_unary.source, assembly->symbol_table, assembly);
 
         if (current_ir_node->data.instruction_unary.op_type != IR_UNARY_NOT) {
-          if (current_ir_node->data.instruction_unary.op_type == IR_UNARY_NEGATE && source_type == ASM_TYPE_DOUBLE) {
+          if (current_ir_node->data.instruction_unary.op_type == IR_UNARY_NEGATE && source_type->type == ASM_TYPE_DOUBLE) {
             emit_ir_instruction_unary_negation_double(asm_function, current_ir_node, assembly); 
             continue;
           }
@@ -890,7 +1009,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           continue;
         }
 
-        if (source_type == ASM_TYPE_DOUBLE) {
+        if (source_type->type == ASM_TYPE_DOUBLE) {
           emit_ir_instruction_unary_not_double(asm_function, current_ir_node, assembly);
           continue;
         } 
@@ -919,13 +1038,13 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
             emit_ir_instruction_binary_relational(asm_function, current_ir_node, assembly);
             break;
           case IR_BINARY_DIVIDE: {
-            AsmType source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, assembly->declaration_symbol_table);
-            AsmType source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, assembly->declaration_symbol_table);
+            AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_1, assembly->symbol_table, assembly);
+            AsmTypeNode *source_2_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_binary.source_2, assembly->symbol_table, assembly);
 
-            if (source_1_type == ASM_TYPE_DOUBLE || source_2_type == ASM_TYPE_DOUBLE) {
+            if (source_1_type->type == ASM_TYPE_DOUBLE || source_2_type->type == ASM_TYPE_DOUBLE) {
               emit_ir_instruction_binary(asm_function, current_ir_node, assembly);
             } else {
-              if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->declaration_symbol_table)) {
+              if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->symbol_table)) {
                 emit_ir_instruction_binary_signed_division(asm_function, current_ir_node, assembly);            
               } else {
                 emit_ir_instruction_binary_unsigned_division(asm_function, current_ir_node, assembly);
@@ -934,7 +1053,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
             break;
           }
           case IR_BINARY_REMAINDER:
-            if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->declaration_symbol_table)) {
+            if (is_signed_ir_value_node(current_ir_node->data.instruction_binary.destination, assembly->symbol_table)) {
               emit_ir_instruction_binary_signed_division(asm_function, current_ir_node, assembly);            
             } else {
               emit_ir_instruction_binary_unsigned_division(asm_function, current_ir_node, assembly);
@@ -946,9 +1065,9 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           emit_ir_instruction_jump(asm_function, current_ir_node, assembly);
           break;
         case IR_INSTRUCTION_JUMP_IF_ZERO: {
-          AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_zero.condition, assembly->declaration_symbol_table);
+          AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_zero.condition, assembly->symbol_table, assembly);
 
-          if (source_type == ASM_TYPE_DOUBLE) {
+          if (source_type->type == ASM_TYPE_DOUBLE) {
             emit_ir_instruction_jump_if_zero_double(asm_function, current_ir_node, assembly);
           } else {
             emit_ir_instruction_jump_if_zero_integer(asm_function, current_ir_node, source_type, assembly);
@@ -956,9 +1075,9 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           break;
         }
         case IR_INSTRUCTION_JUMP_IF_NOT_ZERO: {
-          AsmType source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_not_zero.condition, assembly->declaration_symbol_table);
+          AsmTypeNode *source_type = convert_ir_value_to_asm_type(current_ir_node->data.instruction_jump_if_not_zero.condition, assembly->symbol_table, assembly);
 
-          if (source_type == ASM_TYPE_DOUBLE) {
+          if (source_type->type == ASM_TYPE_DOUBLE) {
             emit_ir_instruction_jump_if_not_zero_double(asm_function, current_ir_node, assembly);
           } else {
             emit_ir_instruction_jump_if_not_zero_integer(asm_function, current_ir_node, source_type, assembly);
@@ -967,6 +1086,12 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
         }
         case IR_INSTRUCTION_COPY:
           emit_ir_instruction_copy(asm_function, current_ir_node, assembly);
+          break;
+        case IR_INSTRUCTION_COPY_TO_OFFSET:
+          emit_ir_instruction_copy_to_offset(asm_function, current_ir_node, assembly);
+          break;
+        case IR_INSTRUCTION_ADD_POINTER:
+          emit_ir_instruction_add_pointer(asm_function, current_ir_node, assembly);
           break;
         case IR_INSTRUCTION_LABEL:
           emit_ir_instruction_label(asm_function, current_ir_node, assembly);
@@ -999,7 +1124,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           emit_ir_instruction_cvttsd2si(asm_function, current_ir_node, assembly);
           break;
         case IR_INSTRUCTION_UINT_TO_DOUBLE: {
-          Types type = get_ir_node_type(current_ir_node->data.instruction_uint_to_double.source, assembly->declaration_symbol_table);
+          Types type = get_ir_node_type(current_ir_node->data.instruction_uint_to_double.source, assembly->symbol_table);
 
           if (type == TYPE_UINT) {
             emit_ir_instruction_uint_to_double(asm_function, current_ir_node, assembly);
@@ -1010,7 +1135,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
           break;
         }
         case IR_INSTRUCTION_DOUBLE_TO_UINT: {
-          Types type = get_ir_node_type(current_ir_node->data.instruction_double_to_uint.source, assembly->declaration_symbol_table);
+          Types type = get_ir_node_type(current_ir_node->data.instruction_double_to_uint.source, assembly->symbol_table);
 
           if (type == TYPE_UINT) {
             emit_ir_instruction_double_to_uint(asm_function, current_ir_node, assembly);
@@ -1094,9 +1219,9 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   TypeNode *double_type_node = malloc(sizeof(TypeNode));
   double_type_node->type = TYPE_DOUBLE;
   
-  add_static_variable_declaration_symbol(assembly->declaration_symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
+  add_static_variable_symbol(assembly->symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
   
-  DeclarationSymbol *symbol = get_declaration_symbol(constant_label, assembly->declaration_symbol_table, true);
+  Symbol *symbol = get_symbol(constant_label, assembly->symbol_table, true);
 
   AsmNode *static_constant = arena_alloc(assembly->asm_arena);
   static_constant->type = ASM_STATIC_CONSTANT;
@@ -1116,7 +1241,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
 
 static void emit_ir_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Assembly *assembly) {
   AsmNode *imm_operand = create_signed_imm_operand(bytes, assembly);
-  emit_asm_binary_instruction(asm_function, imm_operand, assembly->register_sp, ASM_BINARY_SUB, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_binary_instruction(asm_function, imm_operand, assembly->register_sp, ASM_BINARY_SUB, assembly->type_quadword, assembly);
 }
 
 static void emit_ir_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Assembly *assembly) {
@@ -1131,7 +1256,7 @@ static void emit_ir_instruction_copy(AsmNode *asm_function, IRNode *ir_copy_inst
   AsmNode *source = create_operand(ir_copy_instruction->data.instruction_copy.source, assembly);
   AsmNode *destination = create_operand(ir_copy_instruction->data.instruction_copy.destination, assembly);
 
-  AsmType source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, assembly->declaration_symbol_table);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_instruction->data.instruction_copy.source, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source, destination, source_type, assembly);
 }
@@ -1144,7 +1269,7 @@ static void emit_ir_instruction_jump(AsmNode *asm_function, IRNode *ir_jump_inst
   add_instruction_to_function(asm_function, jmp_instruction); 
 }
 
-static void emit_ir_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, AsmType asm_source_type, Assembly *assembly) {
+static void emit_ir_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, AsmTypeNode *asm_source_type, Assembly *assembly) {
   AsmNode *imm = create_signed_imm_operand(0, assembly);
   AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
@@ -1155,15 +1280,15 @@ static void emit_ir_instruction_jump_if_zero_integer(AsmNode *asm_function, IRNo
 static void emit_ir_instruction_jump_if_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_zero_instruction, Assembly *assembly) {
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
 
-  emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, assembly->type_double, assembly);
 
   AsmNode *condition = create_operand(ir_jump_if_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
-  emit_asm_cmp_instruction(asm_function, condition, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_cmp_instruction(asm_function, condition, assembly->register_xmm14, assembly->type_double, assembly);
   emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_EQUAL, ir_jump_if_zero_instruction->data.instruction_jump_if_zero.target, assembly);
 }
 
-static void emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmType source_asm_type, Assembly *assembly) {
+static void emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, AsmTypeNode *source_asm_type, Assembly *assembly) {
   AsmNode *imm = create_signed_imm_operand(0, assembly);
   AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_not_zero.condition, assembly);
 
@@ -1173,11 +1298,11 @@ static void emit_ir_instruction_jump_if_not_zero_integer(AsmNode *asm_function, 
 
 static void emit_ir_instruction_jump_if_not_zero_double(AsmNode *asm_function, IRNode *ir_jump_if_not_zero_instruction, Assembly *assembly) {  
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
-  emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, assembly->type_double, assembly);
 
   AsmNode *condition = create_operand(ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.condition, assembly);
 
-  emit_asm_cmp_instruction(asm_function, condition, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_cmp_instruction(asm_function, condition, assembly->register_xmm14, assembly->type_double, assembly);
   emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_NOT_EQUAL, ir_jump_if_not_zero_instruction->data.instruction_jump_if_zero.target, assembly);
 }
 
@@ -1186,7 +1311,7 @@ static void emit_ir_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
 
-  AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source_1, destination_node, source_1_type, assembly);
 
@@ -1213,8 +1338,8 @@ static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode 
   AsmNode *source = create_operand(ir_unary_not_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.instruction_unary.destination, assembly);
 
-  AsmType source_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.source, assembly->declaration_symbol_table);
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->declaration_symbol_table);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.source, assembly->symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->symbol_table, assembly);
   
   AsmNode *imm_operand = create_signed_imm_operand(0, assembly);
 
@@ -1226,16 +1351,16 @@ static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode 
 static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Assembly *assembly) {
   AsmNode *source = create_operand(ir_unary_not_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.instruction_unary.destination, assembly);
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->declaration_symbol_table);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->symbol_table, assembly);
 
   //TODO: Using XMM14 and 15 since 1-7 are reserved for loading function arguments in System V ABI. Confirm that using this is okay.
-  emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);  
-  emit_asm_cmp_instruction(asm_function, source, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_binary_instruction(asm_function, assembly->register_xmm14, assembly->register_xmm14, ASM_BINARY_BITWISE_XOR, assembly->type_double, assembly);  
+  emit_asm_cmp_instruction(asm_function, source, assembly->register_xmm14, assembly->type_double, assembly);
 
   AsmNode *imm = create_signed_imm_operand(0, assembly);
 
-  if (destination_type == ASM_TYPE_DOUBLE) {
-    emit_asm_mov_instruction(asm_function, imm, destination_node, ASM_TYPE_QUADWORD, assembly);
+  if (destination_type->type == ASM_TYPE_DOUBLE) {
+    emit_asm_mov_instruction(asm_function, imm, destination_node, assembly->type_quadword, assembly);
   } else {
     emit_asm_mov_instruction(asm_function, imm, destination_node, destination_type, assembly);
   }
@@ -1248,22 +1373,22 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
   AsmNode *source_2 = create_operand(ir_relational_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_relational_instruction->data.instruction_binary.destination, assembly);
 
-  AsmType source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
-  AsmType source_2_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_2, assembly->declaration_symbol_table);
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, assembly->declaration_symbol_table);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
+  AsmTypeNode *source_2_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.source_2, assembly->symbol_table, assembly);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_relational_instruction->data.instruction_binary.destination, assembly->symbol_table, assembly);
 
   emit_asm_cmp_instruction(asm_function, source_2, source_1, source_1_type, assembly);
 
   AsmNode *imm_operand = create_signed_imm_operand(0, assembly);
 
-  if (source_1_type == ASM_TYPE_DOUBLE || source_2_type == ASM_TYPE_DOUBLE) {
-    emit_asm_mov_instruction(asm_function, imm_operand, destination_node, ASM_TYPE_LONGWORD, assembly);
+  if (source_1_type->type == ASM_TYPE_DOUBLE || source_2_type->type == ASM_TYPE_DOUBLE) {
+    emit_asm_mov_instruction(asm_function, imm_operand, destination_node, assembly->type_longword, assembly);
   } else {
     emit_asm_mov_instruction(asm_function, imm_operand, destination_node, destination_type, assembly);
   }
   AsmConditionCode relational_op;
 
-  bool is_signed_condition = is_signed_ir_value_node(ir_relational_instruction->data.instruction_binary.destination, assembly->declaration_symbol_table);
+  bool is_signed_condition = is_signed_ir_value_node(ir_relational_instruction->data.instruction_binary.destination, assembly->symbol_table);
 
   switch (ir_relational_instruction->data.instruction_binary.op_type) {
     case IR_BINARY_EQUAL:              relational_op = ASM_CONDITION_EQUAL; break;
@@ -1284,7 +1409,7 @@ static void emit_ir_instruction_binary_signed_division(AsmNode *asm_function, co
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
 
-  AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
 
   //@Bug: When dividing with DOUBLE Type
   emit_asm_mov_instruction(asm_function, source_1, assembly->register_ax, source_1_type, assembly);
@@ -1314,7 +1439,7 @@ static void emit_ir_instruction_binary_unsigned_division(AsmNode *asm_function, 
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
 
-  AsmType source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->declaration_symbol_table);
+  AsmTypeNode *source_1_type = convert_ir_value_to_asm_type(ir_binary_instruction->data.instruction_binary.source_1, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source_1, assembly->register_ax, source_1_type, assembly);
 
@@ -1339,7 +1464,7 @@ static void emit_ir_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_in
   AsmNode *source_node = create_operand(ir_unary_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_instruction->data.instruction_unary.destination, assembly);
 
-  AsmType source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.instruction_unary.source, assembly->declaration_symbol_table);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_unary_instruction->data.instruction_unary.source, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, source_node, destination_node, source_type, assembly);
   
@@ -1358,22 +1483,22 @@ static void emit_ir_instruction_unary_negation_double(AsmNode *asm_function, IRN
   AsmNode *source_node = create_operand(ir_unary_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_instruction->data.instruction_unary.destination, assembly);
 
-  emit_asm_mov_instruction(asm_function, source_node, destination_node, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_mov_instruction(asm_function, source_node, destination_node, assembly->type_double, assembly);
 
   AsmNode *data_node = emit_static_constant(-0.0, 16, assembly); 
 
-  emit_asm_binary_instruction(asm_function, data_node, source_node, ASM_BINARY_BITWISE_XOR, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_binary_instruction(asm_function, data_node, source_node, ASM_BINARY_BITWISE_XOR, assembly->type_double, assembly);
 }
 
 static void emit_ir_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Assembly *assembly) {
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
     AsmNode *source_node = create_operand(ir_return_instruction->data.instruction_ret.value, assembly);
-    AsmType source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, assembly->declaration_symbol_table);
+    AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_return_instruction->data.instruction_ret.value, assembly->symbol_table, assembly);
 
     AsmNode *destination_node;
 
-    if (source_type == ASM_TYPE_DOUBLE) {
+    if (source_type->type == ASM_TYPE_DOUBLE) {
       destination_node = assembly->register_xmm0;  
     } else {
       destination_node = assembly->register_ax;  
@@ -1415,14 +1540,14 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
   AsmNode *double_arg_registers[8] = { assembly->register_xmm0, assembly->register_xmm1, assembly->register_xmm2, assembly->register_xmm3, assembly->register_xmm4, assembly->register_xmm5, assembly->register_xmm6, assembly->register_xmm7 };
 
   for (int i = 0; i < function_call_args->double_register_count; i++) {    
-    emit_asm_mov_instruction(asm_function, function_call_args->double_register_arguments[i], double_arg_registers[i], ASM_TYPE_DOUBLE, assembly);
+    emit_asm_mov_instruction(asm_function, function_call_args->double_register_arguments[i], double_arg_registers[i], assembly->type_double, assembly);
   }
 
   for (int i = function_call_args->stack_arguments->count - 1; i >= 0; i--) {
     AsmNode *argument = &function_call_args->stack_arguments->arguments[i];
-    AsmType argument_type = function_call_args->stack_arguments->argument_types[i];
+    AsmTypeNode *argument_type = &function_call_args->stack_arguments->argument_types[i];
 
-    if (argument->type == ASM_OPERAND_PSEUDO_REGISTER || argument->type == ASM_OPERAND_IMM || argument_type == ASM_TYPE_QUADWORD || argument_type == ASM_TYPE_DOUBLE) {
+    if (argument->type == ASM_OPERAND_PSEUDO_REGISTER || argument->type == ASM_OPERAND_IMM || argument_type->type == ASM_TYPE_QUADWORD || argument_type->type == ASM_TYPE_DOUBLE) {
       emit_asm_push_instruction(asm_function, argument, assembly);
     } else {
       emit_asm_mov_instruction(asm_function, argument, assembly->register_ax, argument_type, assembly);
@@ -1441,25 +1566,25 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
 
   if (bytes_to_remove != 0) {
     AsmNode *bytes_to_remove_imm_node = create_signed_imm_operand(bytes_to_remove, assembly);
-    emit_asm_binary_instruction(asm_function, bytes_to_remove_imm_node, assembly->register_sp, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
+    emit_asm_binary_instruction(asm_function, bytes_to_remove_imm_node, assembly->register_sp, ASM_BINARY_ADD, assembly->type_quadword, assembly);
   }
   
   //retrieve return value 
   AsmNode *assembly_destination = create_operand(ir_function_call_instruction->data.instruction_function_call.destination, assembly);
 
-  DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_function_call_instruction->data.instruction_function_call.identifier, assembly->declaration_symbol_table, true);
+  Symbol *symbol = get_symbol(ir_function_call_instruction->data.instruction_function_call.identifier, assembly->symbol_table, true);
   
-  AsmType return_type = convert_type_to_asm_type(declaration_symbol->data.function_symbol->value_type->type);
+  AsmTypeNode *return_type = convert_type_to_asm_type(symbol->data.function_symbol->value_type, assembly);
 
   AsmNode *dest_register;
    
-  if (return_type == ASM_TYPE_DOUBLE) {
+  if (return_type->type == ASM_TYPE_DOUBLE) {
     dest_register = assembly->register_xmm0; 
   } else {
     dest_register = assembly->register_ax;
   }
   
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, assembly->declaration_symbol_table);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_function_call_instruction->data.instruction_function_call.destination, assembly->symbol_table, assembly);
 
   emit_asm_mov_instruction(asm_function, dest_register, assembly_destination, destination_type, assembly); 
 }
@@ -1484,7 +1609,7 @@ static void emit_ir_instruction_truncate(AsmNode *asm_function, IRNode *ir_trunc
   AsmNode *source = create_operand(ir_truncate_instruction->data.instruction_truncate.source, assembly); 
   AsmNode *destination = create_operand(ir_truncate_instruction->data.instruction_truncate.destination, assembly);   
 
-  emit_asm_mov_instruction(asm_function, source, destination, ASM_TYPE_LONGWORD, assembly);
+  emit_asm_mov_instruction(asm_function, source, destination, assembly->type_longword, assembly);
 }
 
 static void add_instruction_to_function(AsmNode *function, AsmNode *instruction) {
@@ -1495,7 +1620,7 @@ static void add_instruction_to_function(AsmNode *function, AsmNode *instruction)
 static void emit_ir_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_int_to_double.destination, assembly);
-  AsmType source_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly->declaration_symbol_table);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly->symbol_table, assembly);
 
   emit_asm_cvtsi2sd_instruction(asm_function, source_node, destination_node, source_type, assembly);
 }
@@ -1503,7 +1628,7 @@ static void emit_ir_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_t
 static void emit_ir_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.source, assembly);
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly);
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly->declaration_symbol_table);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly->symbol_table, assembly);
 
   emit_asm_cvttsd2si_instruction(asm_function, source_node, destination_node, destination_type, assembly);
 }
@@ -1513,13 +1638,13 @@ static void emit_ir_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir
   AsmNode *destination_node = create_operand(ir_uint_to_double_instruction->data.instruction_uint_to_double.destination, assembly);
 
   emit_asm_mov_zero_extend_instruction(asm_function, source_node, assembly->register_ax, assembly);
-  emit_asm_cvtsi2sd_instruction(asm_function, assembly->register_ax, destination_node, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_cvtsi2sd_instruction(asm_function, assembly->register_ax, destination_node, assembly->type_quadword, assembly);
 }
 
 static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.destination, assembly);
-  AsmType source_type = convert_ir_value_to_asm_type(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly->declaration_symbol_table);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly->symbol_table, assembly);
   AsmNode *imm_0 = create_signed_imm_operand(0, assembly);  
 
   emit_asm_cmp_instruction(asm_function, imm_0, source_node, source_type, assembly);
@@ -1530,7 +1655,7 @@ static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *i
   snprintf(label_1_name, 32, "%ULongToDbl_CC.d", label1++); 
 
   emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_LESS, label_1_name, assembly);
-  emit_asm_cvtsi2sd_instruction(asm_function, source_node, destination_node, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_cvtsi2sd_instruction(asm_function, source_node, destination_node, assembly->type_quadword, assembly);
 
   static int label2 = 0;
 
@@ -1539,16 +1664,16 @@ static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *i
 
   emit_asm_jmp_instruction(asm_function, label_2_name, assembly);
   emit_asm_label_instruction(asm_function, label_1_name, assembly);
-  emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_mov_instruction(asm_function, assembly->register_ax, assembly->register_cx, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_unary_instruction(asm_function, assembly->register_cx, ASM_UNARY_SHR, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, assembly->type_quadword, assembly);
+  emit_asm_mov_instruction(asm_function, assembly->register_ax, assembly->register_cx, assembly->type_quadword, assembly);
+  emit_asm_unary_instruction(asm_function, assembly->register_cx, ASM_UNARY_SHR, assembly->type_quadword, assembly);
 
   AsmNode *imm_1 = create_signed_imm_operand(1, assembly);
 
-  emit_asm_binary_instruction(asm_function, imm_1, assembly->register_ax, ASM_BINARY_BITWISE_AND, ASM_TYPE_QUADWORD, assembly);  
-  emit_asm_binary_instruction(asm_function, assembly->register_ax, assembly->register_cx, ASM_BINARY_BITWISE_OR, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_cvtsi2sd_instruction(asm_function, assembly->register_ax, destination_node, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_binary_instruction(asm_function, destination_node, destination_node, ASM_BINARY_ADD, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_binary_instruction(asm_function, imm_1, assembly->register_ax, ASM_BINARY_BITWISE_AND, assembly->type_quadword, assembly);  
+  emit_asm_binary_instruction(asm_function, assembly->register_ax, assembly->register_cx, ASM_BINARY_BITWISE_OR, assembly->type_quadword, assembly);
+  emit_asm_cvtsi2sd_instruction(asm_function, assembly->register_ax, destination_node, assembly->type_quadword, assembly);
+  emit_asm_binary_instruction(asm_function, destination_node, destination_node, ASM_BINARY_ADD, assembly->type_double, assembly);
   emit_asm_label_instruction(asm_function, label_2_name, assembly);
 }
 
@@ -1556,15 +1681,15 @@ static void emit_ir_instruction_double_to_uint(AsmNode *asm_function, IRNode *ir
   AsmNode *source_node = create_operand(ir_double_to_uint_instruction->data.instruction_double_to_uint.source, assembly);
   AsmNode *destination_node = create_operand(ir_double_to_uint_instruction->data.instruction_double_to_uint.destination, assembly);
 
-  emit_asm_cvttsd2si_instruction(asm_function, source_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_mov_instruction(asm_function, assembly->register_ax, destination_node, ASM_TYPE_LONGWORD, assembly);
+  emit_asm_cvttsd2si_instruction(asm_function, source_node, assembly->register_ax, assembly->type_quadword, assembly);
+  emit_asm_mov_instruction(asm_function, assembly->register_ax, destination_node, assembly->type_longword, assembly);
 }
 
 static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_double_to_ulong_instruction, Assembly *assembly) {
   AsmNode *source_node = create_operand(ir_double_to_ulong_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_double_to_ulong_instruction->data.instruction_uint_to_double.destination, assembly);
 
-  HashTableEntry *entry = hash_table_get_entry(assembly->declaration_symbol_table->symbol_table, ".MAX_LONG");
+  HashTableEntry *entry = hash_table_get_entry(assembly->symbol_table->symbol_table, ".MAX_LONG");
 
   if (entry == NULL || entry->key == NULL) {
     InitialValue max_long_init = { .type = INITIAL_VALUE_TYPE_LONG, .data.long_value = LONG_MAX };
@@ -1576,12 +1701,12 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
     TypeNode *long_type_node = malloc(sizeof(TypeNode));
     long_type_node->type = TYPE_LONG;
 
-    add_static_variable_declaration_symbol(assembly->declaration_symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
+    add_static_variable_symbol(assembly->symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
   }
 
   AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, assembly);
 
-  emit_asm_cmp_instruction(asm_function, upper_bound_data, source_node, ASM_TYPE_DOUBLE, assembly);
+  emit_asm_cmp_instruction(asm_function, upper_bound_data, source_node, assembly->type_double, assembly);
 
   static int label_1_index = 0;
 
@@ -1590,7 +1715,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
 
   //TODO: This may need to be just 'above' since upper bound data is not 'max long + 1', only 'max long'
   emit_asm_jmpcc_instruction(asm_function, ASM_CONDITION_ABOVE_EQUAL, label_1_name, assembly);
-  emit_asm_cvttsd2si_instruction(asm_function, source_node, destination_node, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_cvttsd2si_instruction(asm_function, source_node, destination_node, assembly->type_quadword, assembly);
     
   static int label_2_index = 0;
 
@@ -1599,14 +1724,14 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
 
   emit_asm_jmp_instruction(asm_function, label_2_name, assembly);
   emit_asm_label_instruction(asm_function, label_1_name, assembly);
-  emit_asm_mov_instruction(asm_function, source_node, assembly->register_xmm14, ASM_TYPE_DOUBLE, assembly);
-  emit_asm_binary_instruction(asm_function, upper_bound_data, assembly->register_xmm14, ASM_BINARY_SUB, ASM_TYPE_DOUBLE, assembly);
-  emit_asm_cvttsd2si_instruction(asm_function, assembly->register_xmm14, destination_node, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(asm_function, source_node, assembly->register_xmm14, assembly->type_double, assembly);
+  emit_asm_binary_instruction(asm_function, upper_bound_data, assembly->register_xmm14, ASM_BINARY_SUB, assembly->type_double, assembly);
+  emit_asm_cvttsd2si_instruction(asm_function, assembly->register_xmm14, destination_node, assembly->type_quadword, assembly);
 
   AsmNode *imm = create_signed_imm_operand(LONG_MAX, assembly);
 
-  emit_asm_mov_instruction(asm_function, imm, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
-  emit_asm_binary_instruction(asm_function, assembly->register_ax, destination_node, ASM_BINARY_ADD, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(asm_function, imm, assembly->register_ax, assembly->type_quadword, assembly);
+  emit_asm_binary_instruction(asm_function, assembly->register_ax, destination_node, ASM_BINARY_ADD, assembly->type_quadword, assembly);
   emit_asm_label_instruction(asm_function, label_2_name, assembly);
 }
 
@@ -1621,9 +1746,9 @@ static void emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_inst
   AsmNode *source_node = create_operand(ir_load_instruction->data.instruction_load.source_pointer, assembly);
   AsmNode *destination_node = create_operand(ir_load_instruction->data.instruction_load.destination, assembly);
 
-  emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(asm_function, source_node, assembly->register_ax, assembly->type_quadword, assembly);
 
-  AsmType destination_type = convert_ir_value_to_asm_type(ir_load_instruction->data.instruction_load.destination, assembly->declaration_symbol_table);
+  AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_load_instruction->data.instruction_load.destination, assembly->symbol_table, assembly);
   AsmNode *memory_operand = create_memory_operand(ASM_REGISTER_AX, 0, assembly);
   
   emit_asm_mov_instruction(asm_function, memory_operand, destination_node, destination_type, assembly);
@@ -1633,12 +1758,71 @@ static void emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_in
   AsmNode *source_node = create_operand(ir_store_instruction->data.instruction_store.source, assembly);
   AsmNode *destination_node = create_operand(ir_store_instruction->data.instruction_store.destination_pointer, assembly);
 
-  emit_asm_mov_instruction(asm_function, destination_node, assembly->register_ax, ASM_TYPE_QUADWORD, assembly);
+  emit_asm_mov_instruction(asm_function, destination_node, assembly->register_ax, assembly->type_quadword, assembly);
 
-  AsmType source_type = convert_ir_value_to_asm_type(ir_store_instruction->data.instruction_load.source_pointer, assembly->declaration_symbol_table);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_store_instruction->data.instruction_load.source_pointer, assembly->symbol_table, assembly);
+
   AsmNode *memory_operand = create_memory_operand(ASM_REGISTER_AX, 0, assembly);
   
   emit_asm_mov_instruction(asm_function, memory_operand, source_node, source_type, assembly);
+}
+
+static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly) {
+  AsmNode *source = create_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly);
+  AsmNode *pseudo_mem = create_pseudo_mem_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.destination_identifier,  ir_copy_to_offset_instruction->data.instruction_copy_to_offset.offset, assembly);
+  AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly->symbol_table, assembly);
+  
+  emit_asm_mov_instruction(asm_function, source, pseudo_mem, source_type, assembly);
+}
+
+static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly) {
+  AsmNode *pointer = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
+  AsmNode *destination = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.destination, assembly);
+
+  Types index_type = get_ir_node_type(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly->symbol_table);
+
+  if (ir_add_pointer_instruction->data.instruction_add_pointer.index->type == IR_VALUE_CONSTANT) {
+    //@Warning - 2/2/26: In the function, there are assumptions that the IR node is a constant, that it is a long type. Anything other than a long looks to being casted to a long. Need to check whether this is valid logic. Until then, keep the panic below in case we see any deviations from my initial assumption. 
+    if (ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.type->type != TYPE_LONG) {
+      panic("Expected Long index value when attempting to create add pointer instruction");
+    }
+
+    int offset = ir_add_pointer_instruction->data.instruction_add_pointer.scale * ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_constant.value.long_value;
+    AsmNode *memory_operand = create_memory_operand(ASM_REGISTER_AX, offset, assembly);
+
+    emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, assembly->type_quadword, assembly);
+    emit_asm_lea_instruction(asm_function, memory_operand, destination, assembly);
+
+    return;
+  }
+  
+  if (ir_add_pointer_instruction->data.instruction_add_pointer.index->type != IR_VALUE_VAR) {
+    panic("Add pointer instruction index type '%d' not supported", ir_add_pointer_instruction->data.instruction_add_pointer.index->type);
+  }
+
+  int scale = ir_add_pointer_instruction->data.instruction_add_pointer.scale;
+
+  if (scale == 1 || scale == 2 || scale == 4 || scale == 8) {
+    Symbol *var_symbol = get_symbol(ir_add_pointer_instruction->data.instruction_add_pointer.index->data.value_var.identifier, assembly->symbol_table, true);
+    AsmNode *index_operand = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
+    AsmNode *scale_operand = create_indexed_operand(ASM_REGISTER_AX, ASM_REGISTER_DX,ir_add_pointer_instruction->data.instruction_add_pointer.scale, assembly); 
+
+    emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, assembly->type_quadword, assembly);
+    emit_asm_mov_instruction(asm_function, index_operand, assembly->register_dx, assembly->type_quadword, assembly);
+    emit_asm_lea_instruction(asm_function, scale_operand, destination, assembly);
+
+    return;
+  }
+
+  emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, assembly->type_quadword, assembly);
+
+  AsmNode *index_operand = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
+  AsmNode *imm_scale = create_signed_imm_operand(ir_add_pointer_instruction->data.instruction_add_pointer.scale, assembly); 
+  AsmNode *indexed_operand = create_indexed_operand(ASM_REGISTER_AX, ASM_REGISTER_DX, 1, assembly); 
+  
+  emit_asm_mov_instruction(asm_function, index_operand, assembly->register_dx, assembly->type_quadword, assembly);
+  emit_asm_binary_instruction(asm_function, imm_scale, assembly->register_dx, ASM_BINARY_MULT, assembly->type_quadword, assembly);
+  emit_asm_lea_instruction(asm_function, indexed_operand, destination, assembly);
 }
 
 static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembly) {
@@ -1669,7 +1853,26 @@ static AsmNode* create_memory_operand(AsmRegisterType register_type, int offset,
   return memory_operand;
 }
 
-static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly) {
+static AsmNode* create_pseudo_mem_operand(char *identifier, int offset, Assembly *assembly) {
+  AsmNode *pseudo_mem = arena_alloc(assembly->asm_arena);
+  pseudo_mem->type = ASM_OPERAND_PSEUDOMEM;
+  pseudo_mem->data.operand_pseudo_mem.identifier = identifier;
+  pseudo_mem->data.operand_pseudo_mem.byte_offset = offset;
+
+  return pseudo_mem;
+}
+
+static AsmNode* create_indexed_operand(AsmRegisterType base_register, AsmRegisterType index_register, int scale, Assembly *assembly) {
+  AsmNode *indexed = arena_alloc(assembly->asm_arena);
+  indexed->type = ASM_OPERAND_INDEXED;
+  indexed->data.operand_indexed.base_register = base_register;
+  indexed->data.operand_indexed.index_register = index_register;
+  indexed->data.operand_indexed.scale = scale;
+
+  return indexed;
+}
+
+static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *mov_node = arena_alloc(assembly->asm_arena);
 
   mov_node->type = ASM_INSTRUCTION_MOV;
@@ -1700,7 +1903,7 @@ static void emit_asm_lea_instruction(AsmNode *function, AsmNode *source_node, As
   add_instruction_to_function(function, lea_instruction);
 }
 
-static void emit_asm_cmp_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmType type, Assembly *assembly) {
+static void emit_asm_cmp_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *cmp_instruction = arena_alloc(assembly->asm_arena);
   cmp_instruction->type = ASM_INSTRUCTION_CMP;
   cmp_instruction->data.instruction_cmp.operand_1 = operand_1; 
@@ -1710,7 +1913,7 @@ static void emit_asm_cmp_instruction(AsmNode *function, AsmNode *operand_1, AsmN
   add_instruction_to_function(function, cmp_instruction);
 }
 
-static void emit_asm_binary_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmType assembly_type, Assembly *assembly) {
+static void emit_asm_binary_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmTypeNode *assembly_type, Assembly *assembly) {
   AsmNode *binary_instruction = arena_alloc(assembly->asm_arena);
 
   binary_instruction->type = ASM_INSTRUCTION_BINARY;
@@ -1722,7 +1925,7 @@ static void emit_asm_binary_instruction(AsmNode *function, AsmNode *operand_1, A
   add_instruction_to_function(function, binary_instruction);
 }
 
-static void emit_asm_div_instruction(AsmNode *function, AsmNode *operand, AsmType type, Assembly *assembly) {
+static void emit_asm_div_instruction(AsmNode *function, AsmNode *operand, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *div_instruction = arena_alloc(assembly->asm_arena);
 
   div_instruction->type = ASM_INSTRUCTION_DIV;
@@ -1732,7 +1935,7 @@ static void emit_asm_div_instruction(AsmNode *function, AsmNode *operand, AsmTyp
   add_instruction_to_function(function, div_instruction);
 }
 
-static void emit_asm_idiv_instruction(AsmNode *function, AsmNode *operand, AsmType type, Assembly *assembly) {
+static void emit_asm_idiv_instruction(AsmNode *function, AsmNode *operand, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *idiv_instruction = arena_alloc(assembly->asm_arena);
 
   idiv_instruction->type = ASM_INSTRUCTION_IDIV;
@@ -1751,7 +1954,7 @@ static void emit_asm_push_instruction(AsmNode *function, AsmNode *operand, Assem
   add_instruction_to_function(function, push_instruction);
 }
 
-static void emit_asm_unary_instruction(AsmNode *function, AsmNode *operand, AsmUnaryOpType op_type, AsmType assembly_type, Assembly *assembly) {
+static void emit_asm_unary_instruction(AsmNode *function, AsmNode *operand, AsmUnaryOpType op_type, AsmTypeNode *assembly_type, Assembly *assembly) {
   AsmNode *unary = arena_alloc(assembly->asm_arena);
 
   unary->type = ASM_INSTRUCTION_UNARY;
@@ -1770,7 +1973,7 @@ static void emit_asm_label_instruction(AsmNode *function, char *identifier, Asse
   add_instruction_to_function(function, label);
 }
 
-static void emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly) {
+static void emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *cvttsd2si = arena_alloc(assembly->asm_arena);
 
   cvttsd2si->type = ASM_INSTRUCTION_CVTTSD2SI;
@@ -1781,7 +1984,7 @@ static void emit_asm_cvttsd2si_instruction(AsmNode *function, AsmNode *source_no
   add_instruction_to_function(function, cvttsd2si);
 }
 
-static void emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmType type, Assembly *assembly) {
+static void emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *cvtsi2sd = arena_alloc(assembly->asm_arena);
 
   cvtsi2sd->type = ASM_INSTRUCTION_CVTSI2SD;
@@ -1855,17 +2058,17 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       }
       break;
     case IR_VALUE_VAR: {
-      // HashTableEntry *variable_hash_entry = hash_table_get_entry(declaration_symbol_table->symbol_table, ir_operand->data.value_var.identifier);
-      //
-      // if (variable_hash_entry == NULL || variable_hash_entry->key == NULL) {
-      //   fprintf(stderr, "ERROR - Assembler: Var value type %s not found in declaration symbol table\n", ir_operand->data.static_variable.identifier);
-      //   exit(1);
-      // }
+      Symbol *variable_symbol = get_symbol(ir_operand->data.value_var.identifier, assembly->symbol_table, true);
       
-      //DeclarationSymbol *declaration_symbol = variable_hash_entry->value->structure;
-
-      asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
-      asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
+      //Pseudo mem assigned for aggregate values. Scalar values are assigned pseudo registers. 
+      if (variable_symbol->data.variable_symbol->value_type->type == TYPE_ARRAY) {
+        asm_operand->type = ASM_OPERAND_PSEUDOMEM;
+        asm_operand->data.operand_pseudo_mem.identifier = ir_operand->data.value_var.identifier;
+        asm_operand->data.operand_pseudo_mem.byte_offset = 0;
+      } else {
+        asm_operand->type = ASM_OPERAND_PSEUDO_REGISTER;
+        asm_operand->data.operand_pseudo_register.identifier = ir_operand->data.value_var.identifier;
+      }
       break;
     }
     default:
@@ -2066,6 +2269,12 @@ void print_assembly(AsmNode *node) {
     case ASM_OPERAND_DATA:
       printf("Data %s ", node->data.operand_data.identifier);
       break;
+    case ASM_OPERAND_PSEUDOMEM:
+      printf("Pseudo Mem -> identifier: %s, byte_offset %d", node->data.operand_pseudo_mem.identifier, node->data.operand_pseudo_mem.byte_offset);
+      break;
+    case ASM_OPERAND_INDEXED:
+      printf("Indexed -> base_register: %s, index_register: %s, scale: %d", get_register_string(node->data.operand_indexed.base_register), get_register_string(node->data.operand_indexed.index_register), node->data.operand_indexed.scale);
+      break;
     case ASM_INSTRUCTION_PUSH:
       printf("Push ->");
       print_assembly(node->data.instruction_push.operand);
@@ -2087,14 +2296,14 @@ void print_assembly(AsmNode *node) {
   }
 }
 
-static void print_assembly_type(AsmType type) {
-  switch(type) {
-    case ASM_TYPE_QUADWORD: printf("Type(Quadword) "); return;
-    case ASM_TYPE_LONGWORD: printf("Type(Longword) "); return;
-    case ASM_TYPE_DOUBLE:   printf("Type(Double) "); return;
-    case ASM_TYPE_BYTE:     printf("Type(Byte) "); break;
+static void print_assembly_type(AsmTypeNode *asm_type_node) {
+  switch(asm_type_node->type) {
+    case ASM_TYPE_QUADWORD:    printf("Type(Quadword) "); return;
+    case ASM_TYPE_LONGWORD:    printf("Type(Longword) "); return;
+    case ASM_TYPE_DOUBLE:      printf("Type(Double) "); return;
+    case ASM_TYPE_BYTE:        printf("Type(Byte) "); break;
     default:
-      panic("AsmType '%d' not supported for assembly type printing", type);
+      panic("AsmType '%d' not supported for assembly type printing", asm_type_node->type);
   }
 }
 
@@ -2126,65 +2335,82 @@ static void init_node_pointer(AsmNodePointers *asm_node_pointer) {
   asm_node_pointer->asm_pointers = NULL;
 }
 
-static Types get_ir_node_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+static Types get_ir_node_type(IRNode *ir_node, SymbolTable *symbol_table) {
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT: return ir_node->data.value_constant.type->type;
     case IR_VALUE_VAR: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
-      return declaration_symbol->data.variable_symbol->value_type->type;
+      Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
+      return symbol->data.variable_symbol->value_type->type;
     }
     case IR_INSTRUCTION_FUNCTION_CALL: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.instruction_function_call.identifier, declaration_symbol_table, true);
-      return declaration_symbol->data.function_symbol->value_type->type;
+      Symbol *symbol = get_symbol(ir_node->data.instruction_function_call.identifier, symbol_table, true);
+      return symbol->data.function_symbol->value_type->type;
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to get node Type", ir_node->type);
   }
 }
 
-static AsmType convert_ir_value_to_asm_type(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, SymbolTable *symbol_table, Assembly *assembly) {
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
-      return convert_type_to_asm_type(ir_node->data.value_constant.type->type);
+      return convert_type_to_asm_type(ir_node->data.value_constant.type, assembly);
     case IR_VALUE_VAR: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
-      return convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type->type);
+      Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
+      return convert_type_to_asm_type(symbol->data.variable_symbol->value_type, assembly);
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
   }
 }
 
-static AsmType convert_type_to_asm_type(Types type) {
-  switch (type) {
+static AsmTypeNode* convert_type_to_asm_type(TypeNode *type_node, Assembly *assembly) {
+  switch (type_node->type) {
     case TYPE_INT:
     case TYPE_UINT:
-      return ASM_TYPE_LONGWORD;
+      return assembly->type_longword;
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_POINTER:      
-      return ASM_TYPE_QUADWORD;
+      return assembly->type_quadword;
     case TYPE_DOUBLE:
-      return ASM_TYPE_DOUBLE;
+      return assembly->type_double;
+    case TYPE_ARRAY: {
+      AsmTypeNode *byte_array_type = malloc(sizeof(AsmTypeNode));
+      byte_array_type->type = ASM_TYPE_BYTE_ARRAY;
+      
+      int array_element_size = get_type_size(type_node->data.array_type.element_type->type);
+
+      if (type_node->data.array_type.size >= 16) {
+        byte_array_type->byte_array_alignment = 16;
+        byte_array_type->byte_array_size = array_element_size * type_node->data.array_type.size;
+      } else {
+        byte_array_type->byte_array_alignment = array_element_size;
+        byte_array_type->byte_array_size = array_element_size * type_node->data.array_type.size;
+      }
+
+      return byte_array_type;
+    }
     default:
-      panic("Unsupported Type '%d' when attempting to convert to ASM Variable Type", type);
+      panic("Unsupported Type '%s' when attempting to convert to ASM Variable Type", get_type_string(type_node->type));
   }
 }
 
+//@Todo: Unused function
 static GetInstructionTypeResult get_instruction_type(AsmNode *instruction) {
   GetInstructionTypeResult result = {
-    .found_type = true
+    .instruction_type_found= true
   };
 
   switch (instruction->type) {
-    case ASM_INSTRUCTION_MOV:     result.instruction_type_found = instruction->data.instruction_mov.assembly_type; break;
-    case ASM_INSTRUCTION_UNARY:   result.instruction_type_found = instruction->data.instruction_unary.assembly_type; break;
-    case ASM_INSTRUCTION_BINARY:  result.instruction_type_found = instruction->data.instruction_binary.assembly_type; break;
-    case ASM_INSTRUCTION_CMP:     result.instruction_type_found = instruction->data.instruction_cmp.assembly_type; break;
-    case ASM_INSTRUCTION_IDIV:    result.instruction_type_found = instruction->data.instruction_idiv.assembly_type; break;
-    case ASM_INSTRUCTION_CDQ:     result.instruction_type_found = instruction->data.instruction_cdq.assembly_type; break;
+    case ASM_INSTRUCTION_MOV:     result.found_type = instruction->data.instruction_mov.assembly_type; break;
+    case ASM_INSTRUCTION_UNARY:   result.found_type = instruction->data.instruction_unary.assembly_type; break;
+    case ASM_INSTRUCTION_BINARY:  result.found_type = instruction->data.instruction_binary.assembly_type; break;
+    case ASM_INSTRUCTION_CMP:     result.found_type = instruction->data.instruction_cmp.assembly_type; break;
+    case ASM_INSTRUCTION_IDIV:    result.found_type = instruction->data.instruction_idiv.assembly_type; break;
+    case ASM_INSTRUCTION_CDQ:     result.found_type = instruction->data.instruction_cdq.assembly_type; break;
     default:
-      result.found_type = false;
+      result.instruction_type_found = false;
   }
 
   return result;
@@ -2206,28 +2432,28 @@ void backend_symbol_table_free(AsmBackendSymbolTable *backend_symbol_table) {
   free(backend_symbol_table->symbol_table);
 }
 
-static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *declaration_symbol_table, AsmBackendSymbolTable *backend_symbol_table) {
-  for (int i = 0; i < declaration_symbol_table->symbol_table->capacity; i++) {
-    if (&declaration_symbol_table->symbol_table->entries[i] == NULL || declaration_symbol_table->symbol_table->entries[i].key == NULL) {
+static void convert_declaration_table_to_backend_table(SymbolTable *symbol_table, AsmBackendSymbolTable *backend_symbol_table, Assembly *assembly) {
+  for (int i = 0; i < symbol_table->symbol_table->capacity; i++) {
+    if (&symbol_table->symbol_table->entries[i] == NULL || symbol_table->symbol_table->entries[i].key == NULL) {
       continue;
     } 
     
     AsmBackendSymbol *asm_backend_symbol = arena_alloc(backend_symbol_table->symbol_arena);   
-    DeclarationSymbol *declaration_symbol = get_declaration_symbol(declaration_symbol_table->symbol_table->entries[i].key, declaration_symbol_table, true);    
+    Symbol *symbol = get_symbol(symbol_table->symbol_table->entries[i].key, symbol_table, true);    
 
-    if (declaration_symbol->symbol_type == DECLARATION_SYMBOL_VARIABLE) {
+    if (symbol->symbol_type == SYMBOL_VARIABLE) {
       asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
-      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(declaration_symbol->data.variable_symbol->value_type->type);
+      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(symbol->data.variable_symbol->value_type, assembly);
 
-      if (declaration_symbol->data.variable_symbol->value_type->type == TYPE_DOUBLE) {
+      if (symbol->data.variable_symbol->value_type->type == TYPE_DOUBLE) {
         //TODO: Confirm that this is always the case
         asm_backend_symbol->data.object_entry.is_constant = true;
       }
 
-      asm_backend_symbol->data.object_entry.is_static = !declaration_symbol->data.variable_symbol->is_automatic_storage_duration;      
+      asm_backend_symbol->data.object_entry.is_static = !symbol->data.variable_symbol->is_automatic_storage_duration;      
     } else {
       asm_backend_symbol->type = ASM_SYMBOL_FUNCTION_ENTRY;
-      asm_backend_symbol->data.function_entry.is_defined = declaration_symbol->data.function_symbol->is_defined;
+      asm_backend_symbol->data.function_entry.is_defined = symbol->data.function_symbol->is_defined;
     }
     
     HashValue *hash_value = malloc(sizeof(HashValue));
@@ -2235,7 +2461,7 @@ static void convert_declaration_table_to_backend_table(DeclarationSymbolTable *d
     hash_value->structure = asm_backend_symbol;
 
     HashTableEntry *hash_entry = malloc(sizeof(HashTableEntry));
-    hash_entry->key = declaration_symbol_table->symbol_table->entries[i].key;
+    hash_entry->key = symbol_table->symbol_table->entries[i].key;
     hash_entry->value = hash_value;
 
     hash_table_add_entry(backend_symbol_table->symbol_table, hash_entry);    
@@ -2259,11 +2485,12 @@ void backend_symbol_table_print(AsmBackendSymbolTable *backend_symbol_table) {
       printf("type: Object Entry\t");
       printf("assembly_type: ");
 
-      switch (symbol->data.object_entry.assembly_type) {
+      switch (symbol->data.object_entry.assembly_type->type) {
         case ASM_TYPE_QUADWORD:    printf("Quadword\t"); break;
         case ASM_TYPE_LONGWORD:    printf("Longword\t"); break;
         case ASM_TYPE_DOUBLE:      printf("Double\t"); break;
         case ASM_TYPE_BYTE:        printf("Byte\t"); break;
+        default:                   panic("Assembly type not found when printing backend symbol table");
       }      
 
       printf("is_static: %d\n", symbol->data.object_entry.is_static);
@@ -2279,15 +2506,15 @@ static int round_stack_offset(int stack_offset) {
   return ((stack_offset + 15) / 16) * 16;
 }
 
-static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *declaration_symbol_table) {
+static bool is_signed_ir_value_node(IRNode *ir_node, SymbolTable *symbol_table) {
   Types value_type;
   switch (ir_node->type) {
     case IR_VALUE_CONSTANT:
       value_type = ir_node->data.value_constant.type->type;
       break;
     case IR_VALUE_VAR: {
-      DeclarationSymbol *declaration_symbol = get_declaration_symbol(ir_node->data.value_var.identifier, declaration_symbol_table, true);
-      value_type = declaration_symbol->data.variable_symbol->value_type->type;
+      Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
+      value_type = symbol->data.variable_symbol->value_type->type;
       break;
     }
     case IR_VALUE_STATIC_VAR:
@@ -2314,10 +2541,10 @@ static bool is_signed_ir_value_node(IRNode *ir_node, DeclarationSymbolTable *dec
 static void create_function_call_arguments(FunctionCallArguments *function_call_arguments, IRNode *ir_function_call_instruction, Assembly *assembly) {
   for (int i = 0; i < ir_function_call_instruction->data.instruction_function_call.arg_count; i++) {
     AsmNode *arg = create_operand(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly);   
-    // Types node_type = get_ir_node_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
-    AsmType asm_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->declaration_symbol_table);
+    // Types node_type = get_ir_node_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->symbol_table);
+    AsmTypeNode *asm_type = convert_ir_value_to_asm_type(&ir_function_call_instruction->data.instruction_function_call.args[i], assembly->symbol_table, assembly);
 
-    if (asm_type == ASM_TYPE_DOUBLE) {
+    if (asm_type->type == ASM_TYPE_DOUBLE) {
       if (function_call_arguments->double_register_count < DOUBLE_ARGUMENT_LIMIT) {
         function_call_arguments->double_register_arguments[function_call_arguments->double_register_count] = arg;
         function_call_arguments->double_register_count++;
@@ -2340,12 +2567,12 @@ static void create_function_call_arguments(FunctionCallArguments *function_call_
   }
 }
 
-static void push_function_argument_to_stack_list(AsmNode *argument, AsmType type, StackArgumentList *stack_argument_list) { 
+static void push_function_argument_to_stack_list(AsmNode *argument, AsmTypeNode *type, StackArgumentList *stack_argument_list) { 
   if (stack_argument_list->count == stack_argument_list->capacity) {
     int new_size = stack_argument_list->capacity == 0 ? STACK_ARGUMENT_CAPACITY : stack_argument_list->capacity * 2;
 
     AsmNode *realloc_pointers = realloc(stack_argument_list->arguments, new_size * sizeof(AsmNode));
-    AsmType *realloc_types= realloc(stack_argument_list->argument_types, new_size * sizeof(AsmType));
+    AsmTypeNode *realloc_types= realloc(stack_argument_list->argument_types, new_size * sizeof(AsmType));
 
     stack_argument_list->capacity = new_size;
     stack_argument_list->arguments = realloc_pointers;
@@ -2355,7 +2582,7 @@ static void push_function_argument_to_stack_list(AsmNode *argument, AsmType type
   } 
 
   stack_argument_list->arguments[stack_argument_list->count] = *argument;
-  stack_argument_list->argument_types[stack_argument_list->count] = type;
+  stack_argument_list->argument_types[stack_argument_list->count] = *type;
   stack_argument_list->count++;
 }
 

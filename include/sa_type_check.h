@@ -2,8 +2,8 @@
 #define SA_TYPE_CHECK
 
 #include "../include/parser.h"
-#include "declaration_symbol.h"
+#include "symbol.h"
 
-void sa_type_check(ParserResults *parser_results, DeclarationSymbolTable *declaration_table);
+void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table);
 
 #endif

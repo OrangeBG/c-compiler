@@ -125,11 +125,11 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_MOV:
       fprintf(file, "\tmov");
 
-      print_instruction_suffix(file, asm_node->data.instruction_mov.assembly_type);      
+      print_instruction_suffix(file, asm_node->data.instruction_mov.assembly_type->type);      
       fprintf(file, "\t\t");
       
       if (asm_node->data.instruction_mov.source->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_mov.source, asm_node->data.instruction_mov.assembly_type);
+        print_register(file, asm_node->data.instruction_mov.source, asm_node->data.instruction_mov.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_mov.source, file);      
       }
@@ -137,7 +137,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, ", ");
 
       if (asm_node->data.instruction_mov.destination->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_mov.destination, asm_node->data.instruction_mov.assembly_type);
+        print_register(file, asm_node->data.instruction_mov.destination, asm_node->data.instruction_mov.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_mov.destination, file);      
       }
@@ -171,21 +171,21 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     //   fprintf(file, "\n");
     //   break;
     case ASM_INSTRUCTION_CMP:
-      if (asm_node->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE) {
+      if (asm_node->data.instruction_cmp.assembly_type->type == ASM_TYPE_DOUBLE) {
         fprintf(file, "\tcomisd");
       } else {
         fprintf(file, "\tcmp");
-        print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type);
+        print_instruction_suffix(file, asm_node->data.instruction_cmp.assembly_type->type);
       }
 
-      if (asm_node->data.instruction_cmp.assembly_type == ASM_TYPE_DOUBLE) {
+      if (asm_node->data.instruction_cmp.assembly_type->type == ASM_TYPE_DOUBLE) {
         fprintf(file, "\t");
       } else {
         fprintf(file, "\t\t");
       }
       
       if (asm_node->data.instruction_cmp.operand_1->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_cmp.operand_1, asm_node->data.instruction_cmp.assembly_type);
+        print_register(file, asm_node->data.instruction_cmp.operand_1, asm_node->data.instruction_cmp.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_cmp.operand_1, file);
       }
@@ -193,7 +193,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, ", ");
 
       if (asm_node->data.instruction_cmp.operand_2->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_cmp.operand_2, asm_node->data.instruction_cmp.assembly_type);
+        print_register(file, asm_node->data.instruction_cmp.operand_2, asm_node->data.instruction_cmp.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_cmp.operand_2, file);
       }
@@ -231,7 +231,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\tnot");
       }
 
-      print_instruction_suffix(file, asm_node->data.instruction_unary.assembly_type);
+      print_instruction_suffix(file, asm_node->data.instruction_unary.assembly_type->type);
       fprintf(file, "\t\t");
       
       save_assembly_file(asm_node->data.instruction_unary.operand, file);
@@ -247,21 +247,21 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         case ASM_BINARY_BITWISE_RIGHT_SHIFT:  fprintf(file, "\tshr"); break;
         case ASM_BINARY_DIV_DOUBLE:           fprintf(file, "\tdiv"); break;
         case ASM_BINARY_MULT:
-          asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE ? fprintf(file, "\tmul") : fprintf(file, "\timul");
+          asm_node->data.instruction_binary.assembly_type->type == ASM_TYPE_DOUBLE ? fprintf(file, "\tmul") : fprintf(file, "\timul");
           break;
         case ASM_BINARY_BITWISE_XOR:          fprintf(file, "\txor"); break;
       }
 
-      if (asm_node->data.instruction_binary.binary_op == ASM_BINARY_BITWISE_XOR && asm_node->data.instruction_binary.assembly_type == ASM_TYPE_DOUBLE) {
+      if (asm_node->data.instruction_binary.binary_op == ASM_BINARY_BITWISE_XOR && asm_node->data.instruction_binary.assembly_type->type == ASM_TYPE_DOUBLE) {
         fprintf(file, "pd");
       } else {
-        print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type);
+        print_instruction_suffix(file, asm_node->data.instruction_binary.assembly_type->type);
       }
 
       fprintf(file, "\t\t");
       
       if (asm_node->data.instruction_binary.operand_1->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_binary.operand_1, asm_node->data.instruction_binary.assembly_type);
+        print_register(file, asm_node->data.instruction_binary.operand_1, asm_node->data.instruction_binary.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_binary.operand_1, file);
       }
@@ -269,7 +269,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, ", ");
 
       if (asm_node->data.instruction_binary.operand_2->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_binary.operand_2, asm_node->data.instruction_binary.assembly_type);
+        print_register(file, asm_node->data.instruction_binary.operand_2, asm_node->data.instruction_binary.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_binary.operand_2, file);
       }
@@ -286,11 +286,11 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_IDIV:
       fprintf(file, "\tidiv");
 
-      print_instruction_suffix(file, asm_node->data.instruction_idiv.assembly_type);
+      print_instruction_suffix(file, asm_node->data.instruction_idiv.assembly_type->type);
       fprintf(file, "\t\t");
       
       if (asm_node->data.instruction_idiv.operand->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_idiv.operand, asm_node->data.instruction_idiv.assembly_type);
+        print_register(file, asm_node->data.instruction_idiv.operand, asm_node->data.instruction_idiv.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_idiv.operand, file);
       }
@@ -299,11 +299,11 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_DIV:
       fprintf(file, "\tdiv");
 
-      print_instruction_suffix(file, asm_node->data.instruction_div.assembly_type);
+      print_instruction_suffix(file, asm_node->data.instruction_div.assembly_type->type);
       fprintf(file, "\t\t");
       
       if (asm_node->data.instruction_div.operand->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_div.operand, asm_node->data.instruction_div.assembly_type);
+        print_register(file, asm_node->data.instruction_div.operand, asm_node->data.instruction_div.assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_div.operand, file);
       }
@@ -332,12 +332,12 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_CVTSI2SD:
       fprintf(file, "\tcvtsi2sd"); 
 
-      print_instruction_suffix(file, asm_node->data.instruction_cvtsi2sd.source_assembly_type);
+      print_instruction_suffix(file, asm_node->data.instruction_cvtsi2sd.source_assembly_type->type);
 
       fprintf(file, "\t\t"); 
 
       if (asm_node->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_cvtsi2sd.source_operand, asm_node->data.instruction_cvtsi2sd.source_assembly_type);
+        print_register(file, asm_node->data.instruction_cvtsi2sd.source_operand, asm_node->data.instruction_cvtsi2sd.source_assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_cvtsi2sd.source_operand, file);
       }
@@ -354,7 +354,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_INSTRUCTION_CVTTSD2SI:
       fprintf(file, "\tcvttsd2si"); 
 
-      print_instruction_suffix(file, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
+      print_instruction_suffix(file, asm_node->data.instruction_cvttsd2si.destination_assembly_type->type);
 
       fprintf(file, "\t"); 
       if (asm_node->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_REGISTER) {
@@ -364,7 +364,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       }
       fprintf(file, ", ");
       if (asm_node->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_REGISTER) {
-        print_register(file, asm_node->data.instruction_cvttsd2si.destination_operand, asm_node->data.instruction_cvttsd2si.destination_assembly_type);
+        print_register(file, asm_node->data.instruction_cvttsd2si.destination_operand, asm_node->data.instruction_cvttsd2si.destination_assembly_type->type);
       } else {
         save_assembly_file(asm_node->data.instruction_cvttsd2si.destination_operand, file);
       }
@@ -418,10 +418,10 @@ static void print_register(FILE *file, AsmNode *register_node, AsmType asm_type)
   char *register_name;
 
   switch (asm_type) {
-  case ASM_TYPE_BYTE:      register_name = get_1_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_LONGWORD:  register_name = get_4_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_QUADWORD:  register_name = get_8_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_DOUBLE:    register_name = get_xmm_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_BYTE:       register_name = get_1_byte_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_LONGWORD:   register_name = get_4_byte_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_QUADWORD:   register_name = get_8_byte_register(register_node->data.operand_register.op_register); break;
+  case ASM_TYPE_DOUBLE:     register_name = get_xmm_register(register_node->data.operand_register.op_register); break;
   }
 
   fprintf(file, "%s", register_name);
