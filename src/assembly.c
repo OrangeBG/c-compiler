@@ -136,8 +136,9 @@ static void         add_instruction_to_function(AsmNode *function, AsmNode *inst
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(SymbolTable *symbol_table);
 static void         init_node_pointer(AsmNodePointers *asm_node_pointer);
-static void         pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly); 
+static void         pseudo_operand_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly); 
 static void         replace_pseudo_register(AsmNode *instruction, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
+static void         replace_pseudo_memory(AsmNode *pseudo_memory, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset); 
 static AsmNode*     create_operand(IRNode *ir_operand, Assembly *assembly);
 static AsmNode*     resolve_instructions(AsmNode *function, Assembly *assembly); 
 static ResolveType  resolve_idiv_instruction(AsmNode *function, AsmNode *idiv_instruction, Assembly *assembly);
@@ -196,7 +197,7 @@ AsmNode* generate_assembly(IRNode *ir_nodes, SymbolTable *symbol_table, AsmBacke
     }
     
     int stack_offset = 0;
-    pseudo_register_pass(top_level_node, backend_symbol_table, &stack_offset, assembly);
+    pseudo_operand_pass(top_level_node, backend_symbol_table, &stack_offset, assembly);
     
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
       panic("First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
@@ -663,8 +664,7 @@ static ResolveType resolve_mov_instruction(AsmNode *function, AsmNode *instructi
     return INSTRUCTION_FIXED;
 }
 
-//@TODO: Rename since we are now also checking for PseudoMem
-static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly) {
+static void pseudo_operand_pass(AsmNode *asm_function, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset, Assembly *assembly) {
   HashTable stack_location_table;
   hash_table_init(&stack_location_table);
   
@@ -675,93 +675,133 @@ static void pseudo_register_pass(AsmNode *asm_function, AsmBackendSymbolTable *b
       case ASM_INSTRUCTION_MOV:        
         if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_mov.source, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_mov.source->type == ASM_OPERAND_PSEUDOMEM) {        
+         replace_pseudo_memory(instruction->data.instruction_mov.source, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_mov.destination, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_mov.destination->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_mov.destination, instruction->data.instruction_mov.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_MOVSX:
         if (instruction->data.instruction_movsx.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_movsx.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_movsx.source->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_movsx.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_movsx.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_movsx.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_movsx.destination->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_movsx.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_MOV_ZERO_EXTEND:
         if (instruction->data.instruction_mov_zero_extend.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_mov_zero_extend.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_mov_zero_extend.source->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_mov_zero_extend.source, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_mov_zero_extend.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_mov_zero_extend.destination->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_mov_zero_extend.destination, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_UNARY:
         if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_unary.operand, instruction->data.instruction_unary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_unary.operand->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_unary.operand, instruction->data.instruction_unary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_BINARY:
         if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_binary.operand_1, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_binary.operand_1->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_binary.operand_1, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
 
         if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_binary.operand_2->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_binary.operand_2, instruction->data.instruction_binary.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_IDIV:
         if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_idiv.operand, instruction->data.instruction_idiv.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_idiv.operand->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_idiv.operand, instruction->data.instruction_idiv.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_DIV:
         if (instruction->data.instruction_div.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
          replace_pseudo_register(instruction->data.instruction_div.operand, instruction->data.instruction_div.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
+        } else if (instruction->data.instruction_div.operand->type == ASM_OPERAND_PSEUDOMEM) {
+         replace_pseudo_memory(instruction->data.instruction_div.operand, instruction->data.instruction_div.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);        
         }
         break;
       case ASM_INSTRUCTION_CMP:
         if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cmp.operand_1, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cmp.operand_1->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cmp.operand_1, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }        
 
         if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cmp.operand_2->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cmp.operand_2, instruction->data.instruction_cmp.assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }        
         break;
       case ASM_INSTRUCTION_PUSH:
         if (instruction->data.instruction_push.operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_push.operand, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_push.operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_push.operand, assembly->type_longword, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_CVTSI2SD:
         if (instruction->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvtsi2sd.source_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvtsi2sd.source_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvtsi2sd.source_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvtsi2sd.destination_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvtsi2sd.destination_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvtsi2sd.destination_operand, instruction->data.instruction_cvtsi2sd.source_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_CVTTSD2SI:
         if (instruction->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvttsd2si.source_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvttsd2si.source_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvttsd2si.source_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_cvttsd2si.destination_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_cvttsd2si.destination_operand->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_cvttsd2si.destination_operand, instruction->data.instruction_cvttsd2si.destination_assembly_type, &stack_location_table, backend_symbol_table, stack_offset);
         }
         break;
       case ASM_INSTRUCTION_LEA:
         if (instruction->data.instruction_lea.source->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_lea.source, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_lea.source->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_lea.source, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
         }
 
         if (instruction->data.instruction_lea.destination->type == ASM_OPERAND_PSEUDO_REGISTER) {
           replace_pseudo_register(instruction->data.instruction_lea.destination, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
+        } else if (instruction->data.instruction_lea.destination->type == ASM_OPERAND_PSEUDOMEM) {
+          replace_pseudo_memory(instruction->data.instruction_lea.destination, assembly->type_quadword, &stack_location_table, backend_symbol_table, stack_offset);
         }
       default:
         break;
@@ -773,6 +813,7 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmTypeNode *instr
   HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_register->data.operand_pseudo_register.identifier);
 
   if (table_entry != NULL && table_entry->key != NULL) {
+    //Converting pseudo_register operand to memory. First Nulling pseudo_register identifier and then fill in Memory operand.
     pseudo_register->data.operand_pseudo_register.identifier = NULL;
     pseudo_register->type = ASM_OPERAND_MEMORY;
     pseudo_register->data.operand_memory.op_register = ASM_REGISTER_BP;
@@ -825,7 +866,56 @@ static void replace_pseudo_register(AsmNode *pseudo_register, AsmTypeNode *instr
 }
 
 static void replace_pseudo_memory(AsmNode *pseudo_memory, AsmTypeNode *instruction_type, HashTable *stack_location_table, AsmBackendSymbolTable *backend_symbol_table, int *stack_offset) {
+  HashTableEntry *table_entry = hash_table_get_entry(stack_location_table, pseudo_memory->data.operand_pseudo_mem.identifier);
+
+  if (table_entry != NULL && table_entry->key != NULL) {
+    //Converting pseudo_memory operand to memory. First Nulling pseudo_memory identifier and then fill in Memory operand.
+    int pseudo_mem_byte_offset = pseudo_memory->data.operand_pseudo_mem.byte_offset;
+    pseudo_memory->data.operand_pseudo_mem.identifier = NULL;
+    pseudo_memory->type = ASM_OPERAND_MEMORY;
+    pseudo_memory->data.operand_memory.op_register = ASM_REGISTER_BP;
+    pseudo_memory->data.operand_memory.base_offset = table_entry->value->integer + pseudo_mem_byte_offset;
+    return;
+  }  
+
+  HashTableEntry *existing_backend_symbol = hash_table_get_entry(backend_symbol_table->symbol_table, pseudo_memory->data.operand_pseudo_mem.identifier);
+
+  if (existing_backend_symbol != NULL && existing_backend_symbol->key != NULL) {    
+    AsmBackendSymbol *symbol = existing_backend_symbol->value->structure;    
+
+    if (symbol->type == ASM_SYMBOL_FUNCTION_ENTRY) {
+      panic("ASM backend function symbol '%s' found when attempting to resolve pseudo memory.", existing_backend_symbol->key);
+    }
+    
+    if (!symbol->data.object_entry.is_static) {
+      goto process_pseudo_memory;
+    }
+    
+    pseudo_memory->type = ASM_OPERAND_DATA;
+    pseudo_memory->data.operand_data.identifier = pseudo_memory->data.operand_pseudo_mem.identifier;
+    return;
+  }
+
+  process_pseudo_memory: {  
+      *stack_offset += pseudo_memory->data.operand_pseudo_mem.byte_offset;
+
+      HashValue value = {
+        .integer = *stack_offset,
+        .type = HASH_INT
+      };
   
+      HashTableEntry new_entry = {
+        .key = pseudo_memory->data.operand_pseudo_mem.identifier,
+        .value = &value
+      };
+
+      hash_table_add_entry(stack_location_table, &new_entry);    
+
+      pseudo_memory->type = ASM_OPERAND_MEMORY;
+      pseudo_memory->data.operand_pseudo_mem.identifier = NULL;
+      pseudo_memory->data.operand_memory.base_offset = *stack_offset;
+      pseudo_memory->data.operand_memory.op_register = ASM_REGISTER_BP;
+  }
 }
 
 static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembly *assembly) {

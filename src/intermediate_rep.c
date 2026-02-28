@@ -602,7 +602,6 @@ static void emit_declaration(AstNode *declaration_node, IRNode *function, Interm
     IRNode *result = emit_ast_node_and_convert_lvalue(declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
       emit_copy(result, variable->operand_value, function, intermediate_rep);
   } else {
-    //@TODO: We may need to emit copies here like in AST_INITIALIZER_SINGLE block
     int offset = 0;
     emit_copy_to_offset_for_compound_initializer(declaration_node->data.declaration_variable.name, &offset, declaration_node->data.declaration_variable.init_expression, function, intermediate_rep);  
   }
