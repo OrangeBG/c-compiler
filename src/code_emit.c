@@ -401,6 +401,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
     case ASM_OPERAND_DATA:
       fprintf(file, "%s(%%rip)", asm_node->data.operand_data.identifier);
       break;
+    case ASM_OPERAND_INDEXED:
+      fprintf(file, "%s, %s, %d", get_4_byte_register(asm_node->data.operand_indexed.base_register), get_4_byte_register(asm_node->data.operand_indexed.index_register), asm_node->data.operand_indexed.scale);
+      break;
     default:
       panic("No assembly type for '%d'", asm_node->type);
   }
