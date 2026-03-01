@@ -193,6 +193,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
     case AST_EXPRESSION_CONDITIONAL:
     case AST_EXPRESSION_DEREFERENCE:
     case AST_EXPRESSION_ADDRESS_OF:
+    case AST_EXPRESSION_SUBSCRIPT:
       expression_type_check(node, symbol_table, function_declaration_node, parser_results);
       break;
     case AST_BLOCK: {
@@ -262,7 +263,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
     case AST_STATEMENT_NULL:
       break;
     default:    
-      panic("Unsupported AST type '%d' found in function and variable type check", node->type);
+      panic("Unsupported AST type '%s' found in function and variable type check", get_ast_node_string(node));
   }  
 }
 
@@ -529,7 +530,7 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
      break;
    }
    default:
-     panic("Unsupported initial value AST Type '%d'", declaration_type->type);
+     panic("Unsupported initial value AST Type '%s'", get_type_string(declaration_type->type));
   }
 
   dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);

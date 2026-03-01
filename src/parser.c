@@ -2191,3 +2191,40 @@ char* get_binary_op_type_string(BinaryOpType op_type) {
     case AST_BINARY_BITWISE_RIGHT_SHIFT:  return "Bitwise Right Shift";
   }
 }
+
+char* get_ast_node_string(AstNode *node) {
+  switch (node->type) {
+    case AST_PROGRAM:                       return "Program";
+    case AST_VARIABLE_DECLARATION:          return "Variable Declaration";
+    case AST_FUNCTION_DECLARATION:          return "Function Declaration";
+    case AST_INITIALIZER:                   return "Initializer";
+    case AST_BLOCK:                         return "Block";
+    case AST_STATEMENT_RETURN:              return "Return Statement";
+    case AST_STATEMENT_NULL:                return "Null Statement";
+    case AST_STATEMENT_IF:                  return "If Statement";
+    case AST_STATEMENT_GOTO:                return "Goto Statement";
+    case AST_STATEMENT_GOTO_LABEL:          return "Goto Label Statement";
+    case AST_STATEMENT_BREAK:               return "Break Statement";
+    case AST_STATEMENT_CONTINUE:            return "Continue Statement";
+    case AST_STATEMENT_WHILE:               return "While Statement";
+    case AST_STATEMENT_DO_WHILE:            return "Do While Statement";
+    case AST_STATEMENT_FOR:                 return "For Statement";
+    case AST_STATEMENT_COMPOUND:            return "Compound Statement";
+    case AST_EXPRESSION_CAST:               return "Cast Expression";
+    case AST_EXPRESSION_BINARY:             return "Binary Expression";
+    case AST_EXPRESSION_CONSTANT:           return "Constant Expression";
+    case AST_EXPRESSION_UNARY:              return "Unary Expression";
+    case AST_EXPRESSION_VARIABLE:           return "Variable Expression";
+    case AST_EXPRESSION_ASSIGNMENT:         return "Assignment Expression";
+    case AST_EXPRESSION_CONDITIONAL:        return "Conditional Expression";
+    case AST_EXPRESSION_POSTFIX_INCREMENT:  return "Postfix Increment Expression";
+    case AST_EXPRESSION_POSTFIX_DECREMENT:  return "Postfix Decrement Expression";
+    case AST_EXPRESSION_PREFIX_INCREMENT:   return "Prefix Increment Expression";
+    case AST_EXPRESSION_PREFIX_DECREMENT:   return "Prefix Decrement Expression";
+    case AST_EXPRESSION_FUNCTION_CALL:      return "Function Call Expression";
+    case AST_EXPRESSION_DEREFERENCE:        return "Dereference Expression";
+    case AST_EXPRESSION_ADDRESS_OF:         return "Address Of Expression";
+    case AST_EXPRESSION_SUBSCRIPT:          return "Subscript Expression";
+    default:                                panic("AST Node '%d' not supported in get_ast_node_string()", node->type);
+  }
+}
