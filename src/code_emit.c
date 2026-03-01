@@ -8,7 +8,7 @@ static char* get_4_byte_register(AsmRegisterType register_type);
 static char* get_1_byte_register(AsmRegisterType register_type); 
 static char* get_xmm_register(AsmRegisterType register_type); 
 static void  print_instruction_suffix(FILE *file, AsmType type); 
-static void  print_static_initializer(FILE *file, Types value_type, InitialValue initial_value);
+static void  print_static_initializer(FILE *file, InitialValueArray *initial_value);
 static void  print_condition_code(FILE *file, AsmConditionCode condition_code); 
 static void  print_register(FILE *file, AsmNode *register_node, AsmType asm_type); 
 
@@ -92,8 +92,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
-      //@Temporary: Commented out until it can support the new initial value array
-      // print_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->value_type->type, asm_node->data.static_variable.static_variable_symbol->static_initial_value);
+      print_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->static_initial_value_array);
 
       fprintf(file, "\n");
       break;
@@ -110,8 +109,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_constant.identifier);
       
-      //@Temporary: Commented out until it can support the new initial value array
-      // print_static_initializer(file, asm_node->data.static_constant.static_init->value_type->type, asm_node->data.static_constant.static_init->static_initial_value);
+      print_static_initializer(file, asm_node->data.static_constant.static_init->static_initial_value_array);
 
       #if __APPLE__
         if (asm_node->data.static_constant.alignment == 16) {
@@ -421,10 +419,11 @@ static void print_register(FILE *file, AsmNode *register_node, AsmType asm_type)
   char *register_name;
 
   switch (asm_type) {
-  case ASM_TYPE_BYTE:       register_name = get_1_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_LONGWORD:   register_name = get_4_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_QUADWORD:   register_name = get_8_byte_register(register_node->data.operand_register.op_register); break;
-  case ASM_TYPE_DOUBLE:     register_name = get_xmm_register(register_node->data.operand_register.op_register); break;
+    case ASM_TYPE_BYTE:       register_name = get_1_byte_register(register_node->data.operand_register.op_register); break;
+    case ASM_TYPE_LONGWORD:   register_name = get_4_byte_register(register_node->data.operand_register.op_register); break;
+    case ASM_TYPE_QUADWORD:   register_name = get_8_byte_register(register_node->data.operand_register.op_register); break;
+    case ASM_TYPE_DOUBLE:     register_name = get_xmm_register(register_node->data.operand_register.op_register); break;
+    default:                  panic("Cannot find asm type when attempting to print registered");
   }
 
   fprintf(file, "%s", register_name);
@@ -524,20 +523,23 @@ static void print_condition_code(FILE *file, AsmConditionCode condition_code) {
   }
 }
 
-static void print_static_initializer(FILE *file, Types value_type, InitialValue initial_value) {
-  switch (value_type) {
-    case TYPE_INT:
-      initial_value.data.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.data.int_value); break;
-    case TYPE_UINT:
-      initial_value.data.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value.data.uint_value); break;
-    case TYPE_LONG:
-      initial_value.data.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.long_value); break;
-    case TYPE_DOUBLE:
-      fprintf(file, "\t.double %a\n", initial_value.data.double_value); break;
-    case TYPE_ULONG:
-    case TYPE_POINTER:
-      initial_value.data.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value.data.ulong_value); break;
-    default:
-      panic("Static Variable Symbol Value Type '%d' not found", value_type);
-  }      
+static void print_static_initializer(FILE *file, InitialValueArray *initial_value) {
+  for (int i = 0; i < initial_value->count; i++) {
+    switch (initial_value->items[i].type) {
+      case INITIAL_VALUE_TYPE_INT:
+        initial_value->items[i].data.int_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value->items[i].data.int_value); break;
+      case INITIAL_VALUE_TYPE_UINT:
+        initial_value->items[i].data.uint_value == 0 ? fprintf(file, "\t.zero 4\n") : fprintf(file, "\t.long %d\n", initial_value->items[i].data.uint_value); break;
+      case INITIAL_VALUE_TYPE_LONG:
+        initial_value->items[i].data.long_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value->items[i].data.long_value); break;
+      case INITIAL_VALUE_TYPE_DOUBLE:
+        fprintf(file, "\t.double %a\n", initial_value->items[i].data.double_value); break;
+      case INITIAL_VALUE_TYPE_ULONG:
+        initial_value->items[i].data.ulong_value == 0 ? fprintf(file, "\t.zero 8\n") : fprintf(file, "\t.quad %lu\n", initial_value->items[i].data.ulong_value); break;
+      case INITIAL_VALUE_TYPE_ZERO_INIT:
+        fprintf(file, "\t.zero %d\n", initial_value->items[i].data.zero_init_array_bytes); break;
+      default:
+        panic("Static Variable Symbol Value Type '%d' not found", initial_value->items[i].type);
+    }      
+  }
 }
