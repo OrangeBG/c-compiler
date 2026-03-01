@@ -86,6 +86,11 @@ int main(int argc, const char *argv[]) {
 
   arena_free(parser_results.ast_node_arena);
 
+  if (print_debug) {
+    printf("\n>> SYMBOL PRINT <<\n\n");
+    symbol_table_print(&symbol_table);
+  }
+
   AsmBackendSymbolTable backend_symbol_table;
   backend_symbol_table_init(&backend_symbol_table);
 

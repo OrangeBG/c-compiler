@@ -338,6 +338,34 @@ void print_intermediate_ret(IRNode *ir_node) {
       print_intermediate_ret(ir_node->data.instruction_store.source);
       printf(")\n");
       break;
+    case IR_INSTRUCTION_DOUBLE_TO_INT:
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_double_to_int.destination);
+      printf(" = Double to Int (");
+      print_intermediate_ret(ir_node->data.instruction_double_to_int.source);
+      printf(")\n");
+      break;
+    case IR_INSTRUCTION_DOUBLE_TO_UINT:
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_double_to_uint.destination);
+      printf(" = Double to UInt (");
+      print_intermediate_ret(ir_node->data.instruction_double_to_uint.source);
+      printf(")\n");
+      break;
+    case IR_INSTRUCTION_INT_TO_DOUBLE:
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_int_to_double.destination);
+      printf(" = Int to Double (");
+      print_intermediate_ret(ir_node->data.instruction_int_to_double.source);
+      printf(")\n");
+      break;
+    case IR_INSTRUCTION_UINT_TO_DOUBLE:
+      printf("\t");
+      print_intermediate_ret(ir_node->data.instruction_uint_to_double.destination);
+      printf(" = UInt to Double (");
+      print_intermediate_ret(ir_node->data.instruction_uint_to_double.source);
+      printf(")\n");
+      break;
     default:
       panic("No intermediate print type found for '%s'", get_intermediate_rep_type_name(ir_node));
   }

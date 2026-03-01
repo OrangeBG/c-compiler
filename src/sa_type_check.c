@@ -362,30 +362,32 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   if (variable_declaration_node->data.declaration_variable.has_expression && variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
     initialization_type = INITIALIZATION_TYPE_INITIALIZED;
 
+    AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
+
     switch (variable_declaration_node->data.declaration_variable.type->type) {
       case TYPE_INT:
         initial_value.type = INITIAL_VALUE_TYPE_INT;
-        initial_value.data.int_value = convert_variable_declaration_constant_to_int(variable_declaration_node);
+        initial_value.data.int_value = convert_variable_declaration_constant_to_int(constant_expression);
         break;
       case TYPE_LONG:
         initial_value.type = INITIAL_VALUE_TYPE_LONG;
-        initial_value.data.long_value = convert_variable_declaration_constant_to_long(variable_declaration_node);
+        initial_value.data.long_value = convert_variable_declaration_constant_to_long(constant_expression);
         break;
       case TYPE_UINT:
         initial_value.type = INITIAL_VALUE_TYPE_UINT;
-        initial_value.data.uint_value = convert_variable_declaration_constant_to_uint(variable_declaration_node);
+        initial_value.data.uint_value = convert_variable_declaration_constant_to_uint(constant_expression);
         break;
       case TYPE_ULONG:
         initial_value.type = INITIAL_VALUE_TYPE_ULONG;
-        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
+        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(constant_expression);
         break;
       case TYPE_DOUBLE:
         initial_value.type = INITIAL_VALUE_TYPE_DOUBLE;
-        initial_value.data.double_value = convert_variable_declaration_constant_to_double(variable_declaration_node);
+        initial_value.data.double_value = convert_variable_declaration_constant_to_double(constant_expression);
         break;
       case TYPE_POINTER:
         initial_value.type = INITIAL_VALUE_TYPE_ULONG;
-        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(variable_declaration_node);
+        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(constant_expression);
         break;
       default:
         panic("Unsupported constant expression type when checking file scope variable");
