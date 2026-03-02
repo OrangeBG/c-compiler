@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
+#include <stdarg.h>
 #include "../include/assembly.h"
 #include "../include/hash_table.h"
 #include "../include/arena.h"
@@ -132,6 +133,7 @@ static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *so
 static void         emit_asm_jmp_instruction(AsmNode *function, char *identifier, Assembly *assembly); 
 static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly); 
 static void         emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly); 
+static void         emit_asm_comment(AsmNode *function, Assembly *assembly, char *comment, ...);
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(SymbolTable *symbol_table);
@@ -198,10 +200,10 @@ AsmNode* generate_assembly(IRNode *ir_nodes, SymbolTable *symbol_table, AsmBacke
     
     int stack_offset = 0;
     pseudo_operand_pass(top_level_node, backend_symbol_table, &stack_offset, assembly);
-    
+
     if (top_level_node->data.function.instruction_pointers->asm_pointers[0]->type != ASM_INSTRUCTION_BINARY) {
       panic("First instruction is not Binary Instruction for the '%s' function", program->data.program.top_level_pointers->asm_pointers[i]->data.function.name);
-    } 
+    }
 
     stack_offset = round_stack_offset(stack_offset);
 
@@ -1242,6 +1244,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
 static void emit_ir_instruction_allocate_rsp_stack(AsmNode *asm_function, int bytes, Assembly *assembly) {
   AsmNode *imm_operand = create_signed_imm_operand(bytes, assembly);
   emit_asm_binary_instruction(asm_function, imm_operand, assembly->register_sp, ASM_BINARY_SUB, assembly->type_quadword, assembly);
+  emit_asm_comment(asm_function, assembly, "finished allocating stack");
 }
 
 static void emit_ir_instruction_label(AsmNode *asm_function, IRNode *ir_label_instruction, Assembly *assembly) {
@@ -1335,6 +1338,8 @@ static void emit_ir_instruction_binary(AsmNode *asm_function, IRNode *ir_binary_
 }
 
 static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting unary not for int");
+  
   AsmNode *source = create_operand(ir_unary_not_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.instruction_unary.destination, assembly);
 
@@ -1349,6 +1354,8 @@ static void emit_ir_instruction_unary_not_integer(AsmNode *asm_function, IRNode 
 }
 
 static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *ir_unary_not_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting unary not for double");
+
   AsmNode *source = create_operand(ir_unary_not_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_not_instruction->data.instruction_unary.destination, assembly);
   AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_unary_not_instruction->data.instruction_unary.destination, assembly->symbol_table, assembly);
@@ -1369,6 +1376,8 @@ static void emit_ir_instruction_unary_not_double(AsmNode *asm_function, IRNode *
 }
 
 static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode *ir_relational_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting relational binary for %s", get_intermediate_rep_binary_op_name(ir_relational_instruction));
+
   AsmNode *source_1 = create_operand(ir_relational_instruction->data.instruction_binary.source_1, assembly);
   AsmNode *source_2 = create_operand(ir_relational_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_relational_instruction->data.instruction_binary.destination, assembly);
@@ -1461,6 +1470,8 @@ static void emit_ir_instruction_binary_unsigned_division(AsmNode *asm_function, 
 }
 
 static void emit_ir_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting unary %s", get_intermediate_rep_unary_op_name(ir_unary_instruction));
+  
   AsmNode *source_node = create_operand(ir_unary_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_instruction->data.instruction_unary.destination, assembly);
 
@@ -1480,6 +1491,8 @@ static void emit_ir_instruction_unary(AsmNode *asm_function, IRNode *ir_unary_in
 }
 
 static void emit_ir_instruction_unary_negation_double(AsmNode *asm_function, IRNode *ir_unary_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting unary negation for double");
+
   AsmNode *source_node = create_operand(ir_unary_instruction->data.instruction_unary.source, assembly);
   AsmNode *destination_node = create_operand(ir_unary_instruction->data.instruction_unary.destination, assembly);
 
@@ -1491,6 +1504,8 @@ static void emit_ir_instruction_unary_negation_double(AsmNode *asm_function, IRN
 }
 
 static void emit_ir_instruction_return(AsmNode *asm_function, IRNode *ir_return_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting return");
+
   //Function calls were being duplicated without this check.
   if (ir_return_instruction->data.instruction_ret.value->type != IR_INSTRUCTION_FUNCTION_CALL) {
     AsmNode *source_node = create_operand(ir_return_instruction->data.instruction_ret.value, assembly);
@@ -1872,6 +1887,31 @@ static AsmNode* create_indexed_operand(AsmRegisterType base_register, AsmRegiste
   return indexed;
 }
 
+static void emit_asm_comment(AsmNode *function, Assembly *assembly, char *comment, ...) {
+  va_list args;
+  va_start(args, comment);
+
+  // First pass: determine required size
+  va_list args_copy;
+  va_copy(args_copy, args);
+  //vsnprintf calculates the required size
+  int length = vsnprintf(NULL, 0, comment, args_copy);
+  va_end(args_copy);
+
+  // Allocate memory (+1 for null terminator)
+  char *buffer = malloc(length + 1);
+
+  // Second pass: actually format string
+  vsnprintf(buffer, length + 1, comment, args);
+  va_end(args);
+
+  AsmNode *comment_node = arena_alloc(assembly->asm_arena);
+  comment_node->type = ASM_COMMENT;
+  comment_node->data.comment.comment = buffer;
+
+  add_instruction_to_function(function, comment_node);
+}
+
 static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly) {
   AsmNode *mov_node = arena_alloc(assembly->asm_arena);
 
@@ -2101,6 +2141,9 @@ void print_assembly(AsmNode *node) {
       break;
     case ASM_STATIC_CONSTANT:
       printf("Static Constant %s\n", node->data.static_constant.identifier);
+      break;
+    case ASM_COMMENT:
+      printf("Comment: %s\n", node->data.comment.comment);
       break;
     case ASM_INSTRUCTION_MOV:
       printf("MOV -> ");
