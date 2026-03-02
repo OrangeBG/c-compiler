@@ -1549,7 +1549,7 @@ static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
   parser->current_token_index++;
 
   AstNode *unary_value_expression_node = arena_alloc(parser->node_arena);
-  parse_factor(parser, &unary_value_expression_node);
+  parse_unary_expression(parser, &unary_value_expression_node);
 
   factor_node->type = AST_EXPRESSION_UNARY;
   factor_node->data.expression_unary.op_type = op_type;  
