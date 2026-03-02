@@ -282,13 +282,13 @@ void load_tokens(Lexer *lexer, char *file) {
 
 void print_tokens(Lexer *lexer, char *file) {
   for (int i = 0; i < lexer->tokens->count; i++) {
-    printf("line %d", lexer->tokens->items[i].line);
+    printf("%1s line %-5d", "", lexer->tokens->items[i].line);
     printf("%*s", 6, "");
 
-    long whitespace = 30 - strlen(get_token_name(lexer->tokens->items[i].type));
+    long whitespace = 20 - strlen(get_token_name(lexer->tokens->items[i].type));
     printf("%s", get_token_name(lexer->tokens->items[i].type));
     printf("%*s", (int)whitespace, "");
-    printf(" -> ");
+    printf("%-10s", "");
 
     for (int j = lexer->tokens->items[i].start_index; j <= lexer->tokens->items[i].end_index; j++) {
       printf("%c", file[j]);
