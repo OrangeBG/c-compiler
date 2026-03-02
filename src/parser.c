@@ -1798,7 +1798,7 @@ static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
 
   AstNode *address_of_expression = arena_alloc(parser->node_arena);
 
-  parse_factor(parser, &address_of_expression);
+  parse_unary_expression(parser, &address_of_expression);
 
   if (address_of_expression->type == AST_EXPRESSION_ASSIGNMENT) {
     input_error_with_line("Illegal to take an address of an assignment", current_token(parser)->line);

@@ -22,9 +22,9 @@ static TypeNode*        expression_type_check_binary(AstNode *binary_node, AstNo
 static TypeNode*        expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type,  SymbolTable *symbol_table, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results);  
-static TypeNode*        expression_type_check_and_convert(AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
+static TypeNode*        expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
 static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
-static TypeNode*        get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
+static TypeNode*        get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
 static long             convert_variable_declaration_constant_to_long(AstNode *constant_node); 
 static int              convert_variable_declaration_constant_to_int(AstNode *constant_node); 
@@ -161,7 +161,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       }
 
       if (node->data.expression_function_call.expression_type == NULL) { 
-        expression_type_check_and_convert(&node, symbol_table, function_declaration_node, parser_results);
+        expression_type_check_and_convert(node, &node, symbol_table, function_declaration_node, parser_results);
       }
 
       for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
@@ -213,7 +213,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       break;
     }
     case AST_STATEMENT_RETURN: {
-      TypeNode *return_expression_type = expression_type_check_and_convert(&node->data.statement_return.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *return_expression_type = expression_type_check_and_convert(node, &node->data.statement_return.expression, symbol_table, function_declaration_node, parser_results);
       TypeNode *function_return_type = function_declaration_node->data.declaration_function.function_type->data.function_type.return_type;
 
       if (function_return_type->type == TYPE_POINTER && return_expression_type->type == TYPE_POINTER) {
@@ -269,7 +269,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
 
 static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   if (ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
-    TypeNode *expression_type = expression_type_check_and_convert(&ast_initializer->data.initializer.initializer_node.single_init_expression, symbol_table, function_declaration_node, parser_results);
+    TypeNode *expression_type = expression_type_check_and_convert(ast_initializer, &ast_initializer->data.initializer.initializer_node.single_init_expression, symbol_table, function_declaration_node, parser_results);
 
     if (target_type->type == TYPE_ARRAY) {
       ast_initializer = convert_by_assignment(ast_initializer->data.initializer.initializer_node.single_init_expression, expression_type, target_type->data.array_type.element_type, parser_results);
@@ -604,7 +604,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return expression_type;
     }
     case AST_EXPRESSION_CAST: {
-      TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_cast.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check_and_convert(node, &node->data.expression_cast.expression, symbol_table, function_declaration_node, parser_results);
 
       if (node->data.expression_cast.target_type->type == TYPE_ARRAY) {
         input_error_with_line("Cannot cast to an array type", node->line_number);
@@ -621,7 +621,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return node->data.expression_cast.target_type;
     }
     case AST_EXPRESSION_UNARY: {
-      TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_unary.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check_and_convert(node, &node->data.expression_unary.expression, symbol_table, function_declaration_node, parser_results);
 
       if (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT && expression_type->type == TYPE_DOUBLE) {
         input_error_with_line("Cannot apply unary complement operator to a double", node->line_number);
@@ -643,8 +643,8 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return expression_type;
     }
     case AST_EXPRESSION_BINARY: {
-      TypeNode *left_expression_type = expression_type_check_and_convert(&node->data.expression_binary.left_expression, symbol_table, function_declaration_node, parser_results);
-      TypeNode *right_expression_type = expression_type_check_and_convert(&node->data.expression_binary.right_expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *left_expression_type = expression_type_check_and_convert(node, &node->data.expression_binary.left_expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *right_expression_type = expression_type_check_and_convert(node, &node->data.expression_binary.right_expression, symbol_table, function_declaration_node, parser_results);
 
       if (right_expression_type->type == TYPE_DOUBLE || left_expression_type->type == TYPE_DOUBLE) {
         switch (node->data.expression_binary.op_type) {
@@ -709,14 +709,14 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       }
     }
     case AST_EXPRESSION_ASSIGNMENT: {
-      TypeNode *left_expression_type = expression_type_check_and_convert(&node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *left_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
 
       //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
       if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT) {
         input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
 
-      TypeNode *right_expression_type = expression_type_check_and_convert(&node->data.expression_assignment.right_expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *right_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.right_expression, symbol_table, function_declaration_node, parser_results);
 
       if (left_expression_type->type == TYPE_POINTER && right_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {        
         input_error_with_line("Expression assignment of pointers aren't for the same type", node->line_number);
@@ -749,16 +749,16 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
     }
     case AST_EXPRESSION_CONDITIONAL: {
       //TODO: Confirm that the conditional expression type does not need to do anything with the set common type
-      TypeNode* condition_type = expression_type_check_and_convert(&node->data.expression_conditional.condition, symbol_table, function_declaration_node, parser_results);
+      TypeNode* condition_type = expression_type_check_and_convert(node, &node->data.expression_conditional.condition, symbol_table, function_declaration_node, parser_results);
         node->data.expression_conditional.expression_type = condition_type;
 
-      TypeNode *true_expression_type = expression_type_check_and_convert(&node->data.expression_conditional.true_expression, symbol_table, function_declaration_node, parser_results);
-      TypeNode *false_expression_type = expression_type_check_and_convert(&node->data.expression_conditional.false_expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *true_expression_type = expression_type_check_and_convert(node, &node->data.expression_conditional.true_expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *false_expression_type = expression_type_check_and_convert(node, &node->data.expression_conditional.false_expression, symbol_table, function_declaration_node, parser_results);
       
       TypeNode *common_type;
 
       if (true_expression_type->type == TYPE_POINTER || false_expression_type->type == TYPE_POINTER) {
-        common_type = get_common_pointer_type(node->data.expression_conditional.true_expression, node->data.expression_conditional.false_expression, symbol_table, function_declaration_node, parser_results);
+        common_type = get_common_pointer_type(node, node->data.expression_conditional.true_expression, node->data.expression_conditional.false_expression, symbol_table, function_declaration_node, parser_results);
       } else {
         common_type = get_common_real_type(true_expression_type, false_expression_type);
       }
@@ -772,7 +772,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT: {
-      return expression_type_check_and_convert(&node->data.expression_increment_decrement.expression, symbol_table, function_declaration_node, parser_results);
+      return expression_type_check_and_convert(node, &node->data.expression_increment_decrement.expression, symbol_table, function_declaration_node, parser_results);
       break;
     }
     case AST_EXPRESSION_ADDRESS_OF: {
@@ -798,7 +798,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return pointer_type_node;
     }
     case AST_EXPRESSION_DEREFERENCE: {
-      TypeNode *expression_type = expression_type_check_and_convert(&node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check_and_convert(node, &node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results);
 
       if (expression_type->type != TYPE_POINTER) {
         input_error_with_line("Cannot dereference a non-pointer", node->line_number);
@@ -808,8 +808,8 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return expression_type->data.pointer_type.reference_type;
     }
     case AST_EXPRESSION_SUBSCRIPT: {
-      TypeNode *expression_1_type = expression_type_check_and_convert(&node->data.expression_subscript.expression_1, symbol_table, function_declaration_node, parser_results);
-      TypeNode *expression_2_type = expression_type_check_and_convert(&node->data.expression_subscript.expression_2, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_1_type = expression_type_check_and_convert(node, &node->data.expression_subscript.expression_1, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_2_type = expression_type_check_and_convert(node, &node->data.expression_subscript.expression_2, symbol_table, function_declaration_node, parser_results);
 
       TypeNode *long_type_node = arena_alloc(parser_results->type_node_arena);
       long_type_node->type = TYPE_LONG;
@@ -844,7 +844,7 @@ static TypeNode* expression_type_check_binary(AstNode *binary_node, AstNode *fun
   TypeNode *common_type;
   
   if ((binary_node->data.expression_binary.op_type == AST_BINARY_EQUAL || binary_node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
-    common_type = get_common_pointer_type(binary_node->data.expression_binary.left_expression, binary_node->data.expression_binary.right_expression, symbol_table, function_declaration_node, parser_results);
+    common_type = get_common_pointer_type(binary_node, binary_node->data.expression_binary.left_expression, binary_node->data.expression_binary.right_expression, symbol_table, function_declaration_node, parser_results);
   } else {
     common_type = get_common_real_type(left_expression_type, right_expression_type);
   }
@@ -964,9 +964,9 @@ static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
   return type_2;
 }
 
-static TypeNode* get_common_pointer_type(AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
-  TypeNode *expression_1_type = expression_type_check_and_convert(&expression_1, symbol_table, function_declaration_node, parser_results); 
-  TypeNode *expression_2_type = expression_type_check_and_convert(&expression_2, symbol_table, function_declaration_node, parser_results); 
+static TypeNode* get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
+  TypeNode *expression_1_type = expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results); 
+  TypeNode *expression_2_type = expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results); 
 
   if (expression_1_type->type == expression_2_type->type) {
     return expression_1_type;
@@ -1130,10 +1130,15 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
   exit(1);
 }
 
-static TypeNode* expression_type_check_and_convert(AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
+static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   TypeNode *expression_type = expression_type_check(*node, symbol_table, function_declaration_node, parser_results);
 
   if (expression_type->type != TYPE_ARRAY) {
+    return expression_type;
+  }
+
+  //@Debt: This was added because of the way subscript expressions are returning their referenced type. This led to the main subscript node also being wrapped in an 'address of' node that we did not want. To prevent this, the 'source_node' param was added to track if the source node is not a subscript. A 'source node' was also added get_common_pointer_type due to dependencies. This isn't the ideal solution, but one to get passed subscripting issues.  
+  if ((*node)->type == AST_EXPRESSION_SUBSCRIPT && source_node->type != AST_EXPRESSION_SUBSCRIPT) {
     return expression_type;
   }
 
