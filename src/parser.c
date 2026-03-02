@@ -464,7 +464,7 @@ void print_ast(const AstNode *node, int whitespace) {
       break;
     case AST_EXPRESSION_BINARY:
       print_whitespace(whitespace);
-      printf("Binary( op type = ");
+      printf("Binary(line = %d, op type = ", node->line_number);
       switch (node->data.expression_binary.op_type) {
         case AST_BINARY_ADD:                  printf("\"+\""); break;
         case AST_BINARY_SUBTRACT:             printf("\"-\""); break;
@@ -1197,6 +1197,7 @@ static void parse_expression_postfix(Parser *parser, AstNode *postfix_expression
 }
 
 static void parse_expression_assignment(Parser *parser, AstNode *assignment_expression, AstNode *left_factor, TokenType assignment_token) {
+  assignment_expression->line_number = current_token(parser)->line;
   //right-associative assignment
   expect(parser, TOKEN_EQUAL);
 
@@ -1289,6 +1290,7 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
       //TODO: Arena Alloc restructure: This needs to be tested to make sure it works
       AstNode *assignment_expression = arena_alloc(parser->node_arena);
       assignment_expression->type = AST_EXPRESSION_ASSIGNMENT;
+      assignment_expression->line_number = current_token(parser)->line;
       assignment_expression->data.expression_assignment.left_expression = left_expression;
       assignment_expression->data.expression_assignment.right_expression = binary_expression_pointer;
       assignment_expression->data.expression_assignment.expression_type = NULL;

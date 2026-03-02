@@ -711,7 +711,8 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
     case AST_EXPRESSION_ASSIGNMENT: {
       TypeNode *left_expression_type = expression_type_check_and_convert(&node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
 
-      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT) {
+      //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
+      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT) {
         input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
 
