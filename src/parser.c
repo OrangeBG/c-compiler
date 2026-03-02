@@ -1168,17 +1168,20 @@ static void parse_expression_postfix(Parser *parser, AstNode *postfix_expression
   }
 
   AstNode *postfix_assignment = arena_alloc(parser->node_arena);
+  postfix_assignment->line_number = current_token(parser)->line;
   postfix_assignment->type = AST_EXPRESSION_ASSIGNMENT;
   postfix_assignment->data.expression_assignment.left_expression = left_expression;
 
   AstNode *postfix_constant = arena_alloc(parser->node_arena);
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
+  postfix_constant->line_number = current_token(parser)->line;
   //TODO: Look into why I'm doing this
   postfix_constant->data.expression_constant.int_value = 1;
   postfix_constant->data.expression_constant.expression_type = NULL;
   
   AstNode *postfix_binary = arena_alloc(parser->node_arena);
   postfix_binary->type = AST_EXPRESSION_BINARY;
+  postfix_binary->line_number = current_token(parser)->line;
   
   if (postfix_token == TOKEN_INCREMENT) {
     postfix_binary->data.expression_binary.op_type = AST_BINARY_ADD;
@@ -1234,6 +1237,7 @@ static void parse_expression_binary(Parser *parser, AstNode **binary_expression,
 
   AstNode *binary_expression_pointer = *binary_expression;
   binary_expression_pointer->type = AST_EXPRESSION_BINARY;
+  binary_expression_pointer->line_number = current_token(parser)->line;
   binary_expression_pointer->data.expression_binary.left_expression = left_expression;
   binary_expression_pointer->data.expression_binary.right_expression = right;
   binary_expression_pointer->data.expression_binary.expression_type = NULL;
@@ -1479,8 +1483,7 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
   long constant_value = strtol(constant_slice, &end_pointer, BASE_TEN);
   
   if (constant_value < LONG_MIN || constant_value > LONG_MAX) {
-    fprintf(stderr, "ERROR - Parser: Out of bounds int/long constant '%ld'\n", constant_value);
-    exit(1);
+    input_error_with_line("Out of bounds int/long constant '%ld'", current_token(parser)->line, constant_value);
   }
   
   if (constant_type == TOKEN_CONSTANT_INT && constant_value > INT_MIN && constant_value < INT_MAX) {
@@ -1556,6 +1559,7 @@ static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
 
 static void parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
   AstNode *prefix_expression = arena_alloc(parser->node_arena);
+  prefix_expression->line_number = current_token(parser)->line;
 
   if (current_token(parser)->type == TOKEN_INCREMENT) {
     expect(parser, TOKEN_INCREMENT);
@@ -1570,16 +1574,19 @@ static void parse_factor_prefix_expression(Parser *parser, AstNode *factor_node)
   parse_expression(parser, &left, 0);
 
   factor_node->type = AST_EXPRESSION_ASSIGNMENT;
+  factor_node->line_number = current_token(parser)->line;
   factor_node->data.expression_assignment.left_expression = left;
 
   AstNode *postfix_constant = arena_alloc(parser->node_arena);
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
+  postfix_constant->line_number = current_token(parser)->line;
   //TODO: Look into why I'm doing this
   postfix_constant->data.expression_constant.int_value = 1;
   postfix_constant->data.expression_constant.expression_type = NULL;
 
   AstNode *postfix_binary = arena_alloc(parser->node_arena);
   postfix_binary->type = AST_EXPRESSION_BINARY;
+  postfix_binary->line_number = current_token(parser)->line;
 
   if (prefix_expression->type == AST_EXPRESSION_PREFIX_INCREMENT) {
     postfix_binary->data.expression_binary.op_type = AST_BINARY_ADD;

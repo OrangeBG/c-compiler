@@ -974,11 +974,12 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
 }
 
 static ExpressionResult* emit_binary_and_or_expression(AstNode *binary_node, IRNode *source_1, IRNode *source_2, IRNode *destination, IRNode *function, IntermediateRep *intermediate_rep) {
-    //@Temp: Malloc'ing node to satisfy the need to padd it into the add function. Look into a way to add to the type arena
-    TypeNode *int_type_node = malloc(sizeof(TypeNode));
-    int_type_node->type = TYPE_INT;
-
-    add_automatic_variable_symbol(intermediate_rep->symbol_table, int_type_node, destination->data.value_var.identifier);    
+    //@TODO: This was erroring when uncommented. Yet int_type_node wasn't being used anywhere within the function. Keep commented until there's a reason for it
+    // //@Temp: Malloc'ing node to satisfy the need to padd it into the add function. Look into a way to add to the type arena
+    // TypeNode *int_type_node = malloc(sizeof(TypeNode));
+    // int_type_node->type = TYPE_INT;
+    //
+    // add_automatic_variable_symbol(intermediate_rep->symbol_table, int_type_node, destination->data.value_var.identifier);
 
     char *label_name = create_temp_label(intermediate_rep);
 
