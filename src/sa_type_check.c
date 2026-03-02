@@ -666,7 +666,6 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
           case AST_BINARY_REMAINDER:
           case AST_BINARY_BITWISE_AND:
           case AST_BINARY_BITWISE_XOR:
-          case AST_BINARY_OR: 
           case AST_BINARY_BITWISE_RIGHT_SHIFT:
           case AST_BINARY_BITWISE_LEFT_SHIFT:
             input_error_with_line("Cannot apply a binary %s operator with a pointer", node->line_number, get_binary_op_type_string(node->data.expression_binary.op_type));
