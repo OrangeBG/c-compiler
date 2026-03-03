@@ -1414,6 +1414,8 @@ static void emit_ir_instruction_binary_relational(AsmNode *asm_function, IRNode 
 }
 
 static void emit_ir_instruction_binary_signed_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting signed division binary");
+
   AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, assembly);
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
@@ -1444,6 +1446,8 @@ static void emit_ir_instruction_binary_signed_division(AsmNode *asm_function, co
 }
  
 static void emit_ir_instruction_binary_unsigned_division(AsmNode *asm_function, const IRNode *ir_binary_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting unsigned division binary");
+
   AsmNode *source_1 = create_operand(ir_binary_instruction->data.instruction_binary.source_1, assembly);
   AsmNode *source_2 = create_operand(ir_binary_instruction->data.instruction_binary.source_2, assembly);
   AsmNode *destination_node = create_operand(ir_binary_instruction->data.instruction_binary.destination, assembly);
@@ -1529,6 +1533,8 @@ static void emit_ir_instruction_return(AsmNode *asm_function, IRNode *ir_return_
 }
 
 static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_function_call_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting function call to %s", ir_function_call_instruction->data.instruction_function_call.identifier);
+
   FunctionCallArguments *function_call_args = malloc(sizeof(FunctionCallArguments));
   function_call_args->stack_arguments = calloc(1, sizeof(StackArgumentList));
   function_call_args->stack_arguments->arguments = malloc(sizeof(AsmNode));
@@ -1605,6 +1611,8 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
 }
 
 static void emit_ir_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_sign_extend_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting sign extend");
+
   AsmNode *movsx_instruction = arena_alloc(assembly->asm_arena);
   movsx_instruction->type = ASM_INSTRUCTION_MOVSX;
   movsx_instruction->data.instruction_movsx.source = create_operand(ir_sign_extend_instruction->data.instruction_sign_extend.source, assembly); 
@@ -1614,6 +1622,8 @@ static void emit_ir_instruction_sign_extend(AsmNode *asm_function, IRNode *ir_si
 }
 
 static void emit_ir_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_zero_extend_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting zero extend");
+
   AsmNode *source_node = create_operand(ir_zero_extend_instruction->data.instruction_sign_extend.source, assembly);
   AsmNode *destination_node = create_operand(ir_zero_extend_instruction->data.instruction_sign_extend.destination, assembly);
 
@@ -1621,6 +1631,8 @@ static void emit_ir_instruction_zero_extend(AsmNode *asm_function, IRNode *ir_ze
 }
 
 static void emit_ir_instruction_truncate(AsmNode *asm_function, IRNode *ir_truncate_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting truncate");
+
   AsmNode *source = create_operand(ir_truncate_instruction->data.instruction_truncate.source, assembly); 
   AsmNode *destination = create_operand(ir_truncate_instruction->data.instruction_truncate.destination, assembly);   
 
@@ -1633,6 +1645,8 @@ static void add_instruction_to_function(AsmNode *function, AsmNode *instruction)
 }
 
 static void emit_ir_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting cvtsi2sd");
+
   AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_int_to_double.destination, assembly);
   AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_int_to_double.source, assembly->symbol_table, assembly);
@@ -1641,6 +1655,8 @@ static void emit_ir_instruction_cvtsi2sd(AsmNode *asm_function, IRNode *ir_int_t
 }
 
 static void emit_ir_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_to_double_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting cvttsd2si");
+
   AsmNode *source_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.source, assembly);
   AsmNode *destination_node = create_operand(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly);
   AsmTypeNode *destination_type = convert_ir_value_to_asm_type(ir_int_to_double_instruction->data.instruction_double_to_int.destination, assembly->symbol_table, assembly);
@@ -1649,14 +1665,20 @@ static void emit_ir_instruction_cvttsd2si(AsmNode *asm_function, IRNode *ir_int_
 }
 
 static void emit_ir_instruction_uint_to_double(AsmNode *asm_function, IRNode *ir_uint_to_double_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting uint to double");
+
   AsmNode *source_node = create_operand(ir_uint_to_double_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_uint_to_double_instruction->data.instruction_uint_to_double.destination, assembly);
 
   emit_asm_mov_zero_extend_instruction(asm_function, source_node, assembly->register_ax, assembly);
   emit_asm_cvtsi2sd_instruction(asm_function, assembly->register_ax, destination_node, assembly->type_quadword, assembly);
+
+  emit_asm_comment(asm_function, assembly, "ending emit uint to double");
 }
 
 static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *ir_ulong_to_double_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting ulong to double");
+
   AsmNode *source_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_ulong_to_double_instruction->data.instruction_uint_to_double.destination, assembly);
   AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_ulong_to_double_instruction->data.instruction_uint_to_double.source, assembly->symbol_table, assembly);
@@ -1690,17 +1712,25 @@ static void emit_ir_instruction_ulong_to_double(AsmNode *asm_function, IRNode *i
   emit_asm_cvtsi2sd_instruction(asm_function, assembly->register_ax, destination_node, assembly->type_quadword, assembly);
   emit_asm_binary_instruction(asm_function, destination_node, destination_node, ASM_BINARY_ADD, assembly->type_double, assembly);
   emit_asm_label_instruction(asm_function, label_2_name, assembly);
+
+  emit_asm_comment(asm_function, assembly, "ending emit ulong to double");
 }
 
 static void emit_ir_instruction_double_to_uint(AsmNode *asm_function, IRNode *ir_double_to_uint_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting double to uint");
+
   AsmNode *source_node = create_operand(ir_double_to_uint_instruction->data.instruction_double_to_uint.source, assembly);
   AsmNode *destination_node = create_operand(ir_double_to_uint_instruction->data.instruction_double_to_uint.destination, assembly);
 
   emit_asm_cvttsd2si_instruction(asm_function, source_node, assembly->register_ax, assembly->type_quadword, assembly);
   emit_asm_mov_instruction(asm_function, assembly->register_ax, destination_node, assembly->type_longword, assembly);
+
+  emit_asm_comment(asm_function, assembly, "ending emit double to uint");
 }
 
 static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *ir_double_to_ulong_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting double to ulong");
+
   AsmNode *source_node = create_operand(ir_double_to_ulong_instruction->data.instruction_uint_to_double.source, assembly);
   AsmNode *destination_node = create_operand(ir_double_to_ulong_instruction->data.instruction_uint_to_double.destination, assembly);
 
@@ -1748,9 +1778,13 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
   emit_asm_mov_instruction(asm_function, imm, assembly->register_ax, assembly->type_quadword, assembly);
   emit_asm_binary_instruction(asm_function, assembly->register_ax, destination_node, ASM_BINARY_ADD, assembly->type_quadword, assembly);
   emit_asm_label_instruction(asm_function, label_2_name, assembly);
+
+  emit_asm_comment(asm_function, assembly, "ending emit double to ulong");
 }
 
 static void emit_ir_instruction_get_address(AsmNode *asm_function, IRNode *ir_get_address_instruction, Assembly *assembly) {  
+  emit_asm_comment(asm_function, assembly, "emitting get address");
+
   AsmNode *source_node = create_operand(ir_get_address_instruction->data.instruction_get_address.source, assembly);
   AsmNode *destination_node = create_operand(ir_get_address_instruction->data.instruction_get_address.destination, assembly);
 
@@ -1758,6 +1792,8 @@ static void emit_ir_instruction_get_address(AsmNode *asm_function, IRNode *ir_ge
 }
 
 static void emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_instruction, Assembly *assembly) {  
+  emit_asm_comment(asm_function, assembly, "emitting load");
+
   AsmNode *source_node = create_operand(ir_load_instruction->data.instruction_load.source_pointer, assembly);
   AsmNode *destination_node = create_operand(ir_load_instruction->data.instruction_load.destination, assembly);
 
@@ -1770,6 +1806,8 @@ static void emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_load_inst
 }
 
 static void emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_instruction, Assembly *assembly) {  
+  emit_asm_comment(asm_function, assembly, "emitting store");
+
   AsmNode *source_node = create_operand(ir_store_instruction->data.instruction_store.source, assembly);
   AsmNode *destination_node = create_operand(ir_store_instruction->data.instruction_store.destination_pointer, assembly);
 
@@ -1783,6 +1821,8 @@ static void emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_in
 }
 
 static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting copy to offset");
+
   AsmNode *source = create_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly);
   AsmNode *pseudo_mem = create_pseudo_mem_operand(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.destination_identifier,  ir_copy_to_offset_instruction->data.instruction_copy_to_offset.offset, assembly);
   AsmTypeNode *source_type = convert_ir_value_to_asm_type(ir_copy_to_offset_instruction->data.instruction_copy_to_offset.source, assembly->symbol_table, assembly);
@@ -1791,6 +1831,8 @@ static void emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir
 }
 
 static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly) {
+  emit_asm_comment(asm_function, assembly, "emitting add pointer");
+
   AsmNode *pointer = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.index, assembly);
   AsmNode *destination = create_operand(ir_add_pointer_instruction->data.instruction_add_pointer.destination, assembly);
 
@@ -1808,6 +1850,7 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
     emit_asm_mov_instruction(asm_function, pointer, assembly->register_ax, assembly->type_quadword, assembly);
     emit_asm_lea_instruction(asm_function, memory_operand, destination, assembly);
 
+    emit_asm_comment(asm_function, assembly, "ended emit add constant pointer");
     return;
   }
   
@@ -1826,6 +1869,7 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
     emit_asm_mov_instruction(asm_function, index_operand, assembly->register_dx, assembly->type_quadword, assembly);
     emit_asm_lea_instruction(asm_function, scale_operand, destination, assembly);
 
+    emit_asm_comment(asm_function, assembly, "ended emit add var pointer");
     return;
   }
 
@@ -1838,6 +1882,7 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
   emit_asm_mov_instruction(asm_function, index_operand, assembly->register_dx, assembly->type_quadword, assembly);
   emit_asm_binary_instruction(asm_function, imm_scale, assembly->register_dx, ASM_BINARY_MULT, assembly->type_quadword, assembly);
   emit_asm_lea_instruction(asm_function, indexed_operand, destination, assembly);
+  emit_asm_comment(asm_function, assembly, "ended emit add var pointer");
 }
 
 static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembly) {
