@@ -120,6 +120,9 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
       fprintf(file, "\n");
       
       break;
+    case ASM_COMMENT:
+      fprintf(file, "    # %s\n", asm_node->data.comment.comment);
+      break;
     case ASM_INSTRUCTION_MOV:
       fprintf(file, "\tmov");
 

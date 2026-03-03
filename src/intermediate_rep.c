@@ -402,6 +402,45 @@ char* get_intermediate_rep_type_name(IRNode *ir_node) {
   }
 }
 
+char* get_intermediate_rep_unary_op_name(IRNode *ir_node) {
+  if (ir_node->type != IR_INSTRUCTION_UNARY) {
+    panic("Expected Unary node when returning op type name. Received '%s'", get_intermediate_rep_type_name(ir_node));
+  }
+
+  switch (ir_node->data.instruction_unary.op_type) {
+    case IR_UNARY_NEGATE:     return "Negate";
+    case IR_UNARY_NOT:        return "Not";
+    case IR_UNARY_COMPLEMENT: return "Complement";
+    default: panic("Unsupported Unary op type when attempting to return op type name");
+  }
+}
+
+char* get_intermediate_rep_binary_op_name(IRNode *ir_node) {
+  if (ir_node->type != IR_INSTRUCTION_BINARY) {
+    panic("Expected Binary node when returning op type name. Received '%s'", get_intermediate_rep_type_name(ir_node));
+  }
+
+  switch (ir_node->data.instruction_binary.op_type) {
+    case IR_BINARY_ADD:                    return "Add";
+    case IR_BINARY_SUBTRACT:               return "Subtract";
+    case IR_BINARY_MULTIPLY:               return "Multiply";
+    case IR_BINARY_DIVIDE:                 return "Divide";
+    case IR_BINARY_REMAINDER:              return "Remainder";
+    case IR_BINARY_BITWISE_AND:            return "Bitwise AND";
+    case IR_BINARY_BITWISE_OR:             return "Bitwise OR";
+    case IR_BINARY_BITWISE_XOR:            return "Bitwise XOR";
+    case IR_BINARY_BITWISE_LEFT_SHIFT:     return "Bitwise Left Shift";
+    case IR_BINARY_BITWISE_RIGHT_SHIFT:    return "Bitwise Right Shift";
+    case IR_BINARY_EQUAL:                  return "Equal";
+    case IR_BINARY_NOT_EQUAL:              return "Not Equal";
+    case IR_BINARY_LESS_THAN:              return "Less Than";
+    case IR_BINARY_LESS_OR_EQUAL:          return "Less Than or Equal";
+    case IR_BINARY_GREATER_THAN:           return "Greater Than";
+    case IR_BINARY_GREATER_OR_EQUAL:       return "Greather Than or Equal";
+    default: panic("Unsupported Binary op type when attempting to return op type name");
+  }
+}
+
 static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *intermediate_rep) {
   IRNode *function = arena_alloc(intermediate_rep->node_arena);
   IRNodePointer *ir_node_pointer = malloc(sizeof(IRNodePointer));
