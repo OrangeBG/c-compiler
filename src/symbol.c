@@ -256,6 +256,24 @@ void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value)
       initial_value->type = INITIAL_VALUE_TYPE_ULONG;
       initial_value->data.ulong_value = 0;
       break;
+    case TYPE_ARRAY:
+      initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+      TypeNode *cur_type = type_node;
+      unsigned long total_size = 0;
+
+      while (true) {
+        total_size += cur_type->data.array_type.size;
+
+        if (cur_type->data.array_type.element_type->type != TYPE_ARRAY) {
+          //cur_type->data.array_type.size * get_type_size(type_node->data.array_type.element_type->type);
+          initial_value->data.zero_init_array_bytes = total_size * get_type_size(cur_type->type);
+          break;
+        }
+
+        cur_type = cur_type->data.array_type.element_type;
+      }
+
+      break;
     default:
       panic("Unsupported initial value Type '%d'", type_node->type);
   }
