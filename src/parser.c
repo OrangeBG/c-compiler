@@ -88,7 +88,7 @@ static void         parse_declaration(Parser *parser, AstNode *declaration_node)
 static Declarator*  parse_declarator(Parser *parser); 
 static Declarator*  parse_direct_declarator(Parser *parser);
 static Declarator*  parse_simple_declarator(Parser *parser);
-static Declarator*  parse_declarator_suffix(Parser *parser);   
+static Declarator*  parse_declarator_suffix(Parser *parser);
 static AbstractDeclarator* parse_abstract_declarator(Parser *parser); 
 static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser); 
 static void         parse_function_declaration(Parser *parser, AstNode *function_node, StorageClassType storage_class_type, DeclaratorResults *declaration_results);
@@ -1996,46 +1996,53 @@ static Declarator* parse_simple_declarator(Parser *parser) {
   return NULL;  
 }
 
-static Declarator* parse_declarator_suffix(Parser *parser) {  
+static Declarator* parse_declarator_suffix(Parser *parser) {
   if (current_token(parser)->type == TOKEN_OPEN_BRACKET) {
-    expect(parser, TOKEN_OPEN_BRACKET);
+    Declarator *head = malloc(sizeof(Declarator));
+    head->type = DECLARATOR_TYPE_ARRAY;
+    Declarator *tail = head;
+    Declarator *cur_node = head;
 
-    Declarator *array_declarator = malloc(sizeof(Declarator));
-    array_declarator->type = DECLARATOR_TYPE_ARRAY;
-    array_declarator->data.array_declarator.declarator = NULL;
+    while (true) {
+      expect(parser, TOKEN_OPEN_BRACKET);
+      
+      //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
 
-    //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
+      char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
+      strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
+      constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
 
-    char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
-    strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
-    constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
-  
-    char *end_pointer;
+      char *end_pointer;
 
-    switch(current_token(parser)->type) {
-      case TOKEN_CONSTANT_UNSIGNED_LONG:        
-        array_declarator->data.array_declarator.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+      switch(current_token(parser)->type) {
+       case TOKEN_CONSTANT_UNSIGNED_LONG:
+         cur_node->data.array_declarator.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+         break;
+       case TOKEN_CONSTANT_INT:
+       case TOKEN_CONSTANT_LONG:
+       case TOKEN_CONSTANT_UNSIGNED_INT:
+         cur_node->data.array_declarator.size = strtol(constant_slice, &end_pointer, BASE_TEN);
+         break;
+       default:
+         panic("Unsupported array size type '%s' in declarator suffix", get_token_name(current_token(parser)->type));
+      }
+
+      parser->current_token_index++;
+      expect(parser, TOKEN_CLOSE_BRACKET);
+
+      cur_node->data.array_declarator.declarator = head;
+      head = cur_node;
+
+      if (current_token(parser)->type != TOKEN_OPEN_BRACKET) {
+        tail->data.array_declarator.declarator = NULL;
         break;
-      case TOKEN_CONSTANT_INT:
-      case TOKEN_CONSTANT_LONG:
-      case TOKEN_CONSTANT_UNSIGNED_INT:        
-        array_declarator->data.array_declarator.size = strtol(constant_slice, &end_pointer, BASE_TEN);
-        break;
-      default:
-        panic("Unsupported array size type '%s' in declarator suffix", get_token_name(current_token(parser)->type));
+      }
+
+      cur_node = malloc(sizeof(Declarator));
+      cur_node->type = DECLARATOR_TYPE_ARRAY;
     }
 
-    parser->current_token_index++;
-    expect(parser, TOKEN_CLOSE_BRACKET);
-
-    Declarator *next_declarator = parse_declarator_suffix(parser);
-
-    if (next_declarator != NULL) {
-      next_declarator->data.array_declarator.declarator = array_declarator;
-      return next_declarator;
-    }
-
-    return array_declarator;
+    return head;
   }
 
   if (current_token(parser)->type == TOKEN_OPEN_PAREN) {
