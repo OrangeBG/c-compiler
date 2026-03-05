@@ -265,8 +265,8 @@ void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value)
         total_size += cur_type->data.array_type.size;
 
         if (cur_type->data.array_type.element_type->type != TYPE_ARRAY) {
-          //cur_type->data.array_type.size * get_type_size(type_node->data.array_type.element_type->type);
-          initial_value->data.zero_init_array_bytes = total_size * get_type_size(cur_type->type);
+          //@Debt: Total size is being narrowed from long to an int
+          initial_value->data.zero_init_array_bytes = total_size * get_type_size(cur_type->data.array_type.element_type->type);
           break;
         }
 
