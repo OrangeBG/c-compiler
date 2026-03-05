@@ -521,8 +521,7 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
      unsigned long value = convert_variable_declaration_constant_to_ulong(constant_node);
 
      if (value != 0) {
-       fprintf(stderr, "ERROR - SA Type Check: Cannot assign value '%ld' to a static pointer\n", value);
-       exit(1);
+       input_error_with_line("Cannot assign value '%ld' to a static pointer\n", single_init->line_number, value);
      }
 
      initial_value->type = INITIAL_VALUE_TYPE_ULONG;
@@ -980,8 +979,7 @@ static TypeNode* get_common_pointer_type(AstNode *source, AstNode *expression_1,
     return expression_1_type;
   }
 
-  fprintf(stderr, "ERROR - SA Type Check: Common pointer expressions have incompatible types (line %d)\n", expression_1->line_number);
-  exit(1);
+  input_error_with_line("Common pointer expressions have incompatible types", expression_1->line_number);
 }
 
 static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results) {
@@ -1126,8 +1124,7 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
     return convert_to(right_assignment_expression, right_assignment_type, target_type, parser_results);
   }
 
-  fprintf(stderr, "ERROR - Type Check: Cannot convert type for assignment expression (line %d)\n", right_assignment_expression->line_number);
-  exit(1);
+  input_error_with_line("Cannot convert type for assignment expression", right_assignment_expression->line_number);
 }
 
 static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
