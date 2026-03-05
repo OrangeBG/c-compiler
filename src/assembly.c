@@ -2686,7 +2686,7 @@ static void push_function_argument_to_stack_list(AsmNode *argument, AsmTypeNode 
     int new_size = stack_argument_list->capacity == 0 ? STACK_ARGUMENT_CAPACITY : stack_argument_list->capacity * 2;
 
     AsmNode *realloc_pointers = realloc(stack_argument_list->arguments, new_size * sizeof(AsmNode));
-    AsmTypeNode *realloc_types= realloc(stack_argument_list->argument_types, new_size * sizeof(AsmType));
+    AsmTypeNode *realloc_types= realloc(stack_argument_list->argument_types, new_size * sizeof(AsmTypeNode));
 
     stack_argument_list->capacity = new_size;
     stack_argument_list->arguments = realloc_pointers;
