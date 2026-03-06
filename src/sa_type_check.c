@@ -466,6 +466,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     
     if (!variable_declaration_node->data.declaration_variable.has_expression) {
       symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
+      add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
     }
 
@@ -1135,9 +1136,9 @@ static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode
   }
 
   //@Debt: This was added because of the way subscript expressions are returning their referenced type. This led to the main subscript node also being wrapped in an 'address of' node that we did not want. To prevent this, the 'source_node' param was added to track if the source node is not a subscript. A 'source node' was also added get_common_pointer_type due to dependencies. This isn't the ideal solution, but one to get passed subscripting issues.  
-  if ((*node)->type == AST_EXPRESSION_SUBSCRIPT && source_node->type != AST_EXPRESSION_SUBSCRIPT) {
-    return expression_type;
-  }
+  // if ((*node)->type == AST_EXPRESSION_SUBSCRIPT && source_node->type != AST_EXPRESSION_SUBSCRIPT) {
+  //   return expression_type;
+  // }
 
   AstNode *address_of_array = arena_alloc(parser_results->ast_node_arena); 
   address_of_array->type = AST_EXPRESSION_ADDRESS_OF;

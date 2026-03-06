@@ -12,6 +12,7 @@ size_t get_type_size(Types type) {
     case TYPE_ULONG:   return sizeof(unsigned long);
     case TYPE_DOUBLE:  return sizeof(double);
     case TYPE_POINTER: return sizeof(int*);
+    case TYPE_ARRAY:   return sizeof(int*); //@Debt: Not sure if we should be returning the pointer size of the array or if we should calculate the entire size of the array. Look into it.
     default:
       panic("Unsupported type when attempting to get Type size");
   }
