@@ -945,8 +945,10 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
     char *divide_destination_name = create_temp_register(intermediate_rep);
 
     IRNode *divide_destination = arena_alloc(intermediate_rep->node_arena);
-    destination->type = IR_VALUE_VAR;
-    destination->data.value_var.identifier = divide_destination_name;
+    divide_destination->type = IR_VALUE_VAR;
+    divide_destination->data.value_var.identifier = divide_destination_name;
+
+    add_automatic_variable_symbol(intermediate_rep->symbol_table, source_1_type, divide_destination_name);
 
     //TODO: Check to see if logic is right: pg.408
     IRNode *pointer_base_size = create_int_constant(get_pointer_base_type(source_1_type), intermediate_rep);
@@ -956,6 +958,7 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
     divide_instruction->data.instruction_binary.op_type = IR_BINARY_DIVIDE;
     divide_instruction->data.instruction_binary.source_1 = destination;
     divide_instruction->data.instruction_binary.source_2 = pointer_base_size;
+    divide_instruction->data.instruction_binary.destination = divide_destination;
 
     add_instruction_to_function(function, divide_instruction);
 
