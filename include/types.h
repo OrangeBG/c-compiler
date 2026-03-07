@@ -27,7 +27,9 @@ typedef struct TypeNode {
   } data;
 } TypeNode;
 
-size_t get_type_size(Types type);
+size_t get_type_size(TypeNode *type_node);
+size_t get_array_base_size(TypeNode *array_node); 
+size_t get_pointer_base_size(TypeNode *pointer_node); 
 bool   is_type_signed(Types type); 
 bool   is_arithmetic_type(TypeNode *type_node);
 bool   is_integer_type(TypeNode *type_node); 

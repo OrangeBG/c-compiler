@@ -686,7 +686,7 @@ static void emit_copy_to_offset_for_compound_initializer(char *declaration_ident
     IRNode *result = emit_ast_node_and_convert_lvalue(compound_initializer_node->data.initializer.initializer_node.compound_initializer->items[i].data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
     
     //@Warning: Result IR Node won't always be a constant
-    size_t constant_size = get_type_size(result->data.value_constant.type->type);
+    size_t constant_size = get_type_size(result->data.value_constant.type);
 
     IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
     copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
@@ -911,9 +911,9 @@ static ExpressionResult* emit_binary_pointer_add_arithmetic_expression(IRNode *s
   int scale = 0;
 
   if (pointer_type_node->type == TYPE_ARRAY) {
-    scale = get_type_size(get_array_base_type(pointer_type_node));
+    scale = get_array_base_size(pointer_type_node);
   } else {
-    scale = get_type_size(get_pointer_base_type(pointer_type_node));
+    scale = get_pointer_base_size(pointer_type_node);
   }
 
   IRNode *add_pointer_instruction = arena_alloc(intermediate_rep->node_arena);
@@ -993,18 +993,18 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
     add_pointer_instruction->data.instruction_add_pointer.pointer = source_1;
 
     if (source_1_type->type == TYPE_POINTER) {
-      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_pointer_base_type(source_1_type));
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_pointer_base_size(source_1_type);
     } else {
-      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_array_base_type(source_1_type));
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_array_base_size(source_1_type);
     }
     add_pointer_instruction->data.instruction_add_pointer.index = source_2;
   } else {
     add_pointer_instruction->data.instruction_add_pointer.pointer = source_2;
 
     if (source_2_type->type == TYPE_POINTER) {
-      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_pointer_base_type(source_2_type));
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_pointer_base_size(source_2_type);
     } else {
-      add_pointer_instruction->data.instruction_add_pointer.scale = get_type_size(get_array_base_type(source_2_type));
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_array_base_type(source_2_type);
     }
     add_pointer_instruction->data.instruction_add_pointer.index = source_1;
   }
@@ -1133,7 +1133,7 @@ static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *functi
 
   ExpressionResult *var_destination_node = create_variable(temp_destination, intermediate_rep);
 
-  if (get_type_size(target_type->type) == get_type_size(expression_type->type)) {
+  if (get_type_size(target_type) == get_type_size(expression_type)) {
     emit_copy(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (expression_type->type == TYPE_DOUBLE && target_type->type == TYPE_INT) {
     emit_double_to_int(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
@@ -1147,7 +1147,7 @@ static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *functi
     emit_sign_extend(cast_expression, var_destination_node->operand_value, function, intermediate_rep);
   } else if (target_type->type == TYPE_POINTER) {
     emit_truncate(cast_expression, var_destination_node->operand_value, function, intermediate_rep);    
-  } else if (get_type_size(target_type->type) < get_type_size(expression_type->type)) {
+  } else if (get_type_size(target_type) < get_type_size(expression_type)) {
     emit_truncate(cast_expression, var_destination_node->operand_value, function, intermediate_rep);    
   } else if (is_type_signed(expression_type->type)) {
     emit_sign_extend(cast_expression, var_destination_node->operand_value, function, intermediate_rep);

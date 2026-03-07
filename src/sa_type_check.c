@@ -35,7 +35,7 @@ static AstNode*         convert_by_assignment(AstNode *right_assignment_expressi
 static bool             is_null_pointer_constant(AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
 static void             add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
-static void             add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init, Types base_type);
+static void             add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init);
 
 void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -477,7 +477,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     }
 
     if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
-      add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, get_array_base_type(variable_declaration_node->data.declaration_variable.type));
+      add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
       add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
     }
@@ -536,16 +536,16 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
   dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
 }
 
-static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init, Types base_array_type) {
+static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
     if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
       for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
-        add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i], base_array_type);
+        add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i]);
       }
 
     int compound_diff = declaration_type->data.array_type.size - compound_init->data.initializer.initializer_node.compound_initializer->count;
 
     if (compound_diff != 0) {
-      size_t size = get_type_size(base_array_type);
+      size_t size = get_array_base_size(declaration_type);
 
       InitialValue *initial_value = malloc(sizeof(InitialValue));
       initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
@@ -561,11 +561,11 @@ static void add_variable_declaration_compound_init_to_array(InitialValueArray *i
     int compound_diff = declaration_type->data.array_type.size - compound_init->data.initializer.initializer_node.compound_initializer->count;
 
     if (compound_diff != 0) {
-      size_t size = get_type_size(base_array_type);
+      size_t size = get_array_base_size(declaration_type);
 
       InitialValue *initial_value = malloc(sizeof(InitialValue));
       initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
-      //TODO: Warning. Casting to int.
+      //@Warning: Casting to int.
       initial_value->data.zero_init_array_bytes = (int)size * compound_diff;
       dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
@@ -949,7 +949,7 @@ static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
     return type_2;
   }
 
-  if (get_type_size(type_1->type) == get_type_size(type_2->type)) {
+  if (get_type_size(type_1) == get_type_size(type_2)) {
     if (type_1->type == TYPE_INT || type_1->type == TYPE_LONG) {
       return type_2;
     }
@@ -957,7 +957,7 @@ static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
     return type_1;
   }  
 
-  if (get_type_size(type_1->type) > get_type_size(type_2->type)) {
+  if (get_type_size(type_1) > get_type_size(type_2)) {
     return type_1;
   } 
 

@@ -1175,7 +1175,7 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
         asm_static_variable->data.static_variable.alignment = 16;
       } else {
         //@Debt: Narrowing conversion happening
-        asm_static_variable->data.static_variable.alignment = get_type_size(get_array_base_type(ir_static_variable->data.static_variable.static_variable_symbol->value_type));
+        asm_static_variable->data.static_variable.alignment = get_array_base_size(ir_static_variable->data.static_variable.static_variable_symbol->value_type);
       }
 
       break;
@@ -2503,7 +2503,7 @@ static AsmTypeNode* convert_type_to_asm_type(TypeNode *type_node, Assembly *asse
       AsmTypeNode *byte_array_type = malloc(sizeof(AsmTypeNode));
       byte_array_type->type = ASM_TYPE_BYTE_ARRAY;
       
-      int array_element_size = get_type_size(type_node->data.array_type.element_type->type);
+      int array_element_size = get_type_size(type_node->data.array_type.element_type);
 
       if (type_node->data.array_type.size >= 16) {
         byte_array_type->byte_array_alignment = 16;
