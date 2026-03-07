@@ -1152,6 +1152,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
   }
 }
 
+//@Debt: Check out convert_type_to_asm_type(). There's similar alignment logic happening in two places
 static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable) {
   asm_static_variable->type = ASM_STATIC_VARIABLE;
   asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
@@ -1168,6 +1169,15 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
     case TYPE_DOUBLE:
     case TYPE_POINTER:
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD;
+      break;
+    case TYPE_ARRAY:
+      if (ir_static_variable->data.static_variable.static_variable_symbol->value_type->data.array_type.size >= 16) {
+        asm_static_variable->data.static_variable.alignment = 16;
+      } else {
+        //@Debt: Narrowing conversion happening
+        asm_static_variable->data.static_variable.alignment = get_type_size(get_array_base_type(ir_static_variable->data.static_variable.static_variable_symbol->value_type));
+      }
+
       break;
     default:
       panic("Could not assign alignment value to static variable '%s'", ir_static_variable->data.static_variable.identifier);
