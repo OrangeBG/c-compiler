@@ -1136,6 +1136,7 @@ static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode
   }
 
   //@Debt: This was added because of the way subscript expressions are returning their referenced type. This led to the main subscript node also being wrapped in an 'address of' node that we did not want. To prevent this, the 'source_node' param was added to track if the source node is not a subscript. A 'source node' was also added get_common_pointer_type due to dependencies. This isn't the ideal solution, but one to get passed subscripting issues.  
+  //@Debt: This is commented for now, need to investigate how subscripts should be passed.
   // if ((*node)->type == AST_EXPRESSION_SUBSCRIPT && source_node->type != AST_EXPRESSION_SUBSCRIPT) {
   //   return expression_type;
   // }
