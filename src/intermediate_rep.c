@@ -685,8 +685,8 @@ static void emit_copy_to_offset_for_compound_initializer(char *declaration_ident
     
     IRNode *result = emit_ast_node_and_convert_lvalue(compound_initializer_node->data.initializer.initializer_node.compound_initializer->items[i].data.initializer.initializer_node.single_init_expression, function, intermediate_rep);
     
-    //@Warning: Result IR Node won't always be a constant
-    size_t constant_size = get_type_size(result->data.value_constant.type);
+    TypeNode *result_type = get_node_type(result, intermediate_rep);
+    size_t constant_size = get_type_size(result_type);
 
     IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
     copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
