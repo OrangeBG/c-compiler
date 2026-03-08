@@ -1794,6 +1794,7 @@ static void parse_factor_function_call(Parser *parser, AstNode *factor_node, cha
 } 
 
 static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
+  factor_node->line_number = current_token(parser)->line;
   expect(parser, TOKEN_BITWISE_AND);
 
   AstNode *address_of_expression = arena_alloc(parser->node_arena);

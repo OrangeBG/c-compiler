@@ -817,12 +817,14 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       //@Test: Not sure if these returned expression types are correct
       if (expression_1_type->type == TYPE_POINTER && is_integer_type(expression_2_type)) {
         node->data.expression_subscript.expression_2 = convert_to(node->data.expression_subscript.expression_2, expression_2_type, long_type_node, parser_results);
-        return expression_1_type->data.pointer_type.reference_type;
+        node->data.expression_subscript.expression_type = expression_1_type->data.pointer_type.reference_type;
+        return node->data.expression_subscript.expression_type;
       }
 
       if (expression_2_type->type == TYPE_POINTER && is_integer_type(expression_1_type)) {
         node->data.expression_subscript.expression_1 = convert_to(node->data.expression_subscript.expression_1, expression_1_type, long_type_node, parser_results);
-        return expression_2_type->data.pointer_type.reference_type;
+        node->data.expression_subscript.expression_type = expression_2_type->data.pointer_type.reference_type;
+        return node->data.expression_subscript.expression_type;
       }
 
       input_error_with_line("Subscript must have an integer and pointer operand", node->line_number);
@@ -1136,12 +1138,22 @@ static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode
   }
 
   //@Debt: This was added because of the way subscript expressions are returning their referenced type. This led to the main subscript node also being wrapped in an 'address of' node that we did not want. To prevent this, the 'source_node' param was added to track if the source node is not a subscript. A 'source node' was also added get_common_pointer_type due to dependencies. This isn't the ideal solution, but one to get passed subscripting issues.  
-  //@Debt: This is commented for now, need to investigate how subscripts should be passed.
-  // if ((*node)->type == AST_EXPRESSION_SUBSCRIPT && source_node->type != AST_EXPRESSION_SUBSCRIPT) {
-  //   return expression_type;
-  // }
+  //@Debt: Another thing we are doing here is this while loop to return the base type of the TypeNode when it is a multi-dimensional array. Example: arr[i][j] where arr is an int returns an array type for the head Subscript node when it should be returning an int.
+  if ((*node)->type == AST_EXPRESSION_SUBSCRIPT && source_node->type != AST_EXPRESSION_SUBSCRIPT) {
+    if ((*node)->data.expression_subscript.expression_type->type == TYPE_ARRAY) {
+      TypeNode *curNode = (*node)->data.expression_subscript.expression_type;
+      while (curNode->type == TYPE_ARRAY) {
+        curNode = curNode->data.array_type.element_type;
+      }
 
-  AstNode *address_of_array = arena_alloc(parser_results->ast_node_arena); 
+      (*node)->data.expression_subscript.expression_type = curNode;
+      return curNode;
+    }
+    return expression_type;
+  }
+
+  AstNode *address_of_array = arena_alloc(parser_results->ast_node_arena);
+  address_of_array->line_number = (*node)->line_number;
   address_of_array->type = AST_EXPRESSION_ADDRESS_OF;
   address_of_array->data.expression_address_of.expression = *node;
 
