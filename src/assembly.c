@@ -2425,7 +2425,8 @@ static void print_assembly_type(AsmTypeNode *asm_type_node) {
     case ASM_TYPE_QUADWORD:    printf("Type(Quadword) "); return;
     case ASM_TYPE_LONGWORD:    printf("Type(Longword) "); return;
     case ASM_TYPE_DOUBLE:      printf("Type(Double) "); return;
-    case ASM_TYPE_BYTE:        printf("Type(Byte) "); break;
+    case ASM_TYPE_BYTE:        printf("Type(Byte) "); return;
+    case ASM_TYPE_BYTE_ARRAY:  printf("Type(ByteArray: alignment: %d, size: %d) ", asm_type_node->byte_array_alignment, asm_type_node->byte_array_size); return;
     default:
       panic("AsmType '%d' not supported for assembly type printing", asm_type_node->type);
   }

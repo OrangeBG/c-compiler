@@ -1633,7 +1633,7 @@ static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
   //factor_node->data.expression_cast.expression_type = NULL;
 }
 
-//'*' by itself is a valid abstract declarator but not a valid regular declarator.
+//@Note: '*' by itself is a valid abstract declarator but not a valid regular declarator.
 static AbstractDeclarator* parse_abstract_declarator(Parser *parser) {
   if (current_token(parser)->type == TOKEN_ASTERISK) {
     expect(parser, TOKEN_ASTERISK);
