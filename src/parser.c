@@ -1764,7 +1764,8 @@ static TypeNode* process_abstract_declarator(Parser *parser, AbstractDeclarator 
     pointer_type->data.array_type.element_type = base_type;
     pointer_type->data.array_type.size = abstract_declarator->data.abstract_array.size;
 
-    return pointer_type;
+    //return pointer_type;
+    return process_abstract_declarator(parser, abstract_declarator->data.abstract_array.abstract_declarator, pointer_type);
   }
 
   return base_type;
