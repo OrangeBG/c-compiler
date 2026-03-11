@@ -926,7 +926,9 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
   long_type_node->type = TYPE_LONG;
 
   if (left_expression_type->type == TYPE_POINTER && is_integer_type(right_expression_type)) {
-    subtract_node->data.expression_binary.right_expression = convert_to(subtract_node->data.expression_binary.right_expression, right_expression_type, long_type_node, parser_results);     
+    subtract_node->data.expression_binary.right_expression = convert_to(subtract_node->data.expression_binary.right_expression, right_expression_type, long_type_node, parser_results);
+
+    subtract_node->data.expression_binary.expression_type = left_expression_type;
     return left_expression_type;
   }
 

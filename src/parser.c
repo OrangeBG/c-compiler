@@ -142,7 +142,7 @@ static void         add_function_parameter_identifier(char *identifier, AstNode 
 static void         add_function_parameter_to_declarator(Declarator *function_declarator, Types param_type, Declarator *param_declarator); 
 static void         add_function_parameter_identifier_to_declarator_results(char *identifier, DeclaratorResults *declarator_results);   
 static DeclaratorResults* process_declarator(Parser *parser, DeclaratorResults *declaration_results, Declarator *declarator, TypeNode *base_type); 
-static TypeNode*     process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type);
+static TypeNode*    process_abstract_declarator(Parser *parser, AbstractDeclarator *abstract_declarator, TypeNode *base_type);
 
 void parse_ast(ParserResults *results, TokenArray *tokens, int token_count, char *file) {  
   Arena *parser_arena = malloc(sizeof(Arena));
@@ -1175,7 +1175,6 @@ static void parse_expression_postfix(Parser *parser, AstNode *postfix_expression
   AstNode *postfix_constant = arena_alloc(parser->node_arena);
   postfix_constant->type = AST_EXPRESSION_CONSTANT;
   postfix_constant->line_number = current_token(parser)->line;
-  //TODO: Look into why I'm doing this
   postfix_constant->data.expression_constant.int_value = 1;
   postfix_constant->data.expression_constant.expression_type = NULL;
   
@@ -1560,49 +1559,52 @@ static void parse_factor_unary(Parser *parser, AstNode *factor_node) {
 }
 
 static void parse_factor_prefix_expression(Parser *parser, AstNode *factor_node) {
-  AstNode *prefix_expression = arena_alloc(parser->node_arena);
-  prefix_expression->line_number = current_token(parser)->line;
+  // AstNode *prefix_expression = arena_alloc(parser->node_arena);
+  // prefix_expression->line_number = current_token(parser)->line;
+
+  NodeType expression_type;
 
   if (current_token(parser)->type == TOKEN_INCREMENT) {
     expect(parser, TOKEN_INCREMENT);
-    prefix_expression->type = AST_EXPRESSION_PREFIX_INCREMENT;
+    expression_type = AST_EXPRESSION_PREFIX_INCREMENT;
+    // prefix_expression->type = AST_EXPRESSION_PREFIX_INCREMENT;
   } else {
     expect(parser, TOKEN_DECREMENT);
-    prefix_expression->type = AST_EXPRESSION_PREFIX_DECREMENT;
+    expression_type = AST_EXPRESSION_PREFIX_DECREMENT;
+    // prefix_expression->type = AST_EXPRESSION_PREFIX_DECREMENT;
   }
 
   AstNode *left = arena_alloc(parser->node_arena);
 
-  parse_expression(parser, &left, 0);
+  parse_unary_expression(parser, &left);
 
   factor_node->type = AST_EXPRESSION_ASSIGNMENT;
   factor_node->line_number = current_token(parser)->line;
   factor_node->data.expression_assignment.left_expression = left;
 
-  AstNode *postfix_constant = arena_alloc(parser->node_arena);
-  postfix_constant->type = AST_EXPRESSION_CONSTANT;
-  postfix_constant->line_number = current_token(parser)->line;
-  //TODO: Look into why I'm doing this
-  postfix_constant->data.expression_constant.int_value = 1;
-  postfix_constant->data.expression_constant.expression_type = NULL;
+  AstNode *prefix_constant = arena_alloc(parser->node_arena);
+  prefix_constant->type = AST_EXPRESSION_CONSTANT;
+  prefix_constant->line_number = current_token(parser)->line;
+  prefix_constant->data.expression_constant.int_value = 1;
+  prefix_constant->data.expression_constant.expression_type = NULL;
 
-  AstNode *postfix_binary = arena_alloc(parser->node_arena);
-  postfix_binary->type = AST_EXPRESSION_BINARY;
-  postfix_binary->line_number = current_token(parser)->line;
+  AstNode *prefix_binary = arena_alloc(parser->node_arena);
+  prefix_binary->type = AST_EXPRESSION_BINARY;
+  prefix_binary->line_number = current_token(parser)->line;
 
-  if (prefix_expression->type == AST_EXPRESSION_PREFIX_INCREMENT) {
-    postfix_binary->data.expression_binary.op_type = AST_BINARY_ADD;
+  if (expression_type == AST_EXPRESSION_PREFIX_INCREMENT) {
+    prefix_binary->data.expression_binary.op_type = AST_BINARY_ADD;
   } else {
-    postfix_binary->data.expression_binary.op_type = AST_BINARY_SUBTRACT;
+    prefix_binary->data.expression_binary.op_type = AST_BINARY_SUBTRACT;
   }
 
-  postfix_binary->data.expression_binary.left_expression = left;
-  postfix_binary->data.expression_binary.right_expression = postfix_constant;
-  postfix_binary->data.expression_binary.expression_type = NULL;
+  prefix_binary->data.expression_binary.left_expression = left;
+  prefix_binary->data.expression_binary.right_expression = prefix_constant;
+  prefix_binary->data.expression_binary.expression_type = NULL;
 
-  factor_node->data.expression_assignment.right_expression = postfix_binary;
+  factor_node->data.expression_assignment.right_expression = prefix_binary;
 
-  prefix_expression->data.expression_increment_decrement.expression = factor_node;
+  // prefix_expression->data.expression_increment_decrement.expression = factor_node;
 }
 
 static void parse_factor_parenthetical_expression(Parser *parser, AstNode **factor_node) {
@@ -1658,35 +1660,57 @@ static AbstractDeclarator* parse_direct_abstract_declarator(Parser *parser) {
       return abstract_declarator;
     }
 
-    expect(parser, TOKEN_OPEN_BRACKET);
-        
-    //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
+    AbstractDeclarator *head_array_abstract = malloc(sizeof(AbstractDeclarator));
+    head_array_abstract->type = ABSTRACT_ARRAY;
+    AbstractDeclarator *tail_array_abstract = head_array_abstract;
+    AbstractDeclarator *cur_array_abstract = head_array_abstract;
 
-    char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
-    strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
-    constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
+    while (current_token(parser)->type == TOKEN_OPEN_BRACKET) {
+      expect(parser, TOKEN_OPEN_BRACKET);
+
+      //@Debt: The code below is copied from parse_factor_constant(). Consolidate.
+
+      char constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index - 2)];
+      strncpy(constant_slice, parser->file + current_token(parser)->start_index, ((current_token(parser)->end_index ) - current_token(parser)->start_index) + 1);
+      constant_slice[current_token(parser)->end_index - (current_token(parser)->start_index) + 1] = '\0';
   
-    char *end_pointer;
-    AbstractDeclarator *array_abstract = malloc(sizeof(AbstractDeclarator));
+      char *end_pointer;
+      // AbstractDeclarator *array_abstract = malloc(sizeof(AbstractDeclarator));
+      // array_abstract->type = ABSTRACT_ARRAY;
 
-    switch(current_token(parser)->type) {
-      case TOKEN_CONSTANT_UNSIGNED_LONG:        
-        array_abstract->data.abstract_array.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+      switch(current_token(parser)->type) {
+        case TOKEN_CONSTANT_UNSIGNED_LONG:        
+          cur_array_abstract->data.abstract_array.size = strtoul(constant_slice, &end_pointer, BASE_TEN);
+          break;
+        case TOKEN_CONSTANT_INT:
+        case TOKEN_CONSTANT_LONG:
+        case TOKEN_CONSTANT_UNSIGNED_INT:        
+          cur_array_abstract->data.abstract_array.size = strtol(constant_slice, &end_pointer, BASE_TEN);
+          break;
+        default:
+          panic("Unsupported array size type '%s'", get_token_name(current_token(parser)->type));
+      }
+
+      parser->current_token_index++;
+      expect(parser, TOKEN_CLOSE_BRACKET);
+
+      cur_array_abstract->data.abstract_array.abstract_declarator = head_array_abstract;
+      head_array_abstract = cur_array_abstract;
+
+      if (current_token(parser)->type != TOKEN_OPEN_BRACKET) {
+
+        tail_array_abstract->data.abstract_array.abstract_declarator = abstract_declarator;
         break;
-      case TOKEN_CONSTANT_INT:
-      case TOKEN_CONSTANT_LONG:
-      case TOKEN_CONSTANT_UNSIGNED_INT:        
-        array_abstract->data.abstract_array.size = strtol(constant_slice, &end_pointer, BASE_TEN);
-        break;
-      default:
-        panic("Unsupported array size type '%s'", get_token_name(current_token(parser)->type));
+      }
+
+      cur_array_abstract = malloc(sizeof(AbstractDeclarator));
+      cur_array_abstract->type = ABSTRACT_ARRAY;      
     }
 
-    parser->current_token_index++;
-    expect(parser, TOKEN_CLOSE_BRACKET);
+    // array_abstract->data.abstract_array.abstract_declarator = abstract_declarator;
+    // return array_abstract;
 
-    array_abstract->data.abstract_array.abstract_declarator = abstract_declarator;
-    return array_abstract;
+    return head_array_abstract;
   }
 
   if (current_token(parser)->type == TOKEN_OPEN_BRACKET) {
@@ -1740,7 +1764,8 @@ static TypeNode* process_abstract_declarator(Parser *parser, AbstractDeclarator 
     pointer_type->data.array_type.element_type = base_type;
     pointer_type->data.array_type.size = abstract_declarator->data.abstract_array.size;
 
-    return pointer_type;
+    //return pointer_type;
+    return process_abstract_declarator(parser, abstract_declarator->data.abstract_array.abstract_declarator, pointer_type);
   }
 
   return base_type;

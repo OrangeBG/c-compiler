@@ -5,27 +5,9 @@
 		    double h = (double)t;
 		    return t;
 		}
-	- The following incorrectly throws an error:		
-		int main(void) {
-		    long x = -9223372036854775807l;
-
-		    // prefix --
-		    if (--x != -9223372036854775807l) {
-		        return 3;
-		    }
-
-		    return 0; // success
-		}
-	- Subscript expressions are not forming correctly. Example:
-		     int nested[3][2] = { { 0, 0 }, { 1, 2 }, { 3, 5 } };
-		     int i = 1;
-			 int j = 0;
-		    return nested[i][j];
-		In this example, after type checking, it should look like pg.409. However, an additional AddrOf node is being added to the root subscript. This is because the convert function that is called when processing the Return statement is processing the array reference that is being returned by the subscript type checking.
 	- Intermediate rep: Subscript expressions not populating scale. It's defaulted to 0 and needs to be fixed. See pg.409 on how to populate
 	- Type checker should not allow casting an expression to an array type:
 		(int[3])foo;
-
 	- Issue with params being pushed into the stack from Assembly:	
 		int accept_unsigned(unsigned int a, unsigned int b, unsigned long c, unsigned long d,
 		                 unsigned int e, unsigned int f, unsigned long g, unsigned int h,
@@ -41,6 +23,8 @@
 	- Fix up instruction section: pg. 418
 
 # Tech Debt
+	- Ensure that unary postfix/prefix precedence is correctly set.
+	- Unary Prefix and Postix expressions are converted to assignments in the parser. However, if there is an error in the type checker or some other semantic check, the compiler would not be able to tell at that point that the originating code was a prefix/postfix. Either adjust the code where the IR handles the prefix/postfix expressions, or handle them in a different way. This will help when we want to add more verbose error output.
 	- Type Check: Similar to Assembly, have TypeNodes for basic types that can be used rather than malloc'ing each time you need something like int, long, etc. This will still allow use to dynamically allocate pointers
 	- Intermediate Rep: Need to assess why conditional expressions are handled differently when the source node is 'ast_expression_assignment'. There's already an emit_conditional(). Check out comment in emit_assignement_expression
 	- In Intermediate rep, we are often creating a temp destination and then adding it to declaration symbol (check emit_unary logic for example). See if we combine them into a single call.
