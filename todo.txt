@@ -1,10 +1,4 @@
 # Bugs
-	- The following segfaults:		
-		int main(void) {
-		    unsigned int t = 150;
-		    double h = (double)t;
-		    return t;
-		}
 	- Intermediate rep: Subscript expressions not populating scale. It's defaulted to 0 and needs to be fixed. See pg.409 on how to populate
 	- Type checker should not allow casting an expression to an array type:
 		(int[3])foo;

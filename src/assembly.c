@@ -211,7 +211,6 @@ AsmNode* generate_assembly(IRNode *ir_nodes, SymbolTable *symbol_table, AsmBacke
     top_level_node->data.function.instruction_pointers->asm_pointers[0]->data.instruction_binary.operand_1->data.operand_imm.signed_value = stack_offset;    
 
     AsmNode *new_function = resolve_instructions(top_level_node, assembly);
-
     program->data.program.top_level_pointers->asm_pointers[i] = new_function;
   }
   
@@ -519,7 +518,8 @@ static ResolveType resolve_mov_zero_extend_instruction(AsmNode *function, AsmNod
     mov_instruction->type = ASM_INSTRUCTION_MOV;
     mov_instruction->data.instruction_mov.source = mov_zero_extend_instruction->data.instruction_mov_zero_extend.source;
     mov_instruction->data.instruction_mov.destination = mov_zero_extend_instruction->data.instruction_mov_zero_extend.destination;
-    
+    mov_instruction->data.instruction_mov.assembly_type = assembly->type_quadword; //@Todo: Verify that we should be assigning this to quadword
+
     add_instruction_to_function(function, mov_instruction);
 
     return INSTRUCTION_FIXED;
