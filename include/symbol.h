@@ -86,7 +86,7 @@ void add_automatic_variable_symbol(SymbolTable *symbol_table, TypeNode *value_ty
 void add_static_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   
 void add_static_extern_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key);   
 void symbol_table_print(SymbolTable *symbol_table); 
-void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value); 
+InitialValue* symbol_initialize_to_zero(TypeNode *type_node); 
 InitialValueArray* initial_value_array_init();
 
 #endif

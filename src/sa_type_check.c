@@ -34,8 +34,8 @@ static double           convert_variable_declaration_constant_to_double(AstNode 
 static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results); 
 static bool             is_null_pointer_constant(AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
-static void             add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
-static void             add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init);
+static InitialValue*    add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
+static InitialValue*    add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init);
 
 void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -358,41 +358,16 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table) {
   InitializationType initialization_type; 
   InitialValueArray *initial_value_array = initial_value_array_init();
-  InitialValue initial_value;
+  InitialValue *initial_value = NULL;
 
-  if (variable_declaration_node->data.declaration_variable.has_expression && variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression->type == AST_EXPRESSION_CONSTANT) {
+  if (variable_declaration_node->data.declaration_variable.has_expression) {
     initialization_type = INITIALIZATION_TYPE_INITIALIZED;
 
-    AstNode *constant_expression = variable_declaration_node->data.declaration_variable.init_expression->data.expression_assignment.right_expression;
-
-    switch (variable_declaration_node->data.declaration_variable.type->type) {
-      case TYPE_INT:
-        initial_value.type = INITIAL_VALUE_TYPE_INT;
-        initial_value.data.int_value = convert_variable_declaration_constant_to_int(constant_expression);
-        break;
-      case TYPE_LONG:
-        initial_value.type = INITIAL_VALUE_TYPE_LONG;
-        initial_value.data.long_value = convert_variable_declaration_constant_to_long(constant_expression);
-        break;
-      case TYPE_UINT:
-        initial_value.type = INITIAL_VALUE_TYPE_UINT;
-        initial_value.data.uint_value = convert_variable_declaration_constant_to_uint(constant_expression);
-        break;
-      case TYPE_ULONG:
-        initial_value.type = INITIAL_VALUE_TYPE_ULONG;
-        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(constant_expression);
-        break;
-      case TYPE_DOUBLE:
-        initial_value.type = INITIAL_VALUE_TYPE_DOUBLE;
-        initial_value.data.double_value = convert_variable_declaration_constant_to_double(constant_expression);
-        break;
-      case TYPE_POINTER:
-        initial_value.type = INITIAL_VALUE_TYPE_ULONG;
-        initial_value.data.ulong_value = convert_variable_declaration_constant_to_ulong(constant_expression);
-        break;
-      default:
-        panic("Unsupported constant expression type when checking file scope variable");
-    }
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+      initial_value = add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
+    } else {
+      initial_value = add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
+    } 
   } else if (!variable_declaration_node->data.declaration_variable.has_expression) {
     if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
@@ -400,7 +375,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
       initialization_type = INITIALIZATION_TYPE_TENTATIVE;
     }
 
-    symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
+    initial_value = symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
   } else {
     input_error_with_line("Non-constant initializer for variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
   }
@@ -431,13 +406,12 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
       }
     } else {
       existing_variable_symbol->data.variable_symbol->static_initialization_type = initialization_type;
-      dynamic_array_add(existing_variable_symbol->data.variable_symbol->static_initial_value_array, initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+      dynamic_array_add(existing_variable_symbol->data.variable_symbol->static_initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
 
     return;
   }
 
-  dynamic_array_add(initial_value_array, initial_value, STATIC_INITIAL_VALUE_CAPACITY);
   add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, is_global, initialization_type);  
 }
 
@@ -461,11 +435,12 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   }
 
   if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-    InitialValue initial_value;
+    InitialValue* initial_value;
     InitialValueArray *initial_value_array = initial_value_array_init();
     
     if (!variable_declaration_node->data.declaration_variable.has_expression) {
-      symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type, &initial_value);
+      //@Debt: InitialValue doesn't look to even being used here. Look into why this is happening.
+      initial_value = symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
       add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
     }
@@ -488,7 +463,7 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   add_automatic_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name);
 } 
 
-static void add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init) {
+static InitialValue* add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init) {
   InitialValue *initial_value = malloc(sizeof(InitialValue));
 
   AstNode *constant_node = single_init->data.initializer.initializer_node.single_init_expression; 
@@ -534,9 +509,13 @@ static void add_variable_declaration_single_init_to_array(InitialValueArray *ini
   }
 
   dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+
+  return initial_value;
 }
 
-static void add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
+static InitialValue* add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
+    InitialValue *initial_value = malloc(sizeof(InitialValue));
+
     if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
       for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
         add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i]);
@@ -547,7 +526,6 @@ static void add_variable_declaration_compound_init_to_array(InitialValueArray *i
     if (compound_diff != 0) {
       size_t size = get_array_base_size(declaration_type);
 
-      InitialValue *initial_value = malloc(sizeof(InitialValue));
       initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
       //TODO: Warning. Casting to int.
       initial_value->data.zero_init_array_bytes = (int)size * (compound_diff * (int)declaration_type->data.array_type.size);
@@ -563,13 +541,14 @@ static void add_variable_declaration_compound_init_to_array(InitialValueArray *i
     if (compound_diff != 0) {
       size_t size = get_array_base_size(declaration_type);
 
-      InitialValue *initial_value = malloc(sizeof(InitialValue));
       initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
       //@Warning: Casting to int.
       initial_value->data.zero_init_array_bytes = (int)size * compound_diff;
       dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
   }
+
+  return initial_value;
 }
 
 static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
