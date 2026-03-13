@@ -230,7 +230,9 @@ void symbol_table_print(SymbolTable *symbol_table) {
   }
 }
 
-void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value) {
+InitialValue* symbol_initialize_to_zero(TypeNode *type_node) {
+  InitialValue *initial_value = malloc(sizeof(InitialValue));
+
   switch (type_node->type) {
     case TYPE_INT:
       initial_value->type = INITIAL_VALUE_TYPE_INT;
@@ -277,6 +279,8 @@ void symbol_initialize_to_zero(TypeNode *type_node, InitialValue *initial_value)
     default:
       panic("Unsupported initial value Type '%d'", type_node->type);
   }
+
+  return initial_value;
 }
 
 InitialValueArray* initial_value_array_init() {
