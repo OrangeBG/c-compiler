@@ -501,7 +501,7 @@ void print_ast(const AstNode *node, int whitespace) {
         break;
       case AST_EXPRESSION_ASSIGNMENT: {
         print_whitespace(whitespace);
-        printf("Assignment(\n");
+        printf("Assignment(line = %d\n", node->line_number);
         print_whitespace(ADD_WHITESPACE);
         printf("Left = \n");
         print_ast(node->data.expression_assignment.left_expression, ADD_WHITESPACE + 5);
@@ -515,7 +515,7 @@ void print_ast(const AstNode *node, int whitespace) {
       }
       case AST_EXPRESSION_FUNCTION_CALL: {
         print_whitespace(whitespace);
-        printf("Function Call(name= '%s' args=\n", node->data.expression_function_call.identifier);
+        printf("Function Call(line = %d, name = '%s' args =\n", node->line_number, node->data.expression_function_call.identifier);
 
         for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
           AstNode *argument = node->data.expression_function_call.argument_ptrs->node_pointers[i];
@@ -540,21 +540,21 @@ void print_ast(const AstNode *node, int whitespace) {
       }
       case AST_EXPRESSION_DEREFERENCE:
         print_whitespace(whitespace);
-        printf("Dereference(\n");        
+        printf("Dereference(line = %d\n", node->line_number);        
         print_ast(node->data.expression_dereference.expression, ADD_WHITESPACE);
         print_whitespace(whitespace);
         printf(")\n");
         break;
       case AST_EXPRESSION_ADDRESS_OF:
         print_whitespace(whitespace);
-        printf("Address Of(\n");        
+        printf("Address Of(line = %d\n", node->line_number);        
         print_ast(node->data.expression_address_of.expression, ADD_WHITESPACE);
         print_whitespace(whitespace);
         printf(")\n");
         break;
       case AST_EXPRESSION_SUBSCRIPT:
         print_whitespace(whitespace);
-        printf("Subscript(\n");        
+        printf("Subscript(line = %d\n", node->line_number);        
         print_ast(node->data.expression_subscript.expression_1, ADD_WHITESPACE);
         print_ast(node->data.expression_subscript.expression_2, ADD_WHITESPACE);
         print_whitespace(whitespace);
@@ -1349,6 +1349,8 @@ static void parse_unary_postfix_expression(Parser *parser, AstNode **postfix_nod
 }
 
 static void parse_subscript_expression(Parser *parser, AstNode *postfix_node, AstNode *subscript_node) {
+  subscript_node->line_number = current_token(parser)->line;
+  
   expect(parser, TOKEN_OPEN_BRACKET);
 
   AstNode *subscript_expression = arena_alloc(parser->node_arena);
@@ -1835,6 +1837,8 @@ static void parse_factor_address_of(Parser *parser, AstNode *factor_node) {
 }
 
 static void parse_factor_dereference(Parser *parser, AstNode *factor_node) {
+  factor_node->line_number = current_token(parser)->line;
+  
   //TODO: Look into if we should be using 'parse_abstract_declarator' and 'process_abstract_declarator'
   expect(parser, TOKEN_ASTERISK);
   
