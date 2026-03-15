@@ -705,6 +705,8 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       TypeNode *target_type = get_type(node->data.expression_assignment.left_expression);
       node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, target_type, parser_results);
 
+      node->data.expression_assignment.expression_type = left_expression_type;
+
       return left_expression_type;
     }
     case AST_EXPRESSION_FUNCTION_CALL: {
