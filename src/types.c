@@ -135,7 +135,14 @@ TypeNode* get_pointer_base_type(TypeNode *pointer_node) {
   }
 
   if (pointer_node->data.pointer_type.reference_type->type == TYPE_ARRAY) {
-    return get_array_base_type(pointer_node->data.pointer_type.reference_type);
+    TypeNode *array_base = get_array_base_type(pointer_node->data.pointer_type.reference_type);
+    if (array_base->type == TYPE_POINTER && array_base->data.pointer_type.reference_type->type == TYPE_POINTER) {
+      return get_pointer_base_type(array_base->data.pointer_type.reference_type);
+    } else if (array_base->type == TYPE_POINTER && array_base->data.pointer_type.reference_type->type != TYPE_POINTER) {
+      return array_base->data.pointer_type.reference_type;
+    } else {
+      return array_base;
+    }
   }
 
   return pointer_node->data.pointer_type.reference_type;
