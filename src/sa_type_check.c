@@ -692,6 +692,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       TypeNode *left_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
 
       //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
+      //@Debt: This is messy and should be reworked
       if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT && !(node->data.expression_assignment.left_expression->type == AST_EXPRESSION_ADDRESS_OF && node->data.expression_assignment.left_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE)) {
         input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
@@ -755,7 +756,8 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
     case AST_EXPRESSION_POSTFIX_INCREMENT:
     case AST_EXPRESSION_PREFIX_DECREMENT:
     case AST_EXPRESSION_POSTFIX_DECREMENT: {
-      return expression_type_check_and_convert(node, &node->data.expression_increment_decrement.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check_and_convert(node, &node->data.expression_increment_decrement.expression, symbol_table, function_declaration_node, parser_results);
+      node->data.expression_increment_decrement.expression_type = expression_type;
       break;
     }
     case AST_EXPRESSION_ADDRESS_OF: {
@@ -1003,6 +1005,11 @@ static TypeNode* get_type(AstNode *ast_node) {
     case AST_EXPRESSION_CONSTANT:          node_type = ast_node->data.expression_constant.expression_type; break;
     case AST_EXPRESSION_ADDRESS_OF:        node_type = get_type(ast_node->data.expression_address_of.expression); break;
     case AST_EXPRESSION_DEREFERENCE:       node_type = get_type(ast_node->data.expression_dereference.expression); break;
+    case AST_EXPRESSION_POSTFIX_INCREMENT:
+    case AST_EXPRESSION_POSTFIX_DECREMENT:
+    case AST_EXPRESSION_PREFIX_INCREMENT:
+    case AST_EXPRESSION_PREFIX_DECREMENT:
+      node_type = ast_node->data.expression_increment_decrement.expression_type; break;
     default: panic("AST node type '%s' not supported for get_type()", get_ast_node_string(ast_node));
   }
 
