@@ -25,6 +25,7 @@ static TypeNode*        expression_type_check_binary_subtract(AstNode *subtract_
 static TypeNode*        expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
 static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
 static TypeNode*        get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
+static TypeNode*        get_type(AstNode *ast_node);
 static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
 static long             convert_variable_declaration_constant_to_long(AstNode *constant_node); 
 static int              convert_variable_declaration_constant_to_int(AstNode *constant_node); 
@@ -217,7 +218,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       TypeNode *function_return_type = function_declaration_node->data.declaration_function.function_type->data.function_type.return_type;
 
       if (function_return_type->type == TYPE_POINTER && return_expression_type->type == TYPE_POINTER) {
-        if (get_pointer_base_type(return_expression_type) != get_pointer_base_type(function_return_type)) {
+        if (get_pointer_base_type(return_expression_type)->type != get_pointer_base_type(function_return_type)->type) {
           input_error_with_line("Cannot implicitly convert one pointer type to another", node->line_number);
         }        
       } else if (function_return_type->type == return_expression_type->type) {
@@ -589,11 +590,11 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
         input_error_with_line("Cannot cast to an array type", node->line_number);
       }
       
-      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) == TYPE_DOUBLE) {
+      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type)->type == TYPE_DOUBLE) {
         input_error_with_line("Cannot cast double pointer to double", node->line_number);
       }
 
-      if (expression_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type) != TYPE_DOUBLE) {
+      if (expression_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type)->type != TYPE_DOUBLE) {
         input_error_with_line("Double cannot be cast to pointer type", node->line_number);
       }
 
@@ -653,7 +654,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
           case AST_BINARY_LESS_OR_EQUAL:
           case AST_BINARY_GREATER_THAN:
           case AST_BINARY_GREATER_OR_EQUAL:             
-            if (right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {
+            if (right_expression_type->type == TYPE_POINTER && left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type)->type != get_pointer_base_type(right_expression_type)->type) {
               input_error_with_line("Cannot compare pointers of different types", node->line_number);
             }
             break;        
@@ -691,17 +692,18 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       TypeNode *left_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
 
       //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
-      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT) {
+      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT && !(node->data.expression_assignment.left_expression->type == AST_EXPRESSION_ADDRESS_OF && node->data.expression_assignment.left_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE)) {
         input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
 
       TypeNode *right_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.right_expression, symbol_table, function_declaration_node, parser_results);
 
-      if (left_expression_type->type == TYPE_POINTER && right_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) != get_pointer_base_type(right_expression_type)) {        
+      if (left_expression_type->type == TYPE_POINTER && right_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type)->type != get_pointer_base_type(right_expression_type)->type) {
         input_error_with_line("Expression assignment of pointers aren't for the same type", node->line_number);
       }
 
-      node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, left_expression_type, parser_results);
+      TypeNode *target_type = get_type(node->data.expression_assignment.left_expression);
+      node->data.expression_assignment.right_expression = convert_by_assignment(node->data.expression_assignment.right_expression, right_expression_type, target_type, parser_results);
 
       return left_expression_type;
     }
@@ -911,7 +913,7 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
     return left_expression_type;
   }
 
-  if (left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type) == get_pointer_base_type(right_expression_type)) {
+  if (left_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type)->type == get_pointer_base_type(right_expression_type)->type) {
     subtract_node->data.expression_binary.expression_type = long_type_node;
     return long_type_node;
   }
@@ -947,12 +949,28 @@ static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
   return type_2;
 }
 
+//@Debt: Expression type check and convert calls do not seem necessary. These conversions are probably being done before this. Looks like we need to return the type node of the expression without doing any type checking/converting.
+//@Debt: The two TYPE_POINTER checks and getting the base pointer type was added to support expressions like 'if (*(*(x + 20) + 3) != x[20][3])' where the double dereference was failing. Need to check to see if these checks are valid. 
 static TypeNode* get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
-  TypeNode *expression_1_type = expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results); 
-  TypeNode *expression_2_type = expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results); 
+  TypeNode *expression_1_type = expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results);
+  TypeNode *expression_2_type = expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results);
 
   if (expression_1_type->type == expression_2_type->type) {
     return expression_1_type;
+  }
+
+  if (expression_1_type->type == TYPE_POINTER) {
+    TypeNode *base_pointer_type = get_pointer_base_type(expression_1_type);
+    if (base_pointer_type->type == expression_2_type->type) {
+      return expression_2_type;
+    }
+  }
+
+  if (expression_2_type->type == TYPE_POINTER) {
+    TypeNode *base_pointer_type = get_pointer_base_type(expression_2_type);
+    if (base_pointer_type->type == expression_1_type->type) {
+      return expression_1_type;
+    }
   }
 
   if (is_null_pointer_constant(expression_1)) {
@@ -964,6 +982,47 @@ static TypeNode* get_common_pointer_type(AstNode *source, AstNode *expression_1,
   }
 
   input_error_with_line("Common pointer expressions have incompatible types", expression_1->line_number);
+}
+
+
+static TypeNode* get_type(AstNode *ast_node) {
+  TypeNode *node_type = NULL;
+
+  switch (ast_node->type) {
+    case AST_VARIABLE_DECLARATION:         node_type = ast_node->data.declaration_variable.type; break;
+    case AST_EXPRESSION_ASSIGNMENT:        node_type = ast_node->data.expression_assignment.expression_type; break;
+    case AST_EXPRESSION_VARIABLE:          node_type = ast_node->data.expression_variable.expression_type; break;
+    case AST_EXPRESSION_UNARY:             node_type = ast_node->data.expression_unary.expression_type; break;
+    case AST_EXPRESSION_BINARY:            node_type = ast_node->data.expression_binary.expression_type; break;
+    case AST_EXPRESSION_CONDITIONAL:       node_type = ast_node->data.expression_conditional.expression_type; break;
+    case AST_EXPRESSION_FUNCTION_CALL:     node_type = ast_node->data.expression_function_call.expression_type; break;
+    case AST_EXPRESSION_CAST:              node_type = ast_node->data.expression_cast.target_type; break;
+    case AST_EXPRESSION_SUBSCRIPT:         node_type = ast_node->data.expression_subscript.expression_type; break;      
+    case AST_EXPRESSION_CONSTANT:          node_type = ast_node->data.expression_constant.expression_type; break;
+    case AST_EXPRESSION_ADDRESS_OF:        node_type = get_type(ast_node->data.expression_address_of.expression); break;
+    case AST_EXPRESSION_DEREFERENCE:       node_type = get_type(ast_node->data.expression_dereference.expression); break;
+    default: panic("AST node type '%s' not supported for get_type()", get_ast_node_string(ast_node));
+  }
+
+  if (node_type == NULL) {
+    panic("Null node type found for '%s' in get_type()", get_ast_node_string(ast_node));
+  }
+
+  if (node_type->type != TYPE_POINTER && node_type->type != TYPE_ARRAY) {
+    return node_type;
+  }
+
+  TypeNode *cur_type_node = node_type;
+
+  while (cur_type_node->type == TYPE_POINTER || cur_type_node->type == TYPE_ARRAY) {
+    if (cur_type_node->type == TYPE_POINTER) {
+      cur_type_node = cur_type_node->data.pointer_type.reference_type;
+    } else {
+      cur_type_node = cur_type_node->data.array_type.element_type;
+    }
+  }
+
+  return cur_type_node;
 }
 
 static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results) {
@@ -1095,7 +1154,16 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
 }
 
 static AstNode* convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
-  if (right_assignment_type->type == target_type->type) {
+  TypeNode *right_base_type = get_type(right_assignment_expression);
+  TypeNode *target_base_type = target_type;
+
+  if (target_base_type->type == TYPE_ARRAY) {
+    target_base_type = get_array_base_type(target_base_type);
+  } else if (target_base_type->type == TYPE_POINTER) {
+    target_base_type = get_pointer_base_type(target_base_type);
+  } 
+
+  if (right_base_type->type == target_base_type->type) {
     return right_assignment_expression;
   }
 

@@ -125,7 +125,7 @@ size_t get_pointer_base_size(TypeNode *pointer_node) {
   return get_type_size(pointer_node->data.pointer_type.reference_type);
 }
 
-Types get_pointer_base_type(TypeNode *pointer_node) {
+TypeNode* get_pointer_base_type(TypeNode *pointer_node) {
   if (pointer_node->type != TYPE_POINTER) {
     panic("Passed non-pointer to get_pointer_base_type()");
   }
@@ -138,7 +138,7 @@ Types get_pointer_base_type(TypeNode *pointer_node) {
     return get_array_base_type(pointer_node->data.pointer_type.reference_type);
   }
 
-  return pointer_node->data.pointer_type.reference_type->type;
+  return pointer_node->data.pointer_type.reference_type;
 }
 
 size_t get_array_base_size(TypeNode *array_node) {
@@ -153,7 +153,7 @@ size_t get_array_base_size(TypeNode *array_node) {
   return get_type_size(array_node->data.array_type.element_type);
 } 
 
-Types get_array_base_type(TypeNode *array_node)  {
+TypeNode* get_array_base_type(TypeNode *array_node)  {
   if (array_node->type != TYPE_ARRAY) {
     panic("Passed non-array to get_array_base_type()");
   }
@@ -162,5 +162,5 @@ Types get_array_base_type(TypeNode *array_node)  {
     return get_array_base_type(array_node->data.array_type.element_type);
   }
 
-  return array_node->data.array_type.element_type->type;
+  return array_node->data.array_type.element_type;
 }

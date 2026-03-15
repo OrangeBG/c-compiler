@@ -951,7 +951,7 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
     add_automatic_variable_symbol(intermediate_rep->symbol_table, source_1_type, divide_destination_name);
 
     //TODO: Check to see if logic is right: pg.408
-    IRNode *pointer_base_size = create_int_constant(get_pointer_base_type(source_1_type), intermediate_rep);
+    IRNode *pointer_base_size = create_int_constant(get_pointer_base_type(source_1_type)->type, intermediate_rep);
 
     IRNode *divide_instruction = arena_alloc(intermediate_rep->node_arena);
     divide_instruction->type = IR_INSTRUCTION_BINARY;
@@ -1004,7 +1004,7 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
     if (source_2_type->type == TYPE_POINTER) {
       add_pointer_instruction->data.instruction_add_pointer.scale = get_pointer_base_size(source_2_type);
     } else {
-      add_pointer_instruction->data.instruction_add_pointer.scale = get_array_base_type(source_2_type);
+      add_pointer_instruction->data.instruction_add_pointer.scale = get_array_base_type(source_2_type)->type;
     }
     add_pointer_instruction->data.instruction_add_pointer.index = source_1;
   }
