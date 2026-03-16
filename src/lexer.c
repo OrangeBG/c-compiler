@@ -375,6 +375,11 @@ static void add_constant_token(Lexer *lexer, char *file) {
 
       lexer->current_index++;
 
+      if ((file[lexer->current_index] == 'E' || file[lexer->current_index] == 'e') && !is_numeric_char(file[lexer->current_index + 1])) {
+        input_error_with_line("Exponent digit value is missing", lexer->line);
+      }
+
+
       while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
         lexer->current_index++;
       }
