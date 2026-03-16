@@ -68,6 +68,10 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       }
 
       if (node->data.declaration_variable.has_expression) {
+        if (node->data.declaration_variable.type->type == TYPE_ARRAY && node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+          input_error_with_line("Cannot initialize an array with a scalar value", node->line_number);
+        }
+        
         type_check_init(node->data.declaration_variable.type, node->data.declaration_variable.init_expression, symbol_table, function_declaration_node, parser_results);
       }
       break;
