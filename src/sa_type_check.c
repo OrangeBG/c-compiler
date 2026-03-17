@@ -594,7 +594,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
         input_error_with_line("Cannot cast to an array type", node->line_number);
       }
       
-      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && node->data.expression_cast.target_type->type == TYPE_POINTER && get_pointer_base_type(node->data.expression_cast.target_type)->type == TYPE_DOUBLE) {
+      if (node->data.expression_cast.target_type->type == TYPE_DOUBLE && expression_type->type == TYPE_POINTER) {
         input_error_with_line("Cannot cast double pointer to double", node->line_number);
       }
 

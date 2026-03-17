@@ -1616,6 +1616,8 @@ static void parse_factor_parenthetical_expression(Parser *parser, AstNode **fact
 }
 
 static void parse_factor_cast_expression(Parser *parser, AstNode *factor_node) {
+  factor_node->line_number = current_token(parser)->line;
+
   expect(parser, TOKEN_OPEN_PAREN);
 
   Specifier specifier = parse_specifier(parser, true);
