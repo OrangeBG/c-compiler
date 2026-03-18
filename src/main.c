@@ -12,6 +12,7 @@
 #include "../include/sa_type_check.h"
 #include "../include/sa_goto_check.h"
 #include "../include/error.h"
+#include "../include/sa_subscript_convert.h"
 
 static char* load_file(const char *file_path); 
 
@@ -63,6 +64,7 @@ int main(int argc, const char *argv[]) {
 
   AstNode *program_node = arena_get_by_index(parser_results.ast_node_arena, 0);
   sa_variable_resolution(program_node);
+  sa_subscript_convert(&program_node, &parser_results);
 
   SymbolTable symbol_table;
   symbol_table_init(&symbol_table);
