@@ -701,6 +701,10 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
         input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
 
+      if (left_expression_type->type == TYPE_ARRAY) {
+        input_error_with_line("Cannot assign to array type", node->line_number);
+      }
+
       TypeNode *right_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.right_expression, symbol_table, function_declaration_node, parser_results);
 
       if (left_expression_type->type == TYPE_POINTER && right_expression_type->type == TYPE_POINTER && get_pointer_base_type(left_expression_type)->type != get_pointer_base_type(right_expression_type)->type) {
