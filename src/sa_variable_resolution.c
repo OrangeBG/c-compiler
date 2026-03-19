@@ -92,7 +92,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       //Duplicate declarations at the file scope level are allowed. Only error when declarations in the same scope within functions are found
       if (existing_variable != NULL && existing_variable->key != NULL && variable_resolution->declaration_stack->count != 1) {      
         if (((Declaration*)existing_variable->value->structure)->from_current_scope) {
-          input_error("Duplicate '%s' variable found in block", node->data.declaration_variable.name);
+          input_error_with_line("Duplicate '%s' variable found in block", node->line_number, node->data.declaration_variable.name);
         }
       }
 
@@ -121,7 +121,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
         Declaration *previous_declaration = table_entry->value->structure;
 
         if (previous_declaration->from_current_scope && previous_declaration->has_linkage) {
-          input_error("Duplicate function declaration '%s'", function_identifier);
+          input_error_with_line("Duplicate function declaration '%s'", node->line_number, function_identifier);
         }        
       } else {
         Declaration *new_declaration = malloc(sizeof(Declaration));
@@ -164,7 +164,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       HashTableEntry *table_entry = hash_table_get_entry(declaration_table, node->data.expression_function_call.identifier);
 
       if (table_entry == NULL || table_entry->key == NULL) {
-        input_error("Undeclared function '%s'", node->data.expression_function_call.identifier);
+        input_error_with_line("Undeclared function '%s'", node->line_number, node->data.expression_function_call.identifier);
       }
 
       for (int i = 0; i < node->data.expression_function_call.argument_count; i++) {
@@ -371,7 +371,7 @@ static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum Dec
 
     if (previous_declaration->from_current_scope) {
       if (!(previous_declaration->has_linkage && ast_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN)) {
-        input_error("Conflicting local '%s' declarations", identifier);
+        input_error_with_line("Conflicting local '%s' declarations", ast_node->line_number, identifier);
       }
     }
   }  
@@ -452,7 +452,7 @@ static void resolve_function_parameter(TypeNode *param_type_node, AstNode *funct
 
   if (existing_variable != NULL && existing_variable->key != NULL) {
     if (variable_resolution->declaration_stack->count == ((Declaration*)existing_variable->value->structure)->stack_declaration_offset) {
-      input_error("Duplicate '%s' function variable found", converted_identifier);
+      input_error_with_line("Duplicate '%s' function variable found", function_declaration_node->line_number, converted_identifier);
     }      
 
     function_declaration_node->data.declaration_function.parameter_identifiers[identifier_idx] = converted_identifier;
