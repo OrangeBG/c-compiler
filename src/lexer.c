@@ -38,6 +38,7 @@ Lexer init_lexer() {
 void load_tokens(Lexer *lexer, char *file) {
   while (true) {
     char cur_char = file[lexer->start_index];
+
     if (cur_char == '\0') {
       break;
     }
@@ -420,7 +421,14 @@ static TokenType check_keyword(int start, int length, char *rest, TokenType type
 static TokenType get_identifier_type(Lexer *lexer, char *file) {
   switch (file[lexer->start_index]) {
     case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK, lexer, file);
-    case 'c': return check_keyword(1, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
+    case 'c': {
+      if (lexer->current_index - lexer->start_index > 0) {
+        switch (file[lexer->start_index + 1]) {
+          case 'o': return check_keyword(2, 6, "ntinue", TOKEN_CONTINUE, lexer, file);
+          case 'h': return check_keyword(2, 2, "ar", TOKEN_CHAR, lexer, file);
+        }
+      }
+    }
     case 'd': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {
