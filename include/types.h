@@ -13,7 +13,10 @@ typedef enum {
   TYPE_DOUBLE,
   TYPE_FUNCTION,
   TYPE_POINTER,
-  TYPE_ARRAY
+  TYPE_ARRAY,
+  TYPE_CHAR,
+  TYPE_SIGNED_CHAR,
+  TYPE_UNSIGNED_CHAR
 } Types;
 
 typedef struct TypeNode TypeNode;

@@ -18,12 +18,12 @@ char* get_token_name(TokenType token_type) {
     case TOKEN_BITWISE_RIGHT_SHIFT_EQUAL:     return "Bitwise_Right_Shift_Equal";
     case TOKEN_BREAK:                         return "Break";
     case TOKEN_CHAR:                          return "Char";
-    case TOKEN_CHARACTER_CONSTANT:            return "Character Constant";
     case TOKEN_CLOSE_BRACE:                   return "Close_Brace";
     case TOKEN_CLOSE_BRACKET:                 return "Close_Bracket";
     case TOKEN_CLOSE_PAREN:                   return "Close Paren";
     case TOKEN_COLON:                         return "Colon";
     case TOKEN_COMMA:                         return "Comma";
+    case TOKEN_CONSTANT_CHARACTER:            return "Character";
     case TOKEN_CONSTANT_FLOAT:                return "Float";
     case TOKEN_CONSTANT_INT:                  return "Int";
     case TOKEN_CONSTANT_LONG:                 return "Long";
@@ -68,7 +68,7 @@ char* get_token_name(TokenType token_type) {
     case TOKEN_SEMICOLON:                     return "Semicolon";
     case TOKEN_SIGNED:                        return "Signed";
     case TOKEN_STATIC:                        return "Static";
-    case TOKEN_STRING_LITERAL:                return "String Literal";
+    case TOKEN_STRING_LITERAL:                return "String_Literal";
     case TOKEN_UNSIGNED:                      return "Unsigned";
     case TOKEN_VOID:                          return "Void";
     case TOKEN_WHILE:                         return "While";

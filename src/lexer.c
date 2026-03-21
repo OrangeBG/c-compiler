@@ -16,6 +16,7 @@ static void      add_token(TokenType type, Lexer *lexer);
 static void      add_constant_token(Lexer *lexer, char *file); 
 static void      add_identifier_token(Lexer *lexer, char *file); 
 static void      add_char_constant(Lexer *lexer, char *file); 
+static void      add_string_literal(Lexer *lexer, char *file); 
 static TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file); 
 static TokenType get_identifier_type(Lexer *lexer, char *file); 
  
@@ -81,6 +82,7 @@ void load_tokens(Lexer *lexer, char *file) {
       case '[':  add_token(TOKEN_OPEN_BRACKET, lexer); break;
       case ']':  add_token(TOKEN_CLOSE_BRACKET, lexer); break;
       case '\'': add_char_constant(lexer, file); break;
+      case '"':  add_string_literal(lexer, file); break;
       case '+': {
           if (peek_next(lexer, file, '+')) {
             lexer->current_index++;
@@ -326,7 +328,26 @@ static void add_char_constant(Lexer *lexer, char *file) {
   }
   
   Token char_constant_token = {
-    .type = TOKEN_CHARACTER_CONSTANT,
+    .type = TOKEN_CONSTANT_CHARACTER,
+    .start_index = start_index,
+    .end_index = lexer->current_index - 1,
+    .line = lexer->line
+  };
+
+  dynamic_array_add(lexer->tokens, char_constant_token, TOKEN_ARRAY_START_SIZE);
+}
+
+static void add_string_literal(Lexer *lexer, char *file) {
+  lexer->current_index++;
+  int start_index = lexer->current_index;
+
+  //@Todo: Need to check if we are the end of file
+  while (file[lexer->current_index] != '"') {
+    lexer->current_index++;
+  }
+
+  Token char_constant_token = {
+    .type = TOKEN_CONSTANT_CHARACTER,
     .start_index = start_index,
     .end_index = lexer->current_index - 1,
     .line = lexer->line
