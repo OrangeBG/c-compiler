@@ -1987,6 +1987,7 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       }
     }
 
+    //@Debt: This function is getting hard to read. Doing special stuff here for chars.
     if (type_specifiers[i] == TOKEN_CHAR) {
       if (has_unsigned_specifier) {
         specifier.specifier_type = TYPE_UNSIGNED_CHAR;
@@ -1995,6 +1996,8 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       } else {
         specifier.specifier_type = TYPE_CHAR;
       }
+
+      return specifier;
     }
   }
 
