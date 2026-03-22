@@ -1,5 +1,6 @@
 #include "../include/sa_subscript_convert.h"
 #include "../include/error.h"
+#include "parser.h"
 
 /*
   @Debt: This is a temporary semantic pass to convert subscript expressions to dereferenced binary add expressions. For example: t[0] = 4; is converted to *(t + 0) = 4;
@@ -56,7 +57,9 @@ void sa_subscript_convert(AstNode **ast_node, ParserResults *parser_results) {
     case AST_STATEMENT_IF:
       sa_subscript_convert(&(*ast_node)->data.statement_if.condition_expression, parser_results);
       sa_subscript_convert(&(*ast_node)->data.statement_if.then_statement, parser_results);
-      sa_subscript_convert(&(*ast_node)->data.statement_if.else_statement, parser_results);
+      if ((*ast_node)->data.statement_if.else_statement != NULL) {
+        sa_subscript_convert(&(*ast_node)->data.statement_if.else_statement, parser_results);
+      }
       break;
     case AST_STATEMENT_DO_WHILE:
       sa_subscript_convert(&(*ast_node)->data.statement_do_while.condition, parser_results);

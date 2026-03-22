@@ -875,12 +875,14 @@ static void parse_block(Parser *parser, AstNode *block_node) {
         parse_declaration(parser, declaration_node);
         block_node->data.block.block_count++;
         add_to_node_pointer(declaration_node, block_item_pointers);
+        break;
       }        
       default: {
         AstNode *statement_node = arena_alloc(parser->node_arena);
         parse_statement(parser, &statement_node);
         block_node->data.block.block_count++;
         add_to_node_pointer(statement_node, block_item_pointers);
+        break;
       }
     }    
   }
