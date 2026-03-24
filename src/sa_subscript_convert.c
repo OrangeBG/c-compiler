@@ -1,12 +1,14 @@
 #include "../include/sa_subscript_convert.h"
 #include "../include/error.h"
-#include "parser.h"
 
 /*
   @Debt: This is a temporary semantic pass to convert subscript expressions to dereferenced binary add expressions. For example: t[0] = 4; is converted to *(t + 0) = 4;
   It's slower to add this semantic pass rather than have something in the type checker that handles subscript expressions. Eventually, this logic should be merged with other semantic checks so that
   we aren't doing a bunch of node passes.
 */
+
+static AstNode* convert_subscript_to_dereference_expression(AstNode *subscript_expression, ParserResults *parser_results);
+
 void sa_subscript_convert(AstNode **ast_node, ParserResults *parser_results) {
   switch ((*ast_node)->type) {
     case AST_PROGRAM:
@@ -109,20 +111,8 @@ void sa_subscript_convert(AstNode **ast_node, ParserResults *parser_results) {
         sa_subscript_convert(item_ptr, parser_results);        
       }
       break;
-    case AST_EXPRESSION_SUBSCRIPT: {
-      AstNode *binary_expression = arena_alloc(parser_results->ast_node_arena);
-      binary_expression->type = AST_EXPRESSION_BINARY;
-      binary_expression->data.expression_binary.op_type = AST_BINARY_ADD;
-      binary_expression->data.expression_binary.left_expression = (*ast_node)->data.expression_subscript.expression_1;
-      binary_expression->data.expression_binary.right_expression = (*ast_node)->data.expression_subscript.expression_2;
-      binary_expression->line_number = (*ast_node)->line_number;
-      
-      AstNode *dereference_expression = arena_alloc(parser_results->ast_node_arena);
-      dereference_expression->type = AST_EXPRESSION_DEREFERENCE;
-      dereference_expression->data.expression_dereference.expression = binary_expression;
-      dereference_expression->line_number = (*ast_node)->line_number;
-
-      *ast_node = dereference_expression;
+    case AST_EXPRESSION_SUBSCRIPT: {            
+      *ast_node = convert_subscript_to_dereference_expression(*ast_node, parser_results);
       break;
     }
     case AST_EXPRESSION_CONSTANT:
@@ -136,4 +126,38 @@ void sa_subscript_convert(AstNode **ast_node, ParserResults *parser_results) {
     default:
       panic("Unsupported AST '%s' node", get_ast_node_string((*ast_node)));
   }
+}
+
+static AstNode* convert_subscript_to_dereference_expression(AstNode *subscript_expression, ParserResults *parser_results) {
+  AstNode *binary_expression = arena_alloc(parser_results->ast_node_arena);
+  binary_expression->type = AST_EXPRESSION_BINARY;
+  binary_expression->data.expression_binary.op_type = AST_BINARY_ADD;
+  binary_expression->line_number = subscript_expression->line_number;
+  
+  AstNode *dereference_expression = arena_alloc(parser_results->ast_node_arena);
+  dereference_expression->type = AST_EXPRESSION_DEREFERENCE;
+  dereference_expression->line_number = subscript_expression->line_number;
+  dereference_expression->data.expression_dereference.expression = binary_expression;
+
+  if (subscript_expression->data.expression_subscript.expression_1->type == AST_EXPRESSION_SUBSCRIPT) {
+    AstNode* inner_deref = convert_subscript_to_dereference_expression(subscript_expression->data.expression_subscript.expression_1, parser_results);
+
+    binary_expression->data.expression_binary.left_expression = inner_deref;
+    binary_expression->data.expression_binary.right_expression = subscript_expression->data.expression_subscript.expression_2;
+
+    return dereference_expression;
+
+  } else if (subscript_expression->data.expression_subscript.expression_2->type == AST_EXPRESSION_SUBSCRIPT) {
+    AstNode* inner_deref = convert_subscript_to_dereference_expression(subscript_expression->data.expression_subscript.expression_2, parser_results);
+
+    binary_expression->data.expression_binary.left_expression = inner_deref;
+    binary_expression->data.expression_binary.right_expression = subscript_expression->data.expression_subscript.expression_1;
+
+    return dereference_expression;
+  }
+
+  binary_expression->data.expression_binary.left_expression = subscript_expression->data.expression_subscript.expression_1;
+  binary_expression->data.expression_binary.right_expression = subscript_expression->data.expression_subscript.expression_2;
+
+  return dereference_expression;
 }
