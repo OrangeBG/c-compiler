@@ -35,7 +35,7 @@ void sa_subscript_convert(AstNode **ast_node, ParserResults *parser_results) {
       if (!(*ast_node)->data.declaration_variable.has_expression) {
         return;
       }
-
+      
       sa_subscript_convert(&(*ast_node)->data.declaration_variable.init_expression, parser_results);
       break;
     case AST_INITIALIZER:

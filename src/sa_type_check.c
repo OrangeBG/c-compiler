@@ -799,6 +799,10 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
         input_error_with_line("Cannot dereference a non-pointer", node->line_number);
       }
 
+      // if (expression_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+      //   return get_array_base_type(expression_type->data.pointer_type.reference_type);
+      // }
+
       //TODO: Will this work if it's greater than one level? Example: int** 
       return expression_type->data.pointer_type.reference_type;
     }
@@ -1172,14 +1176,18 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
 }
 
 static AstNode* convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
-  TypeNode *right_base_type = get_type(right_assignment_expression);
-  TypeNode *target_base_type = target_type;
+  // TypeNode *right_base_type = get_type(right_assignment_expression);
+  // TypeNode *target_base_type = target_type;
+  //
+  // if (target_base_type->type == TYPE_POINTER) {
+  //   target_base_type = get_pointer_base_type(target_base_type);
+  // }
 
-  if (target_base_type->type == TYPE_POINTER) {
-    target_base_type = get_pointer_base_type(target_base_type);
-  } 
+  // if (right_base_type->type == target_base_type->type) {
+  //   return right_assignment_expression;
+  // }
 
-  if (right_base_type->type == target_base_type->type) {
+  if (target_type->type == right_assignment_type->type) {
     return right_assignment_expression;
   }
 
