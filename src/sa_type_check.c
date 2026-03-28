@@ -695,6 +695,11 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
     case AST_EXPRESSION_ASSIGNMENT: {
       TypeNode *left_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
 
+      //@Note: This is to handle left hand dereference expressions (mostly coming from subscript conversion). We want the actual value that the array points to as the lvalue, not the array type
+      if (left_expression_type->type == TYPE_POINTER && left_expression_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+        left_expression_type = get_array_base_type(left_expression_type->data.pointer_type.reference_type);
+      }
+
       //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
       //@Debt: This is messy and should be reworked
       if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT && !(node->data.expression_assignment.left_expression->type == AST_EXPRESSION_ADDRESS_OF && node->data.expression_assignment.left_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE)) {
