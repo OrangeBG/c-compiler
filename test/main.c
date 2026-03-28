@@ -41,6 +41,7 @@ static void run_directory_tests(DIR* directory, char *test_folder_name, bool is_
 
   if (directory) {
     int test_count = 1;
+    int error_count = 0;
     for (en=readdir(directory); en!=NULL; en=readdir(directory)) {
       if (en->d_name[0] == '.') {
         continue;
@@ -58,10 +59,15 @@ static void run_directory_tests(DIR* directory, char *test_folder_name, bool is_
         printf("** FAILURE TO THROW AN ERROR **\n");
       }
 
+      if (return_code != 0 && !is_negative_test) {
+        error_count++;
+      } 
+
       test_count++;
     }
 
     closedir(directory);
+    printf("\nTotal errors: %d\n", error_count);
   } else {
     printf("Directory not found");
   }

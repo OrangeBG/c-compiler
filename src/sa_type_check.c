@@ -666,8 +666,9 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
           }
 
         switch (node->data.expression_binary.op_type) {
-          case AST_BINARY_ADD:
-          case AST_BINARY_SUBTRACT:
+          //@TODO: Commenting this out until we know where this actually applies. Something like 'ptr + 0' is valid
+          //case AST_BINARY_ADD:
+          //case AST_BINARY_SUBTRACT:
           case AST_BINARY_LESS_THAN:
           case AST_BINARY_LESS_OR_EQUAL:
           case AST_BINARY_GREATER_THAN:
@@ -1191,6 +1192,11 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
   // if (right_base_type->type == target_base_type->type) {
   //   return right_assignment_expression;
   // }
+
+  //@Note: This is to get the base type of dereferenced arrays (happens for subscript converstions)
+  if (right_assignment_expression->type == AST_EXPRESSION_ADDRESS_OF && right_assignment_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE && right_assignment_type->type == TYPE_POINTER && right_assignment_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+    right_assignment_type = get_array_base_type(right_assignment_type->data.pointer_type.reference_type);
+  }
 
   if (target_type->type == right_assignment_type->type) {
     return right_assignment_expression;
