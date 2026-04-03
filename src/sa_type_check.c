@@ -979,8 +979,16 @@ static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
 //@Debt: Expression type check and convert calls do not seem necessary. These conversions are probably being done before this. Looks like we need to return the type node of the expression without doing any type checking/converting.
 //@Debt: The two TYPE_POINTER checks and getting the base pointer type was added to support expressions like 'if (*(*(x + 20) + 3) != x[20][3])' where the double dereference was failing. Need to check to see if these checks are valid. 
 static TypeNode* get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
-  TypeNode *expression_1_type = expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results);
-  TypeNode *expression_2_type = expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results);
+  TypeNode *expression_1_type = get_type(expression_1);// expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results);
+  TypeNode *expression_2_type = get_type(expression_2); //expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results);
+
+  if (expression_1_type->type == TYPE_POINTER && expression_1_type->data.pointer_type.reference_type->type == TYPE_ARRAY && expression_1->type == AST_EXPRESSION_ADDRESS_OF && expression_1->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE) {
+    expression_1_type = get_array_base_type(expression_1_type->data.pointer_type.reference_type);
+  }
+
+  if (expression_2_type->type == TYPE_POINTER && expression_2_type->data.pointer_type.reference_type->type == TYPE_ARRAY && expression_2->type == AST_EXPRESSION_ADDRESS_OF && expression_2->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE) {
+    expression_2_type = get_array_base_type(expression_2_type->data.pointer_type.reference_type);
+  }
 
   if (expression_1_type->type == expression_2_type->type) {
     return expression_1_type;
@@ -1216,6 +1224,10 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
 
 static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   TypeNode *expression_type = expression_type_check(*node, symbol_table, function_declaration_node, parser_results);
+
+  // if (expression_type->type == TYPE_ARRAY && (*node)->type == AST_EXPRESSION_DEREFERENCE) {
+  //   return get_array_base_type(expression_type->data.pointer_type.reference_type);
+  // }
 
   if (expression_type->type != TYPE_ARRAY) {
     return expression_type;
