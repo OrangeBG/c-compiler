@@ -799,7 +799,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return pointer_type_node;
     }
     case AST_EXPRESSION_DEREFERENCE: {
-      TypeNode *expression_type = expression_type_check_and_convert(node, &node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check(node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results); //expression_type_check_and_convert(node, &node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results);
 
       if (expression_type->type != TYPE_POINTER) {
         input_error_with_line("Cannot dereference a non-pointer", node->line_number);
@@ -1255,10 +1255,9 @@ static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode
 
   *node = address_of_array;
 
-  //@Test: Test that this is the correct reference type that we want to add. I think this is wrong and it should be the indexed element
-   TypeNode *address_of_array_pointer = arena_alloc(parser_results->type_node_arena);
+  TypeNode *address_of_array_pointer = arena_alloc(parser_results->type_node_arena);
    address_of_array_pointer->type = TYPE_POINTER;
-   address_of_array_pointer->data.pointer_type.reference_type = expression_type;
+   address_of_array_pointer->data.pointer_type.reference_type = expression_type->data.array_type.element_type;
 
   return address_of_array_pointer;
 }
