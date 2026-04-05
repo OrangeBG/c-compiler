@@ -277,32 +277,23 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       StackValue *declaration_top_stack = stack_top(variable_resolution->declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
 
-      //Check to see if we already converted the identifier. Since we're adding '.' to identifiers as part of the semantic analysis variable resolution, check to see if the period exists.
-      char *found_period = (char*)memchr(node->data.expression_variable.identifier, '.', strlen(node->data.expression_variable.identifier));
       HashTableEntry *entry;
       char *identifier = get_identifier_with_stack_offset(node->data.expression_variable.identifier, variable_resolution->declaration_stack->count, variable_resolution->function_count, variable_resolution->block_count);
-      
-      entry = hash_table_get_entry(declaration_table, identifier);
 
-      if (entry == NULL || entry->key == NULL)
-      {
-        identifier = node->data.expression_variable.identifier;
-        entry = hash_table_get_entry(declaration_table, identifier);
-      }
+      entry = hash_table_get_entry(declaration_table, identifier);
 
       if (entry != NULL && entry->key != NULL) {
         Declaration *declaration = entry->value->structure;
 
-        //If the found entry record is a shadowed function that shares the same name as the variable, reset the entry record
+        //@Note: If the found entry record is a shadowed function that shares the same name as the variable, reset the entry record
         if (declaration->declaration_type == DECLARATION_TYPE_FUNCTION) {
           entry = NULL;
         }
       }
-      
+
       if (entry == NULL || entry->key == NULL) {
-        //Check if there is a parent declared variable by traversing backwards from the current stack offset.
+        //@Note: Check if there is a parent declared variable by traversing backwards through block counts and stack offsets.
         int stack_offset = variable_resolution->declaration_stack->count;
-        int current_block_count = variable_resolution->block_count;
 
         bool entry_found = false;
 
@@ -311,7 +302,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
             char *previous_stack_identifier = get_identifier_with_stack_offset(node->data.expression_variable.identifier, stack_offset, variable_resolution->function_count, i);
 
             entry = hash_table_get_entry(declaration_table, previous_stack_identifier);
-          
+
             if (entry != NULL && entry->key != NULL) {
               identifier = previous_stack_identifier;
               entry_found = true;
@@ -324,8 +315,14 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
           }
 
           stack_offset--;
-        }        
-      } 
+        }
+      }
+
+      //@Note: Plain identifier means that it should be global
+      if (entry == NULL || entry->key == NULL) {
+        identifier = node->data.expression_variable.identifier;
+        entry = hash_table_get_entry(declaration_table, identifier);
+      }
 
       if (entry == NULL || entry->key == NULL) {
         panic("Undeclared variable hash table entry for '%s'", node->data.expression_variable.identifier);

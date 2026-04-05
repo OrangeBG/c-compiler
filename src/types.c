@@ -59,15 +59,18 @@ bool is_integer_type(TypeNode *type_node) {
 
 char* get_type_string(Types type) {
   switch (type) {
-    case TYPE_VOID:     return "void";
-    case TYPE_INT:      return "int";
-    case TYPE_UINT:     return "uint";
-    case TYPE_LONG:     return "long";
-    case TYPE_ULONG:    return "ulong";
-    case TYPE_DOUBLE:   return "double";
-    case TYPE_FUNCTION: return "function";
-    case TYPE_POINTER:  return "pointer";
-    case TYPE_ARRAY:    return "array";
+    case TYPE_VOID:           return "void";
+    case TYPE_INT:            return "int";
+    case TYPE_UINT:           return "uint";
+    case TYPE_LONG:           return "long";
+    case TYPE_ULONG:          return "ulong";
+    case TYPE_DOUBLE:         return "double";
+    case TYPE_CHAR:           return "char";
+    case TYPE_SIGNED_CHAR:    return "signed char";
+    case TYPE_UNSIGNED_CHAR:  return "unsigned char";
+    case TYPE_FUNCTION:       return "function";
+    case TYPE_POINTER:        return "pointer";
+    case TYPE_ARRAY:          return "array";
     default:
       panic("get_type_string() type %d not supported", type);
   }
@@ -75,13 +78,16 @@ char* get_type_string(Types type) {
 
 void print_type_node(TypeNode *type_node) {
   switch (type_node->type) {
-    case TYPE_VOID:     printf("void"); break;
-    case TYPE_INT:      printf("int"); break;
-    case TYPE_UINT:     printf("uint"); break;
-    case TYPE_LONG:     printf("long"); break;
-    case TYPE_ULONG:    printf("ulong"); break;
-    case TYPE_DOUBLE:   printf("double"); break;
-    case TYPE_FUNCTION: printf("function"); break;
+    case TYPE_VOID:           printf("void"); break;
+    case TYPE_INT:            printf("int"); break;
+    case TYPE_UINT:           printf("uint"); break;
+    case TYPE_LONG:           printf("long"); break;
+    case TYPE_ULONG:          printf("ulong"); break;
+    case TYPE_DOUBLE:         printf("double"); break;
+    case TYPE_CHAR:           printf("char"); break;
+    case TYPE_SIGNED_CHAR:    printf("signed char"); break;
+    case TYPE_UNSIGNED_CHAR:  printf("unsigned char"); break;
+    case TYPE_FUNCTION:       printf("function"); break;
     case TYPE_POINTER:
       printf("Pointer(");
       print_type_node(type_node->data.pointer_type.reference_type);

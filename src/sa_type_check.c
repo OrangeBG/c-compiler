@@ -666,8 +666,9 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
           }
 
         switch (node->data.expression_binary.op_type) {
-          case AST_BINARY_ADD:
-          case AST_BINARY_SUBTRACT:
+          //@TODO: Commenting this out until we know where this actually applies. Something like 'ptr + 0' is valid
+          //case AST_BINARY_ADD:
+          //case AST_BINARY_SUBTRACT:
           case AST_BINARY_LESS_THAN:
           case AST_BINARY_LESS_OR_EQUAL:
           case AST_BINARY_GREATER_THAN:
@@ -694,6 +695,11 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
     }
     case AST_EXPRESSION_ASSIGNMENT: {
       TypeNode *left_expression_type = expression_type_check_and_convert(node, &node->data.expression_assignment.left_expression, symbol_table, function_declaration_node, parser_results);
+
+      //@Note: This is to handle left hand dereference expressions (mostly coming from subscript conversion). We want the actual value that the array points to as the lvalue, not the array type
+      if (left_expression_type->type == TYPE_POINTER && left_expression_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+        left_expression_type = get_array_base_type(left_expression_type->data.pointer_type.reference_type);
+      }
 
       //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
       //@Debt: This is messy and should be reworked
@@ -793,11 +799,15 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       return pointer_type_node;
     }
     case AST_EXPRESSION_DEREFERENCE: {
-      TypeNode *expression_type = expression_type_check_and_convert(node, &node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results);
+      TypeNode *expression_type = expression_type_check(node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results); //expression_type_check_and_convert(node, &node->data.expression_dereference.expression, symbol_table, function_declaration_node, parser_results);
 
       if (expression_type->type != TYPE_POINTER) {
         input_error_with_line("Cannot dereference a non-pointer", node->line_number);
       }
+
+      // if (expression_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+      //   return get_array_base_type(expression_type->data.pointer_type.reference_type);
+      // }
 
       //TODO: Will this work if it's greater than one level? Example: int** 
       return expression_type->data.pointer_type.reference_type;
@@ -969,8 +979,16 @@ static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
 //@Debt: Expression type check and convert calls do not seem necessary. These conversions are probably being done before this. Looks like we need to return the type node of the expression without doing any type checking/converting.
 //@Debt: The two TYPE_POINTER checks and getting the base pointer type was added to support expressions like 'if (*(*(x + 20) + 3) != x[20][3])' where the double dereference was failing. Need to check to see if these checks are valid. 
 static TypeNode* get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
-  TypeNode *expression_1_type = expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results);
-  TypeNode *expression_2_type = expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results);
+  TypeNode *expression_1_type = get_type(expression_1);// expression_type_check_and_convert(source, &expression_1, symbol_table, function_declaration_node, parser_results);
+  TypeNode *expression_2_type = get_type(expression_2); //expression_type_check_and_convert(source, &expression_2, symbol_table, function_declaration_node, parser_results);
+
+  if (expression_1_type->type == TYPE_POINTER && expression_1_type->data.pointer_type.reference_type->type == TYPE_ARRAY && expression_1->type == AST_EXPRESSION_ADDRESS_OF && expression_1->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE) {
+    expression_1_type = get_array_base_type(expression_1_type->data.pointer_type.reference_type);
+  }
+
+  if (expression_2_type->type == TYPE_POINTER && expression_2_type->data.pointer_type.reference_type->type == TYPE_ARRAY && expression_2->type == AST_EXPRESSION_ADDRESS_OF && expression_2->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE) {
+    expression_2_type = get_array_base_type(expression_2_type->data.pointer_type.reference_type);
+  }
 
   if (expression_1_type->type == expression_2_type->type) {
     return expression_1_type;
@@ -1092,8 +1110,8 @@ static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, cha
   if (parameter_type->type == TYPE_ARRAY) {
     TypeNode *pointer_type_node = arena_alloc(parser_results->type_node_arena);
     pointer_type_node->type = TYPE_POINTER;
-    pointer_type_node->data.pointer_type.reference_type = parameter_type;
-    
+    pointer_type_node->data.pointer_type.reference_type = parameter_type->data.array_type.element_type;
+
     add_automatic_variable_symbol(symbol_table, pointer_type_node, symbol_key);
   } else {
     add_automatic_variable_symbol(symbol_table, parameter_type, symbol_key);
@@ -1172,14 +1190,23 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
 }
 
 static AstNode* convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
-  TypeNode *right_base_type = get_type(right_assignment_expression);
-  TypeNode *target_base_type = target_type;
+  // TypeNode *right_base_type = get_type(right_assignment_expression);
+  // TypeNode *target_base_type = target_type;
+  //
+  // if (target_base_type->type == TYPE_POINTER) {
+  //   target_base_type = get_pointer_base_type(target_base_type);
+  // }
 
-  if (target_base_type->type == TYPE_POINTER) {
-    target_base_type = get_pointer_base_type(target_base_type);
-  } 
+  // if (right_base_type->type == target_base_type->type) {
+  //   return right_assignment_expression;
+  // }
 
-  if (right_base_type->type == target_base_type->type) {
+  //@Note: This is to get the base type of dereferenced arrays (happens for subscript converstions)
+  // if (right_assignment_expression->type == AST_EXPRESSION_ADDRESS_OF && right_assignment_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE && right_assignment_type->type == TYPE_POINTER && right_assignment_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+  //   right_assignment_type = get_array_base_type(right_assignment_type->data.pointer_type.reference_type);
+  // }
+
+  if (target_type->type == right_assignment_type->type) {
     return right_assignment_expression;
   }
 
@@ -1197,6 +1224,10 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
 
 static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   TypeNode *expression_type = expression_type_check(*node, symbol_table, function_declaration_node, parser_results);
+
+  // if (expression_type->type == TYPE_ARRAY && (*node)->type == AST_EXPRESSION_DEREFERENCE) {
+  //   return get_array_base_type(expression_type->data.pointer_type.reference_type);
+  // }
 
   if (expression_type->type != TYPE_ARRAY) {
     return expression_type;
@@ -1224,10 +1255,9 @@ static TypeNode* expression_type_check_and_convert(AstNode *source_node, AstNode
 
   *node = address_of_array;
 
-  //@Test: Test that this is the correct reference type that we want to add. I think this is wrong and it should be the indexed element
-   TypeNode *address_of_array_pointer = arena_alloc(parser_results->type_node_arena);
+  TypeNode *address_of_array_pointer = arena_alloc(parser_results->type_node_arena);
    address_of_array_pointer->type = TYPE_POINTER;
-   address_of_array_pointer->data.pointer_type.reference_type = expression_type;
+   address_of_array_pointer->data.pointer_type.reference_type = expression_type->data.array_type.element_type;
 
   return address_of_array_pointer;
 }

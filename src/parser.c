@@ -399,6 +399,12 @@ void print_ast(const AstNode *node, int whitespace) {
         case AST_CONSTANT_TYPE_DOUBLE:
           printf("Constant(line = %d, Double(%f))\n", node->line_number, node->data.expression_constant.double_value);
           break;
+        case AST_CONSTANT_TYPE_CHAR:
+          printf("Constant(line = %d, Char(%d))\n", node->line_number, node->data.expression_constant.char_value);
+          break;
+        case AST_CONSTANT_TYPE_UCHAR:
+          printf("Constant(line = %d, UChar(%d))\n", node->line_number, node->data.expression_constant.uchar_value);
+          break;
         default:
           panic("Could not find constant type when printing");
       }
@@ -855,18 +861,30 @@ static void parse_block(Parser *parser, AstNode *block_node) {
       return;
     }
 
-    //TODO: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
-    if (current_token(parser)->type == TOKEN_INT || current_token(parser)->type == TOKEN_LONG || current_token(parser)->type == TOKEN_DOUBLE || current_token(parser)->type == TOKEN_UNSIGNED || current_token(parser)->type == TOKEN_SIGNED || current_token(parser)->type == TOKEN_EXTERN || current_token(parser)->type == TOKEN_STATIC) {
-      AstNode *declaration_node = arena_alloc(parser->node_arena);
-      parse_declaration(parser, declaration_node);
-      block_node->data.block.block_count++;
-      add_to_node_pointer(declaration_node, block_item_pointers);
-    } else {
-      AstNode *statement_node = arena_alloc(parser->node_arena);
-      parse_statement(parser, &statement_node);
-      block_node->data.block.block_count++;
-      add_to_node_pointer(statement_node, block_item_pointers);
-    }
+    //@Debt: This if check looks like it's going to grow larger as we add more types. Look to see if there is a better way to check declarations from statements
+    switch (current_token(parser)->type) {
+      case TOKEN_INT:
+      case TOKEN_LONG:
+      case TOKEN_DOUBLE:
+      case TOKEN_CHAR:
+      case TOKEN_UNSIGNED:
+      case TOKEN_SIGNED:
+      case TOKEN_EXTERN:
+      case TOKEN_STATIC: {
+        AstNode *declaration_node = arena_alloc(parser->node_arena);
+        parse_declaration(parser, declaration_node);
+        block_node->data.block.block_count++;
+        add_to_node_pointer(declaration_node, block_item_pointers);
+        break;
+      }        
+      default: {
+        AstNode *statement_node = arena_alloc(parser->node_arena);
+        parse_statement(parser, &statement_node);
+        block_node->data.block.block_count++;
+        add_to_node_pointer(statement_node, block_item_pointers);
+        break;
+      }
+    }    
   }
 }
 
@@ -1380,6 +1398,7 @@ static void parse_primary_expression(Parser *parser, AstNode **expression_node) 
     case TOKEN_CONSTANT_FLOAT:
     case TOKEN_CONSTANT_UNSIGNED_INT:
     case TOKEN_CONSTANT_UNSIGNED_LONG:
+    case TOKEN_CONSTANT_CHARACTER:
       parse_factor_constant(parser, *expression_node, current_token(parser)->type);
       break;
     case TOKEN_IDENTIFIER: {    
@@ -1455,7 +1474,17 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
 
   TypeNode *expression_type = arena_alloc(parser->type_arena);
 
-  //Floating points constants can't go out of range since a double supports positive and negative infinity
+  if (constant_type == TOKEN_CONSTANT_CHARACTER) {
+    factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_CHAR;
+    factor_node->data.expression_constant.char_value = (int)constant_slice[0];
+
+    expression_type->type = TYPE_CHAR;
+    factor_node->data.expression_constant.expression_type = expression_type;
+
+    return;
+  }
+  
+  //@Note: Floating points constants can't go out of range since a double supports positive and negative infinity
   if (constant_type == TOKEN_CONSTANT_FLOAT) {
     char *end_pointer;
     double double_value = strtod(constant_slice, &end_pointer);
@@ -1900,7 +1929,8 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       case TOKEN_SIGNED:
       case TOKEN_INT:
       case TOKEN_LONG:
-      case TOKEN_DOUBLE: {
+      case TOKEN_DOUBLE:
+      case TOKEN_CHAR: {
         if (current_token(parser)->type == TOKEN_UNSIGNED) {
           if (has_unsigned_specifier) {
             input_error_with_line("Cannot declare unsigned specifier more than once.", current_token(parser)->line);
@@ -1957,6 +1987,19 @@ static Specifier parse_specifier(Parser *parser, bool error_if_storage_class_fou
       } else {
         specifier.specifier_type = TYPE_INT;
       }
+    }
+
+    //@Debt: This function is getting hard to read. Doing special stuff here for chars.
+    if (type_specifiers[i] == TOKEN_CHAR) {
+      if (has_unsigned_specifier) {
+        specifier.specifier_type = TYPE_UNSIGNED_CHAR;
+      } else if (has_signed_specifier) {
+        specifier.specifier_type = TYPE_SIGNED_CHAR;
+      } else {
+        specifier.specifier_type = TYPE_CHAR;
+      }
+
+      return specifier;
     }
   }
 
@@ -2273,6 +2316,7 @@ char* get_ast_node_string(AstNode *node) {
     case AST_EXPRESSION_DEREFERENCE:        return "Dereference Expression";
     case AST_EXPRESSION_ADDRESS_OF:         return "Address Of Expression";
     case AST_EXPRESSION_SUBSCRIPT:          return "Subscript Expression";
+    case AST_EXPRESSION_STRING:             return "String Expression";
     default:                                panic("AST Node '%d' not supported in get_ast_node_string()", node->type);
   }
 }

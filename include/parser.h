@@ -41,7 +41,8 @@ typedef enum {
   AST_EXPRESSION_FUNCTION_CALL,
   AST_EXPRESSION_DEREFERENCE,
   AST_EXPRESSION_ADDRESS_OF,
-  AST_EXPRESSION_SUBSCRIPT
+  AST_EXPRESSION_SUBSCRIPT,
+  AST_EXPRESSION_STRING
 } NodeType;
 
 typedef enum {
@@ -84,7 +85,9 @@ typedef enum {
   AST_CONSTANT_TYPE_UINT,
   AST_CONSTANT_TYPE_LONG,
   AST_CONSTANT_TYPE_ULONG,
-  AST_CONSTANT_TYPE_DOUBLE
+  AST_CONSTANT_TYPE_DOUBLE,
+  AST_CONSTANT_TYPE_CHAR,
+  AST_CONSTANT_TYPE_UCHAR
 } ConstantType;
 
 typedef enum {
@@ -130,7 +133,7 @@ typedef struct AstNode {
     struct BreakStatement { int label_id; } statement_break;
     struct ContinueStatement { int label_id; } statement_continue;
     //TODO: Look into making the constant values into a union
-    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; TypeNode *expression_type; double double_value; } expression_constant;
+    struct ConstantExpression { ConstantType constant_type; int int_value; long long_value; unsigned int uint_value; unsigned long ulong_value; double double_value; int char_value; int uchar_value; TypeNode *expression_type; } expression_constant;
     struct VariableExpression { char *identifier; TypeNode *expression_type; } expression_variable;
     struct UnaryExpression { UnaryOpType op_type; AstNode *expression; TypeNode *expression_type; } expression_unary;
     struct BinaryExpression { BinaryOpType op_type; AstNode *left_expression; AstNode *right_expression; TypeNode *expression_type; } expression_binary;
@@ -142,6 +145,7 @@ typedef struct AstNode {
     struct DereferenceExpression { AstNode *expression; } expression_dereference;
     struct AddressOfExpression { AstNode *expression; } expression_address_of;
     struct SubscriptExpression { AstNode *expression_1; AstNode *expression_2; TypeNode *expression_type; } expression_subscript;
+    struct StringExpression { char* string_value; } string_expression;
   } data;
 } AstNode;
 

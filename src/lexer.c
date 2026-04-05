@@ -8,13 +8,15 @@
 
 #define TOKEN_ARRAY_START_SIZE 64
 
-static bool is_alpha_char(char character);
-static bool is_numeric_char(char character);
-static bool is_valid_post_constant_character(char character);
-static bool peek_next(Lexer *lexer, char *file, char find_character); 
-static void add_token(TokenType type, Lexer *lexer);
-static void add_constant_token(Lexer *lexer, char *file); 
-static void add_identifier_token(Lexer *lexer, char *file); 
+static bool      is_alpha_char(char character);
+static bool      is_numeric_char(char character);
+static bool      is_valid_post_constant_character(char character);
+static bool      peek_next(Lexer *lexer, char *file, char find_character); 
+static void      add_token(TokenType type, Lexer *lexer);
+static void      add_constant_token(Lexer *lexer, char *file); 
+static void      add_identifier_token(Lexer *lexer, char *file); 
+static void      add_char_constant(Lexer *lexer, char *file); 
+static void      add_string_literal(Lexer *lexer, char *file); 
 static TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file); 
 static TokenType get_identifier_type(Lexer *lexer, char *file); 
  
@@ -38,6 +40,7 @@ Lexer init_lexer() {
 void load_tokens(Lexer *lexer, char *file) {
   while (true) {
     char cur_char = file[lexer->start_index];
+
     if (cur_char == '\0') {
       break;
     }
@@ -63,21 +66,23 @@ void load_tokens(Lexer *lexer, char *file) {
     }
 
     switch (cur_char) {
-      case ' ': break;
+      case ' ':  break;
       case '\t': break;
       case '\r': break;
       case '\n': lexer->line++; break;
-      case '(': add_token(TOKEN_OPEN_PAREN, lexer); break;
-      case ')': add_token(TOKEN_CLOSE_PAREN, lexer); break;
-      case '{': add_token(TOKEN_OPEN_BRACE, lexer); break;
-      case '}': add_token(TOKEN_CLOSE_BRACE, lexer); break;
-      case ';': add_token(TOKEN_SEMICOLON, lexer); break;
-      case '~': add_token(TOKEN_BITWISE_NOT, lexer); break;
-      case '?': add_token(TOKEN_QUESTION_MARK, lexer); break;
-      case ':': add_token(TOKEN_COLON, lexer); break;
-      case ',': add_token(TOKEN_COMMA, lexer); break;
-      case '[': add_token(TOKEN_OPEN_BRACKET, lexer); break;
-      case ']': add_token(TOKEN_CLOSE_BRACKET, lexer); break;
+      case '(':  add_token(TOKEN_OPEN_PAREN, lexer); break;
+      case ')':  add_token(TOKEN_CLOSE_PAREN, lexer); break;
+      case '{':  add_token(TOKEN_OPEN_BRACE, lexer); break;
+      case '}':  add_token(TOKEN_CLOSE_BRACE, lexer); break;
+      case ';':  add_token(TOKEN_SEMICOLON, lexer); break;
+      case '~':  add_token(TOKEN_BITWISE_NOT, lexer); break;
+      case '?':  add_token(TOKEN_QUESTION_MARK, lexer); break;
+      case ':':  add_token(TOKEN_COLON, lexer); break;
+      case ',':  add_token(TOKEN_COMMA, lexer); break;
+      case '[':  add_token(TOKEN_OPEN_BRACKET, lexer); break;
+      case ']':  add_token(TOKEN_CLOSE_BRACKET, lexer); break;
+      case '\'': add_char_constant(lexer, file); break;
+      case '"':  add_string_literal(lexer, file); break;
       case '+': {
           if (peek_next(lexer, file, '+')) {
             lexer->current_index++;
@@ -308,6 +313,49 @@ static void add_token(TokenType type, Lexer *lexer) {
   dynamic_array_add(lexer->tokens, new_token, TOKEN_ARRAY_START_SIZE);
 }
 
+static void add_char_constant(Lexer *lexer, char *file) {
+  lexer->current_index++;
+  int start_index = lexer->current_index;
+
+  if (file[lexer->current_index] == '\\') {
+    lexer->current_index++;
+  }
+
+  lexer->current_index++;
+  
+  if (file[lexer->current_index] != '\'') {
+    input_error_with_line("Characted contant contains more than one character", lexer->line);
+  }
+  
+  Token char_constant_token = {
+    .type = TOKEN_CONSTANT_CHARACTER,
+    .start_index = start_index,
+    .end_index = lexer->current_index - 1,
+    .line = lexer->line
+  };
+
+  dynamic_array_add(lexer->tokens, char_constant_token, TOKEN_ARRAY_START_SIZE);
+}
+
+static void add_string_literal(Lexer *lexer, char *file) {
+  lexer->current_index++;
+  int start_index = lexer->current_index;
+
+  //@Todo: Need to check if we are the end of file
+  while (file[lexer->current_index] != '"') {
+    lexer->current_index++;
+  }
+
+  Token char_constant_token = {
+    .type = TOKEN_CONSTANT_CHARACTER,
+    .start_index = start_index,
+    .end_index = lexer->current_index - 1,
+    .line = lexer->line
+  };
+
+  dynamic_array_add(lexer->tokens, char_constant_token, TOKEN_ARRAY_START_SIZE);
+}
+
 static bool is_alpha_char(char character) {
   if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')) {
     return true;
@@ -420,7 +468,14 @@ static TokenType check_keyword(int start, int length, char *rest, TokenType type
 static TokenType get_identifier_type(Lexer *lexer, char *file) {
   switch (file[lexer->start_index]) {
     case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK, lexer, file);
-    case 'c': return check_keyword(1, 7, "ontinue", TOKEN_CONTINUE, lexer, file);
+    case 'c': {
+      if (lexer->current_index - lexer->start_index > 0) {
+        switch (file[lexer->start_index + 1]) {
+          case 'o': return check_keyword(2, 6, "ntinue", TOKEN_CONTINUE, lexer, file);
+          case 'h': return check_keyword(2, 2, "ar", TOKEN_CHAR, lexer, file);
+        }
+      }
+    }
     case 'd': {
       if (lexer->current_index - lexer->start_index > 0) {
         switch (file[lexer->start_index + 1]) {

@@ -66,6 +66,11 @@ int main(int argc, const char *argv[]) {
   sa_variable_resolution(program_node);
   sa_subscript_convert(&program_node, &parser_results);
 
+  if (print_debug) {
+    printf("\n>> SUBSCRIPT PRINT <<\n\n");
+    print_ast(program_node, 0);
+  }
+
   SymbolTable symbol_table;
   symbol_table_init(&symbol_table);
   
