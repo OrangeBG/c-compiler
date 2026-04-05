@@ -1110,8 +1110,8 @@ static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, cha
   if (parameter_type->type == TYPE_ARRAY) {
     TypeNode *pointer_type_node = arena_alloc(parser_results->type_node_arena);
     pointer_type_node->type = TYPE_POINTER;
-    pointer_type_node->data.pointer_type.reference_type = parameter_type;
-    
+    pointer_type_node->data.pointer_type.reference_type = parameter_type->data.array_type.element_type;
+
     add_automatic_variable_symbol(symbol_table, pointer_type_node, symbol_key);
   } else {
     add_automatic_variable_symbol(symbol_table, parameter_type, symbol_key);
@@ -1202,9 +1202,9 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
   // }
 
   //@Note: This is to get the base type of dereferenced arrays (happens for subscript converstions)
-  if (right_assignment_expression->type == AST_EXPRESSION_ADDRESS_OF && right_assignment_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE && right_assignment_type->type == TYPE_POINTER && right_assignment_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
-    right_assignment_type = get_array_base_type(right_assignment_type->data.pointer_type.reference_type);
-  }
+  // if (right_assignment_expression->type == AST_EXPRESSION_ADDRESS_OF && right_assignment_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE && right_assignment_type->type == TYPE_POINTER && right_assignment_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
+  //   right_assignment_type = get_array_base_type(right_assignment_type->data.pointer_type.reference_type);
+  // }
 
   if (target_type->type == right_assignment_type->type) {
     return right_assignment_expression;
