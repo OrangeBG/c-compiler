@@ -347,7 +347,7 @@ static void add_string_literal(Lexer *lexer, char *file) {
   }
 
   Token char_constant_token = {
-    .type = TOKEN_CONSTANT_CHARACTER,
+    .type = TOKEN_STRING_LITERAL,
     .start_index = start_index,
     .end_index = lexer->current_index - 1,
     .line = lexer->line

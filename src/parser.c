@@ -19,6 +19,12 @@
 #define BASE_TEN 10
 
 typedef struct {
+  StorageClassType storage_class_type;
+  Types specifier_type;
+  bool specifier_type_found;
+} Specifier;
+
+typedef struct {
   int token_count;
   int current_token_index;
   int current_loop_label_id;
@@ -26,13 +32,8 @@ typedef struct {
   char *file;
   Arena *node_arena;
   Arena *type_arena;
+  Specifier *current_specifier;
 } Parser;
-
-typedef struct {
-  StorageClassType storage_class_type;
-  Types specifier_type;
-  bool specifier_type_found;
-} Specifier;
 
 typedef struct Declarator Declarator;
 
@@ -566,6 +567,10 @@ void print_ast(const AstNode *node, int whitespace) {
         print_whitespace(whitespace);
         printf(")\n");
         break;
+      case AST_EXPRESSION_STRING:
+        print_whitespace(whitespace);
+        printf("String(line = %d, value = %s)\n", node->line_number, node->data.string_expression.string_value);        
+        break;
       default: {
         panic("Missing ast node type for printing: %d", node->type);
     }
@@ -649,6 +654,8 @@ static void parse_program(Parser *parser, AstNode *program_node) {
   program_node->data.program.declaration_ptrs = declaration_pointers;
   
   while (current_token(parser)->type != TOKEN_EOF) {
+    parser->current_specifier = NULL;
+
     AstNode *declaration_node = arena_alloc(parser->node_arena);
     parse_declaration(parser, declaration_node);
 
@@ -663,6 +670,8 @@ static void parse_declaration(Parser *parser, AstNode *declaration_node) {
   if (!specifier.specifier_type_found) {
     input_error_with_line("Declaration type not specified", current_token(parser)->line);
   }
+
+  parser->current_specifier = &specifier;
   
   Declarator *declarator = parse_declarator(parser);
 
@@ -1410,6 +1419,35 @@ static void parse_primary_expression(Parser *parser, AstNode **expression_node) 
       }      
       break;
     }
+    case TOKEN_STRING_LITERAL: {
+      (*expression_node)->line_number = current_token(parser)->line;
+
+      char *string_value = malloc(0);
+      int string_size = 0;
+      int cur_index = 0;
+
+      while (current_token(parser)->type == TOKEN_STRING_LITERAL) {
+        int start = current_token(parser)->start_index;
+        int end = current_token(parser)->end_index;
+
+        string_size += (end - start) + 1;
+        string_value = realloc(string_value, string_size);
+
+        for (int i = start; i < end + 1; i++) {
+          string_value[cur_index] = parser->file[i];
+          cur_index++;
+        }
+
+        expect(parser, TOKEN_STRING_LITERAL);
+      }
+
+      string_value = realloc(string_value, string_size + 1);
+      string_value[cur_index] = '\0';
+
+      (*expression_node)->type = AST_EXPRESSION_STRING;
+      (*expression_node)->data.string_expression.string_value = string_value;
+      break;
+    }
     default:
       panic("Invalid primary expression token '%s'", get_token_name(current_token(parser)->type));
   }
@@ -1475,13 +1513,25 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
   TypeNode *expression_type = arena_alloc(parser->type_arena);
 
   if (constant_type == TOKEN_CONSTANT_CHARACTER) {
-    factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_CHAR;
-    factor_node->data.expression_constant.char_value = (int)constant_slice[0];
+    if (parser->current_specifier->specifier_type == TYPE_CHAR || parser->current_specifier->specifier_type == TYPE_SIGNED_CHAR) {
+      factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_CHAR;
+      factor_node->data.expression_constant.char_value = (int)constant_slice[0];
 
-    expression_type->type = TYPE_CHAR;
-    factor_node->data.expression_constant.expression_type = expression_type;
+      expression_type->type = TYPE_CHAR;
+      factor_node->data.expression_constant.expression_type = expression_type;
+      return;
+    }
 
-    return;
+    if (parser->current_specifier->specifier_type == TYPE_UNSIGNED_CHAR) {
+      factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_UCHAR;
+      factor_node->data.expression_constant.uchar_value = (int)constant_slice[0];
+
+      expression_type->type = TYPE_UNSIGNED_CHAR;
+      factor_node->data.expression_constant.expression_type = expression_type;
+      return;
+    }
+
+    panic("Expected char constant, but did not find one");
   }
   
   //@Note: Floating points constants can't go out of range since a double supports positive and negative infinity
