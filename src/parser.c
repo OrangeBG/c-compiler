@@ -1419,6 +1419,7 @@ static void parse_primary_expression(Parser *parser, AstNode **expression_node) 
       }      
       break;
     }
+    //@Debt: This can probably be done more efficiently
     case TOKEN_STRING_LITERAL: {
       (*expression_node)->line_number = current_token(parser)->line;
 
@@ -1512,10 +1513,29 @@ static void parse_factor_constant(Parser *parser, AstNode *factor_node, TokenTyp
 
   TypeNode *expression_type = arena_alloc(parser->type_arena);
 
+  //@Debt: There's probably a better way to parse through escape characters than what's being done here. The constant slicing logic above also seems messy. Look into ways to clean this up to read better.
   if (constant_type == TOKEN_CONSTANT_CHARACTER) {
     if (parser->current_specifier->specifier_type == TYPE_CHAR || parser->current_specifier->specifier_type == TYPE_SIGNED_CHAR) {
       factor_node->data.expression_constant.constant_type = AST_CONSTANT_TYPE_CHAR;
-      factor_node->data.expression_constant.char_value = (int)constant_slice[0];
+
+      if (constant_slice[0] != '\\') {
+        factor_node->data.expression_constant.char_value = (int)constant_slice[0];
+      } else {
+        switch (constant_slice[1]) {
+          case '\'': factor_node->data.expression_constant.char_value = (int)'\''; break;
+          case '\"': factor_node->data.expression_constant.char_value = (int)'\"'; break;
+          case '\?': factor_node->data.expression_constant.char_value = (int)'\?'; break;
+          case '\\': factor_node->data.expression_constant.char_value = (int)'\\'; break;
+          case 'a': factor_node->data.expression_constant.char_value = (int)'\a'; break;
+          case 'b': factor_node->data.expression_constant.char_value = (int)'\b'; break;
+          case 'f': factor_node->data.expression_constant.char_value = (int)'\f'; break;
+          case 'n': factor_node->data.expression_constant.char_value = (int)'\n'; break;
+          case 'r': factor_node->data.expression_constant.char_value = (int)'\r'; break;
+          case 't': factor_node->data.expression_constant.char_value = (int)'\t'; break;
+          case 'v': factor_node->data.expression_constant.char_value = (int)'\v'; break;
+          default: panic("Could not resolve escaped character constant '%s'", constant_slice);
+        }
+      }
 
       expression_type->type = TYPE_CHAR;
       factor_node->data.expression_constant.expression_type = expression_type;
