@@ -331,6 +331,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       break;
     }
     case AST_EXPRESSION_CONSTANT:
+    case AST_EXPRESSION_STRING:
     case AST_STATEMENT_NULL:
     case AST_STATEMENT_CONTINUE:
     case AST_STATEMENT_BREAK:

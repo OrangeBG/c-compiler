@@ -27,7 +27,9 @@ typedef enum {
   INITIAL_VALUE_TYPE_DOUBLE,  
   INITIAL_VALUE_TYPE_CHAR,
   INITIAL_VALUE_TYPE_UCHAR,
-  INITIAL_VALUE_TYPE_ZERO_INIT
+  INITIAL_VALUE_TYPE_ZERO_INIT,
+  INITIAL_VALUE_TYPE_STRING,
+  INITIAL_VALUE_TYPE_POINTER
 } InitialValueType;
 
 typedef struct {
@@ -49,6 +51,8 @@ typedef struct {
     int char_value;
     unsigned int uchar_value;
     int zero_init_array_bytes;
+    char *pointer_name;
+    struct { char *string_value; bool is_null_terminated; } string_value;
   } data;
 } InitialValue;
 
