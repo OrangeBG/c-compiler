@@ -39,6 +39,9 @@ bool is_arithmetic_type(TypeNode *type_node) {
     case TYPE_UINT:
     case TYPE_LONG:
     case TYPE_ULONG:
+    case TYPE_CHAR:
+    case TYPE_SIGNED_CHAR:
+    case TYPE_UNSIGNED_CHAR:
       return true;
     default:
       return false;
@@ -56,6 +59,17 @@ bool is_integer_type(TypeNode *type_node) {
       return false;
   }
 }
+
+bool is_character_type(TypeNode *type_node) {
+  switch(type_node->type) {
+    case TYPE_CHAR:
+    case TYPE_SIGNED_CHAR:
+    case TYPE_UNSIGNED_CHAR:
+      return true;
+    default:
+      return false;
+  }
+} 
 
 char* get_type_string(Types type) {
   switch (type) {

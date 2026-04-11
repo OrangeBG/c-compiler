@@ -23,7 +23,7 @@ static TypeNode*        expression_type_check_binary_logical(AstNode *node, Pars
 static TypeNode*        expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type,  SymbolTable *symbol_table, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results);  
 static TypeNode*        expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
-static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
+static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2, ParserResults *parser_results);
 static TypeNode*        get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        get_type(AstNode *ast_node);
 static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
@@ -348,6 +348,15 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
       constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_DOUBLE;
       constant->data.expression_constant.double_value = 0;
       break;
+    case TYPE_CHAR:
+    case TYPE_SIGNED_CHAR:
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_CHAR;
+      constant->data.expression_constant.char_value = 0;
+      break;      
+    case TYPE_UNSIGNED_CHAR:
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_UCHAR;
+      constant->data.expression_constant.uchar_value = 0;
+      break;      
     default:
       panic("Type not found for array zero initializer");
   }
@@ -479,6 +488,9 @@ static InitialValue* add_variable_declaration_single_init_to_array(InitialValueA
 
   switch(declaration_type->type) {
    case TYPE_INT:
+   case TYPE_CHAR:
+   case TYPE_SIGNED_CHAR:
+   case TYPE_UNSIGNED_CHAR:
      initial_value->type = INITIAL_VALUE_TYPE_INT;
      initial_value->data.int_value = convert_variable_declaration_constant_to_int(constant_node);
      break;
@@ -613,6 +625,14 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
 
       if (expression_type->type == TYPE_POINTER && (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT || node->data.expression_unary.op_type == AST_UNARY_NEGATE)) {
         input_error_with_line("Cannot apply unary complement or negate operator to a pointer", node->line_number);
+      }
+
+      if (node->data.expression_unary.op_type == AST_UNARY_NEGATE && is_character_type(expression_type)) {
+        //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+        TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+        int_type->type = TYPE_INT;
+
+        expression_type = int_type;
       }
 
       node->data.expression_unary.expression_type = expression_type;
@@ -760,7 +780,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       if (true_expression_type->type == TYPE_POINTER || false_expression_type->type == TYPE_POINTER) {
         common_type = get_common_pointer_type(node, node->data.expression_conditional.true_expression, node->data.expression_conditional.false_expression, symbol_table, function_declaration_node, parser_results);
       } else {
-        common_type = get_common_real_type(true_expression_type, false_expression_type);
+        common_type = get_common_real_type(true_expression_type, false_expression_type, parser_results);
       }
 
       node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type, common_type, parser_results);
@@ -856,7 +876,7 @@ static TypeNode* expression_type_check_binary(AstNode *binary_node, AstNode *fun
   if ((binary_node->data.expression_binary.op_type == AST_BINARY_EQUAL || binary_node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
     common_type = get_common_pointer_type(binary_node, binary_node->data.expression_binary.left_expression, binary_node->data.expression_binary.right_expression, symbol_table, function_declaration_node, parser_results);
   } else {
-    common_type = get_common_real_type(left_expression_type, right_expression_type);
+    common_type = get_common_real_type(left_expression_type, right_expression_type, parser_results);
   }
 
   binary_node->data.expression_binary.left_expression = convert_to(binary_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
@@ -881,7 +901,7 @@ static TypeNode* expression_type_check_binary(AstNode *binary_node, AstNode *fun
 }
 
 static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results) { 
-  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type);
+  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type, parser_results);
 
   if (is_arithmetic_type(left_expression_type) && is_arithmetic_type(right_expression_type)) {
     add_node->data.expression_binary.left_expression = convert_to(add_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
@@ -915,7 +935,7 @@ static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *l
 }
 
 static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results) { 
-  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type);
+  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type, parser_results);
 
   if (is_arithmetic_type(left_expression_type) && is_arithmetic_type(right_expression_type)) {
     subtract_node->data.expression_binary.left_expression = convert_to(subtract_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
@@ -948,7 +968,23 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
   input_error_with_line("Invalid operands for subtraction", subtract_node->line_number);
 }
 
-static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
+static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2, ParserResults *parser_results) {
+  if (is_character_type(type_1)) {
+    //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+    TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+    int_type->type = TYPE_INT;
+
+    return int_type;
+  }
+  
+  if (is_character_type(type_2)) {
+    //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+    TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+    int_type->type = TYPE_INT;
+
+    return int_type;
+  }
+
   if (type_1->type == type_2->type) {
     return type_1;
   }  
@@ -1132,6 +1168,8 @@ static long convert_variable_declaration_constant_to_long(AstNode *constant_node
 static int convert_variable_declaration_constant_to_int(AstNode *constant_node) {
   switch (constant_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:    return constant_node->data.expression_constant.int_value;
+    case AST_CONSTANT_TYPE_CHAR:   return constant_node->data.expression_constant.char_value;
+    case AST_CONSTANT_TYPE_UCHAR:  return constant_node->data.expression_constant.uchar_value;
     case AST_CONSTANT_TYPE_UINT:   return (int)constant_node->data.expression_constant.uint_value;
     case AST_CONSTANT_TYPE_ULONG:  return (int)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_node->data.expression_constant.double_value;
