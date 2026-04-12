@@ -10,7 +10,8 @@
 
 typedef enum {
   SYMBOL_VARIABLE,
-  SYMBOL_FUNCTION
+  SYMBOL_FUNCTION,
+  SYMBOL_CONSTANT
 } SymbolType;
 
 typedef enum {
@@ -71,10 +72,15 @@ typedef struct {
 } VariableSymbol; 
 
 typedef struct {
+  InitialValue *static_initial_value;
+} ConstantSymbol;
+
+typedef struct {
   SymbolType symbol_type;
   union {
     FunctionSymbol *function_symbol;
     VariableSymbol *variable_symbol;
+    ConstantSymbol *constant_symbol;
   } data;
 } Symbol;
 

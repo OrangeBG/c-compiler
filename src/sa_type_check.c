@@ -37,6 +37,7 @@ static bool             is_null_pointer_constant(AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
 static InitialValue*    add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
 static InitialValue*    add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init);
+static InitialValue*    add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value);
 
 void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -396,7 +397,21 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   if (variable_declaration_node->data.declaration_variable.has_expression) {
     initialization_type = INITIALIZATION_TYPE_INITIALIZED;
 
-    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+      if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
+        input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
+      }
+
+      size_t string_length = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+
+      if (string_length > variable_declaration_node->data.declaration_variable.type->data.array_type.size) {
+        input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.type->data.array_type.size, string_length);
+      }
+
+      initial_value = add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+    } else if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+
+
       initial_value = add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
     } else {
       initial_value = add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
@@ -482,6 +497,23 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
         add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
         return;
+    }
+
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+      //@Debt: This error checking is in a few places in the type checker. Consolidate into a function.
+      if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
+         input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
+      }
+      
+      size_t string_length = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+
+      if (string_length > variable_declaration_node->data.declaration_variable.type->data.array_type.size) {
+        input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.type->data.array_type.size, string_length);
+      }
+
+      add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+      add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
+      return;
     }
 
     if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
@@ -582,6 +614,35 @@ static InitialValue* add_variable_declaration_compound_init_to_array(InitialValu
       initial_value->data.zero_init_array_bytes = (int)size * compound_diff;
       dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
+  }
+
+  return initial_value;
+}
+
+static InitialValue* add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value) {
+  InitialValue *initial_value = malloc(sizeof(InitialValue));
+
+  initial_value->type = INITIAL_VALUE_TYPE_STRING;
+  initial_value->data.string_value.string_value = string_value;
+
+  size_t string_length = strlen(string_value);
+
+  if (declaration_type->data.array_type.size > string_length) {
+    initial_value->data.string_value.is_null_terminated = true;
+  } else {
+    initial_value->data.string_value.is_null_terminated = false;
+  }
+
+  dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+
+  size_t string_padding = declaration_type->data.array_type.size - string_length;
+
+  if (string_padding != 0) {
+    InitialValue *zero_init = malloc(sizeof(InitialValue));
+    zero_init->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+    zero_init->data.zero_init_array_bytes = (int)string_padding;
+
+    dynamic_array_add(initial_value_array, *zero_init, STATIC_INITIAL_VALUE_CAPACITY);
   }
 
   return initial_value;

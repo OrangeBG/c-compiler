@@ -6,13 +6,16 @@
 
 size_t get_type_size(TypeNode *type_node) {
   switch(type_node->type) {
-    case TYPE_INT:     return sizeof(int);
-    case TYPE_UINT:    return sizeof(unsigned int);
-    case TYPE_LONG:    return sizeof(long);
-    case TYPE_ULONG:   return sizeof(unsigned long);
-    case TYPE_DOUBLE:  return sizeof(double);
-    case TYPE_POINTER: return sizeof(int*);
-    case TYPE_ARRAY:   return type_node->data.array_type.size;
+    case TYPE_INT:           return sizeof(int);
+    case TYPE_UINT:          return sizeof(unsigned int);
+    case TYPE_LONG:          return sizeof(long);
+    case TYPE_ULONG:         return sizeof(unsigned long);
+    case TYPE_DOUBLE:        return sizeof(double);
+    case TYPE_POINTER:       return sizeof(int*);
+    case TYPE_CHAR:          return sizeof(char);
+    case TYPE_UNSIGNED_CHAR: return sizeof(unsigned char);
+    case TYPE_SIGNED_CHAR:   return sizeof(signed char);
+    case TYPE_ARRAY:         return type_node->data.array_type.size;
     default:
       panic("Unsupported type when attempting to get Type size");
   }

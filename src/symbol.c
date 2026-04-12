@@ -194,12 +194,18 @@ void symbol_table_print(SymbolTable *symbol_table) {
           case INITIAL_VALUE_TYPE_DOUBLE:
             printf("\t\tdouble %f\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.double_value);
             break;
-          // case TYPE_POINTER:
-          //   printf("\t\tpointer %ld\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.ulong_value);
-          //   break;
           case INITIAL_VALUE_TYPE_ZERO_INIT:            
             printf("\t\tzero init bytes %d\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.zero_init_array_bytes);
             break;
+          case INITIAL_VALUE_TYPE_STRING:
+            printf("\t\tstring %s (is null terminated: %d)\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.string_value.string_value, symbol->data.variable_symbol->static_initial_value_array->items[i].data.string_value.is_null_terminated);
+            break;
+          case INITIAL_VALUE_TYPE_CHAR:
+            printf("\t\tchar %c\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.char_value);
+            break;            
+          case INITIAL_VALUE_TYPE_UCHAR:
+            printf("\t\tunsigned char %c\n", symbol->data.variable_symbol->static_initial_value_array->items[i].data.uchar_value);
+            break;            
           default:
             panic("Unsupported value type '%d' when attempting to print", symbol->data.variable_symbol->value_type->type);
           }
