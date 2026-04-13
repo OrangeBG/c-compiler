@@ -117,6 +117,7 @@ void sa_subscript_convert(AstNode **ast_node, ParserResults *parser_results) {
     }
     case AST_EXPRESSION_CONSTANT:
     case AST_EXPRESSION_VARIABLE:
+    case AST_EXPRESSION_STRING:
     case AST_STATEMENT_NULL:
     case AST_STATEMENT_GOTO:
     case AST_STATEMENT_GOTO_LABEL:

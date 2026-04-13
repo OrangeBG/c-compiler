@@ -10,7 +10,8 @@
 
 typedef enum {
   SYMBOL_VARIABLE,
-  SYMBOL_FUNCTION
+  SYMBOL_FUNCTION,
+  SYMBOL_CONSTANT
 } SymbolType;
 
 typedef enum {
@@ -25,7 +26,11 @@ typedef enum {
   INITIAL_VALUE_TYPE_UINT,
   INITIAL_VALUE_TYPE_ULONG,
   INITIAL_VALUE_TYPE_DOUBLE,  
-  INITIAL_VALUE_TYPE_ZERO_INIT  
+  INITIAL_VALUE_TYPE_CHAR,
+  INITIAL_VALUE_TYPE_UCHAR,
+  INITIAL_VALUE_TYPE_ZERO_INIT,
+  INITIAL_VALUE_TYPE_STRING,
+  INITIAL_VALUE_TYPE_POINTER
 } InitialValueType;
 
 typedef struct {
@@ -44,7 +49,11 @@ typedef struct {
     unsigned int uint_value;
     unsigned long ulong_value;
     double double_value;
+    int char_value;
+    unsigned int uchar_value;
     int zero_init_array_bytes;
+    char *pointer_name;
+    struct { char *string_value; bool is_null_terminated; } string_value;
   } data;
 } InitialValue;
 
@@ -63,10 +72,15 @@ typedef struct {
 } VariableSymbol; 
 
 typedef struct {
+  InitialValue *static_initial_value;
+} ConstantSymbol;
+
+typedef struct {
   SymbolType symbol_type;
   union {
     FunctionSymbol *function_symbol;
     VariableSymbol *variable_symbol;
+    ConstantSymbol *constant_symbol;
   } data;
 } Symbol;
 

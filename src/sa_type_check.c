@@ -23,7 +23,7 @@ static TypeNode*        expression_type_check_binary_logical(AstNode *node, Pars
 static TypeNode*        expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type,  SymbolTable *symbol_table, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results);  
 static TypeNode*        expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
-static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2);
+static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2, ParserResults *parser_results);
 static TypeNode*        get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        get_type(AstNode *ast_node);
 static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
@@ -37,6 +37,7 @@ static bool             is_null_pointer_constant(AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
 static InitialValue*    add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
 static InitialValue*    add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init);
+static InitialValue*    add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value);
 
 void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -68,9 +69,10 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       }
 
       if (node->data.declaration_variable.has_expression) {
-        if (node->data.declaration_variable.type->type == TYPE_ARRAY && node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
-          input_error_with_line("Cannot initialize an array with a scalar value", node->line_number);
-        }
+        //@Note: Moved this logic into type_check_init() so that string arrays are checked prior to throwing the error
+        // if (node->data.declaration_variable.type->type == TYPE_ARRAY && node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+        //   input_error_with_line("Cannot initialize an array with a scalar value", node->line_number);
+        // }
         
         type_check_init(node->data.declaration_variable.type, node->data.declaration_variable.init_expression, symbol_table, function_declaration_node, parser_results);
       }
@@ -273,7 +275,25 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
 }
 
 static TypeNode* type_check_init(TypeNode *target_type, AstNode *ast_initializer, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
-  if (ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
+  if (ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {    
+    if (target_type->type == TYPE_ARRAY && ast_initializer->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+      if (!is_character_type(target_type->data.array_type.element_type)) {
+        input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", ast_initializer->line_number, get_type_string(target_type->data.array_type.element_type->type));
+      }
+      
+      size_t string_length = strlen(ast_initializer->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value); 
+
+      if (string_length > target_type->data.array_type.size) {
+        input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", ast_initializer->line_number, target_type->data.array_type.size, string_length); 
+      }
+
+      return target_type;
+    }
+    
+    if (target_type->type == TYPE_ARRAY && ast_initializer->data.initializer.type == AST_INITIALIZER_SINGLE) {
+      input_error_with_line("Cannot initialize an array with a scalar value", ast_initializer->line_number);
+    }
+
     TypeNode *expression_type = expression_type_check_and_convert(ast_initializer, &ast_initializer->data.initializer.initializer_node.single_init_expression, symbol_table, function_declaration_node, parser_results);
 
     if (target_type->type == TYPE_ARRAY) {
@@ -348,6 +368,15 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
       constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_DOUBLE;
       constant->data.expression_constant.double_value = 0;
       break;
+    case TYPE_CHAR:
+    case TYPE_SIGNED_CHAR:
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_CHAR;
+      constant->data.expression_constant.char_value = 0;
+      break;      
+    case TYPE_UNSIGNED_CHAR:
+      constant->data.expression_constant.constant_type = AST_CONSTANT_TYPE_UCHAR;
+      constant->data.expression_constant.uchar_value = 0;
+      break;      
     default:
       panic("Type not found for array zero initializer");
   }
@@ -368,7 +397,21 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   if (variable_declaration_node->data.declaration_variable.has_expression) {
     initialization_type = INITIALIZATION_TYPE_INITIALIZED;
 
-    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+      if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
+        input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
+      }
+
+      size_t string_length = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+
+      if (string_length > variable_declaration_node->data.declaration_variable.type->data.array_type.size) {
+        input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.type->data.array_type.size, string_length);
+      }
+
+      initial_value = add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+    } else if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
+
+
       initial_value = add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
     } else {
       initial_value = add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
@@ -456,6 +499,23 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
         return;
     }
 
+    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+      //@Debt: This error checking is in a few places in the type checker. Consolidate into a function.
+      if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
+         input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
+      }
+      
+      size_t string_length = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+
+      if (string_length > variable_declaration_node->data.declaration_variable.type->data.array_type.size) {
+        input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.type->data.array_type.size, string_length);
+      }
+
+      add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+      add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
+      return;
+    }
+
     if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
       add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
       add_static_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
@@ -479,6 +539,9 @@ static InitialValue* add_variable_declaration_single_init_to_array(InitialValueA
 
   switch(declaration_type->type) {
    case TYPE_INT:
+   case TYPE_CHAR:
+   case TYPE_SIGNED_CHAR:
+   case TYPE_UNSIGNED_CHAR:
      initial_value->type = INITIAL_VALUE_TYPE_INT;
      initial_value->data.int_value = convert_variable_declaration_constant_to_int(constant_node);
      break;
@@ -556,6 +619,35 @@ static InitialValue* add_variable_declaration_compound_init_to_array(InitialValu
   return initial_value;
 }
 
+static InitialValue* add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value) {
+  InitialValue *initial_value = malloc(sizeof(InitialValue));
+
+  initial_value->type = INITIAL_VALUE_TYPE_STRING;
+  initial_value->data.string_value.string_value = string_value;
+
+  size_t string_length = strlen(string_value);
+
+  if (declaration_type->data.array_type.size > string_length) {
+    initial_value->data.string_value.is_null_terminated = true;
+  } else {
+    initial_value->data.string_value.is_null_terminated = false;
+  }
+
+  dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+
+  size_t string_padding = declaration_type->data.array_type.size - string_length;
+
+  if (string_padding != 0) {
+    InitialValue *zero_init = malloc(sizeof(InitialValue));
+    zero_init->type = INITIAL_VALUE_TYPE_ZERO_INIT;
+    zero_init->data.zero_init_array_bytes = (int)string_padding;
+
+    dynamic_array_add(initial_value_array, *zero_init, STATIC_INITIAL_VALUE_CAPACITY);
+  }
+
+  return initial_value;
+}
+
 static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
     case AST_EXPRESSION_VARIABLE: {
@@ -613,6 +705,14 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
 
       if (expression_type->type == TYPE_POINTER && (node->data.expression_unary.op_type == AST_UNARY_COMPLEMENT || node->data.expression_unary.op_type == AST_UNARY_NEGATE)) {
         input_error_with_line("Cannot apply unary complement or negate operator to a pointer", node->line_number);
+      }
+
+      if (node->data.expression_unary.op_type == AST_UNARY_NEGATE && is_character_type(expression_type)) {
+        //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+        TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+        int_type->type = TYPE_INT;
+
+        expression_type = int_type;
       }
 
       node->data.expression_unary.expression_type = expression_type;
@@ -703,7 +803,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
 
       //@Note: Added AST_EXPRESSION_ASSIGNMENT here to support expressions like 'a = b = d = += h';
       //@Debt: This is messy and should be reworked
-      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT && !(node->data.expression_assignment.left_expression->type == AST_EXPRESSION_ADDRESS_OF && node->data.expression_assignment.left_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE)) {
+      if (node->data.expression_assignment.left_expression->type != AST_EXPRESSION_ASSIGNMENT && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_STRING && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_assignment.left_expression->type != AST_EXPRESSION_SUBSCRIPT && !(node->data.expression_assignment.left_expression->type == AST_EXPRESSION_ADDRESS_OF && node->data.expression_assignment.left_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE)) {
         input_error_with_line("Tried to assign to a non-lvalue", node->line_number);
       }
 
@@ -760,7 +860,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       if (true_expression_type->type == TYPE_POINTER || false_expression_type->type == TYPE_POINTER) {
         common_type = get_common_pointer_type(node, node->data.expression_conditional.true_expression, node->data.expression_conditional.false_expression, symbol_table, function_declaration_node, parser_results);
       } else {
-        common_type = get_common_real_type(true_expression_type, false_expression_type);
+        common_type = get_common_real_type(true_expression_type, false_expression_type, parser_results);
       }
 
       node->data.expression_conditional.true_expression = convert_to(node->data.expression_conditional.true_expression, true_expression_type, common_type, parser_results);
@@ -783,9 +883,10 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
           - Variables
           - Dereference 
           - Subscript
+          - String
       */
 
-      if (node->data.expression_address_of.expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_address_of.expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_address_of.expression->type != AST_EXPRESSION_SUBSCRIPT) {
+      if (node->data.expression_address_of.expression->type != AST_EXPRESSION_VARIABLE && node->data.expression_address_of.expression->type != AST_EXPRESSION_DEREFERENCE && node->data.expression_address_of.expression->type != AST_EXPRESSION_SUBSCRIPT && node->data.expression_address_of.expression->type != AST_EXPRESSION_STRING) {
         input_error_with_line("Cannot take the address of a non-lvalue", node->line_number);
       }
 
@@ -837,6 +938,20 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
 
       // input_error_with_line("Subscript must have an integer and pointer operand", node->line_number);
     }
+    case AST_EXPRESSION_STRING: {
+      //@Todo: Do we need to add an expression_type field to expression_string?
+      //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+      TypeNode *char_type = arena_alloc(parser_results->type_node_arena);      
+      char_type->type = TYPE_CHAR;
+
+      TypeNode *char_array = arena_alloc(parser_results->type_node_arena);
+      char_array->type = TYPE_ARRAY;
+      char_array->data.array_type.size = strlen(node->data.expression_string.string_value) + 1; 
+      char_array->data.array_type.element_type = char_type;
+
+      return char_array;
+      break;
+    }
     default:
       panic("Invalid AST type '%d' found in expression type check", node->type);
   }
@@ -856,7 +971,7 @@ static TypeNode* expression_type_check_binary(AstNode *binary_node, AstNode *fun
   if ((binary_node->data.expression_binary.op_type == AST_BINARY_EQUAL || binary_node->data.expression_binary.op_type == AST_BINARY_NOT_EQUAL) && (left_expression_type->type == TYPE_POINTER || right_expression_type->type == TYPE_POINTER)) {
     common_type = get_common_pointer_type(binary_node, binary_node->data.expression_binary.left_expression, binary_node->data.expression_binary.right_expression, symbol_table, function_declaration_node, parser_results);
   } else {
-    common_type = get_common_real_type(left_expression_type, right_expression_type);
+    common_type = get_common_real_type(left_expression_type, right_expression_type, parser_results);
   }
 
   binary_node->data.expression_binary.left_expression = convert_to(binary_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
@@ -881,7 +996,7 @@ static TypeNode* expression_type_check_binary(AstNode *binary_node, AstNode *fun
 }
 
 static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results) { 
-  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type);
+  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type, parser_results);
 
   if (is_arithmetic_type(left_expression_type) && is_arithmetic_type(right_expression_type)) {
     add_node->data.expression_binary.left_expression = convert_to(add_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
@@ -915,7 +1030,7 @@ static TypeNode* expression_type_check_binary_add(AstNode *add_node, TypeNode *l
 }
 
 static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results) { 
-  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type);
+  TypeNode *common_type = get_common_real_type(left_expression_type, right_expression_type, parser_results);
 
   if (is_arithmetic_type(left_expression_type) && is_arithmetic_type(right_expression_type)) {
     subtract_node->data.expression_binary.left_expression = convert_to(subtract_node->data.expression_binary.left_expression, left_expression_type, common_type, parser_results);
@@ -948,7 +1063,23 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
   input_error_with_line("Invalid operands for subtraction", subtract_node->line_number);
 }
 
-static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2) {
+static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2, ParserResults *parser_results) {
+  if (is_character_type(type_1)) {
+    //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+    TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+    int_type->type = TYPE_INT;
+
+    return int_type;
+  }
+  
+  if (is_character_type(type_2)) {
+    //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
+    TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
+    int_type->type = TYPE_INT;
+
+    return int_type;
+  }
+
   if (type_1->type == type_2->type) {
     return type_1;
   }  
@@ -1136,6 +1267,8 @@ static int convert_variable_declaration_constant_to_int(AstNode *constant_node) 
     case AST_CONSTANT_TYPE_ULONG:  return (int)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (int)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (int)constant_node->data.expression_constant.long_value;
+    case AST_CONSTANT_TYPE_CHAR:   return constant_node->data.expression_constant.char_value;
+    case AST_CONSTANT_TYPE_UCHAR:  return constant_node->data.expression_constant.uchar_value;
     default:                       panic("Unsupported constant type when converting to int");
   }
 }
@@ -1147,6 +1280,8 @@ static unsigned int convert_variable_declaration_constant_to_uint(AstNode *const
     case AST_CONSTANT_TYPE_ULONG:  return (unsigned int)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (unsigned int)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (unsigned int)constant_node->data.expression_constant.long_value;
+    case AST_CONSTANT_TYPE_CHAR:   return (unsigned int)constant_node->data.expression_constant.char_value;
+    case AST_CONSTANT_TYPE_UCHAR:  return (unsigned int)constant_node->data.expression_constant.uchar_value;
     default:                       panic("Unsupported constant type when converting to uint");
   }
 }
@@ -1158,6 +1293,8 @@ static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *con
     case AST_CONSTANT_TYPE_ULONG:  return constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return (unsigned long)constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (unsigned long)constant_node->data.expression_constant.long_value;
+    case AST_CONSTANT_TYPE_CHAR:   return (unsigned long)constant_node->data.expression_constant.char_value;
+    case AST_CONSTANT_TYPE_UCHAR:  return (unsigned long)constant_node->data.expression_constant.uchar_value;
     default:                       panic("Unsupported constant type when converting to uint");
   }
 }
@@ -1169,6 +1306,8 @@ static double convert_variable_declaration_constant_to_double(AstNode *constant_
     case AST_CONSTANT_TYPE_ULONG:  return (double)constant_node->data.expression_constant.ulong_value;
     case AST_CONSTANT_TYPE_DOUBLE: return constant_node->data.expression_constant.double_value;
     case AST_CONSTANT_TYPE_LONG:   return (double)constant_node->data.expression_constant.long_value;
+    case AST_CONSTANT_TYPE_CHAR:   return (double)constant_node->data.expression_constant.char_value;
+    case AST_CONSTANT_TYPE_UCHAR:  return (double)constant_node->data.expression_constant.uchar_value;
     default:                       panic("Unsupported constant type when converting to double");
   }
 }
@@ -1179,6 +1318,7 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
     return false;
   }
 
+  //@Todo: Add char types to this?
   switch (ast_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:     return ast_node->data.expression_constant.int_value == 0;
     case AST_CONSTANT_TYPE_UINT:    return ast_node->data.expression_constant.uint_value == 0;

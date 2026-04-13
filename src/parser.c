@@ -569,7 +569,7 @@ void print_ast(const AstNode *node, int whitespace) {
         break;
       case AST_EXPRESSION_STRING:
         print_whitespace(whitespace);
-        printf("String(line = %d, value = %s)\n", node->line_number, node->data.string_expression.string_value);        
+        printf("String(line = %d, value = %s)\n", node->line_number, node->data.expression_string.string_value);        
         break;
       default: {
         panic("Missing ast node type for printing: %d", node->type);
@@ -1446,7 +1446,7 @@ static void parse_primary_expression(Parser *parser, AstNode **expression_node) 
       string_value[cur_index] = '\0';
 
       (*expression_node)->type = AST_EXPRESSION_STRING;
-      (*expression_node)->data.string_expression.string_value = string_value;
+      (*expression_node)->data.expression_string.string_value = string_value;
       break;
     }
     default:

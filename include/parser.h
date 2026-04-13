@@ -145,7 +145,7 @@ typedef struct AstNode {
     struct DereferenceExpression { AstNode *expression; } expression_dereference;
     struct AddressOfExpression { AstNode *expression; } expression_address_of;
     struct SubscriptExpression { AstNode *expression_1; AstNode *expression_2; TypeNode *expression_type; } expression_subscript;
-    struct StringExpression { char* string_value; } string_expression;
+    struct StringExpression { char* string_value; } expression_string;
   } data;
 } AstNode;
 

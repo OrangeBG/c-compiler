@@ -6,13 +6,16 @@
 
 size_t get_type_size(TypeNode *type_node) {
   switch(type_node->type) {
-    case TYPE_INT:     return sizeof(int);
-    case TYPE_UINT:    return sizeof(unsigned int);
-    case TYPE_LONG:    return sizeof(long);
-    case TYPE_ULONG:   return sizeof(unsigned long);
-    case TYPE_DOUBLE:  return sizeof(double);
-    case TYPE_POINTER: return sizeof(int*);
-    case TYPE_ARRAY:   return type_node->data.array_type.size;
+    case TYPE_INT:           return sizeof(int);
+    case TYPE_UINT:          return sizeof(unsigned int);
+    case TYPE_LONG:          return sizeof(long);
+    case TYPE_ULONG:         return sizeof(unsigned long);
+    case TYPE_DOUBLE:        return sizeof(double);
+    case TYPE_POINTER:       return sizeof(int*);
+    case TYPE_CHAR:          return sizeof(char);
+    case TYPE_UNSIGNED_CHAR: return sizeof(unsigned char);
+    case TYPE_SIGNED_CHAR:   return sizeof(signed char);
+    case TYPE_ARRAY:         return type_node->data.array_type.size;
     default:
       panic("Unsupported type when attempting to get Type size");
   }
@@ -39,6 +42,9 @@ bool is_arithmetic_type(TypeNode *type_node) {
     case TYPE_UINT:
     case TYPE_LONG:
     case TYPE_ULONG:
+    case TYPE_CHAR:
+    case TYPE_SIGNED_CHAR:
+    case TYPE_UNSIGNED_CHAR:
       return true;
     default:
       return false;
@@ -56,6 +62,17 @@ bool is_integer_type(TypeNode *type_node) {
       return false;
   }
 }
+
+bool is_character_type(TypeNode *type_node) {
+  switch(type_node->type) {
+    case TYPE_CHAR:
+    case TYPE_SIGNED_CHAR:
+    case TYPE_UNSIGNED_CHAR:
+      return true;
+    default:
+      return false;
+  }
+} 
 
 char* get_type_string(Types type) {
   switch (type) {
