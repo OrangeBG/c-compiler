@@ -82,28 +82,28 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       Symbol *existing_function_symbol = get_symbol(node->data.declaration_function.name, symbol_table, false);
 
       if (existing_function_symbol != NULL ) {
-        if (existing_function_symbol->symbol_type == SYMBOL_VARIABLE) {
+        if (existing_function_symbol->type != SYMBOL_FUNCTION) {
           input_error_with_line("'%s' declared as variable", node->line_number, node->data.declaration_function.name);
         }
 
-        if (existing_function_symbol->data.function_symbol->value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {
+        if (existing_function_symbol->data.function_symbol.value_type->type != node->data.declaration_function.function_type->data.function_type.return_type->type) {
           input_error_with_line("Incompatible function declarations for '%s'", node->line_number, node->data.declaration_function.name);
         }
 
-        if (existing_function_symbol->data.function_symbol->is_defined && node->data.declaration_function.body_block != NULL) {
+        if (existing_function_symbol->data.function_symbol.is_defined && node->data.declaration_function.body_block != NULL) {
           input_error_with_line("Function defined more than once '%s'", node->line_number, node->data.declaration_function.name);
         }
 
-        if (existing_function_symbol->data.function_symbol->is_global == node->data.declaration_function.storage_class_type == AST_STORAGE_CLASS_STATIC) {
+        if (existing_function_symbol->data.function_symbol.is_global == node->data.declaration_function.storage_class_type == AST_STORAGE_CLASS_STATIC) {
           input_error_with_line("Static function '%s' declaration follows non-static", node->line_number, node->data.declaration_function.name);
         }
 
-        if (existing_function_symbol->data.function_symbol->param_count != node->data.declaration_function.function_type->data.function_type.param_type_count) {
+        if (existing_function_symbol->data.function_symbol.param_count != node->data.declaration_function.function_type->data.function_type.param_type_count) {
           input_error_with_line("'%s' function declaration has different set parameters", node->line_number, node->data.declaration_function.name);
         }
 
         for (int i = 0; i < node->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
-          if (existing_function_symbol->data.function_symbol->param_types[i].type != node->data.declaration_function.function_type->data.function_type.param_types[i].type) {
+          if (existing_function_symbol->data.function_symbol.param_types[i].type != node->data.declaration_function.function_type->data.function_type.param_types[i].type) {
             input_error_with_line("'%s' function declaration has different set parameters", node->line_number, node->data.declaration_function.name);
           }
 
@@ -113,8 +113,8 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
           }
         }
 
-        if (!existing_function_symbol->data.function_symbol->is_defined && node->data.declaration_function.body_block != NULL) {
-          existing_function_symbol->data.function_symbol->is_defined = true;
+        if (!existing_function_symbol->data.function_symbol.is_defined && node->data.declaration_function.body_block != NULL) {
+          existing_function_symbol->data.function_symbol.is_defined = true;
           function_and_variable_type_check(node->data.declaration_function.body_block, symbol_table, node, parser_results);
         }
 
@@ -158,11 +158,11 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
       Symbol *existing_symbol = get_symbol(node->data.expression_function_call.identifier, symbol_table, false);
 
       if (existing_symbol != NULL) {
-        if (existing_symbol->symbol_type == SYMBOL_VARIABLE) {
+        if (existing_symbol->type == SYMBOL_LOCAL || existing_symbol->type == SYMBOL_STATIC) {
           input_error_with_line("Variable '%s' is used as a function name", node->line_number, node->data.expression_function_call.identifier);
         }               
 
-        if (existing_symbol->data.function_symbol->param_count != node->data.expression_function_call.argument_count) {
+        if (existing_symbol->data.function_symbol.param_count != node->data.expression_function_call.argument_count) {
           input_error_with_line("Function '%s' called with incorrect number of arguments", node->line_number, node->data.expression_function_call.identifier);
         }
       }
@@ -392,7 +392,7 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table) {
   InitializationType initialization_type; 
   InitialValueArray *initial_value_array = initial_value_array_init();
-  InitialValue *initial_value = NULL;
+  // InitialValue *initial_value = NULL;
 
   if (variable_declaration_node->data.declaration_variable.has_expression) {
     initialization_type = INITIALIZATION_TYPE_INITIALIZED;
@@ -410,8 +410,6 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
 
       initial_value = add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
     } else if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE) {
-
-
       initial_value = add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
     } else {
       initial_value = add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
@@ -433,7 +431,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   Symbol *existing_variable_symbol = get_symbol(variable_declaration_node->data.declaration_variable.name, symbol_table, false);
 
   if (existing_variable_symbol != NULL) {
-    if (existing_variable_symbol->symbol_type == SYMBOL_FUNCTION) {
+    if (existing_variable_symbol->type == SYMBOL_FUNCTION) {
       input_error_with_line("Function '%s' redeclared as variable", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
 
