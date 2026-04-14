@@ -58,9 +58,10 @@ typedef struct {
 
 typedef struct {
   SymbolType type;
+  TypeNode *value_type;
   union {
-    struct FunctionSymbol { bool is_defined; bool is_global; TypeNode *value_type; int param_count; TypeNode *param_types; } function_symbol;
-    struct StaticSymbol { TypeNode *value_type; InitializationType initialization_type; InitialValueArray *initial_value_array; bool is_global; } static_symbol;
+    struct FunctionSymbol { bool is_defined; bool is_global; int param_count; TypeNode *param_types; } function_symbol;
+    struct StaticSymbol { InitializationType initialization_type; InitialValueArray *initial_value_array; bool is_global; } static_symbol;
     struct ConstantSymbol { InitialValue *static_initial_value; } constant_symbol;
   } data;
 } Symbol;

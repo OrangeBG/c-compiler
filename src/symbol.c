@@ -38,7 +38,7 @@ Symbol* add_function_symbol(SymbolTable *symbol_table, char *function_name, Type
   Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
 
   symbol->type = SYMBOL_FUNCTION;
-  symbol->data.function_symbol.value_type = function_value_type;
+  symbol->value_type = function_value_type;
   symbol->data.function_symbol.is_defined = is_defined;
   symbol->data.function_symbol.is_global = is_global;
   symbol->data.function_symbol.param_count = parameter_count;
@@ -79,7 +79,7 @@ Symbol* add_static_symbol(SymbolTable *symbol_table, TypeNode *value_type, Initi
   Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
 
   symbol->type = SYMBOL_STATIC;
-  symbol->data.static_symbol.value_type = value_type;
+  symbol->value_type = value_type;
   symbol->data.static_symbol.initial_value_array = initial_value_array;
   symbol->data.static_symbol.is_global = is_global;
   symbol->data.static_symbol.initialization_type = initial_value_type;

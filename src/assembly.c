@@ -1156,10 +1156,10 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
 static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static_variable) {
   asm_static_variable->type = ASM_STATIC_VARIABLE;
   asm_static_variable->data.static_variable.identifier = ir_static_variable->data.static_variable.identifier;
-  asm_static_variable->data.static_variable.static_variable_symbol = ir_static_variable->data.static_variable.static_variable_symbol;
+  asm_static_variable->data.static_variable.static_symbol = ir_static_variable->data.static_variable.static_symbol;
   asm_static_variable->data.static_variable.is_global = ir_static_variable->data.static_variable.is_global;
 
-  switch (ir_static_variable->data.static_variable.static_variable_symbol->value_type->type) {
+  switch (ir_static_variable->data.static_variable.static_symbol->value_type->type) {
     case TYPE_INT:
     case TYPE_UINT:
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_LONGWORD;
@@ -1171,11 +1171,11 @@ static void emit_static_variable(IRNode *ir_static_variable, AsmNode *asm_static
       asm_static_variable->data.static_variable.alignment = ALIGNMENT_QUADWORD;
       break;
     case TYPE_ARRAY:
-      if (ir_static_variable->data.static_variable.static_variable_symbol->value_type->data.array_type.size >= 16) {
+      if (ir_static_variable->data.static_variable.static_symbol->value_type->data.array_type.size >= 16) {
         asm_static_variable->data.static_variable.alignment = 16;
       } else {
         //@Debt: Narrowing conversion happening
-        asm_static_variable->data.static_variable.alignment = get_array_base_size(ir_static_variable->data.static_variable.static_variable_symbol->value_type);
+        asm_static_variable->data.static_variable.alignment = get_array_base_size(ir_static_variable->data.static_variable.static_symbol->value_type);
       }
 
       break;
@@ -1201,7 +1201,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
     }
 
     double ir_double = source_double;
-    double top_level_double = assembly->top_level_declarations->asm_pointers[i]->data.static_constant.static_init->static_initial_value_array->items[0].data.double_value; 
+    double top_level_double = assembly->top_level_declarations->asm_pointers[i]->data.static_constant.static_init->data.static_symbol.initial_value_array->items[0].data.double_value; 
 
     //0.0 and -0.0 should be treated independantly. A new top level entry should be made for both if they are both declared
     //TODO: Look into de-duplicating the data alloc that happend here and below when a top level declaration is new
@@ -1231,7 +1231,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   TypeNode *double_type_node = malloc(sizeof(TypeNode));
   double_type_node->type = TYPE_DOUBLE;
   
-  add_static_variable_symbol(assembly->symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
+  add_static_symbol(assembly->symbol_table, double_type_node, initial_value_array, constant_label, true, INITIALIZATION_TYPE_INITIALIZED);  
   
   Symbol *symbol = get_symbol(constant_label, assembly->symbol_table, true);
 
@@ -1239,7 +1239,7 @@ static AsmNode* emit_static_constant(double source_double, int alignment, Assemb
   static_constant->type = ASM_STATIC_CONSTANT;
   static_constant->data.static_constant.alignment = alignment;
   static_constant->data.static_constant.identifier = constant_label;
-  static_constant->data.static_constant.static_init = symbol->data.variable_symbol;
+  static_constant->data.static_constant.static_init = symbol;
 
   add_to_node_pointer(static_constant, assembly->top_level_declarations);  
   add_to_node_pointer(static_constant, assembly->static_constants);
@@ -1618,7 +1618,7 @@ static void emit_ir_instruction_function_call(AsmNode *asm_function, IRNode *ir_
 
   Symbol *symbol = get_symbol(ir_function_call_instruction->data.instruction_function_call.identifier, assembly->symbol_table, true);
   
-  AsmTypeNode *return_type = convert_type_to_asm_type(symbol->data.function_symbol->value_type, assembly);
+  AsmTypeNode *return_type = convert_type_to_asm_type(symbol->value_type, assembly);
 
   AsmNode *dest_register;
    
@@ -1778,7 +1778,7 @@ static void emit_ir_instruction_double_to_ulong(AsmNode *asm_function, IRNode *i
     TypeNode *long_type_node = malloc(sizeof(TypeNode));
     long_type_node->type = TYPE_LONG;
 
-    add_static_variable_symbol(assembly->symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
+    add_static_symbol(assembly->symbol_table, long_type_node, initial_value_array, ".MAX_LONG", true, INITIALIZATION_TYPE_INITIALIZED);       
   }
 
   AsmNode *upper_bound_data = emit_static_constant(9223372036854775808.0, 8, assembly);
@@ -2182,7 +2182,7 @@ static AsmNode* create_operand(IRNode *ir_operand, Assembly *assembly) {
       Symbol *variable_symbol = get_symbol(ir_operand->data.value_var.identifier, assembly->symbol_table, true);
       
       //Pseudo mem assigned for aggregate values. Scalar values are assigned pseudo registers. 
-      if (variable_symbol->data.variable_symbol->value_type->type == TYPE_ARRAY) {
+      if (variable_symbol->value_type->type == TYPE_ARRAY) {
         asm_operand->type = ASM_OPERAND_PSEUDOMEM;
         asm_operand->data.operand_pseudo_mem.identifier = ir_operand->data.value_var.identifier;
         asm_operand->data.operand_pseudo_mem.byte_offset = 0;
@@ -2465,11 +2465,11 @@ static Types get_ir_node_type(IRNode *ir_node, SymbolTable *symbol_table) {
     case IR_VALUE_CONSTANT: return ir_node->data.value_constant.type->type;
     case IR_VALUE_VAR: {
       Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
-      return symbol->data.variable_symbol->value_type->type;
+      return symbol->value_type->type;
     }
     case IR_INSTRUCTION_FUNCTION_CALL: {
       Symbol *symbol = get_symbol(ir_node->data.instruction_function_call.identifier, symbol_table, true);
-      return symbol->data.function_symbol->value_type->type;
+      return symbol->value_type->type;
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to get node Type", ir_node->type);
@@ -2482,7 +2482,7 @@ static AsmTypeNode* convert_ir_value_to_asm_type(IRNode *ir_node, SymbolTable *s
       return convert_type_to_asm_type(ir_node->data.value_constant.type, assembly);
     case IR_VALUE_VAR: {
       Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
-      return convert_type_to_asm_type(symbol->data.variable_symbol->value_type, assembly);
+      return convert_type_to_asm_type(symbol->value_type, assembly);
     }
     default:
       panic("Invalid IR Node type '%d' when attempting to convert to ASM Type", ir_node->type);
@@ -2639,11 +2639,11 @@ static bool is_signed_ir_value_node(IRNode *ir_node, SymbolTable *symbol_table) 
       break;
     case IR_VALUE_VAR: {
       Symbol *symbol = get_symbol(ir_node->data.value_var.identifier, symbol_table, true);
-      value_type = symbol->data.variable_symbol->value_type->type;
+      value_type = symbol->value_type->type;
       break;
     }
     case IR_VALUE_STATIC_VAR:
-      value_type = ir_node->data.static_variable.static_variable_symbol->value_type->type;
+      value_type = ir_node->data.static_variable.static_symbol->value_type->type;
       break;
     default:
       panic("Unsupported IR node type '%d' when attempting to find if IR Value is signed", ir_node->type);
