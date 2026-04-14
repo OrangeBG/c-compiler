@@ -469,12 +469,13 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     
     Symbol *existing_variable_symbol = get_symbol(variable_declaration_node->data.declaration_variable.name, symbol_table, false);
 
-    if (existing_variable_symbol != NULL) {
-      if (existing_variable_symbol->type == SYMBOL_FUNCTION) {        
-        input_error_with_line("Function redeclared as variable", variable_declaration_node->line_number);
-      }
-    } else {
-      add_static_extern_variable_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name); 
+    if (existing_variable_symbol == NULL) {
+      add_static_extern_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name); 
+      return;
+    }
+
+    if (existing_variable_symbol->type == SYMBOL_FUNCTION) {        
+      input_error_with_line("Function redeclared as variable", variable_declaration_node->line_number);
     }
     
     return;

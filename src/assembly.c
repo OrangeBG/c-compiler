@@ -945,7 +945,7 @@ static void emit_ir_function(IRNode *ir_function, AsmNode *asm_function, Assembl
       panic("Could not find '%s' function parameter identifier in symbol table", ir_function->data.function.identifier);
     }
 
-    TypeNode *parameter_type = ((Symbol*)(parameter_variable_symbol_entry->value->structure))->data.variable_symbol->value_type;
+    TypeNode *parameter_type = ((Symbol*)(parameter_variable_symbol_entry->value->structure))->value_type;
     
     AsmNode *source_operand = arena_alloc(assembly->asm_arena);
 
@@ -2566,21 +2566,27 @@ static void convert_declaration_table_to_backend_table(SymbolTable *symbol_table
     AsmBackendSymbol *asm_backend_symbol = arena_alloc(backend_symbol_table->symbol_arena);   
     Symbol *symbol = get_symbol(symbol_table->symbol_table->entries[i].key, symbol_table, true);    
 
-    if (symbol->symbol_type == SYMBOL_VARIABLE) {
-      asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
-      asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(symbol->data.variable_symbol->value_type, assembly);
+    switch (symbol->type) {
+      case SYMBOL_FUNCTION:
+        asm_backend_symbol->type = ASM_SYMBOL_FUNCTION_ENTRY;
+        asm_backend_symbol->data.function_entry.is_defined = symbol->data.function_symbol.is_defined;
+        break;
+      case SYMBOL_STATIC:
+      case SYMBOL_LOCAL: {
+        asm_backend_symbol->type = ASM_SYMBOL_OBJECT_ENTRY;
+        asm_backend_symbol->data.object_entry.assembly_type = convert_type_to_asm_type(symbol->value_type, assembly);
 
-      if (symbol->data.variable_symbol->value_type->type == TYPE_DOUBLE) {
-        //TODO: Confirm that this is always the case
-        asm_backend_symbol->data.object_entry.is_constant = true;
+        if (symbol->value_type->type == TYPE_DOUBLE) {
+          //@Todo: Confirm that this is always the case
+          asm_backend_symbol->data.object_entry.is_constant = true;
+        }
+
+        asm_backend_symbol->data.object_entry.is_static = symbol->type == SYMBOL_STATIC;      
+        break;
       }
-
-      asm_backend_symbol->data.object_entry.is_static = !symbol->data.variable_symbol->is_automatic_storage_duration;      
-    } else {
-      asm_backend_symbol->type = ASM_SYMBOL_FUNCTION_ENTRY;
-      asm_backend_symbol->data.function_entry.is_defined = symbol->data.function_symbol->is_defined;
+      default: panic("Unsupported symbol type when attempting to convert to backend symbol table");
     }
-    
+
     HashValue *hash_value = malloc(sizeof(HashValue));
     hash_value->type = HASH_STRUCT;
     hash_value->structure = asm_backend_symbol;

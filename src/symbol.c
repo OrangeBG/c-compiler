@@ -97,28 +97,25 @@ Symbol* add_static_symbol(SymbolTable *symbol_table, TypeNode *value_type, Initi
   return symbol;
 }
 
-//@Note: You can probably us add_static_symbol() instead of this function
-// void add_static_extern_variable_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key) {
-//   Symbol *variable_symbol = arena_alloc(symbol_table->variable_symbol_arena);
-//   variable_symbol->value_type = value_type;
+void add_static_extern_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key) {
+  Symbol *variable_symbol = arena_alloc(symbol_table->symbol_arena);
 
-//   Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
-//   symbol->symbol_type = SYMBOL_VARIABLE;
-//   symbol->data.variable_symbol = variable_symbol;
+  Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
+  symbol->type = SYMBOL_STATIC;
+  symbol->value_type = value_type;
+  symbol->data.static_symbol.is_global = true;
+  symbol->data.static_symbol.initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
 
-//   variable_symbol->static_is_global = true;
-//   variable_symbol->static_initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
+  HashValue *new_value = malloc(sizeof(HashValue));
+  new_value->type = HASH_STRUCT;
+  new_value->structure = symbol;
 
-//   HashValue *new_value = malloc(sizeof(HashValue));
-//   new_value->type = HASH_STRUCT;
-//   new_value->structure = symbol;
+  HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+  new_entry->key = symbol_key;
+  new_entry->value = new_value;
 
-//   HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
-//   new_entry->key = symbol_key;
-//   new_entry->value = new_value;
-
-//   hash_table_add_entry(symbol_table->symbol_table, new_entry);
-// }   
+  hash_table_add_entry(symbol_table->symbol_table, new_entry);
+}   
 
 void symbol_table_print(SymbolTable *symbol_table) {
   printf("Symbol Table: \n");

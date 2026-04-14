@@ -59,7 +59,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
         fprintf(file, "\t.globl %s\n", asm_node->data.static_variable.identifier);
       }
 
-      switch (asm_node->data.static_variable.static_variable_symbol->value_type->type) {
+      switch (asm_node->data.static_variable.static_symbol->value_type->type) {
         //@Temporary: Commented out until it can support the new initial value array
         // case TYPE_INT:
         //   asm_node->data.static_variable.static_variable_symbol->static_initial_value.int_value == 0 ? fprintf(file, "\t.bss\n") : fprintf(file, "\t.data\n"); 
@@ -92,7 +92,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_variable.identifier);
 
-      print_static_initializer(file, asm_node->data.static_variable.static_variable_symbol->static_initial_value_array);
+      print_static_initializer(file, asm_node->data.static_variable.static_symbol->data.static_symbol.initial_value_array);
 
       fprintf(file, "\n");
       break;
@@ -109,7 +109,7 @@ void save_assembly_file(AsmNode *asm_node, FILE *file) {
 
       fprintf(file, "%s:\n", asm_node->data.static_constant.identifier);
       
-      print_static_initializer(file, asm_node->data.static_constant.static_init->static_initial_value_array);
+      print_static_initializer(file, asm_node->data.static_constant.static_init->data.static_symbol.initial_value_array);
 
       #if __APPLE__
         if (asm_node->data.static_constant.alignment == 16) {
