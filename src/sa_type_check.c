@@ -390,6 +390,7 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
 }
 
 static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table) {
+  
   InitializationType initialization_type; 
   InitialValueArray *initial_value_array = initial_value_array_init();
   
@@ -415,7 +416,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     } else {
       add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
     } 
-  } else if (!variable_declaration_node->data.declaration_variable.has_expression) {
+  } else {
     if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
       initialization_type = INITIALIZATION_TYPE_NO_INITIALIZER;
     } else {
@@ -423,42 +424,40 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
     }
 
     symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
-  } else {
-    input_error_with_line("Non-constant initializer for variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
   }
+
+  // else {
+  //   input_error_with_line("Non-constant initializer for variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
+  // }
 
   bool is_global = variable_declaration_node->data.declaration_variable.storage_class_type != AST_STORAGE_CLASS_STATIC;
 
-  if (existing_variable_symbol != NULL) {
-    if (existing_variable_symbol->type == SYMBOL_FUNCTION) {
-      input_error_with_line("Function '%s' redeclared as variable", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
-    }
-
-    if (variable_declaration_node->data.declaration_variable.type->type != existing_variable_symbol->value_type->type) {
-      input_error_with_line("Previously declared '%s' variable has type of '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name, get_type_string(existing_variable_symbol->value_type->type));
-    }
-
-    if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
-      existing_variable_symbol->data.static_symbol.is_global = true;
-    }
-    else if (existing_variable_symbol->data.static_symbol.is_global != is_global) {
-      input_error_with_line("Function '%s' conflicting variable linkage", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
-    }
-
-    if (existing_variable_symbol->data.static_symbol.initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
-      if (initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
-        input_error_with_line("Function '%s' conflicting file scope variable definitions", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
-      }
-    } else {
-      existing_variable_symbol->data.static_symbol.initialization_type = initialization_type;
-      // dynamic_array_add(existing_variable_symbol->data.variable_symbol->static_initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
-      existing_variable_symbol->data.static_symbol.initial_value_array = initial_value_array;
-    }
-
+  if (existing_variable_symbol == NULL) {
+    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, is_global, initialization_type);  
     return;
   }
+  
+  if (existing_variable_symbol->type == SYMBOL_FUNCTION) {
+    input_error_with_line("Function '%s' redeclared as variable", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
+  }
 
-  add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, is_global, initialization_type);  
+  if (variable_declaration_node->data.declaration_variable.type->type != existing_variable_symbol->value_type->type) {
+    input_error_with_line("Previously declared '%s' variable has type of '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name, get_type_string(existing_variable_symbol->value_type->type));
+  }
+
+  if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+    existing_variable_symbol->data.static_symbol.is_global = true;
+  } else if (existing_variable_symbol->data.static_symbol.is_global != is_global) {
+    input_error_with_line("Function '%s' conflicting variable linkage", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
+  }
+
+  if (existing_variable_symbol->data.static_symbol.initialization_type == INITIALIZATION_TYPE_INITIALIZED && initialization_type == INITIALIZATION_TYPE_INITIALIZED) {
+    input_error_with_line("Function '%s' conflicting file scope variable definitions", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
+  } else {
+    existing_variable_symbol->data.static_symbol.initialization_type = initialization_type;
+    // dynamic_array_add(existing_variable_symbol->data.variable_symbol->static_initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
+    existing_variable_symbol->data.static_symbol.initial_value_array = initial_value_array;
+  }
 }
 
 static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
@@ -482,12 +481,10 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
   }
 
   if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-    InitialValue* initial_value;
     InitialValueArray *initial_value_array = initial_value_array_init();
     
     if (!variable_declaration_node->data.declaration_variable.has_expression) {
-      //@Debt: InitialValue doesn't look to even being used here. Look into why this is happening.
-      initial_value = symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
+      symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
       add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
     }
@@ -581,12 +578,12 @@ static InitialValue* add_variable_declaration_single_init_to_array(InitialValueA
 }
 
 static InitialValue* add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
-    InitialValue *initial_value = malloc(sizeof(InitialValue));
+  InitialValue *initial_value = malloc(sizeof(InitialValue));
 
-    if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
-      for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
-        add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i]);
-      }
+  if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
+    for (int i = 0; i < compound_init->data.initializer.initializer_node.compound_initializer->count; i++) {
+      add_variable_declaration_compound_init_to_array(initial_value_array, declaration_type->data.array_type.element_type, &compound_init->data.initializer.initializer_node.compound_initializer->items[i]);
+    }
 
     int compound_diff = declaration_type->data.array_type.size - compound_init->data.initializer.initializer_node.compound_initializer->count;
 
@@ -909,7 +906,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
       //   return get_array_base_type(expression_type->data.pointer_type.reference_type);
       // }
 
-      //TODO: Will this work if it's greater than one level? Example: int** 
+      //@Todo: Will this work if it's greater than one level? Example: int** 
       return expression_type->data.pointer_type.reference_type;
     }
     case AST_EXPRESSION_SUBSCRIPT: {
