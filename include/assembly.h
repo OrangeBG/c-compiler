@@ -146,8 +146,8 @@ typedef struct AsmNode {
     struct AsmProgram { AsmNodePointers *top_level_pointers; AsmNodePointers *static_constant_pointers; } program;
     struct AsmFunction { char* name; bool is_global; AsmNodePointers *instruction_pointers; int instruction_count; } function;
     struct AsmComment { char *comment; } comment;
-    struct AsmStaticVariable { char *identifier; bool is_global; int alignment; VariableSymbol *static_variable_symbol; } static_variable;
-    struct AsmStaticConstant { char *identifier; int alignment; VariableSymbol *static_init; } static_constant;
+    struct AsmStaticVariable { char *identifier; bool is_global; int alignment; Symbol *static_symbol; } static_variable;
+    struct AsmStaticConstant { char *identifier; int alignment; Symbol *static_init; } static_constant;
     struct AsmInstructionMov { AsmTypeNode *assembly_type; AsmNode *source; AsmNode *destination; } instruction_mov;
     struct AsmInstructionMovsx { AsmNode *source; AsmNode *destination; } instruction_movsx;
     struct AsmInstructionMovZeroExtend { AsmNode *source; AsmNode *destination; } instruction_mov_zero_extend;
