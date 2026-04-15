@@ -60,6 +60,7 @@ Symbol* add_function_symbol(SymbolTable *symbol_table, char *function_name, Type
 Symbol* add_local_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key) {  
   Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
   symbol->type = SYMBOL_LOCAL;
+  symbol->value_type = value_type;
 
   HashTableEntry *entry = malloc(sizeof(HashTableEntry));
   entry->key = symbol_key;
