@@ -13,9 +13,10 @@
 #define IDENTIFIER_BUFFER 256
 
 static void             function_and_variable_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
-static void             type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table); 
-static void             type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name);
 static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, SymbolTable *symbol_table, ParserResults *parser_results); 
+static void             update_symbol_block_scoped_extern_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name); 
+static void             update_symbol_block_scoped_static_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name); 
+static void             update_symbol_file_scope_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table); 
 static TypeNode*        type_check_init(TypeNode *target_type, AstNode *ast_initializer, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary(AstNode *binary_node, AstNode *function_declaration_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results);  
@@ -62,10 +63,16 @@ void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table) {
 static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
   switch (node->type) {
     case AST_VARIABLE_DECLARATION: {
+      StorageClassType storage_type = node->data.declaration_variable.storage_class_type;
+
       if (function_declaration_node == NULL) {
-        type_check_file_scope_variable_declaration(node, symbol_table);
+        update_symbol_file_scope_variable(node, symbol_table);
       } else {
-        type_check_block_scope_variable_declaration(node, symbol_table, function_declaration_node->data.declaration_function.name);
+        switch (storage_type) {
+          case AST_STORAGE_CLASS_EXTERN: update_symbol_block_scoped_extern_variable(node, symbol_table, function_declaration_node->data.declaration_function.name); break;
+          case AST_STORAGE_CLASS_STATIC: update_symbol_block_scoped_static_variable(node, symbol_table, function_declaration_node->data.declaration_function.name); break;
+          default:                       add_local_symbol(symbol_table, node->data.declaration_variable.type, node->data.declaration_variable.name); break;
+        }
       }
 
       if (node->data.declaration_variable.has_expression) {
@@ -389,8 +396,8 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
   return single_init;
 }
 
-static void type_check_file_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table) {
-  
+
+static void update_symbol_file_scope_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table) { 
   InitializationType initialization_type; 
   InitialValueArray *initial_value_array = initial_value_array_init();
   
@@ -460,8 +467,7 @@ static void type_check_file_scope_variable_declaration(AstNode *variable_declara
   }
 }
 
-static void type_check_block_scope_variable_declaration(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
-  if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_EXTERN) {
+static void update_symbol_block_scoped_extern_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
     if (variable_declaration_node->data.declaration_variable.has_expression) {
       input_error_with_line("Initializer on local extern variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
@@ -476,53 +482,48 @@ static void type_check_block_scope_variable_declaration(AstNode *variable_declar
     if (existing_variable_symbol->type == SYMBOL_FUNCTION) {        
       input_error_with_line("Function redeclared as variable", variable_declaration_node->line_number);
     }
-    
+}
+
+static void update_symbol_block_scoped_static_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
+  InitialValueArray *initial_value_array = initial_value_array_init();
+
+  if (!variable_declaration_node->data.declaration_variable.has_expression) {
+    symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
+    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
     return;
   }
 
-  if (variable_declaration_node->data.declaration_variable.storage_class_type == AST_STORAGE_CLASS_STATIC) {
-    InitialValueArray *initial_value_array = initial_value_array_init();
-    
-    if (!variable_declaration_node->data.declaration_variable.has_expression) {
-      symbol_initialize_to_zero(variable_declaration_node->data.declaration_variable.type);
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
+      add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
       add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
+  }
+
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+    //@Debt: This error checking is in a few places in the type checker. Consolidate into a function.
+    if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
+       input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
+    }
+  
+    size_t string_length = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+
+    if (string_length > variable_declaration_node->data.declaration_variable.type->data.array_type.size) {
+      input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.type->data.array_type.size, string_length);
     }
 
-    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
-        add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
-        add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
-        return;
-    }
+    add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
+    return;
+  }
 
-    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
-      //@Debt: This error checking is in a few places in the type checker. Consolidate into a function.
-      if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
-         input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
-      }
-      
-      size_t string_length = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
+    add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
+    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
+    return;
+  }
 
-      if (string_length > variable_declaration_node->data.declaration_variable.type->data.array_type.size) {
-        input_error_with_line("Too many characters in string literal to fit into array. (array size = %lu string size = %lu)", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.type->data.array_type.size, string_length);
-      }
-
-      add_variable_declaration_string_literal_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression, variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value);
-      add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
-      return;
-    }
-
-    if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
-      add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
-      add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
-      return;
-    }
-
-    input_error_with_line("Non-constant initializer on local static variable '%s'\n", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
-  }   
-
-  add_local_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.name);
-} 
+  input_error_with_line("Non-constant initializer on local static variable '%s'\n", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
+}
 
 static InitialValue* add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init) {
   InitialValue *initial_value = malloc(sizeof(InitialValue));
