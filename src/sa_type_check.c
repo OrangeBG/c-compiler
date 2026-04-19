@@ -522,7 +522,6 @@ static void update_symbol_block_scoped_static_variable(AstNode *variable_declara
     return;
   }
 
-  //@Incomplete
   if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING && variable_declaration_node->data.declaration_variable.type->type == TYPE_POINTER) {
     static int string_id = 0;
     char *string_key = malloc(20);
@@ -543,8 +542,13 @@ static void update_symbol_block_scoped_static_variable(AstNode *variable_declara
     string_init_type->data.array_type.size = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value) + 1;
 
     add_constant_symbol(symbol_table, string_init_type, string_init_value, string_key);
-    
 
+    InitialValue *pointer_init_value = malloc(sizeof(InitialValue));
+    pointer_init_value->type = INITIAL_VALUE_TYPE_POINTER;
+    pointer_init_value->data.pointer_name = string_key;
+
+    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
+    return;
   }
 
   input_error_with_line("Non-constant initializer on local static variable '%s'\n", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
