@@ -523,6 +523,10 @@ static void update_symbol_block_scoped_static_variable(AstNode *variable_declara
   }
 
   if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING && variable_declaration_node->data.declaration_variable.type->type == TYPE_POINTER) {
+    if (variable_declaration_node->data.declaration_variable.type->data.pointer_type.reference_type->type != TYPE_CHAR) {
+      input_error_with_line("Cannot assign a string literal to a non-char pointer type", variable_declaration_node->line_number);
+    }
+    
     static int string_id = 0;
     char *string_key = malloc(20);
     snprintf(string_key, 10, "string.%d", string_id++); 
