@@ -453,7 +453,7 @@ static ExpressionResult* emit_function(AstNode *ast_function, IntermediateRep *i
 
   Symbol *function_symbol = get_symbol(ast_function->data.declaration_function.name, intermediate_rep->symbol_table, true);
 
-  function->data.function.is_global = function_symbol->data.function_symbol->is_global;
+  function->data.function.is_global = function_symbol->data.function_symbol.is_global;
 
   for (int i = 0; i < ast_function->data.declaration_function.function_type->data.function_type.param_type_count; i++) {
     add_function_parameter_identifier(ast_function->data.declaration_function.parameter_identifiers[i], function);
@@ -530,7 +530,7 @@ static IRNode* emit_ast_node_and_convert_lvalue(AstNode *node, IRNode *function,
   char *destination_name = create_temp_register(intermediate_rep);
   TypeNode *result_type = get_node_type(result->operand_value, intermediate_rep);
 
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, result_type, destination_name);
+  add_local_symbol(intermediate_rep->symbol_table, result_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -758,7 +758,7 @@ static ExpressionResult* emit_unary_expression(AstNode *unary_node, IRNode *func
   //TODO: Warning, setting hard buffer limit
   char *destination_name = create_temp_register(intermediate_rep);
 
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, unary_node->data.expression_unary.expression_type, destination_name);
+  add_local_symbol(intermediate_rep->symbol_table, unary_node->data.expression_unary.expression_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -802,7 +802,7 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
   destination->type = IR_VALUE_VAR;
   destination->data.value_var.identifier = destination_name;
 
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
+  add_local_symbol(intermediate_rep->symbol_table, binary_node->data.expression_binary.expression_type, destination_name);
 
   BinaryOpType op_type = binary_node->data.expression_binary.op_type;
 
@@ -948,7 +948,7 @@ static ExpressionResult* emit_binary_pointer_subtract_arithmetic_expression(IRNo
     divide_destination->type = IR_VALUE_VAR;
     divide_destination->data.value_var.identifier = divide_destination_name;
 
-    add_automatic_variable_symbol(intermediate_rep->symbol_table, source_1_type, divide_destination_name);
+    add_local_symbol(intermediate_rep->symbol_table, source_1_type, divide_destination_name);
 
     //TODO: Check to see if logic is right: pg.408
     IRNode *pointer_base_size = create_int_constant(get_pointer_base_type(source_1_type)->type, intermediate_rep);
@@ -1095,7 +1095,7 @@ static ExpressionResult* emit_function_call_expression(AstNode *function_call_no
 
   char *destination_name = create_temp_register(intermediate_rep);
 
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, function_call_node->data.expression_function_call.expression_type, destination_name);
+  add_local_symbol(intermediate_rep->symbol_table, function_call_node->data.expression_function_call.expression_type, destination_name);
 
   IRNode *destination = arena_alloc(intermediate_rep->node_arena);
   destination->type = IR_VALUE_VAR;
@@ -1129,7 +1129,7 @@ static ExpressionResult* emit_cast_expression(AstNode *cast_node, IRNode *functi
   }
 
   char *temp_destination = create_temp_register(intermediate_rep);
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, target_type, temp_destination);
+  add_local_symbol(intermediate_rep->symbol_table, target_type, temp_destination);
 
   ExpressionResult *var_destination_node = create_variable(temp_destination, intermediate_rep);
 
@@ -1165,7 +1165,7 @@ static ExpressionResult* emit_address_of_expression(AstNode *address_of_node, IR
     char *destination_name = create_temp_register(intermediate_rep);
     TypeNode *result_type = get_node_type(address_of_result->operand_value, intermediate_rep);
 
-    add_automatic_variable_symbol(intermediate_rep->symbol_table, result_type, destination_name);
+    add_local_symbol(intermediate_rep->symbol_table, result_type, destination_name);
 
     IRNode *destination = arena_alloc(intermediate_rep->node_arena);
     destination->type = IR_VALUE_VAR;
@@ -1196,7 +1196,7 @@ static ExpressionResult* emit_subscript_expression(AstNode *subscript_node, IRNo
   char *pointer_destination_name = create_temp_register(intermediate_rep);
   TypeNode *pointer_result_type = get_node_type(expression_2_result->operand_value, intermediate_rep);
 
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, pointer_result_type, pointer_destination_name);
+  add_local_symbol(intermediate_rep->symbol_table, pointer_result_type, pointer_destination_name);
 
   IRNode *pointer_destination = arena_alloc(intermediate_rep->node_arena);
   pointer_destination->type = IR_VALUE_VAR;
@@ -1214,7 +1214,7 @@ static ExpressionResult* emit_subscript_expression(AstNode *subscript_node, IRNo
   char *load_destination_name = create_temp_register(intermediate_rep);
   TypeNode *load_result_type = get_node_type(expression_2_result->operand_value, intermediate_rep);
 
-  add_automatic_variable_symbol(intermediate_rep->symbol_table, load_result_type, load_destination_name);
+  add_local_symbol(intermediate_rep->symbol_table, load_result_type, load_destination_name);
 
   IRNode *load_destination = arena_alloc(intermediate_rep->node_arena);
   load_destination->type = IR_VALUE_VAR;
@@ -1391,11 +1391,11 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
 
     Symbol *symbol= entry->value->structure;
 
-    if (symbol->symbol_type != SYMBOL_VARIABLE || symbol->data.variable_symbol->is_automatic_storage_duration) {
+    if (symbol->type != SYMBOL_STATIC) {
       continue;
     }
 
-    if (symbol->data.variable_symbol->static_initialization_type == INITIALIZATION_TYPE_NO_INITIALIZER) {
+    if (symbol->data.static_symbol.initialization_type == INITIALIZATION_TYPE_NO_INITIALIZER) {
       continue;
     }
     
@@ -1403,8 +1403,8 @@ static void emit_symbol_declarations(HashTable *declaration_symbols, IRNode *ir_
 
     static_node->type = IR_VALUE_STATIC_VAR;
     static_node->data.static_variable.identifier = entry->key;
-    static_node->data.static_variable.is_global = symbol->data.variable_symbol->static_is_global;
-    static_node->data.static_variable.static_variable_symbol = symbol->data.variable_symbol;
+    static_node->data.static_variable.is_global = symbol->data.static_symbol.is_global;
+    static_node->data.static_variable.static_symbol = symbol;
 
     add_top_level_declaration_to_program(ir_program, static_node);    
   }
@@ -1562,11 +1562,11 @@ static void init_node_pointer(IRNodePointer *ir_node_pointer) {
 static TypeNode* get_node_type(IRNode *node, IntermediateRep *intermediate_rep) {
   switch (node->type) {
     case IR_VALUE_CONSTANT:   return node->data.value_constant.type; break;
-    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_variable_symbol->value_type;
+    case IR_VALUE_STATIC_VAR: return node->data.static_variable.static_symbol->value_type;
     case IR_VALUE_VAR: {
       //TODO: It's odd that static variables have a variable symbol within the struct but not ir_value_var's. Look into this.
       Symbol *symbol = get_symbol(node->data.value_var.identifier, intermediate_rep->symbol_table, true);
-      return symbol->data.variable_symbol->value_type;
+      return symbol->value_type;
     }
     default:
       panic("Unsupported node type '%s' for get_node_type", get_intermediate_rep_type_name(node));
