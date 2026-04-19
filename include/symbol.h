@@ -77,6 +77,7 @@ Symbol* get_symbol(char *identifier, SymbolTable *symbol_table, bool error_if_nu
 Symbol* add_function_symbol(SymbolTable *symbol_table, char *function_name, TypeNode *function_value_type, int parameter_count, TypeNode *param_types, bool is_global, bool is_defined); 
 Symbol* add_local_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key);  
 Symbol* add_static_symbol(SymbolTable *symbol_table, TypeNode *value_type, InitialValueArray *initial_value_array, char *symbol_key, bool is_global, InitializationType initial_value_type);   
+Symbol* add_constant_symbol(SymbolTable *symbol_table, TypeNode *value_type, InitialValue *initial_value, char *symbol_key); 
 void add_static_extern_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key);   
 void symbol_table_print(SymbolTable *symbol_table); 
 InitialValue* symbol_initialize_to_zero(TypeNode *type_node); 

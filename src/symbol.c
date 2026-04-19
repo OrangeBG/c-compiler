@@ -98,6 +98,26 @@ Symbol* add_static_symbol(SymbolTable *symbol_table, TypeNode *value_type, Initi
   return symbol;
 }
 
+Symbol* add_constant_symbol(SymbolTable *symbol_table, TypeNode *value_type, InitialValue *initial_value, char *symbol_key) {
+  Symbol *symbol = arena_alloc(symbol_table->symbol_arena);
+
+  symbol->type = SYMBOL_CONSTANT;
+  symbol->value_type = value_type;
+  symbol->data.constant_symbol.static_initial_value = initial_value;
+
+  HashValue *new_value = malloc(sizeof(HashValue));
+  new_value->type = HASH_STRUCT;
+  new_value->structure = symbol;
+
+  HashTableEntry *new_entry = malloc(sizeof(HashTableEntry));
+  new_entry->key = symbol_key;
+  new_entry->value = new_value;
+
+  hash_table_add_entry(symbol_table->symbol_table, new_entry);
+
+  return symbol;
+}
+
 void add_static_extern_symbol(SymbolTable *symbol_table, TypeNode *value_type, char *symbol_key) {
   Symbol *variable_symbol = arena_alloc(symbol_table->symbol_arena);
 

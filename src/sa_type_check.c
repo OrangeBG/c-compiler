@@ -493,13 +493,19 @@ static void update_symbol_block_scoped_static_variable(AstNode *variable_declara
     return;
   }
 
-  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
+    add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
+    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
+    return;
+  }
+
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_CONSTANT) {
       add_variable_declaration_single_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);        
       add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
       return;
   }
 
-  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_SINGLE && variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING) {
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING && variable_declaration_node->data.declaration_variable.type->type == TYPE_ARRAY) {
     //@Debt: This error checking is in a few places in the type checker. Consolidate into a function.
     if (!is_character_type(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type)) {
        input_error_with_line("Can't initialize a non-character type with a string literal. Expected signed or unsigned char but found %s", variable_declaration_node->line_number, get_type_string(variable_declaration_node->data.declaration_variable.type->data.array_type.element_type->type));
@@ -516,10 +522,29 @@ static void update_symbol_block_scoped_static_variable(AstNode *variable_declara
     return;
   }
 
-  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.type == AST_INITIALIZER_COMPOUND) {
-    add_variable_declaration_compound_init_to_array(initial_value_array, variable_declaration_node->data.declaration_variable.type, variable_declaration_node->data.declaration_variable.init_expression);
-    add_static_symbol(symbol_table, variable_declaration_node->data.declaration_variable.type, initial_value_array, variable_declaration_node->data.declaration_variable.name, false, INITIALIZATION_TYPE_INITIALIZED);
-    return;
+  //@Incomplete
+  if (variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->type == AST_EXPRESSION_STRING && variable_declaration_node->data.declaration_variable.type->type == TYPE_POINTER) {
+    static int string_id = 0;
+    char *string_key = malloc(20);
+    snprintf(string_key, 10, "string.%d", string_id++); 
+
+    InitialValue *string_init_value = malloc(sizeof(InitialValue));
+    string_init_value->type = INITIAL_VALUE_TYPE_STRING;
+    string_init_value->data.string_value.string_value = variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value;
+    string_init_value->data.string_value.is_null_terminated = true;
+
+    //@Debt: Similar to other cases, need to malloc a type rather than having a single pointer for simple types
+    TypeNode *char_type = malloc(sizeof(TypeNode));
+    char_type->type = TYPE_CHAR;
+
+    TypeNode *string_init_type = malloc(sizeof(TypeNode));
+    string_init_type->type = TYPE_ARRAY;
+    string_init_type->data.array_type.element_type = char_type;
+    string_init_type->data.array_type.size = strlen(variable_declaration_node->data.declaration_variable.init_expression->data.initializer.initializer_node.single_init_expression->data.expression_string.string_value) + 1;
+
+    add_constant_symbol(symbol_table, string_init_type, string_init_value, string_key);
+    
+
   }
 
   input_error_with_line("Non-constant initializer on local static variable '%s'\n", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
@@ -643,6 +668,14 @@ static InitialValue* add_variable_declaration_string_literal_array(InitialValueA
   }
 
   return initial_value;
+}
+
+static InitialValue* add_variable_declaration_string_literal_pointer(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value) {  
+  static int string_id = 0;
+  char *string_name = malloc(20);
+  snprintf(string_name, 10, "string.%d", string_id++); 
+
+  
 }
 
 static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results) {
