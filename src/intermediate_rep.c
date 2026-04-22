@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "../include/intermediate_rep.h"
 #include "../include/arena.h"
 #include "../include/symbol.h"
@@ -509,6 +510,7 @@ static ExpressionResult* emit_ast_node(AstNode *node, IRNode *function, Intermed
       case AST_EXPRESSION_ADDRESS_OF:        { return emit_address_of_expression(node, function, intermediate_rep); }
       case AST_EXPRESSION_DEREFERENCE:       { return emit_dereference_expression(node, function, intermediate_rep); }
       case AST_EXPRESSION_SUBSCRIPT:         { return emit_subscript_expression(node, function, intermediate_rep); }
+      case AST_EXPRESSION_STRING:            {break; }
       case AST_FUNCTION_DECLARATION:         {
           if (node->data.declaration_function.body_block == NULL) break;
           return emit_function(node, intermediate_rep);
@@ -851,6 +853,28 @@ static ExpressionResult* emit_binary_expression(AstNode *binary_node, IRNode *fu
 
   ExpressionResult *destination_result = create_expression_result(destination, EXPRESSION_RESULT_PLAIN_OPERAND, intermediate_rep);
   return destination_result;
+}
+
+//@Debt: This function generates 'copy to offset' instructions for each character within the string. This slow compared to other implementation strategies. Check out Sandler - pg 440.
+static ExpressionResult* emit_string_expression(AstNode *string_node, IRNode *function, IntermediateRep *intermediate_rep) {
+    int offset = 0;
+    int string_length = strlen(string_node->data.expression_string.string_value) + 1;
+
+    for (int i = 0; i < string_length; i++) {
+      IRNode *ir_char_constant = arena_alloc(intermediate_rep->node_arena);
+      ir_char_constant->type = IR_VALUE_CONSTANT;
+      ir_char_constant->data.value_constant.value.int_value = (int)string_node->data.expression_string.string_value[i];
+
+      IRNode *copy_to_offset = arena_alloc(intermediate_rep->node_arena);
+      copy_to_offset->type = IR_INSTRUCTION_COPY_TO_OFFSET;
+      copy_to_offset->data.instruction_copy_to_offset.source = ir_char_constant;
+      copy_to_offset->data.instruction_copy_to_offset.destination_identifier = "test"; //@Bug: Test identifier. Need to replace with source identifier
+      copy_to_offset->data.instruction_copy_to_offset.offset = offset;
+
+      add_instruction_to_function(function, copy_to_offset);
+
+      offset++;
+    }
 }
 
 static bool is_pointer_add_arithmetic(AstNode *binary_node, TypeNode *source_1_type, TypeNode *source_2_type, IntermediateRep *intermediate_rep) { 
