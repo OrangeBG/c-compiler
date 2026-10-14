@@ -25,7 +25,7 @@ typedef struct {
 } Lexer;
 
 Lexer init_lexer();
-void load_tokens(Lexer *lexer, char *file);
-void print_tokens(Lexer *lexer, char *file);
+void load_tokens(Lexer *lexer, const char *file);
+void print_tokens(const Lexer *lexer, const char *file);
 
 #endif

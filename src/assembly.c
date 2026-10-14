@@ -113,13 +113,13 @@ static void         emit_ir_instruction_load(AsmNode *asm_function, IRNode *ir_l
 static void         emit_ir_instruction_store(AsmNode *asm_function, IRNode *ir_store_instruction, Assembly *assembly); 
 static void         emit_ir_instruction_copy_to_offset(AsmNode *asm_function, IRNode *ir_copy_to_offset_instruction, Assembly *assembly);
 static void         emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_add_pointer_instruction, Assembly *assembly);
-static AsmNode*     create_register(AsmRegisterType register_type, Assembly *assembly);
-static AsmNode*     create_signed_imm_operand(long value, Assembly *assembly);
-static AsmNode*     create_memory_operand(AsmRegisterType register_type, int offset, Assembly *assembly);
-static AsmNode*     create_pseudo_mem_operand(char *identifier, int offset, Assembly *assembly); 
-static AsmNode*     create_indexed_operand(AsmRegisterType base_register, AsmRegisterType index_register, int scale, Assembly *assembly); 
-static void         emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly);
-static void         emit_asm_mov_zero_extend_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly);
+static AsmNode*     create_register(AsmRegisterType register_type, const Assembly *assembly);
+static AsmNode*     create_signed_imm_operand(long value, const Assembly *assembly);
+static AsmNode*     create_memory_operand(AsmRegisterType register_type, int offset, const Assembly *assembly);
+static AsmNode*     create_pseudo_mem_operand(char *identifier, int offset, const Assembly *assembly);
+static AsmNode*     create_indexed_operand(AsmRegisterType base_register, AsmRegisterType index_register, int scale, const Assembly *assembly);
+static void         emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, const Assembly *assembly);
+static void         emit_asm_mov_zero_extend_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, const Assembly *assembly);
 static void         emit_asm_lea_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly); 
 static void         emit_asm_cmp_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmTypeNode *type, Assembly *assembly);
 static void         emit_asm_binary_instruction(AsmNode *function, AsmNode *operand_1, AsmNode *operand_2, AsmBinaryOpType op_type, AsmTypeNode *assembly_type, Assembly *assembly); 
@@ -133,7 +133,7 @@ static void         emit_asm_cvtsi2sd_instruction(AsmNode *function, AsmNode *so
 static void         emit_asm_jmp_instruction(AsmNode *function, char *identifier, Assembly *assembly); 
 static void         emit_asm_jmpcc_instruction(AsmNode *function, AsmConditionCode condition_code, char *identifier, Assembly *assembly); 
 static void         emit_asm_setcc_instruction(AsmNode *function, AsmConditionCode condition_code, AsmNode *operand, Assembly *assembly); 
-static void         emit_asm_comment(AsmNode *function, Assembly *assembly, char *comment, ...);
+static void         emit_asm_comment(AsmNode *function, const Assembly *assembly, char *comment, ...);
 static void         add_instruction_to_function(AsmNode *function, AsmNode *instruction); 
 static void         add_to_node_pointer(AsmNode *asm_node, AsmNodePointers *asm_node_pointer);
 static Assembly*    init_assembly(SymbolTable *symbol_table);
@@ -1921,7 +1921,7 @@ static void emit_ir_instruction_add_pointer(AsmNode *asm_function, IRNode *ir_ad
   emit_asm_comment(asm_function, assembly, "end - add pointer for var");
 }
 
-static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembly) {
+static AsmNode* create_register(AsmRegisterType register_type, const Assembly *assembly) {
   AsmNode *register_node = arena_alloc(assembly->asm_arena);
   register_node->type = ASM_OPERAND_REGISTER;
   register_node->data.operand_register.op_register = register_type;
@@ -1929,7 +1929,7 @@ static AsmNode* create_register(AsmRegisterType register_type, Assembly *assembl
   return register_node;
 }
 
-static AsmNode* create_signed_imm_operand(long value, Assembly *assembly) {
+static AsmNode* create_signed_imm_operand(long value, const Assembly *assembly) {
   AsmNode *imm = arena_alloc(assembly->asm_arena);
 
   imm->type = ASM_OPERAND_IMM;
@@ -1939,7 +1939,7 @@ static AsmNode* create_signed_imm_operand(long value, Assembly *assembly) {
   return imm;
 }
 
-static AsmNode* create_memory_operand(AsmRegisterType register_type, int offset, Assembly *assembly) {
+static AsmNode* create_memory_operand(AsmRegisterType register_type, int offset, const Assembly *assembly) {
   AsmNode *memory_operand = arena_alloc(assembly->asm_arena);
 
   memory_operand->type = ASM_OPERAND_MEMORY;
@@ -1949,7 +1949,7 @@ static AsmNode* create_memory_operand(AsmRegisterType register_type, int offset,
   return memory_operand;
 }
 
-static AsmNode* create_pseudo_mem_operand(char *identifier, int offset, Assembly *assembly) {
+static AsmNode* create_pseudo_mem_operand(char *identifier, int offset, const Assembly *assembly) {
   AsmNode *pseudo_mem = arena_alloc(assembly->asm_arena);
   pseudo_mem->type = ASM_OPERAND_PSEUDOMEM;
   pseudo_mem->data.operand_pseudo_mem.identifier = identifier;
@@ -1958,7 +1958,7 @@ static AsmNode* create_pseudo_mem_operand(char *identifier, int offset, Assembly
   return pseudo_mem;
 }
 
-static AsmNode* create_indexed_operand(AsmRegisterType base_register, AsmRegisterType index_register, int scale, Assembly *assembly) {
+static AsmNode* create_indexed_operand(AsmRegisterType base_register, AsmRegisterType index_register, int scale, const Assembly *assembly) {
   AsmNode *indexed = arena_alloc(assembly->asm_arena);
   indexed->type = ASM_OPERAND_INDEXED;
   indexed->data.operand_indexed.base_register = base_register;
@@ -1968,7 +1968,7 @@ static AsmNode* create_indexed_operand(AsmRegisterType base_register, AsmRegiste
   return indexed;
 }
 
-static void emit_asm_comment(AsmNode *function, Assembly *assembly, char *comment, ...) {
+static void emit_asm_comment(AsmNode *function, const Assembly *assembly, char *comment, ...) {
   va_list args;
   va_start(args, comment);
 
@@ -1993,7 +1993,7 @@ static void emit_asm_comment(AsmNode *function, Assembly *assembly, char *commen
   add_instruction_to_function(function, comment_node);
 }
 
-static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, Assembly *assembly) {
+static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, AsmTypeNode *type, const Assembly *assembly) {
   AsmNode *mov_node = arena_alloc(assembly->asm_arena);
 
   mov_node->type = ASM_INSTRUCTION_MOV;
@@ -2004,7 +2004,7 @@ static void emit_asm_mov_instruction(AsmNode *function, AsmNode *source_node, As
   add_instruction_to_function(function, mov_node);
 }
 
-static void emit_asm_mov_zero_extend_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, Assembly *assembly) {
+static void emit_asm_mov_zero_extend_instruction(AsmNode *function, AsmNode *source_node, AsmNode *destination_node, const Assembly *assembly) {
   AsmNode *mov_zero_extend_instruction = arena_alloc(assembly->asm_arena);
 
   mov_zero_extend_instruction->type = ASM_INSTRUCTION_MOV_ZERO_EXTEND;

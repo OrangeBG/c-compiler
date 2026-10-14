@@ -10,14 +10,14 @@
 static bool      is_alpha_char(char character);
 static bool      is_numeric_char(char character);
 static bool      is_valid_post_constant_character(char character);
-static bool      peek_next(Lexer *lexer, char *file, char find_character); 
-static void      add_token(TokenType type, Lexer *lexer);
-static void      add_constant_token(Lexer *lexer, char *file); 
-static void      add_identifier_token(Lexer *lexer, char *file); 
-static void      add_char_constant(Lexer *lexer, char *file); 
-static void      add_string_literal(Lexer *lexer, char *file); 
-static TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file); 
-static TokenType get_identifier_type(Lexer *lexer, char *file); 
+static bool      peek_next(const Lexer *lexer, const char *file, char find_character);
+static void      add_token(TokenType type, const Lexer *lexer);
+static void      add_constant_token(Lexer *lexer, const char *file);
+static void      add_identifier_token(Lexer *lexer, const char *file);
+static void      add_char_constant(Lexer *lexer, const char *file);
+static void      add_string_literal(Lexer *lexer, const char *file);
+static TokenType check_keyword(int start, int length, const char *rest, TokenType type, const Lexer *lexer, const char *file);
+static TokenType get_identifier_type(const Lexer *lexer, const char *file);
  
 Lexer init_lexer() {
   TokenArray *token_array = malloc(sizeof(TokenArray));
@@ -36,7 +36,7 @@ Lexer init_lexer() {
   return lexer;
 }
 
-void load_tokens(Lexer *lexer, char *file) {
+void load_tokens(Lexer *lexer, const char *file) {
   while (true) {
     char cur_char = file[lexer->start_index];
 
@@ -285,7 +285,7 @@ void load_tokens(Lexer *lexer, char *file) {
   add_token(TOKEN_EOF, lexer);
 }
 
-void print_tokens(Lexer *lexer, char *file) {
+void print_tokens(const Lexer *lexer, const char *file) {
   for (int i = 0; i < lexer->tokens->count; i++) {
     printf("%1s line %-5d", "", lexer->tokens->items[i].line);
     printf("%*s", 6, "");
@@ -302,7 +302,7 @@ void print_tokens(Lexer *lexer, char *file) {
   }
 }
 
-static void add_token(TokenType type, Lexer *lexer) {  
+static void add_token(TokenType type, const Lexer *lexer) {
   Token new_token = {
     .type = type,
     .start_index = lexer->start_index,
@@ -313,7 +313,7 @@ static void add_token(TokenType type, Lexer *lexer) {
   dynamic_array_add(lexer->tokens, new_token, TOKEN_ARRAY_START_SIZE);
 }
 
-static void add_char_constant(Lexer *lexer, char *file) {
+static void add_char_constant(Lexer *lexer, const char *file) {
   lexer->current_index++;
   int start_index = lexer->current_index;
 
@@ -324,7 +324,7 @@ static void add_char_constant(Lexer *lexer, char *file) {
   lexer->current_index++;
   
   if (file[lexer->current_index] != '\'') {
-    input_error_with_line("Characted contant contains more than one character", lexer->line);
+    input_error_with_line("Character constant contains more than one character", lexer->line);
   }
   
   Token char_constant_token = {
@@ -337,7 +337,7 @@ static void add_char_constant(Lexer *lexer, char *file) {
   dynamic_array_add(lexer->tokens, char_constant_token, TOKEN_ARRAY_START_SIZE);
 }
 
-static void add_string_literal(Lexer *lexer, char *file) {
+static void add_string_literal(Lexer *lexer, const char *file) {
   lexer->current_index++;
   int start_index = lexer->current_index;
 
@@ -380,7 +380,7 @@ static bool is_valid_post_constant_character(char character) {
   return true;
 }
 
-static void add_constant_token(Lexer *lexer, char *file) {
+static void add_constant_token(Lexer *lexer, const char *file) {
   while (file[lexer->current_index + 1] != '\0' && is_numeric_char(file[lexer->current_index + 1])) {
     lexer->current_index++;
   }
@@ -447,7 +447,7 @@ static void add_constant_token(Lexer *lexer, char *file) {
   add_token(TOKEN_CONSTANT_INT, lexer); 
 }
 
-static void add_identifier_token(Lexer *lexer, char *file) {
+static void add_identifier_token(Lexer *lexer, const char *file) {
   while (file[lexer->current_index + 1] != '\0' && (is_alpha_char(file[lexer->current_index + 1]) || is_numeric_char(file[lexer->current_index + 1]) || file[lexer->current_index + 1] == '_')) {
     lexer->current_index++;
   }
@@ -457,7 +457,7 @@ static void add_identifier_token(Lexer *lexer, char *file) {
   add_token(type, lexer);
 }
 
-static TokenType check_keyword(int start, int length, char *rest, TokenType type, Lexer *lexer, char *file) { 
+static TokenType check_keyword(int start, int length, const char *rest, TokenType type, const Lexer *lexer, const char *file) {
   if (lexer->current_index - lexer->start_index == (start + length) - 1 && memcmp(&file[lexer->start_index + start], rest, length) == 0) {
     return type;
   }
@@ -465,7 +465,7 @@ static TokenType check_keyword(int start, int length, char *rest, TokenType type
   return TOKEN_IDENTIFIER;
 }
 
-static TokenType get_identifier_type(Lexer *lexer, char *file) {
+static TokenType get_identifier_type(const Lexer *lexer, const char *file) {
   switch (file[lexer->start_index]) {
     case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK, lexer, file);
     case 'c': {
@@ -529,7 +529,7 @@ static TokenType get_identifier_type(Lexer *lexer, char *file) {
   return TOKEN_IDENTIFIER;
 }
 
-static bool peek_next(Lexer *lexer, char *file, char find_character) {
+static bool peek_next(const Lexer *lexer, const char *file, char find_character) {
   if (file[lexer->current_index + 1] == '\0') {
     return false;
   }

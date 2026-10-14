@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "../include/arena.h"
 #include "../include/error.h"
 
@@ -26,7 +24,7 @@ void* arena_alloc(Arena *arena) {
 
   //Notes on char* cast:
   //At first glance, it might look odd that we're casting to char *, but this is very intentional in C. In C, pointer arithmetic (i.e., adding an offset to a pointer) is done in units of the size of the pointed-to type. The char type in C is exactly 1 byte by definition. By casting void* to char*, you're saying ""Hey, I want to move this pointer in byte-sized steps."
-  void *current_offset = (void*)((char *)arena->allocation + arena->offset);
+  void *current_offset = (char *)arena->allocation + arena->offset;
 
   arena->offset += arena->base_size;
   arena->max_index = arena->offset / arena->base_size;

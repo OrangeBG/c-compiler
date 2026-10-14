@@ -123,7 +123,7 @@ static void         parse_factor_prefix_expression(Parser *parser, AstNode *fact
 static void         parse_factor_parenthetical_expression(Parser *parser, AstNode **factor_node); 
 static void         parse_factor_cast_expression(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_goto_label(Parser *parser, AstNode *factor_node); 
-static void         parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier);
+static void         parse_factor_variable_expression(const Parser *parser, AstNode *factor_node, char *label_identifier);
 static void         parse_factor_function_call(Parser *parser, AstNode *factor_node, char *identifier); 
 static void         parse_factor_address_of(Parser *parser, AstNode *factor_node); 
 static void         parse_factor_dereference(Parser *parser, AstNode *factor_node); 
@@ -1882,7 +1882,7 @@ static void parse_factor_goto_label(Parser *parser, AstNode *factor_node) {
   factor_node->data.statement_goto_label.label = label_identifier;
 }
 
-static void parse_factor_variable_expression(Parser *parser, AstNode *factor_node, char *label_identifier) {
+static void parse_factor_variable_expression(const Parser *parser, AstNode *factor_node, char *label_identifier) {
   factor_node->line_number = current_token(parser)->line;
   factor_node->type = AST_EXPRESSION_VARIABLE;
   factor_node->data.expression_variable.identifier = label_identifier;
@@ -2309,7 +2309,14 @@ static void add_function_parameter_to_declarator(Declarator *function_declarator
   if (function_declarator->data.function_declarator.param_count == function_declarator->data.function_declarator.param_capacity) {
     int size = function_declarator->data.function_declarator.param_capacity == 0 ? FUNCTION_DECLARATOR_INIT_CAPACITY : function_declarator->data.function_declarator.param_capacity * 2;
     function_declarator->data.function_declarator.param_capacity = size;
-    function_declarator->data.function_declarator.declarator_parameters = realloc(function_declarator->data.function_declarator.declarator_parameters, size * sizeof(DeclaratorParameter));    
+
+    void *declarator_params = realloc(function_declarator->data.function_declarator.declarator_parameters, size * sizeof(DeclaratorParameter));
+
+    if (!declarator_params) {
+      panic("Reallocation in add_function_parameter_to_declarator returned null");
+    }
+
+    function_declarator->data.function_declarator.declarator_parameters = declarator_params;
   }
 
   int count = function_declarator->data.function_declarator.param_count;
@@ -2350,6 +2357,7 @@ char* get_binary_op_type_string(BinaryOpType op_type) {
     case AST_BINARY_BITWISE_XOR:          return "Bitwise XOR";
     case AST_BINARY_BITWISE_LEFT_SHIFT:   return "Bitwise Left Shift";
     case AST_BINARY_BITWISE_RIGHT_SHIFT:  return "Bitwise Right Shift";
+    default: panic("Binary Op type '%d' not supported in get_binary_op_type_string()", op_type)
   }
 }
 

@@ -1,6 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "../include/symbol.h"
 #include "../include/error.h"
 
