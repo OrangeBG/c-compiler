@@ -9,9 +9,9 @@
 #define HASH_TABLE_INITIAL_CAPACITY 8
 #define HASH_TABLE_MAX_LOAD 0.75
 
-static uint32_t        hash_key(char *key);
+static uint32_t        hash_key(const char *key);
 static void            hash_table_expand(HashTable *table, int new_capacity); 
-static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key); 
+static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, const char *key);
 
 void hash_table_init(HashTable *table) {
   table->capacity = 0;
@@ -19,7 +19,7 @@ void hash_table_init(HashTable *table) {
   table->entries = NULL;
 }
 
-void hash_table_print(HashTable *table) {
+void hash_table_print(const HashTable *table) {
   printf("HashTable:\n");
 
   for (int i = 0; i < table->capacity; i++) {
@@ -46,7 +46,7 @@ void hash_table_print(HashTable *table) {
   }
 }
 
-void hash_table_delete_entry(HashTable *table, char *key) {
+void hash_table_delete_entry(const HashTable *table, const char *key) {
   HashTableEntry *entry = hash_table_get_entry(table, key);
 
   if (entry == NULL) {
@@ -57,7 +57,7 @@ void hash_table_delete_entry(HashTable *table, char *key) {
   entry->value->type = HASH_TOMBSTONE;
 }
 
-void hash_table_add_entry(HashTable *table, HashTableEntry *entry) {
+void hash_table_add_entry(HashTable *table, const HashTableEntry *entry) {
   HashTableEntry *found_entry = hash_table_get_entry(table, entry->key);
 
   if (found_entry != NULL && found_entry->key != NULL) {
@@ -106,7 +106,7 @@ static void hash_table_expand(HashTable *table, int new_capacity) {
   table->entries = new_entries;  
 }
 
-HashTableEntry* hash_table_get_entry(HashTable *table, char *key) {
+HashTableEntry* hash_table_get_entry(const HashTable *table, const char *key) {
   if (table->capacity == 0) {
     return NULL;
   }
@@ -117,8 +117,8 @@ HashTableEntry* hash_table_get_entry(HashTable *table, char *key) {
 }
 
 //Uses FNV-1A hash algorithm
-static uint32_t hash_key(char *key) {
-  int key_length = strlen(key);
+static uint32_t hash_key(const char *key) {
+  size_t key_length = strlen(key);
   uint32_t hash = 2166136261u;
 
   for (int i = 0; i < key_length; i++) {
@@ -130,9 +130,9 @@ static uint32_t hash_key(char *key) {
 }
 
 //Using Linear probing
-static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, char *key) {
+static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int capacity, const char *key) {
   uint32_t hash = hash_key(key);
-  int index = hash % capacity;
+  uint32_t index = hash % capacity;
 
   while (true) {
     HashTableEntry *entry = &entries[index]; 
@@ -149,7 +149,7 @@ static HashTableEntry* hash_table_get_with_entries(HashTableEntry *entries, int 
   }
 }
 
-HashTable* hash_table_clone(HashTable *table) {
+HashTable* hash_table_clone(const HashTable *table) {
   HashTable *table_copy = malloc(sizeof(HashTable));
 
   if (table->count == 0) {

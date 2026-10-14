@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 #include "../include/lexer.h"
 #include "../include/dynamic_array.h"
@@ -66,9 +65,10 @@ void load_tokens(Lexer *lexer, char *file) {
     }
 
     switch (cur_char) {
-      case ' ':  break;
-      case '\t': break;
-      case '\r': break;
+      case ' ':
+      case '\t':
+      case '\r':
+        break;
       case '\n': lexer->line++; break;
       case '(':  add_token(TOKEN_OPEN_PAREN, lexer); break;
       case ')':  add_token(TOKEN_CLOSE_PAREN, lexer); break;
@@ -523,6 +523,7 @@ static TokenType get_identifier_type(Lexer *lexer, char *file) {
     case 'u': return check_keyword(1, 7, "nsigned", TOKEN_UNSIGNED, lexer, file);
     case 'v': return check_keyword(1, 3, "oid", TOKEN_VOID, lexer, file);
     case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE, lexer, file);
+    default:  return TOKEN_IDENTIFIER;
   }
 
   return TOKEN_IDENTIFIER;
