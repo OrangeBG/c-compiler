@@ -1,10 +1,9 @@
-#include <stdio.h>
 #include "../include/types.h"
 #include "../include/error.h"
 
 #define FUNCTION_PARAMETER_TYPE_INIT_CAPACITY 4
 
-size_t get_type_size(TypeNode *type_node) {
+size_t get_type_size(const TypeNode *type_node) {
   switch(type_node->type) {
     case TYPE_INT:           return sizeof(int);
     case TYPE_UINT:          return sizeof(unsigned int);
@@ -31,7 +30,7 @@ bool is_type_signed(Types type) {
   }
 }
 
-bool is_arithmetic_type(TypeNode *type_node) {
+bool is_arithmetic_type(const TypeNode *type_node) {
   /*
     @Note: Pointers and arrays are not considered arithmetic types.
     ISO 9899:2018 - p.32 - "Integer and floating types are collectively called 'arithmetic types'"  
@@ -51,7 +50,7 @@ bool is_arithmetic_type(TypeNode *type_node) {
   }
 }
 
-bool is_integer_type(TypeNode *type_node) {
+bool is_integer_type(const TypeNode *type_node) {
   switch(type_node->type) {
     case TYPE_INT:
     case TYPE_UINT:
@@ -63,7 +62,7 @@ bool is_integer_type(TypeNode *type_node) {
   }
 }
 
-bool is_character_type(TypeNode *type_node) {
+bool is_character_type(const TypeNode *type_node) {
   switch(type_node->type) {
     case TYPE_CHAR:
     case TYPE_SIGNED_CHAR:
@@ -93,7 +92,7 @@ char* get_type_string(Types type) {
   }
 }
 
-void print_type_node(TypeNode *type_node) {
+void print_type_node(const TypeNode *type_node) {
   switch (type_node->type) {
     case TYPE_VOID:           printf("void"); break;
     case TYPE_INT:            printf("int"); break;
@@ -121,18 +120,25 @@ void print_type_node(TypeNode *type_node) {
   }
 }
 
-void add_function_parameter_type(TypeNode *parameter_type, TypeNode *function_type) {
+void add_function_parameter_type(const TypeNode *parameter_type, TypeNode *function_type) {
   if (function_type->data.function_type.param_type_count == function_type->data.function_type.param_type_capacity) {
     int size = function_type->data.function_type.param_type_capacity == 0 ? FUNCTION_PARAMETER_TYPE_INIT_CAPACITY : function_type->data.function_type.param_type_capacity * 2;
     function_type->data.function_type.param_type_capacity = size;
-    function_type->data.function_type.param_types = realloc(function_type->data.function_type.param_types, size * sizeof(TypeNode));
+
+    void *param_types = realloc(function_type->data.function_type.param_types, size * sizeof(TypeNode));
+
+    if (!param_types) {
+      panic("Could not reallocate param types in add_function_parameter_type");
+    }
+
+    function_type->data.function_type.param_types = param_types;
   }
 
   function_type->data.function_type.param_types[function_type->data.function_type.param_type_count] = *parameter_type;
   function_type->data.function_type.param_type_count++;
 }   
 
-size_t get_pointer_base_size(TypeNode *pointer_node) {
+size_t get_pointer_base_size(const TypeNode *pointer_node) {
   if (pointer_node->type != TYPE_POINTER) {
     panic("Passed non-pointer to get_pointer_base_size()");
   }
@@ -148,7 +154,7 @@ size_t get_pointer_base_size(TypeNode *pointer_node) {
   return get_type_size(pointer_node->data.pointer_type.reference_type);
 }
 
-TypeNode* get_pointer_base_type(TypeNode *pointer_node) {
+TypeNode* get_pointer_base_type(const TypeNode *pointer_node) {
   if (pointer_node->type != TYPE_POINTER) {
     panic("Passed non-pointer to get_pointer_base_type()");
   }
@@ -171,7 +177,7 @@ TypeNode* get_pointer_base_type(TypeNode *pointer_node) {
   return pointer_node->data.pointer_type.reference_type;
 }
 
-size_t get_array_base_size(TypeNode *array_node) {
+size_t get_array_base_size(const TypeNode *array_node) {
   if (array_node->type != TYPE_ARRAY) {
     panic("Passed non-array to get_array_base_size()");
   }
@@ -183,7 +189,7 @@ size_t get_array_base_size(TypeNode *array_node) {
   return get_type_size(array_node->data.array_type.element_type);
 } 
 
-TypeNode* get_array_base_type(TypeNode *array_node)  {
+TypeNode* get_array_base_type(const TypeNode *array_node)  {
   if (array_node->type != TYPE_ARRAY) {
     panic("Passed non-array to get_array_base_type()");
   }

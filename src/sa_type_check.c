@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include "../include/sa_type_check.h"
@@ -13,32 +12,32 @@
 #define IDENTIFIER_BUFFER 256
 
 static void             function_and_variable_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
-static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, SymbolTable *symbol_table, ParserResults *parser_results); 
-static void             update_symbol_block_scoped_extern_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name); 
-static void             update_symbol_block_scoped_static_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name); 
-static void             update_symbol_file_scope_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table); 
+static void             add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, SymbolTable *symbol_table, const ParserResults *parser_results);
+static void             update_symbol_block_scoped_extern_variable(const AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name);
+static void             update_symbol_block_scoped_static_variable(const AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name);
+static void             update_symbol_file_scope_variable(const AstNode *variable_declaration_node, SymbolTable *symbol_table);
 static TypeNode*        type_check_init(TypeNode *target_type, AstNode *ast_initializer, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check(AstNode *node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary(AstNode *binary_node, AstNode *function_declaration_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results);  
-static TypeNode*        expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results); 
+static TypeNode*        expression_type_check_binary_logical(AstNode *node, const ParserResults *parser_results);
 static TypeNode*        expression_type_check_binary_add(AstNode *add_node, TypeNode *left_expression_type, TypeNode *right_expression_type,  SymbolTable *symbol_table, ParserResults *parser_results); 
 static TypeNode*        expression_type_check_binary_subtract(AstNode *subtract_node, TypeNode *left_expression_type, TypeNode *right_expression_type, SymbolTable *symbol_table, ParserResults *parser_results);  
 static TypeNode*        expression_type_check_and_convert(AstNode *source_node, AstNode **node, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results);
-static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2, ParserResults *parser_results);
+static TypeNode*        get_common_real_type(TypeNode *type_1, TypeNode *type_2, const ParserResults *parser_results);
 static TypeNode*        get_common_pointer_type(AstNode *source, AstNode *expression_1, AstNode *expression_2, SymbolTable *symbol_table, AstNode *function_declaration_node, ParserResults *parser_results); 
 static TypeNode*        get_type(AstNode *ast_node);
-static AstNode*         convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results); 
-static long             convert_variable_declaration_constant_to_long(AstNode *constant_node); 
-static int              convert_variable_declaration_constant_to_int(AstNode *constant_node); 
-static unsigned long    convert_variable_declaration_constant_to_ulong(AstNode *constant_node); 
-static unsigned int     convert_variable_declaration_constant_to_uint(AstNode *constant_node); 
-static double           convert_variable_declaration_constant_to_double(AstNode *constant_node); 
-static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results); 
-static bool             is_null_pointer_constant(AstNode *ast_node);
+static AstNode*         convert_to(AstNode *expression, const TypeNode *expression_type, TypeNode *target_type, const ParserResults *parser_results);
+static long             convert_variable_declaration_constant_to_long(const AstNode *constant_node);
+static int              convert_variable_declaration_constant_to_int(const AstNode *constant_node);
+static unsigned long    convert_variable_declaration_constant_to_ulong(const AstNode *constant_node);
+static unsigned int     convert_variable_declaration_constant_to_uint(const AstNode *constant_node);
+static double           convert_variable_declaration_constant_to_double(const AstNode *constant_node);
+static AstNode*         convert_by_assignment(AstNode *right_assignment_expression, const TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results);
+static bool             is_null_pointer_constant(const AstNode *ast_node);
 static AstNode*         zero_initializer(const TypeNode *type_node, const ParserResults *parser_results);
-static InitialValue*    add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init); 
-static InitialValue*    add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init);
-static InitialValue*    add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value);
+static InitialValue*    add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, const TypeNode *declaration_type, const AstNode *single_init);
+static InitialValue*    add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, const TypeNode *declaration_type, const AstNode *compound_init);
+static InitialValue*    add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, const TypeNode *declaration_type, AstNode *single_init, char *string_value);
 
 void sa_type_check(ParserResults *parser_results, SymbolTable *symbol_table) {
   AstNode *ast_nodes = arena_get_by_index(parser_results->ast_node_arena, 0);
@@ -154,7 +153,7 @@ static void function_and_variable_type_check(AstNode *node, SymbolTable *symbol_
         add_function_parameter_to_symbol_table(parameter_type, node->data.declaration_function.parameter_identifiers[i], node->data.declaration_function.name, symbol_table, parser_results);
       }
 
-      Symbol *function_symbol = add_function_symbol(symbol_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.function_type.return_type, node->data.declaration_function.function_type->data.function_type.param_type_count, param_types, is_global, is_defined);
+      add_function_symbol(symbol_table, node->data.declaration_function.name, node->data.declaration_function.function_type->data.function_type.return_type, node->data.declaration_function.function_type->data.function_type.param_type_count, param_types, is_global, is_defined);
 
       if (node->data.declaration_function.body_block != NULL) {
         function_and_variable_type_check(node->data.declaration_function.body_block, symbol_table, node, parser_results);
@@ -397,7 +396,7 @@ static AstNode* zero_initializer(const TypeNode *type_node, const ParserResults 
 }
 
 
-static void update_symbol_file_scope_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table) { 
+static void update_symbol_file_scope_variable(const AstNode *variable_declaration_node, SymbolTable *symbol_table) {
   InitializationType initialization_type; 
   InitialValueArray *initial_value_array = initial_value_array_init();
   
@@ -467,7 +466,7 @@ static void update_symbol_file_scope_variable(AstNode *variable_declaration_node
   }
 }
 
-static void update_symbol_block_scoped_extern_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
+static void update_symbol_block_scoped_extern_variable(const AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
     if (variable_declaration_node->data.declaration_variable.has_expression) {
       input_error_with_line("Initializer on local extern variable declaration '%s'", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
     }
@@ -484,7 +483,7 @@ static void update_symbol_block_scoped_extern_variable(AstNode *variable_declara
     }
 }
 
-static void update_symbol_block_scoped_static_variable(AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
+static void update_symbol_block_scoped_static_variable(const AstNode *variable_declaration_node, SymbolTable *symbol_table, char *function_name) {
   InitialValueArray *initial_value_array = initial_value_array_init();
 
   if (!variable_declaration_node->data.declaration_variable.has_expression) {
@@ -558,7 +557,7 @@ static void update_symbol_block_scoped_static_variable(AstNode *variable_declara
   input_error_with_line("Non-constant initializer on local static variable '%s'\n", variable_declaration_node->line_number, variable_declaration_node->data.declaration_variable.name);
 }
 
-static InitialValue* add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init) {
+static InitialValue* add_variable_declaration_single_init_to_array(InitialValueArray *initial_value_array, const TypeNode *declaration_type, const AstNode *single_init) {
   InitialValue *initial_value = malloc(sizeof(InitialValue));
 
   AstNode *constant_node = single_init->data.initializer.initializer_node.single_init_expression; 
@@ -611,7 +610,7 @@ static InitialValue* add_variable_declaration_single_init_to_array(InitialValueA
   return initial_value;
 }
 
-static InitialValue* add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *compound_init) {
+static InitialValue* add_variable_declaration_compound_init_to_array(InitialValueArray *initial_value_array, const TypeNode *declaration_type, const AstNode *compound_init) {
   InitialValue *initial_value = malloc(sizeof(InitialValue));
 
   if (declaration_type->data.array_type.element_type->type == TYPE_ARRAY) {
@@ -625,7 +624,7 @@ static InitialValue* add_variable_declaration_compound_init_to_array(InitialValu
       size_t size = get_array_base_size(declaration_type);
 
       initial_value->type = INITIAL_VALUE_TYPE_ZERO_INIT;
-      //TODO: Warning. Casting to int.
+      //@Warning - Casting to int.
       initial_value->data.zero_init_array_bytes = (int)size * (compound_diff * (int)declaration_type->data.array_type.size);
       dynamic_array_add(initial_value_array, *initial_value, STATIC_INITIAL_VALUE_CAPACITY);
     }
@@ -649,7 +648,7 @@ static InitialValue* add_variable_declaration_compound_init_to_array(InitialValu
   return initial_value;
 }
 
-static InitialValue* add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, TypeNode *declaration_type, AstNode *single_init, char *string_value) {
+static InitialValue* add_variable_declaration_string_literal_array(InitialValueArray *initial_value_array, const TypeNode *declaration_type, AstNode *single_init, char *string_value) {
   InitialValue *initial_value = malloc(sizeof(InitialValue));
 
   initial_value->type = INITIAL_VALUE_TYPE_STRING;
@@ -995,7 +994,7 @@ static TypeNode* expression_type_check(AstNode *node, SymbolTable *symbol_table,
   }
 }
 
-static TypeNode* expression_type_check_binary_logical(AstNode *node, ParserResults *parser_results) {
+static TypeNode* expression_type_check_binary_logical(AstNode *node, const ParserResults *parser_results) {
   TypeNode *expression_type_node = arena_alloc(parser_results->type_node_arena);
   expression_type_node->type = TYPE_INT;
 
@@ -1101,7 +1100,7 @@ static TypeNode* expression_type_check_binary_subtract(AstNode *subtract_node, T
   input_error_with_line("Invalid operands for subtraction", subtract_node->line_number);
 }
 
-static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2, ParserResults *parser_results) {
+static TypeNode* get_common_real_type(TypeNode *type_1, TypeNode *type_2, const ParserResults *parser_results) {
   if (is_character_type(type_1)) {
     //@Debt: Generic type nodes like int should be initialized once and accessible from any place that needs it
     TypeNode *int_type = arena_alloc(parser_results->type_node_arena);
@@ -1230,7 +1229,7 @@ static TypeNode* get_type(AstNode *ast_node) {
   return cur_type_node;
 }
 
-static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeNode *target_type, ParserResults *parser_results) {
+static AstNode* convert_to(AstNode *expression, const TypeNode *expression_type, TypeNode *target_type, const ParserResults *parser_results) {
   if (expression_type->type == target_type->type) {
     return expression;
   }
@@ -1267,7 +1266,7 @@ static AstNode* convert_to(AstNode *expression, TypeNode *expression_type, TypeN
   return casted_expression;
 }
 
-static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, SymbolTable *symbol_table, ParserResults *parser_results) {
+static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, char *parameter_identifier, char *function_name, SymbolTable *symbol_table, const ParserResults *parser_results) {
   if (parameter_type->type == TYPE_VOID) {
     return;
   }
@@ -1287,7 +1286,7 @@ static void add_function_parameter_to_symbol_table(TypeNode *parameter_type, cha
   }
 }
 
-static long convert_variable_declaration_constant_to_long(AstNode *constant_node) {
+static long convert_variable_declaration_constant_to_long(const AstNode *constant_node) {
   switch (constant_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:    return (long)constant_node->data.expression_constant.int_value;
     case AST_CONSTANT_TYPE_UINT:   return (long)constant_node->data.expression_constant.uint_value;
@@ -1298,7 +1297,7 @@ static long convert_variable_declaration_constant_to_long(AstNode *constant_node
   }
 }
 
-static int convert_variable_declaration_constant_to_int(AstNode *constant_node) {
+static int convert_variable_declaration_constant_to_int(const AstNode *constant_node) {
   switch (constant_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:    return constant_node->data.expression_constant.int_value;
     case AST_CONSTANT_TYPE_UINT:   return (int)constant_node->data.expression_constant.uint_value;
@@ -1311,7 +1310,7 @@ static int convert_variable_declaration_constant_to_int(AstNode *constant_node) 
   }
 }
 
-static unsigned int convert_variable_declaration_constant_to_uint(AstNode *constant_node) {
+static unsigned int convert_variable_declaration_constant_to_uint(const AstNode *constant_node) {
   switch (constant_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:    return (unsigned int)constant_node->data.expression_constant.int_value;
     case AST_CONSTANT_TYPE_UINT:   return constant_node->data.expression_constant.uint_value;
@@ -1324,7 +1323,7 @@ static unsigned int convert_variable_declaration_constant_to_uint(AstNode *const
   }
 }
 
-static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *constant_node) {
+static unsigned long convert_variable_declaration_constant_to_ulong(const AstNode *constant_node) {
   switch (constant_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:    return (unsigned long)constant_node->data.expression_constant.int_value;
     case AST_CONSTANT_TYPE_UINT:   return (unsigned long)constant_node->data.expression_constant.uint_value;
@@ -1337,7 +1336,7 @@ static unsigned long convert_variable_declaration_constant_to_ulong(AstNode *con
   }
 }
 
-static double convert_variable_declaration_constant_to_double(AstNode *constant_node) {
+static double convert_variable_declaration_constant_to_double(const AstNode *constant_node) {
   switch (constant_node->data.expression_constant.constant_type) {
     case AST_CONSTANT_TYPE_INT:    return (double)constant_node->data.expression_constant.int_value;
     case AST_CONSTANT_TYPE_UINT:   return (double)constant_node->data.expression_constant.uint_value;
@@ -1350,7 +1349,7 @@ static double convert_variable_declaration_constant_to_double(AstNode *constant_
   }
 }
 
-static bool is_null_pointer_constant(AstNode *ast_node) {
+static bool is_null_pointer_constant(const AstNode *ast_node) {
   // Defining null pointer constants more narrowly than the C standard
   if (ast_node->type != AST_EXPRESSION_CONSTANT) {
     return false;
@@ -1367,7 +1366,7 @@ static bool is_null_pointer_constant(AstNode *ast_node) {
   }
 }
 
-static AstNode* convert_by_assignment(AstNode *right_assignment_expression, TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
+static AstNode* convert_by_assignment(AstNode *right_assignment_expression, const TypeNode *right_assignment_type, TypeNode *target_type, ParserResults *parser_results) {
   // TypeNode *right_base_type = get_type(right_assignment_expression);
   // TypeNode *target_base_type = target_type;
   //
@@ -1379,7 +1378,7 @@ static AstNode* convert_by_assignment(AstNode *right_assignment_expression, Type
   //   return right_assignment_expression;
   // }
 
-  //@Note: This is to get the base type of dereferenced arrays (happens for subscript converstions)
+  //@Note: This is to get the base type of dereferenced arrays (happens for subscript conversions)
   // if (right_assignment_expression->type == AST_EXPRESSION_ADDRESS_OF && right_assignment_expression->data.expression_address_of.expression->type == AST_EXPRESSION_DEREFERENCE && right_assignment_type->type == TYPE_POINTER && right_assignment_type->data.pointer_type.reference_type->type == TYPE_ARRAY) {
   //   right_assignment_type = get_array_base_type(right_assignment_type->data.pointer_type.reference_type);
   // }

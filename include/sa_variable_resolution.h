@@ -3,6 +3,6 @@
 
 #include "../include/parser.h"
 
-void sa_variable_resolution(AstNode *ast_nodes);
+void sa_variable_resolution(const AstNode *ast_nodes);
 
 #endif

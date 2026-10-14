@@ -1,6 +1,5 @@
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "../include/sa_variable_resolution.h"
 #include "../include/hash_table.h"
@@ -32,14 +31,14 @@ typedef struct {
 static VariableResolution* init_variable_resolution();
 static void variable_resolve_node(AstNode *node, VariableResolution *variable_resolution); 
 static void resolve_file_scope_variable_declaration(char *identifier, enum DeclarationType declaration_type, HashTable *declaration_table);  
-static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, VariableResolution *variable_resolution);   
+static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, const VariableResolution *variable_resolution);
 static void add_declaration_to_table(Declaration *declaration, char* identifier_key, HashTable *declaration_table); //TODO: This will be moved to the type checker
 static char* get_identifier_with_stack_offset(char *identifier, int stack_offset, int function_count, int block_count); 
 static void push_new_declaration_stack(Stack *declaration_stack); 
-static void resolve_function_parameter(TypeNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, VariableResolution *variable_resolution); 
-static void print_declaration_stack(Stack *declaration_stack);
+static void resolve_function_parameter(const TypeNode *param_type_node, const AstNode *function_declaration_node, int identifier_idx, const VariableResolution *variable_resolution);
+static void print_declaration_stack(const Stack *declaration_stack);
 
-void sa_variable_resolution(AstNode *ast_nodes) {
+void sa_variable_resolution(const AstNode *ast_nodes) {
   VariableResolution *variable_resolution = init_variable_resolution();
 
   for (int i = 0; i < ast_nodes->data.program.declaration_count; i++) {
@@ -277,10 +276,9 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
       StackValue *declaration_top_stack = stack_top(variable_resolution->declaration_stack);
       HashTable *declaration_table = declaration_top_stack->data.hash_table;
 
-      HashTableEntry *entry;
       char *identifier = get_identifier_with_stack_offset(node->data.expression_variable.identifier, variable_resolution->declaration_stack->count, variable_resolution->function_count, variable_resolution->block_count);
 
-      entry = hash_table_get_entry(declaration_table, identifier);
+      HashTableEntry *entry = hash_table_get_entry(declaration_table, identifier);
 
       if (entry != NULL && entry->key != NULL) {
         Declaration *declaration = entry->value->structure;
@@ -345,7 +343,7 @@ static void variable_resolve_node(AstNode *node, VariableResolution *variable_re
 } 
 
 static void resolve_file_scope_variable_declaration(char *identifier, enum DeclarationType declaration_type, HashTable *declaration_table) {  
-  HashTableEntry *table_entry = hash_table_get_entry(declaration_table, identifier);
+  //HashTableEntry *table_entry = hash_table_get_entry(declaration_table, identifier);
 
   Declaration *file_scope_declaration = malloc(sizeof(Declaration));
   file_scope_declaration->declaration_type = declaration_type;
@@ -356,7 +354,7 @@ static void resolve_file_scope_variable_declaration(char *identifier, enum Decla
   add_declaration_to_table(file_scope_declaration, identifier, declaration_table);
 }
 
-static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, VariableResolution *variable_resolution) {  
+static void resolve_local_scope_variable_declaration(AstNode *ast_node, enum DeclarationType declaration_type, const VariableResolution *variable_resolution) {
   char *identifier = ast_node->data.declaration_variable.name;
   char *converted_identifier = malloc(IDENTIFIER_BUFFER);
   snprintf(converted_identifier, IDENTIFIER_BUFFER, "%s.%d.%d.%d", identifier, variable_resolution->declaration_stack->count, variable_resolution->function_count, variable_resolution->block_count);
@@ -436,7 +434,7 @@ static void push_new_declaration_stack(Stack *declaration_stack) {
   stack_push(declaration_stack, new_stack_value);
 }
 
-static void resolve_function_parameter(TypeNode *param_type_node, AstNode *function_declaration_node, int identifier_idx, VariableResolution *variable_resolution) {
+static void resolve_function_parameter(const TypeNode *param_type_node, const AstNode *function_declaration_node, int identifier_idx, const VariableResolution *variable_resolution) {
   if (param_type_node->type == TYPE_VOID) {
     return;
   }
@@ -469,7 +467,7 @@ static void resolve_function_parameter(TypeNode *param_type_node, AstNode *funct
   function_declaration_node->data.declaration_function.parameter_identifiers[identifier_idx] = converted_identifier;
 }
 
-static void print_declaration_stack(Stack *declaration_stack) {
+static void print_declaration_stack(const Stack *declaration_stack) {
   if (declaration_stack->count == 0) {
     printf("Stack Count is 0");
     return;
